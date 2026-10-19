@@ -10,7 +10,7 @@
 | 알고 싶은 것 | 어디 |
 |---|---|
 | 기능·화면·아키텍처·일정(정본) | project2 `docs/web/README.md`, `01-product.md`, `02-design.md`, `03-architecture.md`, `decisions.md` |
-| 화면 설계 샘플 | project2 `docs/web/wireframes.html` (이 저장소 CSS·차트는 여기서 옮겼다) |
+| 화면 설계 샘플 | [`docs/reference/wireframes.html`](docs/reference/wireframes.html) (원본 project2 `docs/web/wireframes.html`). 옮기는 규칙은 [`docs/reference/README.md`](docs/reference/README.md) |
 | API 계약(앱·웹 공통) | project2 `docs/API.md`. 계약을 바꿀 때는 그 문서를 먼저 고친다 |
 
 ## 구조
@@ -26,6 +26,7 @@ src/                     웹사이트(Vite + React + TypeScript, React Router, T
   styles/global.css      디자인 토큰(:root)과 공통 클래스
 mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
 scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
+docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 ```
 
 ## 규칙

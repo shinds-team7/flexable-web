@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "텅장관리 시연",
+    "slug": "flexable-demo",
+    "version": "1.1.0",
+    "userInterfaceStyle": "light",
+    "platforms": ["web"],
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "텅장관리 시연",
+      "themeColor": "#0046FF"
+    },
+    "scheme": "flexable-demo",
+    "plugins": ["expo-router", "expo-font"],
+    "experiments": {
+      "baseUrl": "/m"
+    }
+  }
+}

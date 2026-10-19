@@ -18,7 +18,7 @@
 | `/news`, `/news/:id`, `/plus`, `/goal`, `/billing/result`, `/p/:id`, `/signup` | 소식 · 플러스 · 목표 · 결제 결과 · 공유 · 가입 | 자리만(팀원 개발) |
 | `/m/*` | 앱 시연(온보딩·홈·지출계획·분석·마이) | 완료(project2에서 옮김) |
 
-새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 project2 `docs/web/wireframes.html`의 같은 이름 화면을 따른다.
+새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).
 
 ## 로컬에서 띄우기
 

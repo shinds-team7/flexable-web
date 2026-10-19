@@ -6,6 +6,7 @@ import Login from '@/pages/Login';
 import Me from '@/pages/Me';
 import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
+import Plus from '@/pages/Plus';
 
 // 화면·경로 기준: project2 docs/web/README.md §5. 새 화면은 Placeholder 자리를 바꿔 끼운다.
 export const router = createBrowserRouter([
@@ -25,7 +26,7 @@ export const router = createBrowserRouter([
       { path: '/lab/mix', element: <Navigate to="/mix" replace /> },
       { path: '/news', element: <Placeholder title="청년 금융 소식" desc="혜택 · 대상 · 마감 · 원문 · 계산 연결 · 챙기기" wireframe="청년 돈 소식" /> },
       { path: '/news/:id', element: <Placeholder title="소식 상세" desc="소식 한 건의 자세한 내용" wireframe="청년 돈 소식" /> },
-      { path: '/plus', element: <Placeholder title="플러스" desc="무료/유료 가치 · 모의 결제" wireframe="플러스" /> },
+      { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <Placeholder title="모의 결제 결과" desc="모의 완료 · 실패 · 해지 확인" wireframe="모의 결제 결과" /> },
       { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
       {

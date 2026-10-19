@@ -392,3 +392,40 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   .home-hero{flex-direction:column-reverse;align-items:flex-start}
   .profile{align-self:center}
 }
+
+/* 플러스: 가운데 정렬 요금제 카드 2장(고른 요금제는 브랜드 테두리) */
+.plus-page{max-width:900px}
+.plus-head{text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center;margin-bottom:24px}
+.plus-title{font-size:30px;line-height:40px;font-weight:800;margin-bottom:4px}
+.period-switch{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:28px}
+.plus-seg{border-radius:999px;padding:4px}
+.plus-seg button{height:38px;min-width:116px;border-radius:999px;font-size:14px}
+.plus-seg button[aria-pressed="true"]{background:var(--brand);color:var(--on-brand);box-shadow:none}
+.period-note{font-size:13px;font-weight:700;color:var(--positive)}
+.current-plan{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 20px;border:1px solid var(--line);margin-bottom:16px}
+.current-plan .k{font-weight:700}
+.plan-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;min-height:200px}
+.plan-card{border:1px solid var(--line);display:flex;flex-direction:column}
+.plan-card.plan-pick{border:2px solid var(--brand);padding:23px}
+.plan-top{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:24px}
+.plan-eyebrow{font-size:13px;font-weight:700;color:var(--brand-text)}
+.plan-eyebrow.muted{color:var(--text-muted)}
+.plan-badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:var(--positive);color:var(--on-brand);font-size:12px;font-weight:700;white-space:nowrap}
+:root[data-theme="dark"] .plan-badge{color:var(--bg)}
+.card .plan-name{font-size:22px;line-height:30px;margin-top:4px}
+.plan-price{margin-top:14px;display:flex;align-items:baseline;gap:2px}
+.plan-price b{font-size:34px;line-height:42px;font-weight:800}
+.plan-price span{font-size:14px;color:var(--text-muted);font-weight:600}
+.plan-cta{margin-top:16px;border-radius:999px}
+.plan-feats{list-style:none;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
+.plan-feats li{display:flex;gap:10px;align-items:flex-start}
+.plan-feats .k{font-size:14px;font-weight:700;line-height:22px}
+.plan-check{flex:none;color:var(--positive);margin-top:3px;display:inline-flex}
+.plan-compare{margin-top:16px;border-bottom:0}
+.plan-compare summary{font-weight:700;color:var(--brand-text)}
+.plan-faq{margin-top:16px}
+.plan-faq details:last-child{border-bottom:0}
+@media (max-width:767px){
+  .plan-cards{grid-template-columns:minmax(0,1fr)}
+  .plus-title{font-size:24px;line-height:32px}
+}

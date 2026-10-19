@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { Icon } from '@/components/Icons';
 import { usePlans, useSubscription, type Period, type PlanFeature, type Plans } from '@/data/plans';
-import { won } from '@/lib/format';
+import { fmtMonthDay, won } from '@/lib/format';
 
 function FeatureList({ items }: { items: PlanFeature[] }) {
   return (
@@ -54,7 +54,7 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
           <span>/{price.unit}</span>
         </p>
         <p className="meta">{period === 'YEARLY' ? '1년에 한 번 결제 · 언제든 해지' : '매달 결제 · 언제든 해지'}</p>
-        <button className="btn btn-primary btn-block plan-cta" onClick={start} disabled={isPlus}>
+        <button className="btn btn-primary btn-block plan-cta" onClick={start} disabled={isPlus || status === 'loading'}>
           {isPlus ? '지금 쓰는 요금제' : status === 'member' ? `${price.unit === '년' ? '연' : '월'} ${won(price.amount)}원으로 시작` : '로그인하고 시작하기'}
         </button>
         <FeatureList items={plans.plusFeatures} />
@@ -76,7 +76,7 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
             {isFree ? '지금 쓰는 요금제' : '무료 요금제'}
           </button>
         ) : (
-          <button className="btn btn-line btn-block plan-cta" onClick={() => navigate('/login', { state: { from: '/plus' } })}>
+          <button className="btn btn-line btn-block plan-cta" onClick={() => navigate('/login')} disabled={status === 'loading'}>
             무료로 시작하기
           </button>
         )}
@@ -128,7 +128,7 @@ export default function Plus() {
               <p className="k">{sub.data.plan === 'PLUS' ? '플러스' : '무료'}</p>
             </div>
             <p className="num">
-              {sub.data.plan === 'PLUS' && sub.data.planUntil ? `${sub.data.planUntil}까지` : '0원'}
+              {sub.data.plan === 'PLUS' && sub.data.planUntil ? `${fmtMonthDay(sub.data.planUntil)}까지` : '0원'}
             </p>
           </div>
         )}

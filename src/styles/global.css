@@ -412,7 +412,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
 .plan-eyebrow.muted{color:var(--text-muted)}
 .plan-badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:var(--positive);color:var(--on-brand);font-size:12px;font-weight:700;white-space:nowrap}
 :root[data-theme="dark"] .plan-badge{color:var(--bg)}
-.plan-name{font-size:22px !important;line-height:30px !important;margin-top:4px}
+.card .plan-name{font-size:22px;line-height:30px;margin-top:4px}
 .plan-price{margin-top:14px;display:flex;align-items:baseline;gap:2px}
 .plan-price b{font-size:34px;line-height:42px;font-weight:800}
 .plan-price span{font-size:14px;color:var(--text-muted);font-weight:600}

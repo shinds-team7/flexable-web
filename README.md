@@ -4,6 +4,7 @@
 
 - 웹: Vite + React + TypeScript · React Router · TanStack Query
 - 시연(`/m`): Expo 웹(예시 데이터, 서버 호출 없음)
+- 운영: https://flexable-web-delta.vercel.app (시연 `/m`). 운영 API의 CORS·OAuth 허용 목록에 이 주소가 들어 있다(10-19)
 - API 서버·계정·앱: [`shinds-team7/project2`](https://github.com/shinds-team7/project2) (계약 `docs/API.md`, 웹 계획 `docs/web/`)
 
 ## 경로
@@ -14,8 +15,10 @@
 | `/login`, `/oauth/callback` | 카카오·Google·이메일 로그인(실제 API) | 완료 |
 | `/home` | 시드머니 · 쌓인 모양(꺾은선) · 굴렸다면 · 코스피/코스닥 · 청년 금융 소식 | 화면 완료, 데이터는 예시(API 대기) |
 | `/me` | 계정 · 테마(라이트/다크) · 로그아웃 | 기본 완료 |
-| `/invest`, `/savings`, `/mix` | 주식 타임머신 · 적금 비교 · 섞어보기 | 자리만(팀원 개발) |
-| `/news`, `/news/:id`, `/plus`, `/goal`, `/billing/result`, `/p/:id`, `/signup` | 소식 · 플러스 · 목표 · 결제 결과 · 공유 · 가입 | 자리만(팀원 개발) |
+| `/invest`, `/savings`, `/mix` | 투자 시뮬레이션 · 적금 비교 · 섞어보기 (상단 메뉴) | 자리만(팀원 개발) |
+| `/goal`, `/news`, `/news/:id`, `/plus` | AI 목표 달성(로그인 필요) · 청년 금융 소식 · 소식 상세 · 플러스 (상단 메뉴) | 자리만(팀원 개발). AI 목표 달성의 AI 범위는 미정 |
+| `/billing/result`, `/p/:id`, `/signup` | 모의 결제 결과 · 공유 · 이메일 가입 | 자리만(팀원 개발) |
+| `/lab/*` | 예전 주소 → 새 경로로 이동 | 호환 |
 | `/m/*` | 앱 시연(온보딩·홈·지출계획·분석·마이) | 완료(project2에서 옮김) |
 
 새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).

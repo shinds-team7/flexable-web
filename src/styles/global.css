@@ -66,12 +66,6 @@ button{cursor:pointer}
 .popover h3{font-size:15px;color:var(--text);margin-bottom:6px}
 .popover p + p{margin-top:8px}
 
-.subnav{background:var(--card);border-bottom:1px solid var(--line)}
-.subnav .wrap{display:flex;gap:4px;height:48px;align-items:stretch;overflow-x:auto}
-.subnav a{display:flex;align-items:center;padding:0 14px;color:var(--text-muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
-.subnav a:hover{color:var(--text);text-decoration:none}
-.subnav a[aria-current="page"]{color:var(--text);border-bottom-color:var(--brand)}
-
 .demo-banner{background:var(--note);color:var(--note-ink);font-size:14px;border-bottom:1px dashed var(--note-line)}
 .demo-banner .wrap{display:flex;gap:12px;align-items:center;min-height:40px;flex-wrap:wrap;padding-top:6px;padding-bottom:6px}
 .demo-banner a{color:var(--note-ink);font-weight:700;text-decoration:underline}
@@ -332,8 +326,16 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   .rail-open-btn{display:inline-flex !important}
   .news-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+@media (max-width:1279px){
+  .topnav .wrap{gap:20px}
+  .mainnav a{padding:8px 9px;font-size:14px}
+}
 @media (max-width:1023px){
   .wrap,.page{padding-left:24px;padding-right:24px}
+  .mainnav{display:none;position:absolute;top:64px;left:0;right:0;background:var(--card);flex-direction:column;padding:8px 16px 16px;border-bottom:1px solid var(--line)}
+  .mainnav.open{display:flex}
+  .menu-btn{display:inline-flex;align-items:center}
+  .nav-right{margin-left:auto}
   .g84,.sim,.plan-grid,.news-feature{grid-template-columns:minmax(0,1fr)}
   .sim > .cond-col > .cond-full{display:none}
   .sim > .cond-col.expanded > .cond-full{display:flex}
@@ -347,9 +349,6 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
 @media (max-width:767px){
   .wrap,.page{padding-left:16px;padding-right:16px}
   .topnav .wrap{gap:12px}
-  .mainnav{display:none;position:absolute;top:64px;left:0;right:0;background:var(--card);flex-direction:column;padding:8px 16px 16px;border-bottom:1px solid var(--line)}
-  .mainnav.open{display:flex}
-  .menu-btn{display:inline-flex;align-items:center}
   .seed-chip{display:none}
   .stats{grid-template-columns:minmax(0,1fr)}
   .news-grid,.flow,.trust{grid-template-columns:minmax(0,1fr)}

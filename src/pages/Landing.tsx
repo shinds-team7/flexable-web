@@ -40,7 +40,7 @@ export default function Landing() {
     note.style.left = Math.max(0, parseFloat(pin.style.left) - note.offsetWidth - 14) + 'px';
     note.style.top = parseFloat(pin.style.top) - note.offsetHeight - 6 + 'px';
   };
-  const demo = '/lab/stocks?demo=1';
+  const demo = '/invest?demo=1';
 
   return (
     <section>
@@ -142,7 +142,7 @@ export default function Landing() {
           <div>
             <h2>적금 비교</h2>
             <p>같은 돈을 적금에 넣었다면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요. 광고로 순서를 바꾸지 않아요.</p>
-            <Link className="btn btn-soft" style={{ marginTop: 20 }} to="/lab/savings?demo=1">
+            <Link className="btn btn-soft" style={{ marginTop: 20 }} to="/savings?demo=1">
               예시로 해보기
             </Link>
           </div>
@@ -161,7 +161,7 @@ export default function Landing() {
         </div>
         <div className="feat">
           <div>
-            <h2>오늘의 청년 돈 소식</h2>
+            <h2>오늘의 청년 금융 소식</h2>
             <p>교통·주거·금융·일자리처럼 당장 돈을 아끼거나 받을 수 있는 소식을 매일 골라요. 마감이 가까운 건 먼저 보여주고, 공고문으로 바로 가요.</p>
             <Link className="btn btn-soft" style={{ marginTop: 20 }} to="/news">
               소식 보기

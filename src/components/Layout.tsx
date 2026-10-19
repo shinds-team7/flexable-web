@@ -1,4 +1,5 @@
-// 공통 틀: 상단 바(64px) + 굴려보기 하위 탭(48px). 본문 최대 1344px(패딩 포함 1280px).
+// 공통 틀: 상단 바(64px, 하위 탭 없음). 본문 최대 1344px(패딩 포함 1280px).
+// 로그인한 사용자는 로고를 누르면 홈(/home)으로 간다.
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
@@ -6,6 +7,16 @@ import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
 import { Logo } from './Icons';
+
+/** 상단 메뉴. 순서·이름은 팀장 결정(2026-10-19). AI 목표 달성은 로그인이 필요하다(손님은 로그인으로). */
+const NAV = [
+  { to: '/invest', label: '투자 시뮬레이션' },
+  { to: '/savings', label: '적금 비교' },
+  { to: '/mix', label: '섞어보기' },
+  { to: '/goal', label: 'AI 목표 달성' },
+  { to: '/news', label: '청년 금융 소식' },
+  { to: '/plus', label: '플러스' },
+];
 
 function SeedChip() {
   const { data } = useSeedMoney();
@@ -48,7 +59,6 @@ export function Layout() {
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const member = status === 'member';
-  const inLab = pathname.startsWith('/lab');
   useEffect(() => setMenu(false), [pathname]);
 
   return (
@@ -60,13 +70,11 @@ export function Layout() {
             텅장관리
           </Link>
           <nav className={'mainnav' + (menu ? ' open' : '')} id="mainnav" aria-label="주 메뉴">
-            {member && <NavLink to="/home">홈</NavLink>}
-            <NavLink to="/lab/stocks" className={() => ''} aria-current={inLab ? 'page' : undefined}>
-              굴려보기
-            </NavLink>
-            <NavLink to="/news">청년 돈 소식</NavLink>
-            {member && <NavLink to="/goal">목표</NavLink>}
-            <NavLink to="/plus">플러스</NavLink>
+            {NAV.map((n) => (
+              <NavLink key={n.to} to={n.to}>
+                {n.label}
+              </NavLink>
+            ))}
           </nav>
           <div className="nav-right">
             <button className="menu-btn" aria-expanded={menu} aria-controls="mainnav" onClick={() => setMenu((v) => !v)}>
@@ -86,15 +94,6 @@ export function Layout() {
           </div>
         </div>
       </header>
-      {inLab && (
-        <nav className="subnav" aria-label="굴려보기">
-          <div className="wrap">
-            <NavLink to="/lab/stocks">주식 타임머신</NavLink>
-            <NavLink to="/lab/savings">적금 비교</NavLink>
-            <NavLink to="/lab/mix">섞어보기</NavLink>
-          </div>
-        </nav>
-      )}
       <main id="main">
         <Outlet />
       </main>

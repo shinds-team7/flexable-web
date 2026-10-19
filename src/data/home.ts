@@ -47,7 +47,7 @@ async function fetchIndices(): Promise<MarketIndices> {
   });
 }
 
-// TODO(BE·콘텐츠): 승인된 청년 돈 소식 API
+// TODO(BE·콘텐츠): 승인된 청년 금융 소식 API
 async function fetchNews(): Promise<NewsItem[]> {
   return delay([
     { id: 'n3', cat: '생활·문화', title: '청년 문화 이용권 하반기 접수', save: '공연·전시에 연 최대 10만 원', dday: 2 },

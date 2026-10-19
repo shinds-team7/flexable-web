@@ -1,4 +1,4 @@
-// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선)·굴렸다면. 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 돈 소식.
+// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선)·굴렸다면. 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 금융 소식.
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
@@ -122,9 +122,9 @@ function WhatIf({ seed }: { seed: SeedMoney }) {
   // TODO(BE): 서버 계산 결과로 바꾼다(클라이언트 재계산 금지, ADR-3). 아래는 예시 값.
   const base = seed.manual ?? seed.confirmed;
   const rows = [
-    { to: '/lab/stocks', lbl: '예시 대표지수 ETF', val: Math.floor(base * 1.098), dl: '▲ 9.8%', more: '타임머신 열기' },
-    { to: '/lab/savings', lbl: '은행 평균 적금(한국은행)', val: Math.floor(base * 1.032), dl: '▲ 3.2%', more: '적금 비교 열기' },
-    { to: '/lab/mix', lbl: '이자 없이 모아 둔 경우(0%)', val: base, dl: '0%', more: '섞어서 비교하기' },
+    { to: '/invest', lbl: '예시 대표지수 ETF', val: Math.floor(base * 1.098), dl: '▲ 9.8%', more: '타임머신 열기' },
+    { to: '/savings', lbl: '은행 평균 적금(한국은행)', val: Math.floor(base * 1.032), dl: '▲ 3.2%', more: '적금 비교 열기' },
+    { to: '/mix', lbl: '이자 없이 모아 둔 경우(0%)', val: base, dl: '0%', more: '섞어서 비교하기' },
   ];
   return (
     <div className="card">
@@ -193,7 +193,7 @@ function HomeNews() {
   return (
     <div className="card">
       <div className="card-head" style={{ marginBottom: 8 }}>
-        <h2>오늘의 청년 돈 소식</h2>
+        <h2>오늘의 청년 금융 소식</h2>
         <Link to="/news" style={{ fontSize: 14, fontWeight: 600 }}>
           전체 보기
         </Link>
@@ -242,7 +242,7 @@ export default function Home() {
                   <button className="btn btn-primary" onClick={() => seed.refetch()}>
                     다시 불러오기
                   </button>
-                  <Link className="btn btn-line" to="/lab/stocks">
+                  <Link className="btn btn-line" to="/invest">
                     직접 금액으로
                   </Link>
                 </div>
@@ -252,7 +252,7 @@ export default function Home() {
                 <h3>아직 모은 돈이 없어요</h3>
                 <p className="sub">앱에 수입·지출을 기록하면 정산 주기가 끝날 때마다 남긴 돈이 쌓여요. 그 전에도 금액을 직접 넣고 굴려볼 수 있어요.</p>
                 <div className="toolbar">
-                  <Link className="btn btn-primary" to="/lab/stocks">
+                  <Link className="btn btn-primary" to="/invest">
                     금액을 직접 넣고 굴려보기
                   </Link>
                   <a className="btn btn-line" href={PLAY_URL} target="_blank" rel="noreferrer">

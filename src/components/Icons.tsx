@@ -6,6 +6,9 @@ export function IconSprite() {
         <path d="M4.5 7V5a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="currentColor" strokeWidth="1.6" />
         <rect x="3" y="7" width="10" height="7" rx="2" fill="currentColor" />
       </symbol>
+      <symbol id="i-check" viewBox="0 0 16 16">
+        <path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </symbol>
       <symbol id="i-info" viewBox="0 0 16 16">
         <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
         <path d="M8 7v4.5M8 4.6v.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />

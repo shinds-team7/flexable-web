@@ -49,7 +49,7 @@ export default function Me() {
               </div>
               <div className="seg" role="group" aria-label="테마">
                 {themes.map((t) => (
-                  <button key={t.v} aria-pressed={theme === t.v} onClick={() => pickTheme(t.v)}>
+                  <button key={t.v} aria-pressed={theme === t.v} disabled={status === 'loading'} onClick={() => pickTheme(t.v)}>
                     {t.label}
                   </button>
                 ))}

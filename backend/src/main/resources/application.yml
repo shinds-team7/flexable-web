@@ -38,4 +38,18 @@ app:
       # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).
       secret: ${WEB_JWT_SECRET:}
       ttl-days: 30
+    oauth:
+      # 공급자 콘솔에 등록한 웹 백엔드 주소. 콜백은 {callback-base-url}/api/v1/auth/oauth/{provider}/callback
+      callback-base-url: ${OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
+      # 로그인 뒤 돌아갈 웹 화면 주소(정확히 일치해야 함, 쉼표 구분)
+      allowed-redirect-uris: ${OAUTH_ALLOWED_REDIRECT_URIS:http://localhost:5173/oauth/callback}
+      # client-id가 비어 있는 공급자는 꺼진다. 비밀 값은 환경변수로만 넣는다.
+      kakao:
+        client-id: ${KAKAO_CLIENT_ID:}
+        client-secret: ${KAKAO_CLIENT_SECRET:}
+        admin-key: ${KAKAO_ADMIN_KEY:}
+        scope: ${KAKAO_SCOPE:}
+      google:
+        client-id: ${GOOGLE_CLIENT_ID:}
+        client-secret: ${GOOGLE_CLIENT_SECRET:}
   cors-origins: ${CORS_ORIGINS:http://localhost:5173}

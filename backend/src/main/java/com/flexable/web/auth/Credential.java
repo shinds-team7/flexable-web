@@ -16,7 +16,8 @@ public class Credential {
 	@Column(name = "user_id")
 	private Long userId;
 
-	@Column(name = "password_hash", nullable = false, length = 100)
+	/** 소셜로만 가입한 회원은 null */
+	@Column(name = "password_hash", length = 100)
 	private String passwordHash;
 
 	@Column(name = "token_version", nullable = false)

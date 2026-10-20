@@ -38,11 +38,13 @@ public class UserService {
 		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
-	/** 약관·개인정보 동의를 받은 가입. 같은 이메일의 웹 회원이 있으면 EMAIL_UNAVAILABLE. */
+	/**
+	 * 약관·개인정보 동의를 받은 가입. 같은 이메일의 웹 회원이 있으면 EMAIL_UNAVAILABLE. 소셜 가입은 확인된 이메일이 없으면 null을 넘긴다.
+	 */
 	@Transactional
 	public long register(String email, Instant agreedAt) {
-		String normalized = normalizeEmail(email);
-		if (users.existsByEmail(normalized)) {
+		String normalized = email == null ? null : normalizeEmail(email);
+		if (normalized != null && users.existsByEmail(normalized)) {
 			throw new ApiException(ErrorCode.EMAIL_UNAVAILABLE);
 		}
 		User user;

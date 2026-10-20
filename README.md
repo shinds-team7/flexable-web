@@ -5,7 +5,7 @@
 - 웹: Vite + React + TypeScript · React Router · TanStack Query
 - 시연(`/m`): Expo 웹(예시 데이터, 서버 호출 없음)
 - 운영: https://flexable-web-delta.vercel.app (시연 `/m`). 운영 API의 CORS·OAuth 허용 목록에 이 주소가 들어 있다(10-19)
-- 앱·앱 서버: [`shinds-team7/project2`](https://github.com/shinds-team7/project2). 웹 서버는 이 저장소 `backend/`(웹 계정·소셜 로그인까지 구현)
+- 앱·앱 서버: [`shinds-team7/flexable-app`](https://github.com/shinds-team7/flexable-app)(이전 이름 project2). 웹 서버는 이 저장소 `backend/`(웹 계정·소셜 로그인·앱 연동까지 구현)
 - 화면은 웹 백엔드 계약에 맞췄다. 웹 백엔드를 운영에 띄우기 전까지 배포본은 `VITE_API_URL`이 project2를 가리켜 임시로 project2 계정으로 로그인된다. 웹 백엔드 주소로 바꾸는 것은 운영 담당자가 한다([경계 문서](docs/product/04-service-boundaries.md) §4)
 
 ## 팀 작업의 출발점
@@ -13,8 +13,8 @@
 이 저장소에서 웹 제품 전체를 개발한다. 현재 배포본은 팀원이 기능을 이어서 만들 초기 UI·로그인 기반이다. 화면의 예시 데이터와 Placeholder는 미완성 상태를 뜻한다. 기능 완료에는 화면·API 계약·서버 로직·데이터 준비·통합 검증이 모두 필요하다.
 
 1. [제품 문서](docs/product/README.md), [최신 서버 경계 결정](docs/product/04-service-boundaries.md), [웹 인수인계](docs/product/HANDOFF.md)를 읽는다.
-2. 웹 화면·상태와 API 요청·응답을 정한다. 웹 API 계약은 이 저장소에, 앱 연동 API 계약만 project2 `docs/API.md`에 적는다.
-3. 화면은 `src/`, 서버는 `backend/`에서 구현한다. 앱 연동에 필요한 project2 쪽 변경만 연계 PR로 올린다. 예시 응답을 실제 API로 바꾸고 실패·빈 상태도 검증한다.
+2. 웹 화면·상태와 API 요청·응답을 정한다. 웹 API 계약은 이 저장소에, 앱 연동 API 계약만 앱 저장소 `docs/API.md`에 적는다.
+3. 화면은 `src/`, 서버는 `backend/`에서 구현한다. 앱 연동에 필요한 앱 저장소 쪽 변경만 연계 PR로 올린다. 예시 응답을 실제 API로 바꾸고 실패·빈 상태도 검증한다.
 4. 검사 결과와 미구현·운영 미확인 항목을 분리해 기록한다. Vercel에 UI가 배포됐다고 기능 완료로 기록하지 않는다.
 
 ## 경로

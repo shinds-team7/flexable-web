@@ -7,6 +7,7 @@ import Me from '@/pages/Me';
 import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
+import Privacy from '@/pages/Privacy';
 import Savings from '@/pages/Savings';
 import Signup from '@/pages/Signup';
 
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: '/home', element: <Home /> },
       { path: '/goal', element: <Placeholder title="AI 목표 달성" desc="목표 설정 · 진행 확인" wireframe="웹 목표" /> },
       { path: '/me', element: <Me /> },
+      { path: '/privacy', element: <Privacy /> },
       {
         path: '*',
         element: (

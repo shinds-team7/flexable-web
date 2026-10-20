@@ -8,7 +8,7 @@ import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
 
-// 화면·경로 기준: project2 docs/web/README.md §5. 새 화면은 Placeholder 자리를 바꿔 끼운다.
+// 화면·경로 기준: docs/product/README.md §5. 새 화면은 Placeholder 자리를 바꿔 끼운다.
 export const router = createBrowserRouter([
   {
     element: <Layout />,

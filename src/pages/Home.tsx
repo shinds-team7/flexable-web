@@ -1,11 +1,15 @@
 // 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선)·굴렸다면. 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 금융 소식.
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
+import { loadSettings, saveSettings } from '@/auth/settings';
 import { displayName } from '@/auth/types';
 import { SeedLineChart } from '@/charts/SeedLineChart';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DDay } from '@/components/Icons';
 import { PLAY_URL } from '@/components/Layout';
+import { useAppLink } from '@/data/appLink';
 import { useHomeNews, useIndices, useSeedMoney, type MarketIndices, type SeedMoney } from '@/data/home';
 import { fmtMonthDay, upDown, won } from '@/lib/format';
 
@@ -21,71 +25,132 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
   // TODO(BE): 저장·되돌리기는 PUT·DELETE /api/v1/me/seed-money/manual(확정 15). 지금은 화면에서만 바뀐다.
   const [manual, setManual] = useState<number | null>(seed.manual);
   const [draft, setDraft] = useState(String(seed.manual ?? seed.confirmed));
+  const [error, setError] = useState('');
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [toast, setToast] = useState('');
   const amount = manual ?? seed.confirmed;
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const change = (v: string) => {
+    const raw = v.replace(/,/g, '').trim();
+    if (/[^\d]/.test(raw)) {
+      setError('숫자만 입력해 주세요.');
+      return;
+    }
+    setError('');
+    setDraft(raw === '' ? '' : String(Number(raw)));
+  };
 
   const save = (e: FormEvent) => {
     e.preventDefault();
+    if (draft === '') {
+      setError('금액을 입력해 주세요.');
+      return;
+    }
     const n = Math.floor(Number(draft));
-    if (!Number.isFinite(n) || n < 0) return;
     setManual(n);
     setEditing(false);
+    setToast(`저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.`);
+  };
+
+  const reset = () => {
+    setManual(null);
+    setDraft(String(seed.confirmed));
+    setEditing(false);
+    setConfirmReset(false);
+    setToast(`앱 기록 기준 금액 ${won(seed.confirmed)}원으로 돌아갔어요.`);
   };
 
   return (
     <div className="card card-hero home-hero">
-      <div className="hero-main">
-        <p className="sub" style={{ fontWeight: 600 }}>
-          내 시드머니 {seed.isSample && <span className="tag-ex">예시</span>}
-          {manual != null && <span className="tag" style={{ marginLeft: 6 }}>직접 입력</span>}
-        </p>
-        <div className="hero-amount">
-          <p className="hero-num num">
-            {won(amount)}
-            <small>원</small>
-          </p>
-          {!editing && (
-            <button type="button" className="edit-link" onClick={() => setEditing(true)}>
-              수정하기
+      <p className="hero-label">
+        내 시드머니 {seed.isSample && <span className="tag-ex">예시</span>}
+        {manual != null && <span className="tag">직접 입력</span>}
+      </p>
+      <p className="hero-num num">
+        {won(amount)}
+        <small>원</small>
+      </p>
+      <p className="sub">
+        이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
+      </p>
+      {editing ? (
+        <form className="seed-edit" onSubmit={save} noValidate>
+          <div className="field">
+            <label htmlFor="seedAmount">시드머니</label>
+            <div className="input-affix">
+              <input
+                id="seedAmount"
+                className="input num"
+                inputMode="numeric"
+                autoComplete="off"
+                value={draft === '' ? '' : won(Number(draft))}
+                onChange={(e) => change(e.target.value)}
+                aria-invalid={!!error}
+                aria-describedby="seedAmountHelp"
+                autoFocus
+              />
+              <span className="unit">원</span>
+            </div>
+            <p id="seedAmountHelp" className={error ? 'form-error' : 'meta'}>
+              {error || '앱 기록 대신 이 금액을 써요.'}
+            </p>
+          </div>
+          <div className="seed-edit-acts">
+            <button type="button" className="btn btn-line btn-sm" onClick={() => (setEditing(false), setError(''))}>
+              취소
+            </button>
+            <button className="btn btn-primary btn-sm">저장</button>
+          </div>
+        </form>
+      ) : (
+        <div className="hero-acts">
+          <Link className="btn btn-primary btn-sm" to="/invest">
+            투자 시뮬레이션 해 보기
+          </Link>
+          <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
+            시드머니 수정
+          </button>
+          {manual != null && (
+            <button type="button" className="btn btn-text" onClick={() => setConfirmReset(true)}>
+              기록 기준으로 되돌리기
             </button>
           )}
         </div>
-        {editing && (
-          <form className="seed-edit" onSubmit={save}>
-            <div className="field">
-              <label htmlFor="seedAmount">시드머니(원)</label>
-              <input id="seedAmount" className="input" type="number" min={0} step={1} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
-            </div>
-            <button className="btn btn-primary btn-sm">저장</button>
-            <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(false)}>
-              취소
-            </button>
-            {manual != null && (
-              <button
-                type="button"
-                className="btn btn-line btn-sm"
-                onClick={() => {
-                  setManual(null);
-                  setDraft(String(seed.confirmed));
-                  setEditing(false);
-                }}
-              >
-                기록 기준으로 되돌리기
-              </button>
-            )}
-          </form>
-        )}
-        <p>
-          이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
-        </p>
-        <p className="meta">오늘 아낀 돈 {won(seed.todaySaved)}원</p>
-        <p className="meta" style={{ marginTop: 6 }}>
-          앱에 입력한 기록 기준 · {fmtMonthDay(seed.asOf)} · 최근 정산 주기마다 평균 {won(seed.avgPerCycle)}원씩 남겼어요
-        </p>
+      )}
+      <div className="hero-foot">
+        <span className="meta">오늘 아낀 돈 {won(seed.todaySaved)}원</span>
+        <span className="meta">최근 정산 주기마다 평균 {won(seed.avgPerCycle)}원씩 남겼어요</span>
+        <span className="meta">앱에 입력한 기록 기준 · {fmtMonthDay(seed.asOf)}</span>
       </div>
       <figure className="profile">
         <img src="/characters/lv3-3.png" alt="" />
         <figcaption>{displayName(user)}</figcaption>
       </figure>
+      <ConfirmDialog
+        open={confirmReset}
+        title="직접 입력한 금액을 지울까요?"
+        confirmLabel="지우기"
+        danger
+        onConfirm={reset}
+        onCancel={() => setConfirmReset(false)}
+      >
+        <p>지우면 앱에 입력한 기록 기준 금액으로 돌아가요. 지운 금액은 다시 불러올 수 없어요.</p>
+        <div className="dlg-money">
+          <span>돌아갈 금액</span>
+          <b className="num">{won(seed.confirmed)}원</b>
+        </div>
+      </ConfirmDialog>
+      {toast && (
+        <div className="toast" role="status">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
@@ -214,6 +279,43 @@ function HomeNews() {
   );
 }
 
+const APP_LINK_INTRO = 'app-link-intro';
+
+/**
+ * 가입 직후 등 아직 앱과 연동하지 않은 회원에게 [앱 연동하기]를 한 번 권한다(04 §5-1). 가입 단계로 강제하지 않고,
+ * [다음에 할게요]를 누르면 본 안내(seenTours)로 저장해 다시 띄우지 않는다. 웹 서버에 앱 연동 설정이 없으면 보이지 않는다.
+ */
+function AppLinkIntro() {
+  const { status } = useSession();
+  const member = status === 'member';
+  const link = useAppLink(member);
+  const settings = useQuery({ queryKey: ['me', 'settings'], queryFn: loadSettings, enabled: member, staleTime: Infinity });
+  const [dismissed, setDismissed] = useState(false);
+  if (!member || dismissed || !link.data?.enabled || link.data.linked || !settings.data) return null;
+  if (settings.data.seenTours.includes(APP_LINK_INTRO)) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    void saveSettings({ seenTours: [APP_LINK_INTRO] });
+  };
+  return (
+    <div className="card" role="region" aria-label="앱 연동 안내">
+      <h2>앱에서 모은 시드머니를 불러올까요?</h2>
+      <p className="sub" style={{ marginTop: 4 }}>
+        텅장관리 앱 설정에서 받은 연동 코드를 입력하면 앱에서 확정한 시드머니를 웹에서 볼 수 있어요. 웹만 써도 괜찮아요.
+      </p>
+      <div className="toolbar" style={{ marginTop: 12 }}>
+        <Link className="btn btn-primary btn-sm" to="/me#app-link">
+          앱 연동하기
+        </Link>
+        <button className="btn btn-line btn-sm" onClick={dismiss}>
+          다음에 할게요
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const seed = useSeedMoney();
   const indices = useIndices();
@@ -222,6 +324,7 @@ export default function Home() {
       <div className="page">
         <div className="g84">
           <div className="col">
+            <AppLinkIntro />
             {seed.isPending ? (
               <>
                 <div className="card card-hero" aria-busy="true" aria-label="불러오는 중">

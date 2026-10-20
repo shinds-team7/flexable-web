@@ -29,3 +29,12 @@ app:
         client-id: ""
         client-secret: ""
   cors-origins: http://localhost:5173
+  applink:
+    # 테스트는 AppApiClient를 바꿔 끼운다. 암호화 키는 실행마다 임의 값.
+    mode: http
+    base-url: ""
+    service-key: ""
+    encryption-key: ""
+    connect-timeout: 1s
+    read-timeout: 1s
+    refresh-interval: 0s

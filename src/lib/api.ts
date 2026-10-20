@@ -7,6 +7,8 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    /** code·message 밖의 응답 필드(retryAfterSeconds·fields 등) */
+    public details: Record<string, unknown> = {},
   ) {
     super(message);
   }
@@ -54,7 +56,13 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   if (res.status === 401 && token) onUnauthorized?.();
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? '요청을 처리하지 못했어요');
+    const { code, message, ...details } = body && typeof body === 'object' ? body : ({} as Record<string, unknown>);
+    throw new ApiError(
+      res.status,
+      typeof code === 'string' ? code : 'UNKNOWN',
+      typeof message === 'string' ? message : '요청을 처리하지 못했어요',
+      details,
+    );
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

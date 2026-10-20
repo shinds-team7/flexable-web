@@ -27,10 +27,11 @@ src/                     웹사이트(Vite + React + TypeScript, React Router, T
   data/                  화면 데이터 hook. home.ts는 API 전까지 예시 값(isSample=true)
   auth/                  세션(JWT, localStorage), 카카오·Google 로그인(start → /oauth/callback → exchange)
   lib/                   API 클라이언트, 표시 포맷, 테마
-  styles/global.css      디자인 토큰(:root)과 공통 클래스
+  styles/tokens.css      디자인 토큰(정본, 라이트·다크)
+  styles/global.css      공통 클래스(부품 스타일)와 기존 이름 별칭
 mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
 scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
-backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)까지 구현. 패키지 책임·API는 backend/README.md
+backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)·앱 연동(applink)까지 구현. 패키지 책임·API는 backend/README.md
 deploy/closed-network/   폐쇄망 VM 반입 묶음(예정)
 docs/product/            웹 기획·아키텍처·개발 인수인계 정본
 docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
@@ -42,7 +43,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 - 화면에 없는 기능을 암시하지 않는다. "계좌 연결", "투자 권유", "추천" 같은 말을 쓰지 않는다. 과거 계산에는 고지 문구를 붙인다(03 §8-3).
 - 예시 데이터를 보여 줄 때는 `isSample`로 "예시" 표시를 붙인다. API가 붙으면 표시가 자동으로 사라진다.
 - 테마는 기본 라이트다. 다크는 사용자가 내 정보에서 고를 때만(`:root[data-theme="dark"]`). 시스템 설정을 따르지 않는다.
-- 색은 `global.css`의 토큰(`var(--brand)` 등)만 쓴다. 상승은 빨강(`--rise`), 하락은 파랑(`--fall`).
+- 색·모서리·간격은 `src/styles/tokens.css`의 토큰(`var(--color-brand-primary)`, `var(--radius-soft)`, `var(--density-control)` 등)만 쓴다. 강조 색은 브랜드 블루 하나. 상승은 빨강(`--color-rise`), 하락은 파랑(`--color-fall`)이고 등락 숫자에는 ▲▼를 붙인다.
 - 약관·개인정보처리방침·고객지원 원문은 project2 웹(`https://project2-flex-sh.vercel.app/terms` 등) 하나만 둔다. 이 저장소에 복사하지 않는다.
 - `mobile-demo/`는 시연 전용이다. 실제 서비스 API를 부르지 않는다. 버전은 `mobile-demo/src/demo/version.ts`(태그 `demo-v*`).
 - 브랜치 `SXXNHU/<종류>-<내용>`, 커밋 `feat(web): 한국어 요약` / `fix(m): …`, `main`에 PR로 머지.

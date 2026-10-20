@@ -10,6 +10,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.flexable.web.applink.AppLinkService;
 import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
 import com.flexable.web.user.UserDtos.UserResponse;
@@ -24,13 +25,15 @@ public class UserService {
 	private final UserSettingsRepository settings;
 	/** auth처럼 user에 의존하는 쪽이 구현하므로 순환을 피해 부를 때 찾는다. */
 	private final ObjectProvider<UserWithdrawalListener> withdrawalListeners;
+	private final AppLinkService appLinks;
 	private final Clock clock;
 
 	public UserService(UserRepository users, UserSettingsRepository settings,
-			ObjectProvider<UserWithdrawalListener> withdrawalListeners, Clock clock) {
+			ObjectProvider<UserWithdrawalListener> withdrawalListeners, AppLinkService appLinks, Clock clock) {
 		this.users = users;
 		this.settings = settings;
 		this.withdrawalListeners = withdrawalListeners;
+		this.appLinks = appLinks;
 		this.clock = clock;
 	}
 
@@ -91,11 +94,12 @@ public class UserService {
 	}
 
 	/**
-	 * 웹 탈퇴. 각 패키지의 웹 데이터를 지운 뒤 회원 행을 지운다. 본인 확인은 부른 쪽(auth)이 끝낸 상태여야 한다.
-	 * 앱 연동 해제(applink)는 그 패키지를 만들 때 여기에 더한다(04 §4).
+	 * 웹 탈퇴. 앱 연동을 지우고(앱 서버 해제는 커밋 뒤 요청, 04 §4) 각 패키지의 웹 데이터를 지운 뒤 회원 행을 지운다.
+	 * 본인 확인은 부른 쪽(auth)이 끝낸 상태여야 한다.
 	 */
 	@Transactional
 	public void withdraw(long userId) {
+		appLinks.removeForWithdrawal(userId);
 		withdrawalListeners.orderedStream().forEach(l -> l.onWithdraw(userId));
 		settings.deleteById(userId);
 		users.deleteById(userId);

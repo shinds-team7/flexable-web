@@ -42,7 +42,7 @@ export function SocialButtons({ onError, onEmail }: { onError?: (msg: string) =>
         {LABEL.google}
       </button>
       {onEmail ? null : (
-        <button type="button" className="social" style={{ background: 'var(--sunken)', border: 0 }} onClick={() => navigate('/login?email=1')}>
+        <button type="button" className="social email" onClick={() => navigate('/login?email=1')}>
           이메일로 로그인
         </button>
       )}
@@ -96,13 +96,7 @@ export default function Login() {
           </p>
           <SocialButtons onError={setError} onEmail={() => setEmailOpen(true)} />
           <div className="divider">또는</div>
-          <button
-            className="btn"
-            aria-expanded={emailOpen}
-            aria-controls="emailForm"
-            style={{ width: '100%', height: 48, borderRadius: 12, background: 'var(--sunken)' }}
-            onClick={() => setEmailOpen((v) => !v)}
-          >
+          <button type="button" className="social email" aria-expanded={emailOpen} aria-controls="emailForm" onClick={() => setEmailOpen((v) => !v)}>
             이메일로 로그인
           </button>
           {emailOpen && (

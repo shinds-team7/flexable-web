@@ -479,3 +479,30 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   .plan-cards{grid-template-columns:minmax(0,1fr)}
   .plus-title{font-size:24px;line-height:32px}
 }
+
+/* 적금 비교: 표·비교 막대·정책 적금 카드(누적 막대) */
+.sv-policy-form{align-items:flex-end;gap:16px 24px;margin-top:12px}
+.sv-policy-form .seg button{height:36px;padding:0 14px;font-size:14px}
+.sv-policy-form .input{height:36px;width:110px}
+.sv-policy-check{border-bottom:0;padding-bottom:0;margin-top:16px;border-top:1px solid var(--line)}
+.sv-cond-summary{justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px}
+.sv-sort{flex-direction:row;align-items:center;gap:8px}
+.sv-sort .input{height:36px;width:auto}
+.sv-name{color:var(--text);font-weight:700;text-align:left}
+.sv-cmp{accent-color:var(--brand);width:16px;height:16px}
+.sv-rates{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:16px}
+.sv-h3{font-size:15px;margin:20px 0 8px}
+.sv-cond{white-space:pre-line;font-size:14px;color:var(--text-sub);margin-bottom:6px}
+.sv-bars{display:flex;flex-direction:column;gap:10px}
+.sv-bar{display:grid;grid-template-columns:minmax(120px,180px) minmax(0,1fr);gap:12px;align-items:center}
+.sv-bar-name{min-width:0}
+.sv-bar-name p:first-child{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sv-bar-track{display:flex;align-items:center;gap:8px}
+.sv-bar-track span{display:block;height:20px;border-radius:0 4px 4px 0}
+.sv-bar-track b{font-size:14px;white-space:nowrap}
+.sv-stack{display:flex;height:20px;border-radius:6px;overflow:hidden;gap:2px;margin-top:16px}
+.sv-stack span{display:block;height:100%;min-width:4px}
+.sv-assume{margin:12px 0 0;padding-left:18px;font-size:13px;color:var(--text-muted);line-height:20px}
+@media (max-width:767px){
+  .sv-bar{grid-template-columns:minmax(0,1fr)}
+}

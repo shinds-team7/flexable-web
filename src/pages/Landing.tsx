@@ -54,7 +54,7 @@ export default function Landing() {
             <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요. 진짜 돈은 움직이지 않아요.</p>
             <div className="cta-stack">
               <SocialButtons />
-              <Link className="btn-text" to={demo} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+              <Link className="btn-text" to="/home" style={{ alignSelf: 'flex-start', marginTop: 6 }}>
                 로그인 없이 체험하기
               </Link>
             </div>

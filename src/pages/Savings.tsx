@@ -617,7 +617,7 @@ export default function Savings() {
   const sub = useSubscription(status === 'member');
   const seed = useSeedMoney();
   const pace = seed.data?.avgPerCycle ?? FALLBACK_PACE;
-  const compareLimit = sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
+  const compareLimit = status === 'guest' || sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
 
   return (
     <section>

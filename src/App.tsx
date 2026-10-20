@@ -1,5 +1,5 @@
 import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
-import { Layout, RequireMember } from '@/components/Layout';
+import { Layout } from '@/components/Layout';
 import Home from '@/pages/Home';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
@@ -31,14 +31,9 @@ export const router = createBrowserRouter([
       { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <Placeholder title="모의 결제 결과" desc="모의 완료 · 실패 · 해지 확인" wireframe="모의 결제 결과" /> },
       { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
-      {
-        element: <RequireMember />,
-        children: [
-          { path: '/home', element: <Home /> },
-          { path: '/goal', element: <Placeholder title="AI 목표 달성" desc="목표 설정 · 진행 확인" wireframe="웹 목표" /> },
-          { path: '/me', element: <Me /> },
-        ],
-      },
+      { path: '/home', element: <Home /> },
+      { path: '/goal', element: <Placeholder title="AI 목표 달성" desc="목표 설정 · 진행 확인" wireframe="웹 목표" /> },
+      { path: '/me', element: <Me /> },
       {
         path: '*',
         element: (

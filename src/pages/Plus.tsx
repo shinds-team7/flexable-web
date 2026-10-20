@@ -34,10 +34,6 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
   const isFree = status === 'member' && sub.data?.plan === 'FREE';
 
   const start = () => {
-    if (status !== 'member') {
-      navigate('/login', { state: { from: '/plus' } });
-      return;
-    }
     navigate(`/billing/result?period=${period}`);
   };
 
@@ -55,7 +51,7 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
         </p>
         <p className="meta">{period === 'YEARLY' ? '1년에 한 번 결제 · 언제든 해지' : '매달 결제 · 언제든 해지'}</p>
         <button className="btn btn-primary btn-block plan-cta" onClick={start} disabled={isPlus || status === 'loading'}>
-          {isPlus ? '지금 쓰는 요금제' : status === 'member' ? `${price.unit === '년' ? '연' : '월'} ${won(price.amount)}원으로 시작` : '로그인하고 시작하기'}
+          {isPlus ? '지금 쓰는 요금제' : status === 'member' ? `${price.unit === '년' ? '연' : '월'} ${won(price.amount)}원으로 시작` : '로그인 없이 플러스 체험하기'}
         </button>
         <FeatureList items={plans.plusFeatures} />
         <hr className="hair" />
@@ -76,7 +72,7 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
             {isFree ? '지금 쓰는 요금제' : '무료 요금제'}
           </button>
         ) : (
-          <button className="btn btn-line btn-block plan-cta" onClick={() => navigate('/login')} disabled={status === 'loading'}>
+          <button className="btn btn-line btn-block plan-cta" onClick={() => navigate('/home')} disabled={status === 'loading'}>
             무료로 시작하기
           </button>
         )}

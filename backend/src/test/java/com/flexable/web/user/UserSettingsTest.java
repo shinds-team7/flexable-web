@@ -1,4 +1,4 @@
-package com.flexable.web.member;
+package com.flexable.web.user;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.endsWith;
@@ -27,7 +27,7 @@ import com.jayway.jsonpath.JsonPath;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class MemberSettingsTest {
+class UserSettingsTest {
 
 	@Autowired
 	MockMvc mvc;
@@ -83,7 +83,7 @@ class MemberSettingsTest {
 
 	@Test
 	void storedToursAreCapped() throws Exception {
-		String keys = IntStream.range(0, MemberSettings.MAX_SEEN_TOURS)
+		String keys = IntStream.range(0, UserSettings.MAX_SEEN_TOURS)
 			.mapToObj(i -> "\"t" + i + "\"").collect(Collectors.joining(","));
 		patchSettings("{\"seenTours\":[" + keys + "]}").andExpect(status().isOk());
 		patchSettings("{\"seenTours\":[\"one-more\"]}").andExpect(status().isBadRequest())

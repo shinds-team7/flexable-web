@@ -21,15 +21,15 @@ public class TokenAuthenticationConverter implements Converter<Jwt, AbstractAuth
 
 	@Override
 	public AbstractAuthenticationToken convert(Jwt jwt) {
-		long memberId;
+		long userId;
 		try {
-			memberId = Long.parseLong(jwt.getSubject());
+			userId = Long.parseLong(jwt.getSubject());
 		}
 		catch (NumberFormatException e) {
 			throw new InvalidBearerTokenException("invalid subject");
 		}
 		Object tv = jwt.getClaims().get(TokenService.TOKEN_VERSION_CLAIM);
-		boolean valid = tv instanceof Number n && credentials.findById(memberId)
+		boolean valid = tv instanceof Number n && credentials.findById(userId)
 			.map(c -> c.getTokenVersion() == n.intValue())
 			.orElse(false);
 		if (!valid) {

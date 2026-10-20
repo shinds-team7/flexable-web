@@ -59,7 +59,7 @@ class AuthFlowTest {
 	}
 
 	@Test
-	void signupReturnsTokenAndMember() throws Exception {
+	void signupReturnsTokenAndUser() throws Exception {
 		String email = email();
 		json("/api/v1/auth/signup", """
 				{"email":"%s","password":"%s","agreeTerms":true,"agreePrivacy":true}""".formatted(email.toUpperCase(), PASSWORD))
@@ -148,7 +148,7 @@ class AuthFlowTest {
 
 		me(token).andExpect(status().isUnauthorized());
 		login(email, PASSWORD).andExpect(status().isUnauthorized());
-		Integer rows = jdbc.queryForObject("SELECT COUNT(*) FROM members WHERE email = ?", Integer.class, email);
+		Integer rows = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, email);
 		assertEquals(0, rows);
 		// 같은 이메일로 다시 가입할 수 있다.
 		signup(email);

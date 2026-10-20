@@ -1,4 +1,4 @@
-package com.flexable.web.member;
+package com.flexable.web.user;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -12,23 +12,23 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
-import com.flexable.web.member.MemberDtos.MemberResponse;
-import com.flexable.web.member.MemberDtos.SettingsPatch;
-import com.flexable.web.member.MemberDtos.SettingsResponse;
+import com.flexable.web.user.UserDtos.UserResponse;
+import com.flexable.web.user.UserDtos.SettingsPatch;
+import com.flexable.web.user.UserDtos.SettingsResponse;
 
-/** member 패키지의 공개 입구. 다른 패키지는 Member·Repository 대신 이 서비스만 쓴다. */
+/** user 패키지의 공개 입구. 다른 패키지는 User·Repository 대신 이 서비스만 쓴다. */
 @Service
-public class MemberService {
+public class UserService {
 
-	private final MemberRepository members;
-	private final MemberSettingsRepository settings;
-	/** auth처럼 member에 의존하는 쪽이 구현하므로 순환을 피해 부를 때 찾는다. */
-	private final ObjectProvider<MemberWithdrawalListener> withdrawalListeners;
+	private final UserRepository users;
+	private final UserSettingsRepository settings;
+	/** auth처럼 user에 의존하는 쪽이 구현하므로 순환을 피해 부를 때 찾는다. */
+	private final ObjectProvider<UserWithdrawalListener> withdrawalListeners;
 	private final Clock clock;
 
-	public MemberService(MemberRepository members, MemberSettingsRepository settings,
-			ObjectProvider<MemberWithdrawalListener> withdrawalListeners, Clock clock) {
-		this.members = members;
+	public UserService(UserRepository users, UserSettingsRepository settings,
+			ObjectProvider<UserWithdrawalListener> withdrawalListeners, Clock clock) {
+		this.users = users;
 		this.settings = settings;
 		this.withdrawalListeners = withdrawalListeners;
 		this.clock = clock;
@@ -42,38 +42,38 @@ public class MemberService {
 	@Transactional
 	public long register(String email, Instant agreedAt) {
 		String normalized = normalizeEmail(email);
-		if (members.existsByEmail(normalized)) {
+		if (users.existsByEmail(normalized)) {
 			throw new ApiException(ErrorCode.EMAIL_UNAVAILABLE);
 		}
-		Member member;
+		User user;
 		try {
-			member = members.saveAndFlush(new Member(normalized, agreedAt));
+			user = users.saveAndFlush(new User(normalized, agreedAt));
 		}
 		catch (DataIntegrityViolationException e) {
 			throw new ApiException(ErrorCode.EMAIL_UNAVAILABLE);
 		}
-		settings.save(new MemberSettings(member.getId(), agreedAt));
-		return member.getId();
+		settings.save(new UserSettings(user.getId(), agreedAt));
+		return user.getId();
 	}
 
 	@Transactional(readOnly = true)
 	public Optional<Long> findIdByEmail(String email) {
-		return members.findByEmail(normalizeEmail(email)).map(Member::getId);
+		return users.findByEmail(normalizeEmail(email)).map(User::getId);
 	}
 
 	@Transactional(readOnly = true)
-	public MemberResponse profile(long memberId) {
-		return MemberResponse.of(find(memberId));
+	public UserResponse profile(long userId) {
+		return UserResponse.of(find(userId));
 	}
 
 	@Transactional(readOnly = true)
-	public SettingsResponse settings(long memberId) {
-		return SettingsResponse.of(settings.findById(memberId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED)));
+	public SettingsResponse settings(long userId) {
+		return SettingsResponse.of(settings.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED)));
 	}
 
 	@Transactional
-	public SettingsResponse updateSettings(long memberId, SettingsPatch patch) {
-		MemberSettings s = settings.findWithLockByMemberId(memberId)
+	public SettingsResponse updateSettings(long userId, SettingsPatch patch) {
+		UserSettings s = settings.findWithLockByUserId(userId)
 			.orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
 		Instant now = clock.instant();
 		if (patch.theme() != null) {
@@ -93,13 +93,13 @@ public class MemberService {
 	 * 앱 연동 해제(applink)는 그 패키지를 만들 때 여기에 더한다(04 §4).
 	 */
 	@Transactional
-	public void withdraw(long memberId) {
-		withdrawalListeners.orderedStream().forEach(l -> l.onWithdraw(memberId));
-		settings.deleteById(memberId);
-		members.deleteById(memberId);
+	public void withdraw(long userId) {
+		withdrawalListeners.orderedStream().forEach(l -> l.onWithdraw(userId));
+		settings.deleteById(userId);
+		users.deleteById(userId);
 	}
 
-	private Member find(long memberId) {
-		return members.findById(memberId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+	private User find(long userId) {
+		return users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
 	}
 }

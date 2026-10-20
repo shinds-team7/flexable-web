@@ -85,8 +85,8 @@
 
 | 테이블(초안) | DB | 소유 |
 |---|---|---|
-| 웹 회원(이메일·동의 시각)·웹 설정: `members`, `member_settings` | 웹 | 웹 `member` |
-| 로그인 수단(비밀번호 해시·토큰 버전): `member_credentials` | 웹 | 웹 `auth` |
+| 웹 회원(이메일·동의 시각)·웹 설정: `users`, `user_settings` | 웹 | 웹 `user` |
+| 로그인 수단(비밀번호 해시·토큰 버전): `user_credentials` | 웹 | 웹 `auth` |
 | `app_links`(웹 사용자 ↔ `linkId`) | 웹 | 웹 `applink` |
 | 유동자산 마지막 값·수동 조정 | 웹 | 웹 `seedmoney` |
 | 시세·사건·적금·소식·시뮬레이션·결제·목표 | 웹 | 웹 각 패키지 |
@@ -94,7 +94,7 @@
 | 사용자·거래·예산 | 앱 | project2 기존 패키지 |
 
 - 웹 DB는 앱 테이블을 복제하지 않는다. 두 DB 사이에 외래 키는 없다.
-- 회원 정보와 로그인 수단을 나눈 이유: `auth → member` 의존 방향을 지키면서 `member`가 auth를 모르게 하기 위해서다. 탈퇴 때 다른 패키지의 데이터는 `member.MemberWithdrawalListener` 구현으로 지운다.
+- 회원 정보와 로그인 수단을 나눈 이유: `auth → user` 의존 방향을 지키면서 `user`가 auth를 모르게 하기 위해서다. 탈퇴 때 다른 패키지의 데이터는 `user.UserWithdrawalListener` 구현으로 지운다.
 - 각 DB의 Flyway 이력은 따로 관리한다. project2 기존 마이그레이션 규칙(추가만)은 그대로다.
 
 ## 7. 웹 API 경로

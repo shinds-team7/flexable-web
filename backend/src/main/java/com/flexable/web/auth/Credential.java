@@ -7,14 +7,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** 웹 회원의 비밀번호와 토큰 버전. 회원 정보(이메일·동의)는 member 패키지가 가진다. */
+/** 웹 회원의 비밀번호와 토큰 버전. 회원 정보(이메일·동의)는 user 패키지가 가진다. */
 @Entity
-@Table(name = "member_credentials")
+@Table(name = "user_credentials")
 public class Credential {
 
 	@Id
-	@Column(name = "member_id")
-	private Long memberId;
+	@Column(name = "user_id")
+	private Long userId;
 
 	@Column(name = "password_hash", nullable = false, length = 100)
 	private String passwordHash;
@@ -28,14 +28,14 @@ public class Credential {
 	protected Credential() {
 	}
 
-	Credential(long memberId, String passwordHash, Instant now) {
-		this.memberId = memberId;
+	Credential(long userId, String passwordHash, Instant now) {
+		this.userId = userId;
 		this.passwordHash = passwordHash;
 		this.updatedAt = now;
 	}
 
-	long getMemberId() {
-		return memberId;
+	long getUserId() {
+		return userId;
 	}
 
 	String getPasswordHash() {

@@ -1,4 +1,4 @@
-package com.flexable.web.member;
+package com.flexable.web.user;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -12,16 +12,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "member_settings")
-public class MemberSettings {
+@Table(name = "user_settings")
+public class UserSettings {
 
 	static final String DEFAULT_THEME = "light";
 	/** seen_tours(VARCHAR 1000)에 들어가는 최대 개수. 키 40자 + 쉼표 기준 */
 	static final int MAX_SEEN_TOURS = 24;
 
 	@Id
-	@Column(name = "member_id")
-	private Long memberId;
+	@Column(name = "user_id")
+	private Long userId;
 
 	@Column(nullable = false, length = 10)
 	private String theme;
@@ -36,11 +36,11 @@ public class MemberSettings {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
-	protected MemberSettings() {
+	protected UserSettings() {
 	}
 
-	MemberSettings(long memberId, Instant now) {
-		this.memberId = memberId;
+	UserSettings(long userId, Instant now) {
+		this.userId = userId;
 		this.theme = DEFAULT_THEME;
 		this.seenTours = "";
 		this.updatedAt = now;

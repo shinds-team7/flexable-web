@@ -1,4 +1,4 @@
-package com.flexable.web.member;
+package com.flexable.web.user;
 
 import java.time.Instant;
 
@@ -10,8 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "members")
-public class Member {
+@Table(name = "users")
+public class User {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,10 +29,10 @@ public class Member {
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
-	protected Member() {
+	protected User() {
 	}
 
-	Member(String email, Instant now) {
+	User(String email, Instant now) {
 		this.email = email;
 		this.termsAgreedAt = now;
 		this.privacyAgreedAt = now;

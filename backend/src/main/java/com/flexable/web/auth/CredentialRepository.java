@@ -14,5 +14,5 @@ public interface CredentialRepository extends JpaRepository<Credential, Long> {
 	 * 되돌릴 수 있다.
 	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
-	Optional<Credential> findWithLockByMemberId(long memberId);
+	Optional<Credential> findWithLockByUserId(long userId);
 }

@@ -49,13 +49,13 @@ public class TokenService {
 		this.clock = clock;
 	}
 
-	IssuedToken issue(long memberId, int tokenVersion) {
+	IssuedToken issue(long userId, int tokenVersion) {
 		// JWT의 iat·exp는 초 단위라 응답의 expiresAt도 초에서 자른다.
 		Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
 		Instant expiresAt = now.plus(ttl);
 		JwtClaimsSet claims = JwtClaimsSet.builder()
 			.issuer(ISSUER)
-			.subject(String.valueOf(memberId))
+			.subject(String.valueOf(userId))
 			.issuedAt(now)
 			.expiresAt(expiresAt)
 			.claim(TOKEN_VERSION_CLAIM, tokenVersion)

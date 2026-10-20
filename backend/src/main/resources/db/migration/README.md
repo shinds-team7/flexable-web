@@ -3,6 +3,6 @@
 
 | 버전 | 내용 |
 |---|---|
-| `V1__web_accounts.sql` | `members`(member), `member_settings`(member), `member_credentials`(auth) |
+| `V1__web_accounts.sql` | `users`(user), `user_settings`(user), `user_credentials`(auth) |
 
 MySQL과 H2(MySQL 모드, 로컬·테스트) 양쪽에서 돌아야 한다. 테스트(`./gradlew test`)가 매번 처음부터 적용하고 `ddl-auto=validate`로 엔티티와 맞는지 본다.

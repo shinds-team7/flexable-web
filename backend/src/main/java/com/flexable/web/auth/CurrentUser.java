@@ -2,9 +2,9 @@ package com.flexable.web.auth;
 
 import org.springframework.security.oauth2.jwt.Jwt;
 
-public final class CurrentMember {
+public final class CurrentUser {
 
-	private CurrentMember() {
+	private CurrentUser() {
 	}
 
 	public static long id(Jwt jwt) {

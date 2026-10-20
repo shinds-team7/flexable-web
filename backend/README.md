@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **웹 계정(`config`·`common`·`auth`·`member`)까지 구현됐다(2026-10-20).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`user`)까지 구현됐다(2026-10-20).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -31,19 +31,19 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `config` | 보안·CORS·프로필(api/worker)·시계 설정 | 전부 |
 | `common` | 오류 응답 형식, 금액·날짜 공통 타입 | 없음 |
 | `applink` | [앱 연동하기]와 project2 호출의 유일한 출입구 | `common` |
-| `auth` | 웹 가입·로그인·세션 발급·폐기(웹 계정, 자체 비밀키) | `member` |
-| `member` | 웹 회원 정보·설정·동의, 탈퇴 조정 | `applink` |
-| `seedmoney` | 앱 유동자산 집계를 받아 웹에서 쓰는 시드머니 | `applink`, `member` |
+| `auth` | 웹 가입·로그인·세션 발급·폐기(웹 계정, 자체 비밀키) | `user` |
+| `user` | 웹 회원 정보·설정·동의, 탈퇴 조정 | `applink` |
+| `seedmoney` | 앱 유동자산 집계를 받아 웹에서 쓰는 시드머니 | `applink`, `user` |
 | `market` | 종목·일별 시세·사건 | `common` |
 | `insight` | 사건 설명(사전 생성·검수 상태) | `market` |
 | `savings` | 적금 상품·금리 | `common` |
 | `simulation` | 투자·적금 계산 엔진, 프리셋 | `market`, `savings`, `seedmoney` |
 | `news` | 청년 금융 소식 | `common` |
-| `billing` | 요금제·구독·결제 | `member` |
-| `engagement` | 목표·공유·지표 이벤트 | `simulation`, `member` |
+| `billing` | 요금제·구독·결제 | `user` |
+| `engagement` | 목표·공유·지표 이벤트 | `simulation`, `user` |
 | `ingest` | 외부 데이터 수집 작업 공통(worker 프로필에서만 동작) | 각 도메인의 저장 인터페이스 |
 
-규칙: 표에 없는 방향의 import는 금지하고 `src/test/.../architecture/PackageDependencyTest`로 막는다. `common`은 아무 데도 의존하지 않으므로 모든 패키지가 쓸 수 있다. 다른 패키지의 Repository·엔티티를 직접 쓰지 않고 그 패키지의 공개 서비스·DTO만 쓴다(같은 테스트가 검사). 의존 방향을 거슬러 불러야 할 때(예: 탈퇴 시 각 패키지 데이터 삭제)는 아래 패키지가 인터페이스를 두고 위 패키지가 구현한다(`member.MemberWithdrawalListener`). 표를 고치면 테스트의 `ALLOWED`도 함께 고친다.
+규칙: 표에 없는 방향의 import는 금지하고 `src/test/.../architecture/PackageDependencyTest`로 막는다. `common`은 아무 데도 의존하지 않으므로 모든 패키지가 쓸 수 있다. 다른 패키지의 Repository·엔티티를 직접 쓰지 않고 그 패키지의 공개 서비스·DTO만 쓴다(같은 테스트가 검사). 의존 방향을 거슬러 불러야 할 때(예: 탈퇴 시 각 패키지 데이터 삭제)는 아래 패키지가 인터페이스를 두고 위 패키지가 구현한다(`user.UserWithdrawalListener`). 표를 고치면 테스트의 `ALLOWED`도 함께 고친다. 회원 패키지·테이블 이름은 앱(project2 `user`·`users`)과 같게 `user`로 둔다(2026-10-20 사용자 결정, 이전 표기 `member`).
 
 ## API
 
@@ -60,7 +60,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `PATCH /me/settings` | Bearer | 보낸 필드만 바꾼다. `theme`, `seenTours`(이미 본 목록에 병합, 키 `[a-z0-9-]` 40자·최대 24개), `disclaimerAck: true`(서버 시각으로 기록) |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
-토큰: HS256, 30일, 클레임 `sub`(웹 회원 id)·`tv`(토큰 버전)·`iss=flexable-web`. 서명 키는 웹 전용(`WEB_JWT_SECRET`)이고 `iss`도 검사하므로 앱 토큰은 통과하지 못한다. 요청마다 `member_credentials.token_version`과 `tv`를 비교해 로그아웃·탈퇴된 토큰을 거절한다.
+토큰: HS256, 30일, 클레임 `sub`(웹 회원 id)·`tv`(토큰 버전)·`iss=flexable-web`. 서명 키는 웹 전용(`WEB_JWT_SECRET`)이고 `iss`도 검사하므로 앱 토큰은 통과하지 못한다. 요청마다 `user_credentials.token_version`과 `tv`를 비교해 로그아웃·탈퇴된 토큰을 거절한다.
 
 ## 로컬 실행
 
@@ -89,7 +89,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 ## 데이터
 
-Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `members`(member: 이메일·동의 시각), `member_settings`(member), `member_credentials`(auth: 비밀번호 해시·토큰 버전). 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). 앱 DB와 외래 키는 없다.
 
 ## 아직 정해지지 않은 것
 

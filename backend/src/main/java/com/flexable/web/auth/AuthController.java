@@ -41,13 +41,13 @@ public class AuthController {
 	@PostMapping("/auth/logout")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void logout(@AuthenticationPrincipal Jwt jwt) {
-		auth.logout(CurrentMember.id(jwt));
+		auth.logout(CurrentUser.id(jwt));
 	}
 
-	/** 웹 탈퇴. GET /me(회원 정보)는 member 패키지에 있다. */
+	/** 웹 탈퇴. GET /me(회원 정보)는 user 패키지에 있다. */
 	@DeleteMapping("/me")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void withdraw(@AuthenticationPrincipal Jwt jwt, @RequestBody WithdrawRequest req) {
-		auth.withdraw(CurrentMember.id(jwt), CurrentMember.tokenVersion(jwt), req.password());
+		auth.withdraw(CurrentUser.id(jwt), CurrentUser.tokenVersion(jwt), req.password());
 	}
 }

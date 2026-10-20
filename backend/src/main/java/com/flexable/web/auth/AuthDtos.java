@@ -2,7 +2,7 @@ package com.flexable.web.auth;
 
 import java.time.OffsetDateTime;
 
-import com.flexable.web.member.MemberDtos.MemberResponse;
+import com.flexable.web.user.UserDtos.UserResponse;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
@@ -32,6 +32,6 @@ public final class AuthDtos {
 	public record WithdrawRequest(String password) {
 	}
 
-	public record AuthResponse(String accessToken, OffsetDateTime expiresAt, MemberResponse user) {
+	public record AuthResponse(String accessToken, OffsetDateTime expiresAt, UserResponse user) {
 	}
 }

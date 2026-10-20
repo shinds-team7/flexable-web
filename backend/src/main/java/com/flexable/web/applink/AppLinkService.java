@@ -96,10 +96,10 @@ public class AppLinkService {
 	public AppLinkResponse status(long userId) {
 		AppLink link = links.findByUserId(userId).orElse(null);
 		if (link == null) {
-			return AppLinkResponse.none(null);
+			return AppLinkResponse.none(app.enabled(), null);
 		}
 		if (refreshInterval.isPositive() && link.getCheckedAt().plus(refreshInterval).isAfter(clock.instant())) {
-			return AppLinkResponse.of(link);
+			return AppLinkResponse.of(app.enabled(), link);
 		}
 		return sync(link);
 	}
@@ -213,13 +213,13 @@ public class AppLinkService {
 				l.synced(profile, received, now);
 				return l;
 			}).orElse(null));
-			return updated == null ? AppLinkResponse.none(null) : AppLinkResponse.of(updated);
+			return updated == null ? AppLinkResponse.none(app.enabled(), null) : AppLinkResponse.of(app.enabled(), updated);
 		}
 		catch (AppApiException e) {
 			if (e.kind() == Kind.LINK_NOT_FOUND) {
 				tx.executeWithoutResult(s -> links.deleteRow(rowId));
 				log.info("앱에서 해제된 연동을 정리함: linkRow={}", rowId);
-				return AppLinkResponse.none(AppLinkDtos.REASON_APP_UNLINKED);
+				return AppLinkResponse.none(app.enabled(), AppLinkDtos.REASON_APP_UNLINKED);
 			}
 			logFailure(e, "조회");
 		}
@@ -230,7 +230,7 @@ public class AppLinkService {
 			l.checkFailed(now);
 			return l;
 		}).orElse(null));
-		return checked == null ? AppLinkResponse.none(null) : AppLinkResponse.of(checked);
+		return checked == null ? AppLinkResponse.none(app.enabled(), null) : AppLinkResponse.of(app.enabled(), checked);
 	}
 
 	private void releaseQuietly(String linkId, String why) {

@@ -50,6 +50,11 @@ public class RestAppApiClient implements AppApiClient {
 	}
 
 	@Override
+	public boolean enabled() {
+		return configured;
+	}
+
+	@Override
 	public CreatedLink create(String code) {
 		CreateBody body = send(true, http.post().uri("/internal/v1/web-links")
 			.contentType(MediaType.APPLICATION_JSON).body(Map.of("code", code)), CreateBody.class);

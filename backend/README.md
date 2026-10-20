@@ -67,7 +67,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
-`AppLink` = `{linked, reason, linkedAt, account: {email|null, provider}, seedMoney: {state, total, base, monthlyGoal, lastEntry: {cycleEnd, choice, amount, createdAt}|null, updatedAt}, sync: {state: "ok"|"stale", syncedAt}}`. 미연동이면 `linked`·`reason` 말고는 `null`. `seedMoney.state`는 `ok`(금액 있음)·`budget_not_set`(앱 예산 설정 전, 연동은 유지)·`unknown`(아직 한 번도 받지 못함)이고 금액은 `ok`일 때만 있다. 금액은 앱 서버 값 그대로다(웹에서 계산하지 않음). `linkId`는 응답·로그에 넣지 않는다.
+`AppLink` = `{enabled, linked, reason, linkedAt, account: {email|null, provider}, seedMoney: {status, total, base, monthlyGoal, lastEntry: {cycleEnd, choice, amount, createdAt}|null, updatedAt}, sync: {status: "fresh"|"stale", syncedAt}}`. `enabled`는 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지이고, `false`면 화면이 [앱 연동하기]를 숨긴다. 미연동이면 `enabled`·`linked`·`reason` 말고는 `null`. `seedMoney.status`는 `available`(금액 있음)·`budget_not_set`(앱 예산 설정 전, 연동은 유지)·`not_received`(아직 한 번도 받지 못함)이고 금액은 `available`일 때만 있다. 금액은 앱 서버 값 그대로다(웹에서 계산하지 않음). `linkId`는 응답·로그에 넣지 않는다.
 
 소셜 로그인 규칙은 project2와 같다. 공급자가 **확인한** 이메일이 같은 웹 계정이 있으면 그 계정에 로그인 수단을 붙이고 기존 웹 세션을 끊는다. 그 뒤로는 비밀번호 로그인이 401 `SOCIAL_ACCOUNT`(+`provider`)로 안내된다. 같은 공급자의 다른 계정은 붙이지 않는다(`email_in_use`). 확인되지 않은 이메일은 저장하지도 연결에 쓰지도 않는다. **앱 계정은 보지 않는다**(04 §4).
 

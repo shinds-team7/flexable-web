@@ -73,6 +73,7 @@ class AppLinkFlowTest {
 	void setup() {
 		reset(app);
 		linkId = "link-" + UUID.randomUUID() + "-secret";
+		when(app.enabled()).thenReturn(true);
 		when(app.create(anyString())).thenReturn(new CreatedLink(linkId, PROFILE));
 		when(app.profile(anyString())).thenReturn(PROFILE);
 		when(app.seedMoney(anyString())).thenReturn(SEED);
@@ -113,21 +114,22 @@ class AppLinkFlowTest {
 	@Test
 	void linkShowsAccountAndSeedMoneyThenUnlinks() throws Exception {
 		String token = signup();
-		lookup(token).andExpect(status().isOk()).andExpect(jsonPath("$.linked").value(false));
+		lookup(token).andExpect(status().isOk()).andExpect(jsonPath("$.linked").value(false))
+			.andExpect(jsonPath("$.enabled").value(true));
 
 		MvcResult created = link(token, CODE).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.linked").value(true))
 			.andExpect(jsonPath("$.linkedAt", endsWith("+09:00")))
 			.andExpect(jsonPath("$.account.email").isEmpty())
 			.andExpect(jsonPath("$.account.provider").value("kakao"))
-			.andExpect(jsonPath("$.seedMoney.state").value("ok"))
+			.andExpect(jsonPath("$.seedMoney.status").value("available"))
 			.andExpect(jsonPath("$.seedMoney.total").value(1_450_000))
 			.andExpect(jsonPath("$.seedMoney.base").value(500_000))
 			.andExpect(jsonPath("$.seedMoney.monthlyGoal").value(300_000))
 			.andExpect(jsonPath("$.seedMoney.lastEntry.cycleEnd").value("2026-09-25"))
 			.andExpect(jsonPath("$.seedMoney.lastEntry.choice").value("ALL"))
 			.andExpect(jsonPath("$.seedMoney.updatedAt", endsWith("+09:00")))
-			.andExpect(jsonPath("$.sync.state").value("ok"))
+			.andExpect(jsonPath("$.sync.status").value("fresh"))
 			.andReturn();
 		verify(app).create(CODE);
 
@@ -239,9 +241,9 @@ class AppLinkFlowTest {
 		when(app.seedMoney(anyString())).thenThrow(new AppApiException(Kind.BUDGET_NOT_SET));
 		link(token, CODE).andExpect(status().isCreated())
 			.andExpect(jsonPath("$.linked").value(true))
-			.andExpect(jsonPath("$.seedMoney.state").value("budget_not_set"))
+			.andExpect(jsonPath("$.seedMoney.status").value("budget_not_set"))
 			.andExpect(jsonPath("$.seedMoney.total").isEmpty())
-			.andExpect(jsonPath("$.sync.state").value("ok"));
+			.andExpect(jsonPath("$.sync.status").value("fresh"));
 	}
 
 	@Test
@@ -252,12 +254,12 @@ class AppLinkFlowTest {
 		lookup(token).andExpect(status().isOk())
 			.andExpect(jsonPath("$.linked").value(true))
 			.andExpect(jsonPath("$.seedMoney.total").value(1_450_000))
-			.andExpect(jsonPath("$.sync.state").value("stale"))
+			.andExpect(jsonPath("$.sync.status").value("stale"))
 			.andExpect(jsonPath("$.sync.syncedAt", endsWith("+09:00")));
 		assertThat(rows(userId(token))).isEqualTo(1);
 
 		doReturn(PROFILE).when(app).profile(anyString());
-		lookup(token).andExpect(jsonPath("$.sync.state").value("ok"));
+		lookup(token).andExpect(jsonPath("$.sync.status").value("fresh"));
 		assertThat(output.getAll()).doesNotContain(linkId);
 	}
 
@@ -265,8 +267,8 @@ class AppLinkFlowTest {
 	void outageRightAfterLinkShowsUnknownSeedMoney() throws Exception {
 		when(app.seedMoney(anyString())).thenThrow(new AppApiException(Kind.UNAVAILABLE));
 		link(signup(), CODE).andExpect(status().isCreated())
-			.andExpect(jsonPath("$.seedMoney.state").value("unknown"))
-			.andExpect(jsonPath("$.sync.state").value("stale"));
+			.andExpect(jsonPath("$.seedMoney.status").value("not_received"))
+			.andExpect(jsonPath("$.sync.status").value("stale"));
 	}
 
 	@Test
@@ -290,7 +292,7 @@ class AppLinkFlowTest {
 		link(token, CODE).andExpect(status().isCreated());
 		// 암호화 키가 바뀐 상황: 저장된 값을 읽을 수 없다.
 		jdbc.update("UPDATE app_links SET link_id_cipher = 'v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' WHERE user_id = ?", userId);
-		lookup(token).andExpect(jsonPath("$.linked").value(true)).andExpect(jsonPath("$.sync.state").value("stale"));
+		lookup(token).andExpect(jsonPath("$.linked").value(true)).andExpect(jsonPath("$.sync.status").value("stale"));
 		unlink(token).andExpect(status().isNoContent());
 		verify(app, never()).delete(anyString());
 		assertThat(rows(userId)).isZero();

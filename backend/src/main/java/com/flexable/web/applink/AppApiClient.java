@@ -9,6 +9,11 @@ import java.time.OffsetDateTime;
  */
 public interface AppApiClient {
 
+	/** 앱 서버를 부를 수 있게 설정됐는지. false면 화면이 [앱 연동하기]를 숨긴다(주소·서비스 키 없음). */
+	default boolean enabled() {
+		return true;
+	}
+
 	/** POST /internal/v1/web-links. 코드는 일회용이라 결과를 모르면 RESULT_UNKNOWN을 던지고 다시 보내지 않는다. */
 	CreatedLink create(String code);
 

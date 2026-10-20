@@ -21,7 +21,7 @@ import jakarta.persistence.Table;
 @Table(name = "app_links")
 public class AppLink {
 
-	static final String SEED_OK = "ok";
+	static final String SEED_AVAILABLE = "available";
 	static final String SEED_BUDGET_NOT_SET = "budget_not_set";
 
 	@Id
@@ -108,7 +108,7 @@ public class AppLink {
 			this.seedUpdatedAt = null;
 		}
 		else {
-			this.seedState = SEED_OK;
+			this.seedState = SEED_AVAILABLE;
 			this.seedTotal = seed.total();
 			this.seedBase = seed.base();
 			this.seedMonthlyGoal = seed.monthlyGoal();

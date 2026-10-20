@@ -15,6 +15,8 @@
 
 - [ ] **웹 백엔드 배포**: VM에 웹 백엔드(api, 필요하면 worker)와 웹 DB를 띄우고 환경변수를 넣는다. 필수 `WEB_JWT_SECRET`(32바이트 이상, 앱 `JWT_SECRET`과 다른 값)·`DB_URL`·`DB_USERNAME`·`DB_PASSWORD`. 목록은 [`backend/README.md`](../../backend/README.md) "환경 변수".
 - [ ] **앱 연동 설정**: 웹 백엔드에 `APP_LINK_BASE_URL`(앱 서버 주소), `APP_LINK_SERVICE_KEY`(앱 서버 `WEB_LINK_SERVICE_KEYS`에 넣은 값과 같은 키, 32자 이상), `APP_LINK_ENCRYPTION_KEY`(`openssl rand -base64 32`, 한 번 정하면 바꾸지 않음)를 넣는다. 앱 서버 쪽에는 같은 서비스 키를 `WEB_LINK_SERVICE_KEYS`에 더한다. 키 값은 저장소·문서·메신저에 적지 않는다. 앱 서버 프록시에서 VM의 나가는 IP만 허용할지도 정한다(04 §10).
+- [ ] **앱: 주기별 반영 기록 API**(decisions ④-3, 04 §5-2): `GET /internal/v1/web-links/{linkId}/seed-money`에 `entries`·`startedOn`을 더한다. 앱 담당 요청서는 [app-request-seed-entries.md](app-request-seed-entries.md). 앱이 배포되면 웹은 `applink`에 기록 저장을 더하고 홈 시드머니(`seedmoney`, `GET /api/v1/me/seed-money`)를 연동 값으로 바꾼다.
+- [ ] **개인정보처리방침**: 연동 화면 공개 전에 웹이 앱에서 받는 항목(앱 이메일·로그인 방법·확정 시드머니·주기별 반영 기록)과 삭제 시점을 웹·앱 방침에 넣고 시행일을 정한다.
 - [ ] **앱 연동 실기기 확인**(앱 1.3.0 출시·앱 화면 원격 업데이트 뒤): 앱 코드 발급 → 웹 내 정보에서 연동 → 시드머니 표시 → 웹에서 해제 시 앱 연동 목록에서 사라짐 → 다시 연동 후 앱에서 해제 시 웹이 "앱에서 연동을 해제" 표시. 공개 전에 개인정보처리방침 반영 여부·시행일 확인.
 - [ ] **웹 주소 확보**: Google 로그인 콜백은 공개 도메인 + HTTPS여야 한다(IP 주소·사설 주소 불가, localhost만 예외). VM에 도메인을 붙일 수 없으면 Google 로그인은 운영에서 끄고(`GOOGLE_CLIENT_ID` 비움) 카카오·이메일만 쓴다.
 - [ ] **소셜 콘솔 등록**(project2와 같은 카카오·Google 앱을 쓴다, 아래 조건): 콜백 `{OAUTH_CALLBACK_BASE_URL}/api/v1/auth/oauth/kakao/callback`·`…/google/callback`을 Redirect URI에 추가한다. Google은 동의 화면 승인된 도메인에 웹 도메인도 더한다. 웹 백엔드에 `OAUTH_CALLBACK_BASE_URL`, `OAUTH_ALLOWED_REDIRECT_URIS`(웹 화면의 `/oauth/callback`), `KAKAO_CLIENT_ID`·`KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`을 넣는다.

@@ -24,41 +24,47 @@ public final class AppLinkDtos {
 			@Pattern(regexp = "[A-Za-z0-9 -]*", message = "코드는 영문과 숫자로 되어 있어요") String code) {
 	}
 
+	/** 시드머니를 아직 한 번도 받지 못함(연동 직후 조회 실패) */
+	static final String SEED_NOT_RECEIVED = "not_received";
+	static final String SYNC_FRESH = "fresh";
+	static final String SYNC_STALE = "stale";
+
 	/**
-	 * GET·POST /api/v1/app-link 응답. 연동이 없으면 linked=false이고 나머지는 null이다.
+	 * GET·POST /api/v1/app-link 응답. 연동이 없으면 linked=false이고 enabled·reason 말고는 null이다.
 	 *
+	 * @param enabled 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지. false면 화면이 [앱 연동하기]를 숨긴다
 	 * @param reason 미연동일 때만. app_unlinked = 앱에서 해제·앱 탈퇴로 이번 조회에서 연동이 끝남
 	 * @param account 앱 회원 정보(email은 소셜 계정이면 null일 수 있음)
 	 * @param seedMoney 앱에서 확정한 시드머니(마지막으로 받은 값)
-	 * @param sync ok = 방금(또는 refreshInterval 안에) 앱 서버에서 받음, stale = 마지막 조회 실패라 syncedAt 기준 값
+	 * @param sync fresh = 방금(또는 refreshInterval 안에) 앱 서버에서 받음, stale = 마지막 조회 실패라 syncedAt 기준 값
 	 */
-	public record AppLinkResponse(boolean linked, String reason, OffsetDateTime linkedAt, Account account,
-			SeedMoney seedMoney, Sync sync) {
+	public record AppLinkResponse(boolean enabled, boolean linked, String reason, OffsetDateTime linkedAt,
+			Account account, SeedMoney seedMoney, Sync sync) {
 
-		static AppLinkResponse none(String reason) {
-			return new AppLinkResponse(false, reason, null, null, null, null);
+		static AppLinkResponse none(boolean enabled, String reason) {
+			return new AppLinkResponse(enabled, false, reason, null, null, null, null);
 		}
 
-		static AppLinkResponse of(AppLink l) {
-			String seedState = l.getSeedState() == null ? "unknown" : l.getSeedState();
+		static AppLinkResponse of(boolean enabled, AppLink l) {
+			String seedStatus = l.getSeedState() == null ? SEED_NOT_RECEIVED : l.getSeedState();
 			LastEntry last = l.getSeedLastCycleEnd() == null ? null
 					: new LastEntry(l.getSeedLastCycleEnd(), l.getSeedLastChoice(), l.getSeedLastAmount(),
 							Times.at(l.getSeedLastCreatedAt()));
-			SeedMoney seed = AppLink.SEED_OK.equals(seedState)
-					? new SeedMoney(seedState, l.getSeedTotal(), l.getSeedBase(), l.getSeedMonthlyGoal(), last,
+			SeedMoney seed = AppLink.SEED_AVAILABLE.equals(seedStatus)
+					? new SeedMoney(seedStatus, l.getSeedTotal(), l.getSeedBase(), l.getSeedMonthlyGoal(), last,
 							Times.at(l.getSeedUpdatedAt()))
-					: new SeedMoney(seedState, null, null, null, null, null);
-			return new AppLinkResponse(true, null, Times.at(l.getCreatedAt()),
+					: new SeedMoney(seedStatus, null, null, null, null, null);
+			return new AppLinkResponse(enabled, true, null, Times.at(l.getCreatedAt()),
 					new Account(l.getAppEmail(), l.getAppProvider()), seed,
-					new Sync(l.stale() ? "stale" : "ok", Times.at(l.getSyncedAt())));
+					new Sync(l.stale() ? SYNC_STALE : SYNC_FRESH, Times.at(l.getSyncedAt())));
 		}
 	}
 
 	public record Account(String email, String provider) {
 	}
 
-	/** state: ok(금액 있음), budget_not_set(앱 예산 설정 전), unknown(아직 한 번도 받지 못함). 금액은 ok일 때만 있다. */
-	public record SeedMoney(String state, Long total, Long base, Long monthlyGoal, LastEntry lastEntry,
+	/** status: available(금액 있음), budget_not_set(앱 예산 설정 전), not_received(아직 한 번도 받지 못함). 금액은 available일 때만 있다. */
+	public record SeedMoney(String status, Long total, Long base, Long monthlyGoal, LastEntry lastEntry,
 			OffsetDateTime updatedAt) {
 	}
 
@@ -66,6 +72,6 @@ public final class AppLinkDtos {
 	public record LastEntry(LocalDate cycleEnd, String choice, Long amount, OffsetDateTime createdAt) {
 	}
 
-	public record Sync(String state, OffsetDateTime syncedAt) {
+	public record Sync(String status, OffsetDateTime syncedAt) {
 	}
 }

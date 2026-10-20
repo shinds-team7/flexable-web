@@ -96,6 +96,7 @@ class RestAppApiClientTest {
 	void createSendsCodeWithServiceKey() {
 		reply(201, """
 				{"linkId":"%s","profile":{"email":null,"provider":"google"}}""".formatted(LINK_ID));
+		assertThat(client().enabled()).isTrue();
 		CreatedLink created = client().create("k7m2-q9xb");
 		assertThat(created.linkId()).isEqualTo(LINK_ID);
 		assertThat(created.profile().email()).isNull();
@@ -196,6 +197,7 @@ class RestAppApiClientTest {
 	void missingConfigurationNeverCallsOut() {
 		RestAppApiClient c = new RestAppApiClient(new AppLinkProperties("http", "", "", null, Duration.ofSeconds(1),
 				Duration.ofSeconds(1), Duration.ZERO));
+		assertThat(c.enabled()).isFalse();
 		assertThat(kindOf(() -> c.create("x"))).isEqualTo(Kind.NOT_CONFIGURED);
 		assertThat(seen).isEmpty();
 	}

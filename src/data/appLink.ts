@@ -5,26 +5,40 @@ import { api } from '@/lib/api';
 export type AppProvider = 'email' | 'kakao' | 'google';
 export type SeedChoice = 'GOAL' | 'ALL' | 'MANUAL';
 
-export type AppSeedMoney = {
-  /** ok: 금액 있음, budget_not_set: 앱에서 예산 설정 전, unknown: 아직 한 번도 받지 못함 */
-  state: 'ok' | 'budget_not_set' | 'unknown';
-  total: number | null; // 모아둔 돈 + 반영한 돈
-  base: number | null; // 모아둔 돈
-  monthlyGoal: number | null; // 매달 저축할 돈
-  lastEntry: { cycleEnd: string; choice: SeedChoice; amount: number; createdAt: string } | null;
-  updatedAt: string | null;
-};
+/** available: 금액 있음, budget_not_set: 앱에서 예산 설정 전, not_received: 아직 한 번도 받지 못함. 금액은 available일 때만 있다. */
+export type AppSeedMoney =
+  | {
+      status: 'available';
+      total: number; // 모아둔 돈 + 반영한 돈
+      base: number; // 모아둔 돈
+      monthlyGoal: number; // 매달 저축할 돈
+      lastEntry: { cycleEnd: string; choice: SeedChoice; amount: number; createdAt: string } | null;
+      updatedAt: string;
+    }
+  | { status: 'budget_not_set' | 'not_received'; total: null; base: null; monthlyGoal: null; lastEntry: null; updatedAt: null };
 
-export type AppLink = {
-  linked: boolean;
-  /** 미연동일 때만. app_unlinked = 앱에서 해제했거나 앱을 탈퇴해 이번 조회에서 연동이 끝남 */
-  reason: 'app_unlinked' | null;
-  linkedAt: string | null;
-  account: { email: string | null; provider: AppProvider } | null;
-  seedMoney: AppSeedMoney | null;
-  /** stale = 앱 서버 조회 실패라 syncedAt 기준 값 */
-  sync: { state: 'ok' | 'stale'; syncedAt: string } | null;
-};
+export type AppLink =
+  | {
+      /** 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지. false면 [앱 연동하기]를 보여 주지 않는다 */
+      enabled: boolean;
+      linked: false;
+      /** app_unlinked = 앱에서 해제했거나 앱을 탈퇴해 이번 조회에서 연동이 끝남 */
+      reason: 'app_unlinked' | null;
+      linkedAt: null;
+      account: null;
+      seedMoney: null;
+      sync: null;
+    }
+  | {
+      enabled: boolean;
+      linked: true;
+      reason: null;
+      linkedAt: string;
+      account: { email: string | null; provider: AppProvider };
+      seedMoney: AppSeedMoney;
+      /** fresh = 방금 앱 서버에서 받음, stale = 앱 서버 조회 실패라 syncedAt 기준 값 */
+      sync: { status: 'fresh' | 'stale'; syncedAt: string };
+    };
 
 const KEY = ['app-link'];
 
@@ -43,6 +57,15 @@ export function useUnlinkApp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api<void>('/app-link', { method: 'DELETE' }),
-    onSuccess: () => qc.setQueryData<AppLink>(KEY, { linked: false, reason: null, linkedAt: null, account: null, seedMoney: null, sync: null }),
+    onSuccess: () =>
+      qc.setQueryData<AppLink>(KEY, (prev) => ({
+        enabled: prev?.enabled ?? true,
+        linked: false,
+        reason: null,
+        linkedAt: null,
+        account: null,
+        seedMoney: null,
+        sync: null,
+      })),
   });
 }

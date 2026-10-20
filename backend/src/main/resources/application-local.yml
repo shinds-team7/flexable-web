@@ -10,3 +10,6 @@ app:
   auth:
     jwt:
       secret: ${WEB_JWT_SECRET:${random.value}}
+  # 로컬은 앱 서버 없이 고정 연동(snapshot)으로 화면을 확인한다. 실제 앱 서버에 붙이려면 APP_LINK_MODE=http와 주소·키를 넣는다.
+  applink:
+    mode: ${APP_LINK_MODE:snapshot}

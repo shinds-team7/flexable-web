@@ -1,4 +1,4 @@
-// 팀원이 채울 화면의 자리. 각 화면의 설계는 project2 docs/web/wireframes.html의 같은 이름 화면과 02-design.md를 따른다.
+// 팀원이 채울 화면의 자리. 각 화면의 설계는 docs/reference/wireframes.html의 같은 이름 화면과 02-design.md를 따른다.
 export default function Placeholder({ title, desc, wireframe }: { title: string; desc: string; wireframe: string }) {
   return (
     <section>

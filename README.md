@@ -5,7 +5,17 @@
 - 웹: Vite + React + TypeScript · React Router · TanStack Query
 - 시연(`/m`): Expo 웹(예시 데이터, 서버 호출 없음)
 - 운영: https://flexable-web-delta.vercel.app (시연 `/m`). 운영 API의 CORS·OAuth 허용 목록에 이 주소가 들어 있다(10-19)
-- API 서버·계정·앱: [`shinds-team7/project2`](https://github.com/shinds-team7/project2) (계약 `docs/API.md`, 웹 계획 `docs/web/`)
+- 앱·앱 서버: [`shinds-team7/project2`](https://github.com/shinds-team7/project2). 웹 서버는 이 저장소 `backend/`(지금은 구조만 있음)
+- 현재 배포본의 로그인은 임시로 project2 계정 API를 쓴다. 웹 계정이 생기면 바꾼다([경계 문서](docs/product/04-service-boundaries.md) §4)
+
+## 팀 작업의 출발점
+
+이 저장소에서 웹 제품 전체를 개발한다. 현재 배포본은 팀원이 기능을 이어서 만들 초기 UI·로그인 기반이다. 화면의 예시 데이터와 Placeholder는 미완성 상태를 뜻한다. 기능 완료에는 화면·API 계약·서버 로직·데이터 준비·통합 검증이 모두 필요하다.
+
+1. [제품 문서](docs/product/README.md), [최신 서버 경계 결정](docs/product/04-service-boundaries.md), [웹 인수인계](docs/product/HANDOFF.md)를 읽는다.
+2. 웹 화면·상태와 API 요청·응답을 정한다. 웹 API 계약은 이 저장소에, 앱 연동 API 계약만 project2 `docs/API.md`에 적는다.
+3. 화면은 `src/`, 서버는 `backend/`에서 구현한다. 앱 연동에 필요한 project2 쪽 변경만 연계 PR로 올린다. 예시 응답을 실제 API로 바꾸고 실패·빈 상태도 검증한다.
+4. 검사 결과와 미구현·운영 미확인 항목을 분리해 기록한다. Vercel에 UI가 배포됐다고 기능 완료로 기록하지 않는다.
 
 ## 경로
 
@@ -16,7 +26,8 @@
 | `/home` | 시드머니 · 쌓인 모양(꺾은선) · 굴렸다면 · 코스피/코스닥 · 청년 금융 소식 | 화면 완료, 데이터는 예시(API 대기) |
 | `/me` | 계정 · 테마(라이트/다크) · 로그아웃 | 기본 완료 |
 | `/invest`, `/savings`, `/mix` | 투자 시뮬레이션 · 적금 비교 · 섞어보기 (상단 메뉴) | 자리만(팀원 개발) |
-| `/goal`, `/news`, `/news/:id`, `/plus` | AI 목표 달성(로그인 필요) · 청년 금융 소식 · 소식 상세 · 플러스 (상단 메뉴) | 자리만(팀원 개발). AI 목표 달성의 AI 범위는 미정 |
+| `/goal`, `/news`, `/news/:id` | AI 목표 달성(로그인 필요) · 청년 금융 소식 · 소식 상세 | 자리만(팀원 개발). AI 목표 달성의 AI 범위는 미정 |
+| `/plus` | 플러스 요금표 | UI 구현. 요금제·구독 데이터는 예시, 결제 결과 미구현 |
 | `/billing/result`, `/p/:id`, `/signup` | 모의 결제 결과 · 공유 · 이메일 가입 | 자리만(팀원 개발) |
 | `/lab/*` | 예전 주소 → 새 경로로 이동 | 호환 |
 | `/m/*` | 앱 시연(온보딩·홈·지출계획·분석·마이) | 완료(project2에서 옮김) |
@@ -49,7 +60,7 @@ npm run build      # dist/ = 웹 + dist/m(시연)
 
 Vercel 프로젝트 하나가 이 저장소의 `main`을 자동 배포한다(`vercel.json`: 설치·빌드 명령, `/m/*`는 시연 index로, 나머지는 웹 index로 rewrite).
 
-배포 주소가 정해지면 API 서버(project2)에 다음을 추가해야 한다.
+새 배포 도메인을 추가할 때 운영 담당자가 API 서버(project2)와 웹 환경설정을 함께 갱신한다. 아래는 절차이며 이번 문서 수정에서 운영 설정을 변경하거나 확인한 것은 아니다.
 - 서버 `.env`의 `CORS_ORIGINS`에 웹 주소
 - `OAUTH_ALLOWED_REDIRECT_URIS`에 `https://<웹 주소>/oauth/callback`
 - 운영 웹 환경변수 `VITE_API_URL=https://flex-able-sh.duckdns.org`(도메인 구매 뒤 `https://api.<도메인>`)

@@ -29,7 +29,7 @@ months.reduce((cum, v, i) => {
   return cum + v;
 }, 0);
 
-// TODO(BE): GET /api/v1/me/seed-money (project2 docs/web/03-architecture.md C-1), 수정은 PUT·DELETE /me/seed-money/manual
+// TODO(BE): GET /api/v1/me/seed-money (docs/product/03-architecture.md C-1), 수정은 PUT·DELETE /me/seed-money/manual
 async function fetchSeedMoney(): Promise<SeedMoney> {
   return delay({ confirmed: 470000, current: 120000, todaySaved: 3000, manual: null, asOf: '2026-10-17', avgPerCycle: 78000, history, isSample: true });
 }

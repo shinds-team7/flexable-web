@@ -1,4 +1,4 @@
-// API 클라이언트. 계약은 project2 저장소의 docs/API.md(앱·웹 공통)를 따른다.
+// API 클라이언트. 웹 백엔드(backend/) 계약은 backend/README.md "API"를 따른다.
 const BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '') + '/api/v1';
 const TOKEN_KEY = 'fx.token';
 

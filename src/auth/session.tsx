@@ -1,6 +1,7 @@
 // 로그인 상태. 토큰은 localStorage(03-architecture ADR-7: 1단계), 도메인 구매 뒤 httpOnly 쿠키로 바꾼다.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, setUnauthorizedHandler, tokenStore } from '@/lib/api';
+import { loadSettings } from './settings';
 import type { AuthResponse, User } from './types';
 
 type Session = {
@@ -8,6 +9,8 @@ type Session = {
   user: User | null;
   signIn: (r: AuthResponse) => void;
   signOut: () => Promise<void>;
+  /** 서버 호출 없이 이 브라우저의 세션만 지운다(탈퇴 직후 등). */
+  clearSession: () => void;
 };
 
 const Ctx = createContext<Session | null>(null);
@@ -35,6 +38,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!alive) return;
         setUser(u);
         setStatus('member');
+        void loadSettings();
       })
       .catch(() => alive && clear());
     return () => {
@@ -46,9 +50,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     tokenStore.set(r.accessToken);
     setUser(r.user);
     setStatus('member');
+    void loadSettings();
   }, []);
 
-  // 서버 로그아웃은 이 사용자의 모든 기기 토큰을 끊는다(앱 포함). 응답과 무관하게 토큰을 지운다.
+  // 서버 로그아웃은 이 계정의 모든 기기 웹 토큰을 끊는다(앱 세션은 그대로). 응답과 무관하게 토큰을 지운다.
   const signOut = useCallback(async () => {
     try {
       await api('/auth/logout', { method: 'POST' });
@@ -58,7 +63,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     clear();
   }, [clear]);
 
-  const value = useMemo(() => ({ status, user, signIn, signOut }), [status, user, signIn, signOut]);
+  const value = useMemo(() => ({ status, user, signIn, signOut, clearSession: clear }), [status, user, signIn, signOut, clear]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

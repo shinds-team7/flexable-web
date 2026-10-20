@@ -4,7 +4,7 @@
 
 ## 1. 한 줄 요약
 
-웹과 앱은 **서버·DB·계정이 각각 따로**다. 웹 사용자가 원하면 [앱 연동하기]로 자기 앱 계정을 연결하고, 연결된 동안만 앱의 회원 정보와 유동자산 집계를 읽어 온다.
+웹과 앱은 **서버·DB·계정이 각각 따로**다. 웹 사용자가 원하면 [앱 연동하기]로 자기 앱 계정을 연결하고, 연결된 동안만 앱의 회원 정보와 시드머니를 읽어 온다.
 
 ## 2. 왜 분리하나
 
@@ -54,7 +54,7 @@
 
 1. **앱**: 설정 > [웹 연동 코드 받기]. 앱이 `POST /api/v1/me/web-link-codes`(사용자 JWT)로 코드를 받는다. 코드는 8자리, **10분 유효, 한 번만 사용**. project2는 해시만 저장한다.
 2. **웹**: 로그인한 사용자가 [앱 연동하기] → 코드 입력 → 웹 백엔드 `POST /api/v1/app-link { code }`. 가입 직후 화면과 내 정보 화면 두 곳에서 시작할 수 있다.
-3. **웹 백엔드 → project2**: `POST /internal/v1/web-links { code }`(서비스 인증). project2는 코드를 확인하고 연동 레코드를 만든 뒤 `{ linkId, appEmail, appNickname }`를 돌려준다. `linkId`는 추측할 수 없는 임의 값이다.
+3. **웹 백엔드 → project2**: `POST /internal/v1/web-links { code }`(서비스 인증). project2는 코드를 확인하고 연동 레코드를 만든 뒤 `{ linkId, profile: { email, provider } }`를 돌려준다(앱에는 닉네임이 없다). `linkId`는 추측할 수 없는 임의 값이다.
 4. **웹 백엔드**: `app_links`에 (웹 사용자, `linkId`, 연동 시각)을 저장하고 화면에 "앱 계정 ○○○과 연동됨"을 표시한다.
 
 이후 조회는 `linkId`와 서비스 인증으로만 한다. 앱 로그인 상태와는 관계없다.
@@ -63,10 +63,10 @@
 
 | 정보 | project2 API(초안) | 웹 쪽 저장 |
 |---|---|---|
-| 앱 회원 정보: 이메일·닉네임 | `GET /internal/v1/web-links/{linkId}/profile` | 화면 표시용 최소값만 |
-| 유동자산 집계(시드머니 원천) | `GET /internal/v1/web-links/{linkId}/seed-money` | 마지막 값과 받은 시각 |
+| 앱 회원 정보: 이메일·로그인 방법(`email`은 소셜 계정이면 null 가능, `provider` = email·kakao·google) | `GET /internal/v1/web-links/{linkId}/profile` | 화면 표시용 최소값만 |
+| 시드머니(앱에서 확정한 값): `total`(모아둔 돈 + 반영한 돈), `base`(모아둔 돈), `monthlyGoal`(매달 저축할 돈), `lastEntry`(마지막 반영: 주기 끝 날짜·방법·금액), `updatedAt` | `GET /internal/v1/web-links/{linkId}/seed-money`. 앱 예산 설정 전이면 404 `BUDGET_NOT_SET` | 마지막 값과 받은 시각 |
 
-거래 목록·카테고리 같은 원본 기록은 넘기지 않는다. 금액 계산은 project2(`BudgetCalculator` 기준)가 하고 웹은 다시 계산하지 않는다. 시드머니 정의는 `03-architecture.md` C-1을 출발점으로 하고, project2 `docs/API.md`에 계약을 추가할 때 확정한다. 정보 범위를 넓힐 때는 이 표부터 고친다.
+거래 목록·카테고리 같은 원본 기록은 넘기지 않는다. 금액 계산은 project2가 하고 웹은 다시 계산하지 않는다. 시드머니는 앱에서 사용자가 수입일 전날 확정한 값이라(2026-10-20 결정, [decisions](decisions.md) ②) 수입일 즈음에만 바뀐다. 반영 대기·주기별 기록은 넘기지 않는다. 정확한 응답 형식은 [앱 API 문서](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) "웹사이트 연동"·"시드머니". 정보 범위를 넓힐 때는 이 표부터 고친다.
 
 ### 5-3. 해제·오류
 
@@ -88,7 +88,7 @@
 | 웹 회원(이메일·동의 시각)·웹 설정: `users`, `user_settings` | 웹 | 웹 `user` |
 | 로그인 수단(비밀번호 해시·토큰 버전): `user_credentials` | 웹 | 웹 `auth` |
 | `app_links`(웹 사용자 ↔ `linkId`) | 웹 | 웹 `applink` |
-| 유동자산 마지막 값·수동 조정 | 웹 | 웹 `seedmoney` |
+| 앱 시드머니 마지막 값·웹에서 고친 값 | 웹 | 웹 `seedmoney` |
 | 시세·사건·적금·소식·시뮬레이션·결제·목표 | 웹 | 웹 각 패키지 |
 | 연동 코드(해시)·연동 레코드 | 앱 | project2 (새 패키지, 이름은 구현 시 확정) |
 | 사용자·거래·예산 | 앱 | project2 기존 패키지 |
@@ -112,8 +112,9 @@
 | 작업 | 저장소 |
 |---|---|
 | 웹 계정·연동 화면·웹 백엔드 전체 | flexable-web |
-| 연동 코드 발급 API, `/internal/v1/web-links/*`, 서비스 키 검증, 앱 탈퇴 시 연동 삭제 | project2 `backend/` |
-| 앱 설정의 [웹 연동 코드 받기]·연동 목록 화면 | project2 `frontend/` (JS 변경이라 EAS 원격 업데이트로 반영 가능) |
+| 연동 코드 발급 API, `/internal/v1/web-links/*`, 서비스 키 검증, 앱 탈퇴 시 연동 삭제, 시드머니(모아둔 돈·반영) | project2 `backend/` (PR #82·#83) |
+| 앱 설정의 [웹 연동 코드 받기]·연동 목록 화면 | project2 `frontend/` (JS 변경이라 EAS 원격 업데이트로 반영 가능, 미구현) |
+| 온보딩 '모아둔 돈'·'매달 저축할 돈', 수입일 전날 알림·반영 창 | project2 `frontend/` (PR #83, 기기 알림 때문에 앱 1.3.0 새 빌드) |
 
 연동 API는 두 저장소에 연계 PR로 올리고, 계약은 project2 `docs/API.md`에 적는다.
 
@@ -122,6 +123,6 @@
 - 웹 DB 엔진·호스팅·용량·백업·복원 방식
 - 데이터 자동 갱신의 도입 일정·제공처·실행 시각([상세](05-data-refresh.md#7-구현-전-결정할-것과-검증-기준))
 - 웹 소셜 로그인에 쓸 공급자 앱(project2와 같은 카카오·Google 앱에 웹 콜백을 더할지, 웹 전용 앱을 만들지)
-- 유동자산 집계에 넣을 항목(잔액만인지, 이번 달 남은 예산까지인지)
+- 시연 대본의 '거래 1건 → 웹 숫자 변화' 대체 장면(시드머니가 수입일 전날에만 바뀌므로)
 - 앱 쪽 연동 목록 화면의 위치·문구
 - 폐쇄망 VM의 나가는 IP 고정 여부(IP 허용 목록 사용 가능성)

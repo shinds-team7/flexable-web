@@ -241,6 +241,8 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 - **"모든 기기에서 로그아웃"**: `POST /auth/logout`. 폰 앱도 로그인 화면으로 간다고 안내.
 
 ### 3-4. 시드머니 — 웹이 읽는 API (팀장 확정 1)
+
+> **2026-10-20 변경(사용자 결정, [decisions](decisions.md) 2026-10-20 ②): 시드머니는 앱에서 사용자가 확정한 값이다.** 시드머니 = 가입 때 입력한 **모아둔 돈** + 수입일 전날마다 사용자가 반영한 금액(매달 저축할 돈 / 실제로 모은 돈 전부 / 직접 입력). 웹은 [앱 연동하기]로 `{ total, base, monthlyGoal, lastEntry, updatedAt }`만 받는다([04 §5-2](04-service-boundaries.md)). `monthlyPace`(저축 속도)는 앱의 **매달 저축할 돈**(`monthlyGoal`)으로 바꿔 읽는다. `current`·`todaySaved`·`cycles[]`·`estimate`·`savingsTransferEstimate`는 앱이 보내지 않으므로 쓰지 않는다. 웹의 직접 수정(수정값 우선)은 웹 DB에 그대로 둘 수 있다. 아래는 이전 정의 기록이다.
 정의는 6장 C-1에 계산식으로 확정했다. 여기는 화면과 API의 연결만 적는다.
 
 | 값 | 뜻 | 바뀌는 때 | 화면 |
@@ -461,6 +463,8 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 - 시연 페르소나 '지수'(팀장 확정 11)로 아래 예시를 통일한다: 끝난 주기 6개의 남긴 돈 74,000 · 85,000 · 77,000 · 76,000 · 80,000 · 78,000원 → `total` 470,000원, `monthlyPace` (76,000+80,000+78,000)÷3 = **78,000원**.
 
 ### C-1. 시드머니 (`GET /me/seed-money`)
+
+> **2026-10-20 변경: 이 계산식은 쓰지 않는다.** 시드머니는 앱에서 사용자가 수입일 전날 확정한 값이고, 계산·저장은 앱 서버(project2 `budget/SeedMoneyService`)가 한다. 웹은 연동 API로 확정값만 받는다. 정의는 01 §3-3 변경 상자, 계약은 [04 §5-2](04-service-boundaries.md)와 [앱 API 문서](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) "시드머니".
 | 값 | 계산 |
 |---|---|
 | 주기 | 수입일 ~ 다음 수입일 전날. 수입일은 앱 규칙 그대로(31=말일, 토·일이면 다음 월요일 — `BudgetCalculator.incomeDayIn`). **지금 설정된 수입일로 과거 주기를 나눈다**(수입일을 바꾼 이력은 저장돼 있지 않음, 단순화) |

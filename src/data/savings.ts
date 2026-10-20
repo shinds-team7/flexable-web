@@ -50,6 +50,7 @@ export type SavingsListParams = {
   termMonths: SavingsTerm;
   sort: SavingsSort; // 사용자가 고른 정렬만. 순위(rank)는 응답에 없다
   direction: SortDirection;
+  reserveType: ReserveType;
   sectors: Sector[];
 };
 
@@ -167,12 +168,12 @@ const assumptionsOf = (p: SampleProduct) => [
   '우대조건은 계산에 넣지 않아요',
 ];
 
-// TODO(BE): GET /api/v1/savings/products?monthly&termMonths&sort&direction&sectors (03 §8-1). 기본 BASE_RATE 내림차순
+// TODO(BE): GET /api/v1/savings/products?monthly&termMonths&sort&direction&reserveType&sectors (03 §8-1). 기본 BASE_RATE 내림차순
 async function fetchProducts(q: SavingsListParams): Promise<SavingsProductList> {
   if (q.monthly !== SAMPLE_MONTHLY) throw sampleOnly();
   const key: Record<SavingsSort, (p: SampleProduct) => number> = { BASE_RATE: (p) => p.baseRate, MAX_RATE: (p) => p.maxRate, TERM: () => q.termMonths };
   const sign = q.direction === 'DESC' ? -1 : 1;
-  const items = SAMPLE_PRODUCTS.filter((p) => q.sectors.includes(p.sector))
+  const items = SAMPLE_PRODUCTS.filter((p) => q.sectors.includes(p.sector) && p.reserveType === q.reserveType)
     .sort((a, b) => sign * (key[q.sort](a) - key[q.sort](b)) || b.baseRate - a.baseRate)
     .map((p): SavingsProduct => {
       const { specialConditionText: _omit, ...item } = sampleDetail(p, q.termMonths); // 우대조건 원문은 상세에만

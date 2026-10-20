@@ -33,7 +33,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `applink` | [앱 연동하기]와 project2 호출의 유일한 출입구 | `common` |
 | `auth` | 웹 가입·로그인·세션 발급·폐기(웹 계정, 자체 비밀키) | `user` |
 | `user` | 웹 회원 정보·설정·동의, 탈퇴 조정 | `applink` |
-| `seedmoney` | 앱 유동자산 집계를 받아 웹에서 쓰는 시드머니 | `applink`, `user` |
+| `seedmoney` | 앱에서 확정한 시드머니를 받아 웹에서 쓰는 시드머니 | `applink`, `user` |
 | `market` | 종목·일별 시세·사건 | `common` |
 | `insight` | 사건 설명(사전 생성·검수 상태) | `market` |
 | `savings` | 적금 상품·금리 | `common` |

@@ -1,6 +1,6 @@
 // 내 정보: 계정·화면 설정(라이트/다크)·로그아웃·탈퇴. 앱 기록 상태·구독은 팀원이 채운다.
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { saveSettings } from '@/auth/settings';
 import { useSession } from '@/auth/session';
 import { api, errorText } from '@/lib/api';
@@ -10,7 +10,8 @@ const PROVIDER: Record<string, string> = { email: '이메일', kakao: '카카오
 const WITHDRAW_CONFIRM = '탈퇴';
 
 export default function Me() {
-  const { user, signOut, clearSession } = useSession();
+  const { status, user, signOut, clearSession } = useSession();
+  const guest = status === 'guest';
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const themes: { v: Theme; label: string }[] = [
@@ -19,7 +20,7 @@ export default function Me() {
   ];
   const pickTheme = (t: Theme) => {
     setTheme(t);
-    void saveSettings({ theme: t });
+    if (status === 'member') void saveSettings({ theme: t });
   };
   return (
     <section>
@@ -32,11 +33,11 @@ export default function Me() {
             <h2>계정</h2>
             <div className="set-row">
               <span className="k">로그인 방법</span>
-              <span className="v">{user ? PROVIDER[user.provider] : '-'}</span>
+              <span className="v">{guest ? '로그인 없이 체험 중' : user ? PROVIDER[user.provider] : '확인 중'}</span>
             </div>
             <div className="set-row">
               <span className="k">이메일</span>
-              <span className="v">{user?.email ?? '이메일 없음'}</span>
+              <span className="v">{guest ? '체험 내용은 계정에 저장되지 않아요' : user?.email ?? '이메일 없음'}</span>
             </div>
           </div>
           <div className="card">
@@ -44,7 +45,7 @@ export default function Me() {
             <div className="set-row">
               <div>
                 <p className="k">테마</p>
-                <p className="v">기본은 라이트예요. 고른 테마는 계정에 저장돼 다른 브라우저에서도 이어져요.</p>
+                <p className="v">{guest ? '기본은 라이트예요. 고른 테마는 이 브라우저에 저장돼요.' : '기본은 라이트예요. 고른 테마는 계정에 저장돼 다른 브라우저에서도 이어져요.'}</p>
               </div>
               <div className="seg" role="group" aria-label="테마">
                 {themes.map((t) => (
@@ -55,7 +56,13 @@ export default function Me() {
               </div>
             </div>
           </div>
-          <div className="card">
+          {guest ? (
+            <div className="card">
+              <p className="k">로그인 없이 체험 중</p>
+              <p className="v">예시 데이터로 둘러보고 있어요. 내 계정으로 이용하려면 로그인해 주세요.</p>
+              <Link className="btn btn-line btn-sm" to="/login">로그인</Link>
+            </div>
+          ) : status === 'member' && <div className="card">
             <div className="set-row">
               <div>
                 <p className="k">로그아웃</p>
@@ -71,7 +78,7 @@ export default function Me() {
                 로그아웃
               </button>
             </div>
-          </div>
+          </div>}
           {user && (
             <Withdraw
               social={user.provider !== 'email'}

@@ -9,6 +9,16 @@
 - [ ] 데이터 제공처별 호출 제한·페이지·과거 범위·저장·표시·AI 입력 허용 확인.
 - [ ] 부분 실패·중복 실행·정정 재수집·상품 종료 판정·뉴스 연결·승인 전 비공개 검증.
 
+## 2026-10-20 웹 백엔드 운영 전환 (VM 받은 뒤)
+
+웹 계정·소셜 로그인·화면 연결은 코드로 끝났다(#9·#13·#14). 아래는 아카데미에서 폐쇄망 VM을 받아야 할 수 있는 운영 작업이다. 그 전까지 배포본(Vercel)은 `VITE_API_URL`이 project2를 가리켜 project2 계정으로 로그인된다.
+
+- [ ] **웹 백엔드 배포**: VM에 웹 백엔드(api, 필요하면 worker)와 웹 DB를 띄우고 환경변수를 넣는다. 필수 `WEB_JWT_SECRET`(32바이트 이상, 앱 `JWT_SECRET`과 다른 값)·`DB_URL`·`DB_USERNAME`·`DB_PASSWORD`. 목록은 [`backend/README.md`](../../backend/README.md) "환경 변수".
+- [ ] **웹 주소 확보**: Google 로그인 콜백은 공개 도메인 + HTTPS여야 한다(IP 주소·사설 주소 불가, localhost만 예외). VM에 도메인을 붙일 수 없으면 Google 로그인은 운영에서 끄고(`GOOGLE_CLIENT_ID` 비움) 카카오·이메일만 쓴다.
+- [ ] **소셜 콘솔 등록**(project2와 같은 카카오·Google 앱을 쓴다, 아래 조건): 콜백 `{OAUTH_CALLBACK_BASE_URL}/api/v1/auth/oauth/kakao/callback`·`…/google/callback`을 Redirect URI에 추가한다. Google은 동의 화면 승인된 도메인에 웹 도메인도 더한다. 웹 백엔드에 `OAUTH_CALLBACK_BASE_URL`, `OAUTH_ALLOWED_REDIRECT_URIS`(웹 화면의 `/oauth/callback`), `KAKAO_CLIENT_ID`·`KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`을 넣는다.
+  - 같은 앱을 쓸 때 조건: 웹에는 `KAKAO_ADMIN_KEY`를 **넣지 않는다**. 넣으면 웹 탈퇴가 카카오 앱 연결 자체를 끊어 앱(project2) 쪽 카카오 동의도 풀린다. 카카오 회원번호는 앱 단위로 고정이라 같은 사람이 웹·앱에서 같은 번호를 받지만, 웹·앱 DB가 따로이므로 계정은 합쳐지지 않는다.
+- [ ] **화면을 웹 백엔드로 전환**: 웹 화면을 VM에서 같은 출처로 서비스하면 프록시 `/api`를 웹 백엔드로 보낸다. Vercel 배포본을 유지하면 Vercel 환경변수 `VITE_API_URL`을 웹 백엔드 주소로 바꾸고 웹 백엔드 `CORS_ORIGINS`에 Vercel 주소를 넣는다. 전환하면 project2 계정으로는 웹에 로그인할 수 없고 웹 계정을 새로 만들어야 한다(04 §4).
+
 ## 이전 업무 체크리스트
 
 2026-10-20: project2/HANDOFF의 웹 업무를 이전했다. 아래 체크리스트는 10-19 기록을 보존한 것이며 완료 여부를 새로 검증하지 않았다. 현재 코드 상태는 [README](../../README.md), 서버 경계는 [앱·웹 서비스 경계](04-service-boundaries.md)를 따른다. 일정의 지난 날짜는 완료 증거가 아니다.

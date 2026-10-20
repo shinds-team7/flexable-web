@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: flexable-web
+  datasource:
+    # 비밀번호는 기본값을 두지 않는다. 운영 VM의 환경변수로만 넣는다(저장소 공개).
+    url: ${DB_URL:jdbc:mysql://localhost:3306/flexable_web?serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:flexable_web}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  auth:
+    jwt:
+      # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).
+      secret: ${WEB_JWT_SECRET:}
+      ttl-days: 30
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}

@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **구조만 정한 상태다. 코드·빌드 파일은 아직 없다.** 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`member`)까지 구현됐다(2026-10-20).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -43,11 +43,53 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `engagement` | 목표·공유·지표 이벤트 | `simulation`, `member` |
 | `ingest` | 외부 데이터 수집 작업 공통(worker 프로필에서만 동작) | 각 도메인의 저장 인터페이스 |
 
-규칙: 표에 없는 방향의 import는 금지하고 `src/test/.../architecture`의 테스트로 막는다. 다른 패키지의 Repository·엔티티를 직접 쓰지 않는다.
+규칙: 표에 없는 방향의 import는 금지하고 `src/test/.../architecture/PackageDependencyTest`로 막는다. `common`은 아무 데도 의존하지 않으므로 모든 패키지가 쓸 수 있다. 다른 패키지의 Repository·엔티티를 직접 쓰지 않고 그 패키지의 공개 서비스·DTO만 쓴다(같은 테스트가 검사). 의존 방향을 거슬러 불러야 할 때(예: 탈퇴 시 각 패키지 데이터 삭제)는 아래 패키지가 인터페이스를 두고 위 패키지가 구현한다(`member.MemberWithdrawalListener`). 표를 고치면 테스트의 `ALLOWED`도 함께 고친다.
 
-## API 경로
+## API
 
-웹 백엔드는 자기 서버이므로 `/api/v1/...`를 그대로 쓴다(`/web` 접두어 없음). 금액·수익률 계산은 서버가 하고 원 단위 정수, 나눗셈은 내림.
+웹 백엔드는 자기 서버이므로 `/api/v1/...`를 그대로 쓴다(`/web` 접두어 없음). 금액·수익률 계산은 서버가 하고 원 단위 정수, 나눗셈은 내림. 오류는 `{ code, message, ... }`(project2와 같은 형식), 시각은 `+09:00` 붙은 ISO-8601.
+
+| 메서드·경로 | 인증 | 내용 |
+|---|---|---|
+| `POST /auth/signup` | 없음 | `{email, password, agreeTerms, agreePrivacy}` → 201 `{accessToken, expiresAt, user}`. 비밀번호 8~64자·영문+숫자, 두 동의 모두 `true`. 같은 웹 이메일이 있으면 409 `EMAIL_UNAVAILABLE` |
+| `POST /auth/login` | 없음 | `{email, password}` → `{accessToken, expiresAt, user}`. 틀리면 401 `INVALID_CREDENTIALS`(없는 이메일과 구분하지 않음), 이메일별 10분에 5회 실패하면 429 `TOO_MANY_ATTEMPTS` + `retryAfterSeconds` |
+| `POST /auth/logout` | Bearer | 204. 이 회원의 **웹** 토큰을 모든 기기에서 폐기(`tokenVersion` 증가). 앱 세션·연동은 그대로 |
+| `GET /me` | Bearer | `{id, email, createdAt}` |
+| `DELETE /me` | Bearer | `{password}` → 204. 웹 탈퇴: 웹 회원·설정·로그인 수단 삭제. 앱 연동 해제는 `applink` 구현 때 더한다 |
+| `GET /me/settings` | Bearer | `{theme: "light"\|"dark", seenTours: [], disclaimerAckAt: null}` |
+| `PATCH /me/settings` | Bearer | 보낸 필드만 바꾼다. `theme`, `seenTours`(이미 본 목록에 병합, 키 `[a-z0-9-]` 40자·최대 24개), `disclaimerAck: true`(서버 시각으로 기록) |
+| `GET /health` | 없음 | `{status: "UP"}` |
+
+토큰: HS256, 30일, 클레임 `sub`(웹 회원 id)·`tv`(토큰 버전)·`iss=flexable-web`. 서명 키는 웹 전용(`WEB_JWT_SECRET`)이고 `iss`도 검사하므로 앱 토큰은 통과하지 못한다. 요청마다 `member_credentials.token_version`과 `tv`를 비교해 로그아웃·탈퇴된 토큰을 거절한다.
+
+## 로컬 실행
+
+```bash
+cd backend
+./gradlew test                                              # 테스트(H2 메모리 DB, 실행마다 임의 서명 키)
+./gradlew bootRun --args='--spring.profiles.active=local'   # MySQL 없이 H2 파일 DB(build/localdb/)로 실행
+curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
+```
+
+`local` 프로필은 `WEB_JWT_SECRET`이 없으면 실행할 때마다 임의 키를 만든다(재시작하면 다시 로그인). 웹 화면(`npm run dev`)의 `/api` 프록시는 기본 `http://localhost:8080`을 본다. worker 실행은 `--spring.profiles.active=worker`(HTTP 없음).
+
+## 환경 변수
+
+저장소는 공개라 비밀 값은 코드·문서·기본값에 넣지 않는다. 운영 VM의 환경변수(또는 커밋하지 않는 `.env`)로만 넣는다.
+
+| 변수 | 내용 | 기본값 |
+|---|---|---|
+| `WEB_JWT_SECRET` | 웹 토큰 서명 키(HS256, 32바이트 이상). **앱의 `JWT_SECRET`과 다른 값.** 바꾸면 모든 웹 사용자가 로그아웃된다 | 없음(없으면 시작 실패) |
+| `DB_URL` | MySQL JDBC 주소 | `jdbc:mysql://localhost:3306/flexable_web?serverTimezone=UTC&characterEncoding=UTF-8` |
+| `DB_USERNAME` | MySQL 계정 | `flexable_web` |
+| `DB_PASSWORD` | MySQL 비밀번호 | 없음(없으면 시작 실패) |
+| `DB_POOL_SIZE` | 연결 풀 상한(api·worker가 VM 하나를 나눠 쓴다) | `10` |
+| `CORS_ORIGINS` | 다른 출처에서 부를 때만(쉼표 구분). 운영은 프록시로 같은 출처 | `http://localhost:5173` |
+| `PORT` | 서버 포트 | `8080` |
+
+## 데이터
+
+Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `members`(member: 이메일·동의 시각), `member_settings`(member), `member_credentials`(auth: 비밀번호 해시·토큰 버전). 앱 DB와 외래 키는 없다.
 
 ## 아직 정해지지 않은 것
 

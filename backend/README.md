@@ -54,11 +54,17 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /auth/signup` | 없음 | `{email, password, agreeTerms, agreePrivacy}` → 201 `{accessToken, expiresAt, user}`. 비밀번호 8~64자·영문+숫자, 두 동의 모두 `true`. 같은 웹 이메일이 있으면 409 `EMAIL_UNAVAILABLE` |
 | `POST /auth/login` | 없음 | `{email, password}` → `{accessToken, expiresAt, user}`. 틀리면 401 `INVALID_CREDENTIALS`(없는 이메일과 구분하지 않음), 이메일별 10분에 5회 실패하면 429 `TOO_MANY_ATTEMPTS` + `retryAfterSeconds` |
 | `POST /auth/logout` | Bearer | 204. 이 회원의 **웹** 토큰을 모든 기기에서 폐기(`tokenVersion` 증가). 앱 세션·연동은 그대로 |
-| `GET /me` | Bearer | `{id, email, createdAt}` |
-| `DELETE /me` | Bearer | `{password}` → 204. 웹 탈퇴: 웹 회원·설정·로그인 수단 삭제. 앱 연동 해제는 `applink` 구현 때 더한다 |
+| `GET /me` | Bearer | `{id, email, createdAt, provider, hasPassword}`. `provider`는 `email`·`kakao`·`google`, 소셜로 가입했고 이메일을 받지 못했으면 `email`은 `null` |
+| `DELETE /me` | Bearer | 이메일 계정 `{password}`, 소셜이 붙은 계정 `{confirm: "탈퇴"}` → 204. 웹 회원·설정·로그인 수단 삭제, 카카오는 `KAKAO_ADMIN_KEY`가 있으면 연결 끊기. 앱 연동 해제는 `applink` 구현 때 더한다 |
+| `GET /auth/oauth/providers` | 없음 | `{providers: ["kakao", "google"]}` — client-id가 설정된 공급자만 |
+| `GET /auth/oauth/{provider}/start` | 없음 | `?redirectUri=&codeChallenge=`(PKCE S256) → 공급자 로그인으로 302. `redirectUri`는 `OAUTH_ALLOWED_REDIRECT_URIS`와 정확히 같아야 한다 |
+| `GET /auth/oauth/{provider}/callback` | 없음 | 공급자가 부른다 → `redirectUri?code=`(2분, 한 번) 또는 `?error=cancelled\|provider_unavailable\|email_in_use\|failed` |
+| `POST /auth/oauth/exchange` | 없음 | `{code, codeVerifier}` → `{accessToken, expiresAt, user}`. 틀리거나 만료되면 401 `OAUTH_CODE_INVALID` |
 | `GET /me/settings` | Bearer | `{theme: "light"\|"dark", seenTours: [], disclaimerAckAt: null}` |
 | `PATCH /me/settings` | Bearer | 보낸 필드만 바꾼다. `theme`, `seenTours`(이미 본 목록에 병합, 키 `[a-z0-9-]` 40자·최대 24개), `disclaimerAck: true`(서버 시각으로 기록) |
 | `GET /health` | 없음 | `{status: "UP"}` |
+
+소셜 로그인 규칙은 project2와 같다. 공급자가 **확인한** 이메일이 같은 웹 계정이 있으면 그 계정에 로그인 수단을 붙이고 기존 웹 세션을 끊는다. 그 뒤로는 비밀번호 로그인이 401 `SOCIAL_ACCOUNT`(+`provider`)로 안내된다. 같은 공급자의 다른 계정은 붙이지 않는다(`email_in_use`). 확인되지 않은 이메일은 저장하지도 연결에 쓰지도 않는다. **앱 계정은 보지 않는다**(04 §4).
 
 토큰: HS256, 30일, 클레임 `sub`(웹 회원 id)·`tv`(토큰 버전)·`iss=flexable-web`. 서명 키는 웹 전용(`WEB_JWT_SECRET`)이고 `iss`도 검사하므로 앱 토큰은 통과하지 못한다. 요청마다 `user_credentials.token_version`과 `tv`를 비교해 로그아웃·탈퇴된 토큰을 거절한다.
 
@@ -84,12 +90,16 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `DB_USERNAME` | MySQL 계정 | `flexable_web` |
 | `DB_PASSWORD` | MySQL 비밀번호 | 없음(없으면 시작 실패) |
 | `DB_POOL_SIZE` | 연결 풀 상한(api·worker가 VM 하나를 나눠 쓴다) | `10` |
+| `OAUTH_CALLBACK_BASE_URL` | 공급자 콘솔에 등록할 웹 백엔드 주소. 콜백은 `{값}/api/v1/auth/oauth/{kakao\|google}/callback` | `http://localhost:8080` |
+| `OAUTH_ALLOWED_REDIRECT_URIS` | 로그인 뒤 돌아갈 웹 화면 주소(쉼표 구분, 정확히 일치) | `http://localhost:5173/oauth/callback` |
+| `KAKAO_CLIENT_ID`, `GOOGLE_CLIENT_ID` | 비어 있으면 그 공급자를 끈다 | 없음 |
+| `KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, `KAKAO_ADMIN_KEY`, `KAKAO_SCOPE` | 공급자 비밀 값(admin key는 탈퇴 시 카카오 연결 끊기용) | 없음 |
 | `CORS_ORIGINS` | 다른 출처에서 부를 때만(쉼표 구분). 운영은 프록시로 같은 출처 | `http://localhost:5173` |
 | `PORT` | 서버 포트 | `8080` |
 
 ## 데이터
 
-Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함. 앱 DB와 외래 키는 없다.
 
 ## 아직 정해지지 않은 것
 

@@ -17,4 +17,15 @@ app:
       # 실행마다 임의 키. 저장소에 고정 키를 두지 않는다.
       secret: ${random.value}
       ttl-days: 30
+    oauth:
+      callback-base-url: http://localhost:8080
+      allowed-redirect-uris: http://localhost:5173/oauth/callback,https://example.com/callback?source=web
+      kakao:
+        client-id: ""
+        client-secret: ""
+        admin-key: ""
+        scope: ""
+      google:
+        client-id: ""
+        client-secret: ""
   cors-origins: http://localhost:5173

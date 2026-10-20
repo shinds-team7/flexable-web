@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.flexable.web.user.UserDtos.UserResponse;
 import com.flexable.web.user.UserDtos.SettingsPatch;
 import com.flexable.web.user.UserDtos.SettingsResponse;
 
@@ -22,11 +21,6 @@ public class UserController {
 
 	public UserController(UserService users) {
 		this.users = users;
-	}
-
-	@GetMapping
-	UserResponse me(@AuthenticationPrincipal Jwt jwt) {
-		return users.profile(userId(jwt));
 	}
 
 	@GetMapping("/settings")

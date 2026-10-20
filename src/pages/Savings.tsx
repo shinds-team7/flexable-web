@@ -2,6 +2,7 @@
 // 2026-10-20 사용자 결정: [그때 들었다면] 탭은 없애고 [정책 적금] 탭은 금융권 선택지로 합쳤다. 설계는 docs/product/01-product.md F2, 02-design.md §5-5. 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6).
 // 금액은 모두 서버 결과를 그대로 그린다(ADR-3). 막대 길이처럼 그리기 위한 비율만 화면에서 정한다.
 import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
@@ -238,13 +239,13 @@ function CompareCard({ items, monthly, term, limit }: { items: SavingsProduct[];
   );
 }
 
-function NowMode({ pace, compareLimit }: { pace: number; compareLimit: number }) {
+function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareLimit: number; initialPolicy: boolean }) {
   const [amountMode, setAmountMode] = useState<'pace' | 'manual'>('pace');
   const [draft, setDraft] = useState(String(pace));
   const [term, setTerm] = useState<SavingsTerm>(12);
   const [reserveType, setReserveType] = useState<ReserveType>('FIXED');
   const [sectors, setSectors] = useState<Sector[]>(['BANK', 'SAVINGS_BANK']);
-  const [policyOn, setPolicyOn] = useState(false); // 금융권 '정책 적금'. 상품 표와 계산 방식이 달라 표 아래 카드로 따로 보여 준다
+  const [policyOn, setPolicyOn] = useState(initialPolicy); // 금융권 '정책 적금'. 상품 표와 계산 방식이 달라 표 아래 카드로 따로 보여 준다
   const [sort, setSort] = useState<SavingsSort>('BASE_RATE');
   const [cmp, setCmp] = useState<string[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -609,6 +610,9 @@ function PolicySection({ monthly, term }: { monthly: number; term: SavingsTerm }
 /* ───────── 화면 ───────── */
 
 export default function Savings() {
+  const [params] = useSearchParams();
+  // 소식 카드 [계산해 보기]는 /savings?policy=1. 예전 탭 주소 ?mode=policy도 같은 뜻으로 받는다
+  const initialPolicy = params.get('policy') === '1' || params.get('mode') === 'policy';
   const { status } = useSession();
   const sub = useSubscription(status === 'member');
   const seed = useSeedMoney();
@@ -624,7 +628,7 @@ export default function Savings() {
             <p className="page-desc">같은 돈을 지금 적금에 넣으면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요.</p>
           </div>
         </div>
-        {seed.isPending ? <Loading /> : <NowMode key={pace} pace={pace} compareLimit={compareLimit} />}
+        {seed.isPending ? <Loading /> : <NowMode key={pace} pace={pace} compareLimit={compareLimit} initialPolicy={initialPolicy} />}
       </div>
     </section>
   );

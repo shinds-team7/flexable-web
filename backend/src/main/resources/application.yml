@@ -1,6 +1,9 @@
 spring:
   application:
     name: flexable-web
+  config:
+    # 로컬에서 키를 따로 두는 파일(커밋하지 않음, 양식 .env.example). 운영은 VM 환경변수로 넣는다.
+    import: optional:file:.env[.properties]
   datasource:
     # 비밀번호는 기본값을 두지 않는다. 운영 VM의 환경변수로만 넣는다(저장소 공개).
     url: ${DB_URL:jdbc:mysql://localhost:3306/flexable_web?serverTimezone=UTC&characterEncoding=UTF-8}
@@ -53,3 +56,23 @@ app:
         client-id: ${GOOGLE_CLIENT_ID:}
         client-secret: ${GOOGLE_CLIENT_SECRET:}
   cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  market:
+    # 시장(코스피·코스닥·ETF)마다 시가총액 상위 몇 종목을 목록에 보여 주고 계산·수집할지
+    top-limit: ${MARKET_TOP_LIMIT:100}
+  ingest:
+    # worker 프로필에서만 쓴다(외부 호출은 worker만, 04 §8)
+    price-source: ${MARKET_PRICE_SOURCE:kiwoom}
+    instrument-source: ${MARKET_INSTRUMENT_SOURCE:krx}
+    instrument-fallback: ${MARKET_INSTRUMENT_FALLBACK:kiwoom}
+    backfill-years: ${MARKET_BACKFILL_YEARS:5}
+    recheck-days: 10
+    run-on-start: ${MARKET_SYNC_ON_START:true}
+    cron: ${MARKET_SYNC_CRON:0 30 18 * * MON-FRI}
+    kiwoom:
+      base-url: ${KIWOOM_BASE_URL:https://api.kiwoom.com}
+      app-key: ${KIWOOM_APP_KEY:}
+      secret-key: ${KIWOOM_SECRET_KEY:}
+      page-delay: 250ms
+    krx:
+      base-url: ${KRX_BASE_URL:https://data-dbg.krx.co.kr/svc/apis}
+      auth-key: ${KRX_AUTH_KEY:}

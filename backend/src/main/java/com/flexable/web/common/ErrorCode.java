@@ -12,6 +12,7 @@ public enum ErrorCode {
 	NOT_FOUND(HttpStatus.NOT_FOUND, "찾을 수 없어요"),
 	EMAIL_UNAVAILABLE(HttpStatus.CONFLICT, "이 이메일로 가입할 수 없어요. 로그인해 주세요"),
 	TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 시도해 주세요"),
+	MARKET_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "주가를 불러오지 못했어요"),
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "일시적인 오류가 발생했어요. 잠시 후 다시 시도해 주세요");
 
 	private final HttpStatus status;

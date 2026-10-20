@@ -29,3 +29,10 @@ app:
         client-id: ""
         client-secret: ""
   cors-origins: http://localhost:5173
+  market:
+    top-limit: 100
+  ingest:
+    price-source: fake
+    instrument-source: fake
+    instrument-fallback: none
+    run-on-start: false

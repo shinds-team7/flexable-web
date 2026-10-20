@@ -37,12 +37,12 @@
 
 | | 웹 | 앱 |
 |---|---|---|
-| 가입·로그인 | 웹 DB의 웹 계정(이메일·비밀번호). 소셜 로그인은 나중에 별도 결정 | 기존 project2 계정 |
+| 가입·로그인 | 웹 DB의 웹 계정. 이메일·비밀번호와 카카오·Google(2026-10-20 사용자 결정, project2와 같은 PKCE 흐름). 소셜로 들어와도 웹 DB에만 계정이 생긴다 | 기존 project2 계정 |
 | 토큰 | 웹 백엔드가 자체 비밀키(`WEB_JWT_SECRET`, 앱 키와 다른 값)로 발급. `iss=flexable-web`을 넣고 검사해 앱 토큰과 섞지 않는다. 폐기는 웹 `tokenVersion` | 기존 JWT·tokenVersion |
 | 로그아웃 | 웹 세션만 끝난다(이 회원의 모든 기기 웹 토큰) | 앱 세션만 끝난다. **웹과의 연동은 유지된다** |
 | 탈퇴 | 비밀번호 확인 → 웹 데이터 삭제 + 연동이 있으면 해제 요청(해제 요청은 `applink` 구현 때) | 앱 데이터 삭제 + 그 계정의 연동 전부 삭제 → 웹은 다음 조회 때 "연동 해제됨"으로 바꾼다 |
 
-웹 계정 API(2026-10-20 구현): `POST /api/v1/auth/signup`·`/login`·`/logout`, `GET`·`DELETE /api/v1/me`, `GET`·`PATCH /api/v1/me/settings`. 요청·응답은 [`backend/README.md`](../../backend/README.md) "API".
+웹 계정 API(2026-10-20 구현): `POST /api/v1/auth/signup`·`/login`·`/logout`, `GET`·`DELETE /api/v1/me`, `GET`·`PATCH /api/v1/me/settings`, `GET /api/v1/auth/oauth/providers`·`/{provider}/start`·`/{provider}/callback`, `POST /api/v1/auth/oauth/exchange`. 요청·응답은 [`backend/README.md`](../../backend/README.md) "API".
 
 같은 사람이 웹과 앱에 같은 이메일로 가입해도 **계정이 자동으로 합쳐지지 않는다.** 이메일이 같다는 것만으로는 앱 정보를 넘기지 않는다(남의 이메일로 웹에 가입하는 경우를 막기 위함). 연동은 아래 코드 절차로만 한다. 웹 이메일과 앱 이메일이 달라도 연동할 수 있다.
 
@@ -103,7 +103,7 @@
 
 ## 8. 수집 작업(worker)
 
-웹 백엔드 jar를 `worker` 프로필로 한 번 더 띄워 수집·사전 생성만 한다(HTTP 없음, `spring.main.web-application-type=none`). VM 하나에서 같이 돌므로 컨테이너 자원 제한·DB 연결 풀 상한·중복 실행 방지·재시도를 함께 설계한다. 외부 API 호출은 worker만 한다.
+웹 백엔드 jar를 `worker` 프로필로 한 번 더 띄워 수집·사전 생성만 한다(HTTP 없음, `spring.main.web-application-type=none`). VM 하나에서 같이 돌므로 컨테이너 자원 제한·DB 연결 풀 상한·중복 실행 방지·재시도를 함께 설계한다. 외부 API 호출은 worker만 한다. 예외: 소셜 로그인 공급자(카카오·Google) 호출은 로그인 요청 중에 api가 한다.
 
 ## 9. 작업 나누기
 
@@ -117,7 +117,7 @@
 
 ## 10. 아직 정하지 않은 것
 
-- 웹 소셜 로그인 여부와 방식
+- 웹 소셜 로그인에 쓸 공급자 앱(project2와 같은 카카오·Google 앱에 웹 콜백을 더할지, 웹 전용 앱을 만들지)
 - 유동자산 집계에 넣을 항목(잔액만인지, 이번 달 남은 예산까지인지)
 - 앱 쪽 연동 목록 화면의 위치·문구
 - 폐쇄망 VM의 나가는 IP 고정 여부(IP 허용 목록 사용 가능성)

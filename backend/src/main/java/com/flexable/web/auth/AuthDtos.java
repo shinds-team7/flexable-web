@@ -29,9 +29,18 @@ public final class AuthDtos {
 			@NotBlank(message = "비밀번호를 입력해 주세요") String password) {
 	}
 
-	public record WithdrawRequest(String password) {
+	/** 이메일 계정은 password, 소셜이 붙은 계정은 confirm("탈퇴"). project2와 같은 모양이다. */
+	public record WithdrawRequest(String password, String confirm) {
 	}
 
-	public record AuthResponse(String accessToken, OffsetDateTime expiresAt, UserResponse user) {
+	/** GET /me와 로그인 응답의 user. provider는 email·kakao·google 중 하나. */
+	public record MeResponse(long id, String email, OffsetDateTime createdAt, String provider, boolean hasPassword) {
+
+		static MeResponse of(UserResponse user, String provider, boolean hasPassword) {
+			return new MeResponse(user.id(), user.email(), user.createdAt(), provider, hasPassword);
+		}
+	}
+
+	public record AuthResponse(String accessToken, OffsetDateTime expiresAt, MeResponse user) {
 	}
 }

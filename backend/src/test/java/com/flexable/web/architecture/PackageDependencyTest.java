@@ -48,7 +48,7 @@ class PackageDependencyTest {
 			// ingest는 각 도메인의 저장 인터페이스를 쓴다. 도메인 패키지가 생기면 좁힌다.
 			Map.entry("ingest", Set.of(ALL)));
 
-	/** HTTP 클라이언트. project2 호출은 applink만, 외부 데이터 수집은 ingest만 한다(04 §3·§8). */
+	/** HTTP 클라이언트. project2 호출은 applink, 외부 데이터 수집은 ingest, 소셜 로그인 공급자 호출은 auth만 한다(04 §3·§8). */
 	private static final List<String> HTTP_CLIENTS = List.of("org.springframework.web.client.RestClient",
 			"org.springframework.web.client.RestTemplate", "java.net.http.HttpClient",
 			"org.springframework.web.reactive.function.client.WebClient");
@@ -71,8 +71,8 @@ class PackageDependencyTest {
 		});
 
 	@ArchTest
-	static final ArchRule httpClientsOnlyInApplinkOrIngest = noClasses().that()
-		.resideOutsideOfPackages("com.flexable.web.applink..", "com.flexable.web.ingest..")
+	static final ArchRule httpClientsOnlyInApplinkIngestOrAuth = noClasses().that()
+		.resideOutsideOfPackages("com.flexable.web.applink..", "com.flexable.web.ingest..", "com.flexable.web.auth..")
 		.should().dependOnClassesThat().haveFullyQualifiedName(HTTP_CLIENTS.get(0))
 		.orShould().dependOnClassesThat().haveFullyQualifiedName(HTTP_CLIENTS.get(1))
 		.orShould().dependOnClassesThat().haveFullyQualifiedName(HTTP_CLIENTS.get(2))

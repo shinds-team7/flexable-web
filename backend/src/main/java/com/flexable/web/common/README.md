@@ -3,4 +3,5 @@
 
 - `ErrorCode`·`ApiException`·`GlobalExceptionHandler`·`ErrorResponses`: 검증 오류는 `VALIDATION_FAILED` + `fields`
 - `Times`: `ZONE`(Asia/Seoul), `Instant` → `+09:00` 응답 시각
+- `AttemptLimiter`: 키별 실패 횟수 제한(메모리). 로그인(`auth`)·연동 코드(`applink`)가 쓴다
 - `HealthController`: `GET /api/v1/health`

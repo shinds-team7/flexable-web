@@ -8,7 +8,7 @@
 | `Credential`·`CredentialRepository` | `user_credentials`(비밀번호 해시·토큰 버전). 이 패키지 밖에서 쓰지 않는다 |
 | `TokenService` | HS256 발급·검증. `iss=flexable-web`을 넣고 검사한다. 키가 32바이트 미만이면 시작하지 않는다 |
 | `TokenAuthenticationConverter` | 요청마다 `tv`와 저장된 토큰 버전을 비교해 로그아웃·탈퇴된 토큰을 거절한다(config의 보안 필터가 쓴다) |
-| `LoginAttemptLimiter` | 이메일별 10분 내 5회 실패 제한(메모리, api 한 대 기준) |
+| `LoginAttemptLimiter` | 이메일별 10분 내 5회 실패 제한(메모리, api 한 대 기준). 동작은 `common.AttemptLimiter` |
 
 - 회원 정보(이메일·동의)는 `user`가 가진다. auth는 `UserService`만 부르고 `User`·`UserRepository`를 쓰지 않는다.
 - 없는 이메일과 틀린 비밀번호는 같은 응답(`INVALID_CREDENTIALS`)과 같은 해시 비교 시간을 쓴다. 같은 이메일의 앱 계정이 있는지는 보지도 알려 주지도 않는다.

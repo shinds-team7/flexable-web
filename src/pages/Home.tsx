@@ -1,12 +1,15 @@
 // 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선)·굴렸다면. 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 금융 소식.
 import { useEffect, useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
+import { loadSettings, saveSettings } from '@/auth/settings';
 import { displayName } from '@/auth/types';
 import { SeedLineChart } from '@/charts/SeedLineChart';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DDay } from '@/components/Icons';
 import { PLAY_URL } from '@/components/Layout';
+import { useAppLink } from '@/data/appLink';
 import { useHomeNews, useIndices, useSeedMoney, type MarketIndices, type SeedMoney } from '@/data/home';
 import { fmtMonthDay, upDown, won } from '@/lib/format';
 
@@ -276,6 +279,43 @@ function HomeNews() {
   );
 }
 
+const APP_LINK_INTRO = 'app-link-intro';
+
+/**
+ * 가입 직후 등 아직 앱과 연동하지 않은 회원에게 [앱 연동하기]를 한 번 권한다(04 §5-1). 가입 단계로 강제하지 않고,
+ * [다음에 할게요]를 누르면 본 안내(seenTours)로 저장해 다시 띄우지 않는다. 웹 서버에 앱 연동 설정이 없으면 보이지 않는다.
+ */
+function AppLinkIntro() {
+  const { status } = useSession();
+  const member = status === 'member';
+  const link = useAppLink(member);
+  const settings = useQuery({ queryKey: ['me', 'settings'], queryFn: loadSettings, enabled: member, staleTime: Infinity });
+  const [dismissed, setDismissed] = useState(false);
+  if (!member || dismissed || !link.data?.enabled || link.data.linked || !settings.data) return null;
+  if (settings.data.seenTours.includes(APP_LINK_INTRO)) return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    void saveSettings({ seenTours: [APP_LINK_INTRO] });
+  };
+  return (
+    <div className="card" role="region" aria-label="앱 연동 안내">
+      <h2>앱에서 모은 시드머니를 불러올까요?</h2>
+      <p className="sub" style={{ marginTop: 4 }}>
+        텅장관리 앱 설정에서 받은 연동 코드를 입력하면 앱에서 확정한 시드머니를 웹에서 볼 수 있어요. 웹만 써도 괜찮아요.
+      </p>
+      <div className="toolbar" style={{ marginTop: 12 }}>
+        <Link className="btn btn-primary btn-sm" to="/me#app-link">
+          앱 연동하기
+        </Link>
+        <button className="btn btn-line btn-sm" onClick={dismiss}>
+          다음에 할게요
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const seed = useSeedMoney();
   const indices = useIndices();
@@ -284,6 +324,7 @@ export default function Home() {
       <div className="page">
         <div className="g84">
           <div className="col">
+            <AppLinkIntro />
             {seed.isPending ? (
               <>
                 <div className="card card-hero" aria-busy="true" aria-label="불러오는 중">

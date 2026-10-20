@@ -1,7 +1,8 @@
-// 내 정보: 계정·화면 설정(라이트/다크)·로그아웃·탈퇴. 앱 기록 상태·구독은 팀원이 채운다.
+// 내 정보: 계정·앱 연동·화면 설정(라이트/다크)·로그아웃·탈퇴. 구독은 팀원이 채운다.
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { saveSettings } from '@/auth/settings';
+import { AppLinkCard } from '@/components/AppLinkCard';
 import { useSession } from '@/auth/session';
 import { api, errorText } from '@/lib/api';
 import { useTheme, type Theme } from '@/lib/theme';
@@ -40,6 +41,7 @@ export default function Me() {
               <span className="v">{guest ? '체험 내용은 계정에 저장되지 않아요' : user?.email ?? '이메일 없음'}</span>
             </div>
           </div>
+          <AppLinkCard member={status === 'member'} />
           <div className="card">
             <h2>화면 설정</h2>
             <div className="set-row">
@@ -119,7 +121,7 @@ function Withdraw({ social, onDone }: { social: boolean; onDone: () => void }) {
       <div className="set-row">
         <div>
           <p className="k">웹 탈퇴</p>
-          <p className="v">웹 계정과 웹에 저장한 정보를 지워요. 앱 계정과 앱 기록은 그대로예요.</p>
+          <p className="v">웹 계정과 웹에 저장한 정보를 지우고 앱 연동도 해제해요. 앱 계정과 앱 기록은 그대로예요.</p>
         </div>
         {!open && (
           <button className="btn btn-line btn-sm" onClick={() => setOpen(true)}>

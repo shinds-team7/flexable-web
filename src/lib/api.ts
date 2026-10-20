@@ -7,10 +7,15 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
-    /** 서버가 문제 입력을 짚어 줄 때(예: MARKET_UNAVAILABLE이면 시세를 못 받은 종목 코드) */
-    public field?: string,
+    /** code·message 밖의 응답 필드(retryAfterSeconds·fields 등) */
+    public details: Record<string, unknown> = {},
   ) {
     super(message);
+  }
+
+  /** 서버가 문제 입력을 짚어 줄 때(예: MARKET_UNAVAILABLE이면 시세를 못 받은 종목 코드) */
+  get field(): string | undefined {
+    return typeof this.details.field === 'string' ? this.details.field : undefined;
   }
 }
 
@@ -56,7 +61,13 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   if (res.status === 401 && token) onUnauthorized?.();
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new ApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? '요청을 처리하지 못했어요', typeof body?.field === 'string' ? body.field : undefined);
+    const { code, message, ...details } = body && typeof body === 'object' ? body : ({} as Record<string, unknown>);
+    throw new ApiError(
+      res.status,
+      typeof code === 'string' ? code : 'UNKNOWN',
+      typeof message === 'string' ? message : '요청을 처리하지 못했어요',
+      details,
+    );
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

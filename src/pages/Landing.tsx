@@ -44,23 +44,21 @@ export default function Landing() {
 
   return (
     <section>
-      <div className="page" style={{ paddingTop: 16 }}>
+      <div className="page land">
         <div className="land-hero">
           <div>
-            <figure className="cat-ph" style={{ margin: '0 0 40px', color: 'var(--text-muted)', background: 'none', border: 0 }}>
-              <img src="/characters/lv3-3.png" alt="" width={120} height={120} style={{ objectFit: 'contain' }} />
-            </figure>
+            <img className="land-char" src="/characters/lv3-3.png" alt="" width={112} height={112} />
             <h1 className="display">아낀 돈, 그때 굴렸다면 얼마였을까?</h1>
             <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요. 진짜 돈은 움직이지 않아요.</p>
             <div className="cta-stack">
               <SocialButtons />
-              <Link className="btn-text" to="/home" style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+              <Link className="btn-text land-try" to="/home">
                 로그인 없이 체험하기
               </Link>
             </div>
           </div>
           <div className="card card-hero">
-            <div className="card-head" style={{ marginBottom: 8 }}>
+            <div className="card-head">
               <div>
                 <h2>2020년 1월, 47만 원을 예시 반도체주에 한 번에</h2>
                 <p className="meta">예시 데이터예요. 실제 주가가 아니에요.</p>
@@ -83,39 +81,39 @@ export default function Landing() {
               onSelect={(id) => navigate(`${demo}&event=${id}`)}
               onZoom={() => navigate(demo)}
             />
-            <div className="legend" style={{ marginTop: 8 }}>
+            <div className="legend land-legend">
               <span>
-                <i style={{ color: 'var(--text)' }} />내 자산
+                <i className="total" />내 자산
               </span>
               <span>
-                <i className="dash" style={{ color: 'var(--baseline)' }} />넣은 돈
+                <i className="dash base" />넣은 돈
               </span>
               <span>
-                <span className="ev-ic rise" style={{ display: 'inline-grid', width: 14, height: 14, fontSize: 7, verticalAlign: 'middle', marginRight: 4 }}>▲</span>크게 오른 때
+                <span className="ev-ic rise">▲</span>크게 오른 때
               </span>
               <span>
-                <span className="ev-ic fall" style={{ display: 'inline-grid', width: 14, height: 14, fontSize: 7, verticalAlign: 'middle', marginRight: 4 }}>▼</span>크게 내린 때
+                <span className="ev-ic fall">▼</span>크게 내린 때
               </span>
             </div>
           </div>
         </div>
 
-        <h2 className="sec-title" style={{ marginBottom: 16 }}>앱에서 모으고, 웹에서 굴려봐요</h2>
+        <h2 className="land-title">앱에서 모으고, 웹에서 굴려봐요</h2>
         <div className="flow">
           <div>
             <span className="n">1</span>
             <h3>앱에서 오늘 쓸 돈 지키기</h3>
-            <p className="sub" style={{ marginTop: 6, fontSize: 14 }}>입력한 잔액·수입일·고정지출로 하루 예산을 계산해요. 지키면 고양이가 한 단계씩 부자가 돼요.</p>
+            <p>입력한 잔액·수입일·고정지출로 하루 예산을 계산해요. 지키면 고양이가 한 단계씩 부자가 돼요.</p>
           </div>
           <div>
             <span className="n">2</span>
             <h3>월급 주기마다 남긴 돈이 시드머니로</h3>
-            <p className="sub" style={{ marginTop: 6, fontSize: 14 }}>정산 주기가 끝날 때 수입에서 지출을 뺀 돈이 쌓여요. 계좌 연결 없이, 입력한 기록 기준으로 계산해요.</p>
+            <p>정산 주기가 끝날 때 수입에서 지출을 뺀 돈이 쌓여요. 계좌 연결 없이, 입력한 기록 기준으로 계산해요.</p>
           </div>
           <div>
             <span className="n">3</span>
             <h3>웹에서 주식·적금으로 실험</h3>
-            <p className="sub" style={{ marginTop: 6, fontSize: 14 }}>그 돈을 지난 날짜로 보내 보고, 크게 오르내린 때엔 이유까지 읽어요.</p>
+            <p>그 돈을 지난 날짜로 보내 보고, 크게 오르내린 때엔 이유까지 읽어요.</p>
           </div>
         </div>
 
@@ -123,7 +121,7 @@ export default function Landing() {
           <div>
             <h2>주식 타임머신</h2>
             <p>"2020년 1월에 넣었다면 지금 얼마?"를 내 시드머니로 계산해요. 그래프의 ▲▼ 핀에 마우스를 올리면 그때 무슨 일이 있었는지, 누르면 왜 움직였는지 알려줘요.</p>
-            <Link className="btn btn-soft" style={{ marginTop: 20 }} to={demo}>
+            <Link className="btn btn-soft" to={demo}>
               예시로 해보기
             </Link>
           </div>
@@ -133,7 +131,7 @@ export default function Landing() {
             <svg viewBox="0 0 300 90" style={{ width: '100%', height: 'auto' }}>
               <polyline points="0,70 40,62 60,80 90,55 130,40 160,58 200,35 240,45 300,20" fill="none" strokeWidth="2" style={{ stroke: 'var(--text)' }} />
               <line x1="0" y1="66" x2="300" y2="66" strokeDasharray="4 4" style={{ stroke: 'var(--baseline)' }} />
-              <circle cx="60" cy="94" r="6" style={{ fill: 'var(--fall)' }} />
+              <circle cx="60" cy="80" r="6" style={{ fill: 'var(--fall)' }} />
               <circle cx="90" cy="40" r="6" style={{ fill: 'var(--rise)' }} />
             </svg>
           </div>
@@ -142,7 +140,7 @@ export default function Landing() {
           <div>
             <h2>적금 비교</h2>
             <p>같은 돈을 적금에 넣었다면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요. 광고로 순서를 바꾸지 않아요.</p>
-            <Link className="btn btn-soft" style={{ marginTop: 20 }} to="/savings?demo=1">
+            <Link className="btn btn-soft" to="/savings?demo=1">
               예시로 해보기
             </Link>
           </div>
@@ -163,7 +161,7 @@ export default function Landing() {
           <div>
             <h2>오늘의 청년 금융 소식</h2>
             <p>교통·주거·금융·일자리처럼 당장 돈을 아끼거나 받을 수 있는 소식을 매일 골라요. 마감이 가까운 건 먼저 보여주고, 공고문으로 바로 가요.</p>
-            <Link className="btn btn-soft" style={{ marginTop: 20 }} to="/news">
+            <Link className="btn btn-soft" to="/news">
               소식 보기
             </Link>
           </div>
@@ -183,10 +181,10 @@ export default function Landing() {
           </div>
         </div>
 
-        <div className="card card-hero" style={{ marginTop: 48, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+        <div className="land-plus">
           <div>
-            <h2 style={{ fontSize: 22, lineHeight: '30px' }}>무료로 충분히, 더 깊게는 월 990원 플러스</h2>
-            <p className="sub" style={{ marginTop: 6 }}>사건 설명·기간 지정·정책 적금은 무료. 플러스는 정책 마감 리마인더·내 돈 리포트·정밀 모드·저장 확대예요.</p>
+            <h2>무료로 충분히, 더 깊게는 월 990원 플러스</h2>
+            <p>사건 설명·기간 지정·정책 적금은 무료. 플러스는 정책 마감 리마인더·내 돈 리포트·정밀 모드·저장 확대예요.</p>
           </div>
           <Link className="btn btn-line" to="/plus">
             플러스 알아보기

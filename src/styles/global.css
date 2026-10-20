@@ -430,8 +430,11 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   .plus-title{font-size:24px;line-height:32px}
 }
 
-/* 적금 비교: 표·비교 막대·정책 적금 누적 막대 */
-.sv-modes button{height:36px;padding:0 14px;font-size:14px}
+/* 적금 비교: 표·비교 막대·정책 적금 카드(누적 막대) */
+.sv-policy-form{align-items:flex-end;gap:16px 24px;margin-top:12px}
+.sv-policy-form .seg button{height:36px;padding:0 14px;font-size:14px}
+.sv-policy-form .input{height:36px;width:110px}
+.sv-policy-check{border-bottom:0;padding-bottom:0;margin-top:16px;border-top:1px solid var(--line)}
 .sv-cond-summary{justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px}
 .sv-sort{flex-direction:row;align-items:center;gap:8px}
 .sv-sort .input{height:36px;width:auto}

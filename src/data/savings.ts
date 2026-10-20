@@ -1,4 +1,5 @@
-// 적금 비교 데이터([지금 가입하면] / [그때 들었다면] / [정책 적금]). 지금은 서버 API가 없어 예시 값을 돌려준다.
+// 적금 비교 데이터(지금 가입하면: 일반 적금 상품 + 정책 적금). 지금은 서버 API가 없어 예시 값을 돌려준다.
+// 2026-10-20 사용자 결정으로 [그때 들었다면](POST /savings/average/simulate)은 화면에서 뺐다.
 // 계약 초안은 docs/product/03-architecture.md §8(엔드포인트·필드), 계산 정의는 C-12. API가 생기면 fetch 함수 안만 바꾼다.
 // 금액은 모두 서버 계산 결과다. 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
 // 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
@@ -65,23 +66,6 @@ export type SavingsProductList = {
 
 export type SavingsSimulateRequest = { productId: string; monthly: number; termMonths: SavingsTerm; rateBasis: RateBasis };
 export type SavingsSimulation = SavingsResult & { assumptions: string[]; notice: string; isSample: boolean };
-
-// 그때 들었다면: 상품 없이 한국은행 평균 적금 한 줄
-export type AverageSavingsRequest = { from: string; to: string; monthly?: number }; // monthly가 없으면 서버가 시드머니 주기별 남긴 돈을 쓴다
-export type AverageSavingsResult = {
-  name: string;
-  rates: { month: string; rate: number }[]; // 납입한 달의 평균 금리(연 %)
-  series: { month: string; principal: number; valueAfterTax: number }[]; // 기간 동안 내 돈 선
-  principal: number;
-  interestPreTax: number;
-  tax: number;
-  interestAfterTax: number;
-  total: number;
-  source: string;
-  assumptions: string[];
-  notice: string;
-  isSample: boolean;
-};
 
 // 정책 적금(청년미래적금): 조건 직접 입력, 자격 판정·가입 연결 없음
 export type PolicyType = 'GENERAL' | 'PREFERRED';
@@ -198,36 +182,6 @@ async function simulate(q: SavingsSimulateRequest): Promise<SavingsSimulation> {
   return delay({ ...toResult(SAMPLE_RESULTS[p.id][q.termMonths][q.rateBasis], q.rateBasis), assumptions, notice: SAVINGS_EST, isSample: true });
 }
 
-// TODO(BE·DATA): POST /api/v1/savings/average/simulate {from, to, monthly?}. ECOS 정기적금 항목코드 확인 전이라 금리는 예시
-async function fetchAverage(q: AverageSavingsRequest): Promise<AverageSavingsResult> {
-  if (q.monthly !== undefined) throw sampleOnly();
-  return delay({
-    name: '은행 평균 적금(한국은행)',
-    rates: [
-      { month: '2026-04', rate: 3.1 }, { month: '2026-05', rate: 3.05 }, { month: '2026-06', rate: 3.0 },
-      { month: '2026-07', rate: 2.95 }, { month: '2026-08', rate: 2.95 }, { month: '2026-09', rate: 2.9 },
-    ],
-    series: [
-      { month: '2026-04', principal: 74000, valueAfterTax: 74162 }, { month: '2026-05', principal: 155000, valueAfterTax: 155497 },
-      { month: '2026-06', principal: 233000, valueAfterTax: 233998 }, { month: '2026-07', principal: 312000, valueAfterTax: 313663 },
-      { month: '2026-08', principal: 392000, valueAfterTax: 394494 }, { month: '2026-09', principal: 470000, valueAfterTax: 473485 },
-    ],
-    principal: 470000,
-    interestPreTax: 4119,
-    tax: 634,
-    interestAfterTax: 3485,
-    total: 473485,
-    source: '한국은행 ECOS · 은행 평균 적금 금리 · 2026년 9월 기준 · 이 금리로 계산한 추정',
-    assumptions: [
-      '정산 주기마다 남긴 돈을 그달에 넣었다고 가정',
-      '납입한 달의 평균 금리를 고정해 단리로 계산, 만기·재가입·복리 없음',
-      '상품별 과거 금리는 없어 은행 평균 한 줄로만 보여 줘요',
-    ],
-    notice: SAVINGS_EST,
-    isSample: true,
-  });
-}
-
 const POLICY_ASSUMPTIONS = ['기여금은 만기에 한 번에 받는다고 가정, 기여금에는 이자 없음', '기여금 적립 방식 확인 중 · 추정', '이자는 정액적립식 단리, 비과세'];
 
 // TODO(BE·기획): GET /api/v1/savings/policy/{code}. 규칙·기본 금리는 policy_savings에 사람이 넣는다(출처·기준일 필수)
@@ -272,14 +226,12 @@ async function simulatePolicy(q: PolicySimulateRequest): Promise<PolicySimulatio
   });
 }
 
-export const useSavingsProducts = (q: SavingsListParams) =>
-  useQuery({ queryKey: ['savings', 'products', q], queryFn: () => fetchProducts(q), staleTime: 5 * 60_000 });
+export const useSavingsProducts = (q: SavingsListParams, enabled = true) =>
+  useQuery({ queryKey: ['savings', 'products', q], queryFn: () => fetchProducts(q), staleTime: 5 * 60_000, enabled });
 export const useSavingsProduct = (id: string | null, termMonths: SavingsTerm) =>
   useQuery({ queryKey: ['savings', 'product', id, termMonths], queryFn: () => fetchProduct(id!, termMonths), enabled: id !== null });
 export const useSavingsSimulation = (q: SavingsSimulateRequest | null) =>
   useQuery({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q!), enabled: q !== null });
-export const useAverageSavings = (q: AverageSavingsRequest) =>
-  useQuery({ queryKey: ['savings', 'average', q], queryFn: () => fetchAverage(q) });
 export const usePolicySavings = (code: string) =>
   useQuery({ queryKey: ['savings', 'policy', code], queryFn: () => fetchPolicy(code), staleTime: 5 * 60_000 });
 export const usePolicySimulation = (q: PolicySimulateRequest | null) =>

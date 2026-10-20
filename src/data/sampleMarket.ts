@@ -1,6 +1,7 @@
 // 랜딩 예시 차트용 예시 시세·사건(와이어프레임에서 옮김). 실제 주가가 아니다.
 // 랜딩 차트는 API가 죽어도 떠야 해서 빌드에 포함한다(03-architecture ADR-2).
-// 주식 타임머신 화면은 서버 계산 결과(POST /sim/...)를 그려야 하며, 이 파일로 계산하지 않는다.
+// 주식 타임머신 화면은 서버 계산 결과(POST /api/v1/simulations/run)를 그려야 하며, 이 파일로 계산하지 않는다.
+import type { ChartData } from '@/charts/drawTimeChart';
 
 function mulberry32(a: number) {
   return function () {
@@ -187,4 +188,23 @@ export function evChange(e: MarketEvent, sim: Sim) {
   const after = vals[i] || 0;
   const contribution = (sim.principal[i] - sim.principal[i - 1]) * (e.stock === 'all' ? 1 : 0.5);
   return { p, before, after, diff: after - before - contribution };
+}
+
+/** 예시 계산 결과를 차트 입력 모양으로 바꾼다(랜딩 전용). */
+export function sampleChartData(sim: Sim): ChartData {
+  const half = sim.principal.map((v) => v / 2);
+  return {
+    dates: WEEKS,
+    total: sim.total,
+    invested: sim.principal,
+    startIdx: sim.startIdx,
+    legs: [
+      { ...STOCKS.A, values: sim.vA, invested: half },
+      { ...STOCKS.B, values: sim.vB, invested: half },
+    ],
+    events: EVENTS.map((e) => {
+      const c = evChange(e, sim);
+      return { id: e.id, idx: e.idx, kind: e.kind, title: e.title, leg: e.stock === 'all' ? null : e.stock === 'A' ? 0 : 1, sourceName: e.sources[0].s + ' (예시)', change: { p: c.p, before: c.before, diff: c.diff } };
+    }),
+  };
 }

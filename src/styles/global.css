@@ -77,6 +77,51 @@ button{cursor:pointer}
 .page-desc{color:var(--text-muted);font-size:14px;margin-top:4px}
 .g84{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:24px;align-items:start}
 .sim{display:grid;grid-template-columns:300px minmax(0,1fr) 360px;gap:24px;align-items:start}
+.sim.no-rail{grid-template-columns:300px minmax(0,1fr)}
+/* 투자 시뮬레이션: 왼쪽 종목 목록, 오른쪽 위 조건 */
+/* 왼쪽 목록 카드는 오른쪽 열 높이에 맞춰 늘고, 목록만 안에서 스크롤한다(데스크톱) */
+.sim.no-rail{align-items:stretch}
+.sim.no-rail > #tmConditions{position:relative;min-height:640px}
+.sim.no-rail > #tmConditions > .cond-full{position:absolute;inset:0;overflow:hidden}
+.sim.no-rail > #tmConditions .tm-list{flex:1 1 auto;min-height:0;max-height:none}
+/* 조건: 칸마다 라벨 → 선택(38px) → 값(44px) → 도움말 같은 순서·높이 */
+.tm-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 24px;align-items:start}
+.tm-filters .wide{grid-column:1 / -1}
+.tm-field{display:grid;grid-template-rows:auto 38px 44px auto;gap:8px;min-width:0}
+.tm-field.wide{grid-template-rows:auto auto auto;padding-top:20px;border-top:1px solid var(--line)}
+.tm-field .seg{height:38px}
+.tm-field .seg button{height:32px;padding:0 4px;font-size:13px}
+.tm-field .input{height:44px}
+.tm-field .meta{margin:0}
+.seg-note{display:flex;align-items:center;gap:6px;height:38px;font-size:13px;font-weight:600;color:var(--text-sub)}
+.value-box{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 14px;border-radius:14px;background:var(--brand-softer);border:1px solid var(--brand-soft);color:var(--text);font-size:15px;min-width:0}
+.value-box b{font-size:18px;font-weight:800;margin-right:2px}
+.value-box .pre{font-size:13px;font-weight:600;color:var(--text-sub);margin-right:6px}
+.value-box.desc{background:var(--sunken);border-color:transparent;font-size:13px;color:var(--text-sub);line-height:1.35}
+.tm-picked-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tm-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--line)}
+@media (max-width:1180px){
+  .tm-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tm-filters .tm-how{grid-column:1 / -1;order:3}
+  .tm-filters .wide{order:4}
+}
+.tm-list{list-style:none;margin:0;padding:0;max-height:620px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.tm-list button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;padding:9px 8px;border:1px solid transparent;border-radius:12px;background:none;text-align:left;color:var(--text);font-size:14px}
+.tm-list button:hover:not(:disabled){background:var(--sunken)}
+.tm-list button[aria-pressed="true"]{background:var(--brand-softer);border-color:var(--brand)}
+.tm-list button:disabled{opacity:.45;cursor:not-allowed}
+.tm-list .rk{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right}
+.tm-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-list .sub2{display:block;font-size:12px;font-weight:500;color:var(--text-muted)}
+.tm-list .cap{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tm-table-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:14px;margin-top:12px}
+.tm-table{font-size:13px}
+.tm-table th{position:sticky;top:0;background:var(--card);z-index:1}
+.tm-table td,.tm-table th{padding:9px 12px}
+.tm-table tbody tr:nth-child(even) td{background:var(--sunken)}
+.tm-table td.paid{font-weight:700;color:var(--brand-text)}
+.tm-table .sm{display:block;font-size:11px;color:var(--text-muted);font-weight:500}
+.weight-row{display:grid;grid-template-columns:12px minmax(0,1fr) 88px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 .col{display:flex;flex-direction:column;gap:24px;min-width:0}
 
 /* ───────── 면 ───────── */
@@ -336,9 +381,14 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   .mainnav.open{display:flex}
   .menu-btn{display:inline-flex;align-items:center}
   .nav-right{margin-left:auto}
-  .g84,.sim,.plan-grid,.news-feature{grid-template-columns:minmax(0,1fr)}
+  .g84,.sim,.sim.no-rail,.plan-grid,.news-feature{grid-template-columns:minmax(0,1fr)}
   .sim > .cond-col > .cond-full{display:none}
   .sim > .cond-col.expanded > .cond-full{display:flex}
+  .sim.no-rail > #tmConditions{min-height:0}
+  .sim.no-rail > #tmConditions > .cond-full{position:static}
+  .sim.no-rail > #tmConditions .tm-list{max-height:420px}
+  .tm-filters{grid-template-columns:minmax(0,1fr)}
+  .tm-filters .tm-how,.tm-filters .wide{grid-column:auto;order:0}
   .cond-summary{display:flex}
   .seed-chip .lbl{display:none}
   .land-hero,.feat{grid-template-columns:minmax(0,1fr)}

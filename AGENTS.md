@@ -30,7 +30,7 @@ src/                     웹사이트(Vite + React + TypeScript, React Router, T
   styles/global.css      디자인 토큰(:root)과 공통 클래스
 mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
 scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
-backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)까지 구현. 패키지 책임·API는 backend/README.md
+backend/                 웹 서버(Spring Boot). 웹 계정(auth·user), 시세·투자 시뮬레이션(market·simulation, 수집은 worker의 ingest)까지 구현. 패키지 책임·API는 backend/README.md
 deploy/closed-network/   폐쇄망 VM 반입 묶음(예정)
 docs/product/            웹 기획·아키텍처·개발 인수인계 정본
 docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
@@ -38,6 +38,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 
 ## 규칙
 
+- Node는 `^20.19.0 || >=22.12.0`(Vite 8·rolldown). 낮으면 네이티브 바인딩이 설치되지 않는다.
 - **금액·수익률·이자 계산은 서버가 한다.** 웹은 결과를 그리기만 한다(ADR-3). 원 단위 정수, 나눗셈은 내림. `src/data/sampleMarket.ts`는 랜딩 예시 차트 전용이다.
 - 화면에 없는 기능을 암시하지 않는다. "계좌 연결", "투자 권유", "추천" 같은 말을 쓰지 않는다. 과거 계산에는 고지 문구를 붙인다(03 §8-3).
 - 예시 데이터를 보여 줄 때는 `isSample`로 "예시" 표시를 붙인다. API가 붙으면 표시가 자동으로 사라진다.

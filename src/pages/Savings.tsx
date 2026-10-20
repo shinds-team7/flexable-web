@@ -1,5 +1,5 @@
 // 적금 비교: [지금 가입하면] 조건 300px · 상품 표 · 고른 상품 상세 360px / [그때 들었다면] 은행 평균 적금 한 줄 / [정책 적금] 조건 직접 입력.
-// 설계는 project2 docs/web/01-product.md F2, 02-design.md §5-5. 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6).
+// 설계는 docs/product/01-product.md F2, 02-design.md §5-5. 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6).
 // 금액은 모두 서버 결과를 그대로 그린다(ADR-3). 막대 길이처럼 그리기 위한 비율만 화면에서 정한다.
 import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';

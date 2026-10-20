@@ -1,5 +1,5 @@
 // 적금 비교 데이터([지금 가입하면] / [그때 들었다면] / [정책 적금]). 지금은 서버 API가 없어 예시 값을 돌려준다.
-// 계약 초안은 project2 docs/web/03-architecture.md §8(엔드포인트·필드), 계산 정의는 C-12. API가 생기면 fetch 함수 안만 바꾼다.
+// 계약 초안은 docs/product/03-architecture.md §8(엔드포인트·필드), 계산 정의는 C-12. API가 생기면 fetch 함수 안만 바꾼다.
 // 금액은 모두 서버 계산 결과다. 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
 // 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
 import { useQuery } from '@tanstack/react-query';

@@ -5,7 +5,7 @@
 - 웹: Vite + React + TypeScript · React Router · TanStack Query
 - 시연(`/m`): Expo 웹(예시 데이터, 서버 호출 없음)
 - 운영: https://flexable-web-delta.vercel.app (시연 `/m`). 운영 API의 CORS·OAuth 허용 목록에 이 주소가 들어 있다(10-19)
-- 앱·앱 서버: [`shinds-team7/project2`](https://github.com/shinds-team7/project2). 웹 서버는 이 저장소 `backend/`(지금은 구조만 있음)
+- 앱·앱 서버: [`shinds-team7/project2`](https://github.com/shinds-team7/project2). 웹 서버는 이 저장소 `backend/`(웹 계정까지 구현, 화면 연결 전)
 - 현재 배포본의 로그인은 임시로 project2 계정 API를 쓴다. 웹 계정이 생기면 바꾼다([경계 문서](docs/product/04-service-boundaries.md) §4)
 
 ## 팀 작업의 출발점
@@ -41,7 +41,8 @@ npm ci && npm --prefix mobile-demo ci
 
 # 웹 (http://localhost:5173). /api 요청은 로컬 백엔드(8080)로 프록시된다.
 npm run dev
-# 백엔드: project2/backend 에서 ./gradlew bootRun --args='--spring.profiles.active=local'
+# 백엔드: 화면은 아직 project2 API 기준이라 project2/backend 에서 ./gradlew bootRun --args='--spring.profiles.active=local'
+# 웹 백엔드(웹 계정)만 띄우려면 backend/ 에서 같은 명령. 실행·환경변수는 backend/README.md
 
 # 운영 API에 붙여 보기(이메일 로그인만 가능, CORS·OAuth 허용 목록에 localhost:5173이 없으면 소셜 로그인은 막힌다)
 VITE_DEV_API_TARGET=https://flex-able-sh.duckdns.org npm run dev

@@ -5,8 +5,8 @@
 - 웹: Vite + React + TypeScript · React Router · TanStack Query
 - 시연(`/m`): Expo 웹(예시 데이터, 서버 호출 없음)
 - 운영: https://flexable-web-delta.vercel.app (시연 `/m`). 운영 API의 CORS·OAuth 허용 목록에 이 주소가 들어 있다(10-19)
-- 앱·앱 서버: [`shinds-team7/project2`](https://github.com/shinds-team7/project2). 웹 서버는 이 저장소 `backend/`(웹 계정까지 구현, 화면 연결 전)
-- 현재 배포본의 로그인은 임시로 project2 계정 API를 쓴다. 웹 계정이 생기면 바꾼다([경계 문서](docs/product/04-service-boundaries.md) §4)
+- 앱·앱 서버: [`shinds-team7/project2`](https://github.com/shinds-team7/project2). 웹 서버는 이 저장소 `backend/`(웹 계정·소셜 로그인까지 구현)
+- 화면은 웹 백엔드 계약에 맞췄다. 웹 백엔드를 운영에 띄우기 전까지 배포본은 `VITE_API_URL`이 project2를 가리켜 임시로 project2 계정으로 로그인된다. 웹 백엔드 주소로 바꾸는 것은 운영 담당자가 한다([경계 문서](docs/product/04-service-boundaries.md) §4)
 
 ## 팀 작업의 출발점
 
@@ -41,17 +41,14 @@ npm ci && npm --prefix mobile-demo ci
 
 # 웹 (http://localhost:5173). /api 요청은 로컬 백엔드(8080)로 프록시된다.
 npm run dev
-# 백엔드: 화면은 아직 project2 API 기준이라 project2/backend 에서 ./gradlew bootRun --args='--spring.profiles.active=local'
-# 웹 백엔드(웹 계정)만 띄우려면 backend/ 에서 같은 명령. 실행·환경변수는 backend/README.md
-
-# 운영 API에 붙여 보기(이메일 로그인만 가능, CORS·OAuth 허용 목록에 localhost:5173이 없으면 소셜 로그인은 막힌다)
-VITE_DEV_API_TARGET=https://flex-able-sh.duckdns.org npm run dev
+# 웹 백엔드: backend/ 에서 ./gradlew bootRun --args='--spring.profiles.active=local' (H2, 실행·환경변수는 backend/README.md)
+# 소셜 로그인은 로컬 백엔드에 KAKAO_CLIENT_ID·GOOGLE_CLIENT_ID 등을 넣었을 때만 버튼이 동작한다.
 
 # 시연 (http://localhost:8081/m)
 npm run dev:m
 ```
 
-소셜 로그인을 로컬에서 시험하려면 로컬 백엔드 환경변수 `OAUTH_ALLOWED_REDIRECT_URIS`에 `http://localhost:5173/oauth/callback`을 더한다.
+웹 백엔드의 `OAUTH_ALLOWED_REDIRECT_URIS` 기본값이 `http://localhost:5173/oauth/callback`이라 로컬 소셜 로그인은 공급자 콘솔에 `http://localhost:8080/api/v1/auth/oauth/{kakao|google}/callback`만 등록하면 된다.
 
 ## 빌드·배포
 

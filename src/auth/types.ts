@@ -1,8 +1,7 @@
-// docs/API.md 인증 절과 같은 모양
+// 웹 백엔드 GET /me·로그인 응답(backend/README.md "API"). project2 응답도 같은 필드를 담고 있다.
 export type User = {
   id: number;
   email: string | null;
-  onboarded: boolean;
   createdAt: string;
   provider: 'email' | 'kakao' | 'google';
   hasPassword: boolean;

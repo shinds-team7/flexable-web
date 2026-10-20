@@ -90,9 +90,9 @@ export default function Login() {
             로그인
           </h1>
           <p className="sub" style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
-            앱과 같은 계정으로 로그인하면
+            웹 계정으로 로그인해요.
             <br />
-            앱에서 모은 돈을 그대로 불러와요.
+            앱과는 계정이 따로예요.
           </p>
           <SocialButtons onError={setError} onEmail={() => setEmailOpen(true)} />
           <div className="divider">또는</div>

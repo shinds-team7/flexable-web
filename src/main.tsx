@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './App';
 import { SessionProvider } from './auth/session';
 import { IconSprite } from './components/Icons';
+import './styles/tokens.css';
 import './styles/global.css';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });

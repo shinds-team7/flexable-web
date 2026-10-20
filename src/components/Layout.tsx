@@ -98,7 +98,7 @@ export function Layout() {
       {exploring && (
         <div className="demo-banner" role="status">
           <div className="wrap">
-            <span>로그인 없이 체험 중 · 예시 데이터로 구현된 기능을 모두 이용할 수 있어요. 체험 내용은 계정에 저장되지 않아요.</span>
+            <span>체험 중이에요. 예시 데이터로 모든 기능을 써 볼 수 있고, 체험 내용은 저장되지 않아요.</span>
             <Link to="/home">체험 홈</Link>
             <Link to="/me">내 정보</Link>
           </div>

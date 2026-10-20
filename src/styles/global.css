@@ -1,4 +1,4 @@
-/* 와이어프레임(project2 docs/web/wireframes.html) 스타일을 옮김. 다크는 [data-theme="dark"]일 때만(기본 라이트). */
+/* 와이어프레임(docs/reference/wireframes.html) 스타일을 옮김. 다크는 [data-theme="dark"]일 때만(기본 라이트). */
 :root{
   color-scheme: light;
   --brand:#0046FF; --brand-strong:#0034C2; --brand-text:#0046FF; --brand-soft:#E8EEFF; --brand-softer:#F4F7FF; --on-brand:#FFFFFF;

@@ -1,4 +1,4 @@
-// 플러스 요금제 데이터. 가격·한도는 확정값(project2 docs/web/01-product.md §5-3, F6)이고, 서버 API가 생기면 fetch 안만 바꾼다.
+// 플러스 요금제 데이터. 가격·한도는 확정값(docs/product/01-product.md §5-3, F6)이고, 서버 API가 생기면 fetch 안만 바꾼다.
 // 해커톤은 모의 결제다. 실제 청구는 없다.
 import { useQuery } from '@tanstack/react-query';
 
@@ -20,7 +20,7 @@ export type Subscription = { plan: 'FREE' | 'PLUS'; period: Period | null; planU
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 
-// TODO(BE): GET /api/v1/billing/plans (project2 docs/web/03-architecture.md, {plans,limits,features,defaultPeriod})
+// TODO(BE): GET /api/v1/billing/plans (docs/product/03-architecture.md, {plans,limits,features,defaultPeriod})
 async function fetchPlans(): Promise<Plans> {
   return delay({
     prices: {

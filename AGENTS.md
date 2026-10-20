@@ -30,7 +30,7 @@ src/                     웹사이트(Vite + React + TypeScript, React Router, T
   styles/global.css      디자인 토큰(:root)과 공통 클래스
 mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
 scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
-backend/                 웹 서버(Spring). 지금은 구조만 있음. 패키지 책임은 backend/README.md
+backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)까지 구현. 패키지 책임·API는 backend/README.md
 deploy/closed-network/   폐쇄망 VM 반입 묶음(예정)
 docs/product/            웹 기획·아키텍처·개발 인수인계 정본
 docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
@@ -55,6 +55,7 @@ npm ci && npm --prefix mobile-demo ci
 npm run typecheck          # 웹 tsc + 시연 tsc
 npm run build              # 웹 빌드 + 시연 빌드(/m) → dist/
 npm --prefix mobile-demo run lint
+(cd backend && ./gradlew test)   # 웹 백엔드 빌드·테스트(Java 21)
 ```
 
 로컬 실행은 README의 "로컬에서 띄우기"를 본다. 코드를 바꿨으면 위 검사를 돌리고 결과를 그대로 보고한다.

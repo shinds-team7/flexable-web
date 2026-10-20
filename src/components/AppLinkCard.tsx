@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAppLink, useLinkApp, useUnlinkApp, type AppLink, type SeedChoice } from '@/data/appLink';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApiError, errorText } from '@/lib/api';
 import { fmtMonthDay, fmtMonthDayTime, won } from '@/lib/format';
 
@@ -75,7 +76,7 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
   return (
     <div className="col" style={{ gap: 12, marginTop: 8 }}>
       {appUnlinked && (
-        <p className="meta" role="status" style={{ color: 'var(--warn)' }}>
+        <p className="meta" role="status" style={{ color: 'var(--color-warning)' }}>
           앱에서 연동을 해제했거나 앱 계정을 탈퇴해서 연동이 끝났어요. 웹에 저장했던 앱 정보도 지웠어요.
         </p>
       )}
@@ -122,7 +123,7 @@ function Linked({ link, refreshing, onRefresh }: { link: Extract<AppLink, { link
     <div style={{ marginTop: 8 }}>
       {stale && (
         <div className="set-row">
-          <p className="meta" role="status" style={{ color: 'var(--warn)' }}>
+          <p className="meta" role="status" style={{ color: 'var(--color-warning)' }}>
             지금은 앱 정보를 불러오지 못해 {fmtMonthDayTime(link.sync.syncedAt)} 기준 값을 보여 드려요. 연동은 그대로예요.
           </p>
           <button className="btn btn-line btn-sm" onClick={onRefresh} disabled={refreshing}>
@@ -178,33 +179,28 @@ function Linked({ link, refreshing, onRefresh }: { link: Extract<AppLink, { link
           <p className="k">연동 해제</p>
           <p className="v">웹에 저장한 앱 정보를 지우고 연동을 끝내요. 앱 계정과 앱 기록은 그대로예요. 앱 로그아웃으로는 해제되지 않아요.</p>
         </div>
-        {!confirming && (
-          <button className="btn btn-line btn-sm" onClick={() => setConfirming(true)}>
-            해제하기
-          </button>
-        )}
+        <button className="btn btn-line btn-sm" onClick={() => setConfirming(true)} disabled={unlink.isPending}>
+          {unlink.isPending ? '해제하는 중…' : '해제하기'}
+        </button>
       </div>
-      {confirming && (
-        <div className="card-sunken col" role="alertdialog" aria-labelledby="unlink-title" style={{ gap: 12 }}>
-          <p className="k" id="unlink-title">
-            앱 연동을 해제할까요?
-          </p>
-          <p className="v">다시 연동하려면 앱에서 새 코드를 받아야 해요.</p>
-          <div className="row" style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-line btn-sm" onClick={() => setConfirming(false)} disabled={unlink.isPending}>
-              그만두기
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => unlink.mutate()} disabled={unlink.isPending}>
-              {unlink.isPending ? '해제하는 중…' : '해제하기'}
-            </button>
-          </div>
-          {unlink.isError && (
-            <p className="form-error" role="alert">
-              {errorText(unlink.error)}
-            </p>
-          )}
-        </div>
+      {unlink.isError && (
+        <p className="form-error" role="alert">
+          {errorText(unlink.error)}
+        </p>
       )}
+      <ConfirmDialog
+        open={confirming}
+        title="앱 연동을 해제할까요?"
+        confirmLabel="해제하기"
+        danger
+        onConfirm={() => {
+          setConfirming(false);
+          unlink.mutate();
+        }}
+        onCancel={() => setConfirming(false)}
+      >
+        <p>웹에 저장한 앱 정보를 지워요. 다시 연동하려면 앱에서 새 코드를 받아야 해요.</p>
+      </ConfirmDialog>
     </div>
   );
 }

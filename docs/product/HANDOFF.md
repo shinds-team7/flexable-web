@@ -9,20 +9,23 @@
 - [ ] 데이터 제공처별 호출 제한·페이지·과거 범위·저장·표시·AI 입력 허용 확인.
 - [ ] 부분 실패·중복 실행·정정 재수집·상품 종료 판정·뉴스 연결·승인 전 비공개 검증.
 
-## 2026-10-20 웹 백엔드 운영 전환 (VM 받은 뒤)
+## 2026-10-21 웹 운영 현황(solpa VM)
 
-웹 계정·소셜 로그인·화면 연결은 코드로 끝났다(#9·#13·#14). 아래는 아카데미에서 폐쇄망 VM을 받아야 할 수 있는 운영 작업이다. 그 전까지 배포본(Vercel)은 `VITE_API_URL`이 project2를 가리켜 project2 계정으로 로그인된다.
+웹 백엔드·화면·DB가 `https://solpa.shinhanacademy.co.kr`(대한상공회의소 VM, Ubuntu 22.04·1코어·8GB)에서 돈다. 구성·명령은 [`deploy/vm/README.md`](../../deploy/vm/README.md). Vercel 배포본은 그대로 `VITE_API_URL`이 앱 서버를 가리켜 앱 계정·앱 방침을 쓴다. **main 머지는 Vercel만 자동 배포**하고, solpa는 VM에서 `./backup.sh` → `git pull` → `docker compose up -d --build`로 반영한다(#33까지 반영, Flyway V7).
 
-- [ ] **웹 백엔드 배포**(VM 10-21 수령: Ubuntu 22.04·1코어·8GB, `https://solpa.shinhanacademy.co.kr`): [`deploy/vm/`](../../deploy/vm/README.md) Compose로 웹 화면(nginx)·웹 백엔드(api, 필요하면 worker)·웹 DB를 띄우고(10-21 api·db·web 실행, 백업 cron 등록, 키움 키 `.env` 입력 완료. worker는 `--profile worker`로 켠다) `.env`에 환경변수를 넣는다. 필수 `WEB_JWT_SECRET`(32바이트 이상, 앱 `JWT_SECRET`과 다른 값)·`DB_URL`·`DB_USERNAME`·`DB_PASSWORD`. 목록은 [`backend/README.md`](../../backend/README.md) "환경 변수".
-- [x] **앱 연동 설정**(10-21 `.env` 입력 완료: `APP_LINK_SERVICE_KEY`·`APP_LINK_ENCRYPTION_KEY`·`APP_LINK_BASE_URL=https://flex-able-sh.duckdns.org`): 웹 백엔드에 `APP_LINK_SERVICE_KEY`(앱 서버 `.env`의 `WEB_LINK_SERVICE_KEYS` 값과 같은 키 — 앱 쪽은 10-20 설정·배포 완료, 값은 팀 비공개 공간), `APP_LINK_ENCRYPTION_KEY`(`openssl rand -base64 32`, 한 번 정하면 바꾸지 않음)를 넣는다. `APP_LINK_BASE_URL`(앱 서버 주소)은 웹 개인정보처리방침 시행 뒤 마지막에 넣는다(넣는 순간 연동 화면이 보인다). 키 값은 저장소·문서·메신저에 적지 않는다. 앱 서버 프록시에서 VM의 나가는 IP만 허용할지도 정한다(04 §10).
-- [ ] **앱: 주기별 반영 기록 API**(decisions ④-3, 04 §5-2): 앱 main 머지 완료, 앱 서버 운영 배포는 앱 담당(10-21 요청). 웹은 10-21 구현: `applink`가 `startedOn`·`entries`를 저장(V6)하고 `GET /api/v1/me/seed-money`·홈 시드머니·꺾은선이 연동 값을 쓴다. 앱 서버가 배포 전이면 시작일·기록 없이 합계만 보인다(그래프 대신 안내 문구).
-- [ ] **웹 VM 종료 대비(11-18)**: 대한상공회의소 VM은 11-18 이후 닫힌다. 웹 백엔드·DB 이전 위치(또는 웹 계정 데이터 파기)를 정하고, 바뀐 처리 위탁·백업 문구로 방침을 11-11까지 고지한다([privacy-web §3](privacy-web.md)). 화면은 Vercel로 돌아간다.
-- [x] **웹 개인정보처리방침 시행**(2026-10-21. 처음 10-28로 고지했다가 연동을 10-21부터 켜기로 해 당김, [privacy-web](privacy-web.md)): 초안 `/privacy`(`src/pages/Privacy.tsx`)의 "확인 필요" 항목(웹 서버 제공 기관·HTTPS·DB 접근 통제·백업·로그 보관)을 채우고 시행일을 정한다. 웹 백엔드로 가입을 받기 전이어야 한다. 절차는 [privacy-web §5](privacy-web.md#5-시행-절차). 앱 방침에도 웹 연동 항목을 넣는다(앱 담당).
-- [ ] **앱 연동 실기기 확인**(앱 1.3.0 출시·앱 화면 원격 업데이트 뒤): 앱 코드 발급 → 웹 내 정보에서 연동 → 시드머니 표시 → 웹에서 해제 시 앱 연동 목록에서 사라짐 → 다시 연동 후 앱에서 해제 시 웹이 "앱에서 연동을 해제" 표시. 공개 전에 개인정보처리방침 반영 여부·시행일 확인.
-- [x] **웹 주소 확보**(10-21): `https://solpa.shinhanacademy.co.kr`. HTTPS는 앞단에서 끝나고 VM 80번으로 들어온다. Google 로그인 콜백 조건(공개 도메인 + HTTPS)을 만족한다.
-- [ ] **소셜 콘솔 등록**(project2와 같은 카카오·Google 앱을 쓴다, 아래 조건): 콜백 `{OAUTH_CALLBACK_BASE_URL}/api/v1/auth/oauth/kakao/callback`·`…/google/callback`을 Redirect URI에 추가한다. Google은 동의 화면 승인된 도메인에 웹 도메인도 더한다. 웹 백엔드에 `OAUTH_CALLBACK_BASE_URL`, `OAUTH_ALLOWED_REDIRECT_URIS`(웹 화면의 `/oauth/callback`), `KAKAO_CLIENT_ID`·`KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`을 넣는다.
-  - 같은 앱을 쓸 때 조건: 웹에는 `KAKAO_ADMIN_KEY`를 **넣지 않는다**. 넣으면 웹 탈퇴가 카카오 앱 연결 자체를 끊어 앱(project2) 쪽 카카오 동의도 풀린다. 카카오 회원번호는 앱 단위로 고정이라 같은 사람이 웹·앱에서 같은 번호를 받지만, 웹·앱 DB가 따로이므로 계정은 합쳐지지 않는다.
-- [ ] **화면을 웹 백엔드로 전환**: VM 구성(`deploy/vm`)은 화면을 같은 출처로 서비스하고 nginx가 `/api`를 웹 백엔드로 보낸다. Vercel 배포본을 유지하면 Vercel 환경변수 `VITE_API_URL`을 웹 백엔드 주소로 바꾸고 웹 백엔드 `CORS_ORIGINS`에 Vercel 주소를 넣는다. 전환하면 project2 계정으로는 웹에 로그인할 수 없고 웹 계정을 새로 만들어야 한다(04 §4).
+끝난 것(10-21):
+- [x] VM 배포(#29): api·web·db 실행, 백업 cron(매일 04:00, 만든 때부터 최대 7일), 접속·오류 기록 삭제 root cron(`purge-logs.sh`, 매주 일 04:00), 키움 키 `.env` 입력(시세 수집은 `docker compose --profile worker up -d`)
+- [x] 소셜 로그인: 카카오·Google 콘솔에 solpa 콜백 등록, `.env` 값 수정 → 둘 다 동작. 웹에는 `KAKAO_ADMIN_KEY`를 넣지 않는다(넣으면 웹 탈퇴가 앱 쪽 카카오 연결까지 끊음)
+- [x] 앱 연동 설정: `APP_LINK_SERVICE_KEY`·`APP_LINK_ENCRYPTION_KEY`·`APP_LINK_BASE_URL=https://flex-able-sh.duckdns.org` 입력(키 값은 저장소·문서·메신저에 적지 않음). VM에서 앱 서버로 HTTPS 연결 확인
+- [x] 앱 연동 웹 코드(#33): 주기별 반영 기록 저장(V6), `GET /api/v1/me/seed-money`, 홈 시드머니·꺾은선 연동 값, 연동 카드 선택 동의, 매일 03:20 전체 연동 재확인(`AppLinkRecheckJob`)
+- [x] 웹 개인정보처리방침 2026-10-21 시행(#30·#33): 법률 검토 반영 13개 조, 처리자 강선후(ucmnuniverse), 가입은 동의 대신 안내(V7). 근거·결정은 [privacy-web §0](privacy-web.md)
+- [x] 앱 담당에 요청·교차 확인 전달: 주기별 기록 API 운영 배포, 코드 발급 화면 선택 동의, 앱 방침에 웹 연동 항목·처리자·Gmail 국외 보관 맞추기, 연동 메뉴 원격 업데이트
+
+남은 것:
+- [ ] **앱 연동 실기기 통합 확인**(앱 쪽 배포·연동 메뉴 공개 뒤): 앱 코드 발급 → solpa 내 정보에서 동의하고 연동 → 홈 시드머니·꺾은선(앱 API 배포 전이면 합계만) → 웹에서 해제 시 앱 목록에서 사라짐 → 다시 연동 후 앱에서 해제 시 웹이 "앱에서 연동을 해제" 표시(늦어도 다음 날 새벽)
+- [ ] **11-18 VM 종료 → AWS 이전**: 웹 백엔드·DB를 AWS로 옮긴다. 수탁자(대한상공회의소 → AWS)·처리 위치·로그·백업이 바뀌므로 **개정 방침을 11-11까지 고지**하고, AWS 구성에 기록 7일 삭제·백업 7일·관리자 접근 기록 1년을 처음부터 넣는다. 종료 전 VM의 `/var/log/auth.log*`를 운영자 PC로 옮기고(1년 보관), VM의 DB·백업은 이전 뒤 지운다. 화면 주소가 바뀌면 소셜 콘솔 콜백·`OAUTH_*`·`APP_LINK_*`를 새 주소로 다시 넣는다
+- [ ] **운영자 확인**(privacy-web §0): 대한상공회의소 정확한 기관명·VM 스냅숏 여부, 문의 메일은 처리 후 30일 이내 삭제, 10-21 시행 전에 만든 시험 계정 정리
+- [ ] 앱 서버에서 웹 VM의 나가는 IP만 허용할지(04 §10). AWS 이전 뒤 주소가 정해지면 정한다
 
 ## 이전 업무 체크리스트
 

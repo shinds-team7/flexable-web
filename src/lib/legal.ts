@@ -19,7 +19,7 @@ export const webPrivacyInEffect =
  * 웹 백엔드(같은 출처 /api)를 쓰는 배포인지. VITE_API_URL로 다른 서버(앱 서버)를 부르는 배포(지금 Vercel)는
  * 회원 정보를 앱 서버가 처리하므로 앱 방침을 가리킨다.
  */
-const usesWebBackend = !import.meta.env.VITE_API_URL;
+export const usesWebBackend = !import.meta.env.VITE_API_URL;
 
 /** 가입·로그인·하단에서 쓰는 개인정보처리방침 주소 */
 export const privacyHref = webPrivacyInEffect && usesWebBackend ? '/privacy' : `${LEGAL_BASE}/privacy`;

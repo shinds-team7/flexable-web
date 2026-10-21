@@ -16,12 +16,14 @@ public final class AuthDtos {
 	private AuthDtos() {
 	}
 
-	/** 입력 규칙은 앱 가입과 같다(project2 AuthDtos). 계정은 따로다. */
+	/**
+	 * 입력 규칙은 앱 가입과 같다(project2 AuthDtos). 계정은 따로다. 가입에 필요한 개인정보는 계약 이행으로 처리하고 화면에서 방침을 안내하므로
+	 * 개인정보 동의 필드는 받지 않는다(예전 화면이 agreePrivacy를 보내도 무시).
+	 */
 	public record SignupRequest(
 			@NotBlank(message = "이메일을 입력해 주세요") @Email(message = "이메일 형식을 확인해 주세요") @Size(max = 254, message = "이메일 형식을 확인해 주세요") String email,
 			@NotNull(message = "비밀번호를 입력해 주세요") @Size(min = 8, max = 64, message = "비밀번호는 8자 이상 64자 이하로 입력해 주세요") @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "비밀번호에 영문과 숫자를 모두 넣어 주세요") String password,
-			@AssertTrue(message = "서비스 이용약관에 동의해 주세요") boolean agreeTerms,
-			@AssertTrue(message = "개인정보 수집·이용에 동의해 주세요") boolean agreePrivacy) {
+			@AssertTrue(message = "서비스 이용약관에 동의해 주세요") boolean agreeTerms) {
 	}
 
 	public record LoginRequest(

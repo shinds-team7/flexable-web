@@ -526,6 +526,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .legal h2{font-size:17px;line-height:26px;font-weight:700;margin:32px 0 12px}
 .legal p,.legal li{color:var(--color-text-secondary);font-size:15px;line-height:24px}
 .legal p+p{margin-top:12px}
+.legal h3{font-size:15px;line-height:24px;font-weight:700;color:var(--color-text-primary);margin:20px 0 8px}
 .legal ul,.legal ol{padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .legal table{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:14px;line-height:22px}
 .legal th,.legal td{border-bottom:1px solid var(--color-border);padding:10px 8px;text-align:left;vertical-align:top;color:var(--color-text-secondary)}

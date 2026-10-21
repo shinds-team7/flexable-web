@@ -26,7 +26,8 @@ web (nginx, 호스트 80) ── /api/ ──▶ api (웹 백엔드 :8080) ─�
 | `web.Dockerfile`, `nginx.conf` | 사이트·`/m` 시연 빌드를 nginx로 서비스하고 `/api/`를 api로 넘긴다 |
 | `../../backend/deploy/Dockerfile` | 웹 백엔드 이미지(api·worker 공용). 테스트는 CI가 돌리고 여기서는 jar만 만든다 |
 | `.env.example` | 환경변수 양식(이름만). 설명은 [backend/README](../../backend/README.md) "환경 변수" |
-| `backup.sh` | DB 덤프를 `backups/`에 만들고 7일 지난 것을 지운다 |
+| `backup.sh` | DB 덤프를 `backups/`에 만들고 만든 지 7일 된 것을 지운다(매일 cron) |
+| `purge-logs.sh` | 컨테이너 접속·오류 기록을 비운다(매주 root cron, 방침의 '최대 7일') |
 
 ## 처음 띄우기
 
@@ -59,7 +60,44 @@ chmod +x backup.sh && ./backup.sh
 crontab -e   # 0 4 * * * /home/student/flexable-web/deploy/vm/backup.sh >> /home/student/flexable-web/deploy/vm/backups/backup.log 2>&1
 ```
 
+매일 같은 시각에 돌아야 방침의 "백업은 만든 때부터 최대 7일"이 지켜진다. `backups/backup.log`에 매일 한 줄이 남는지 가끔 본다.
+
 복원: `gunzip -c backups/<파일>.sql.gz | docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql -u"$MYSQL_USER" "$MYSQL_DATABASE"'`. 백업은 같은 VM에 있으므로 VM을 잃으면 함께 잃는다.
+
+**복원할 때(방침 제7조)**: 백업 이후에 탈퇴·연동 해제된 정보가 되살아나지 않게 한다. 지금 DB가 살아 있으면 복원 **전에** 남아 있는 회원 번호를 받아 두고(`SELECT id FROM users`), 복원한 뒤 그 목록에 없는 회원을 지운다(`DELETE FROM users WHERE id NOT IN (...)`, 연동·설정은 외래 키로 함께 지워짐). 지금 DB를 잃었으면 백업 이후 받은 탈퇴·해제 문의(메일)를 찾아 다시 지운다. 복원이 끝날 때까지 서비스를 열지 않는다.
+
+## 기록 삭제(접속·오류 기록 7일)
+
+웹 개인정보처리방침은 접속·오류 기록을 "최대 7일"로 적었다. Docker 로그 회전(10MB × 5)은 용량만 제한하므로, 매주 한 번 모두 비운다. 로그 파일이 root 소유라 root crontab에 넣는다.
+
+```bash
+chmod +x purge-logs.sh
+sudo crontab -e   # 0 4 * * 0 /home/student/flexable-web/deploy/vm/purge-logs.sh >> /var/log/flexable-purge-logs.log 2>&1
+sudo ./purge-logs.sh   # 한 번 돌려 확인
+```
+
+## 관리자 접근 기록(방침 제9조)
+
+운영자·관리자가 VM에 접속한 기록(`/var/log/auth.log`의 SSH 로그인·sudo)은 개인정보처리시스템 접근 기록으로 **1년 이상** 보관·점검해야 한다(개인정보의 안전성 확보조치 기준 제8조). Ubuntu 기본값은 4주 뒤 지우므로 바꾼다.
+
+```bash
+sudo nano /etc/logrotate.d/rsyslog
+# /var/log/auth.log 줄을 기존 묶음에서 빼고 파일 끝에 따로 둔다:
+# /var/log/auth.log {
+#     weekly
+#     rotate 53
+#     compress
+#     delaycompress
+#     missingok
+#     notifempty
+#     postrotate
+#         /usr/lib/rsyslog/rsyslog-rotate
+#     endscript
+# }
+sudo logrotate -d /etc/logrotate.d/rsyslog   # 문법 확인
+```
+
+월 1회 `sudo last -n 30`, `sudo grep -E 'sudo|Accepted' /var/log/auth.log | tail`으로 모르는 접속이 없는지 본다. VM을 닫기 전(11-18)에는 `auth.log*`를 운영자 PC로 옮겨 1년 동안 보관한다(웹 회원 정보는 들어 있지 않다).
 
 ## 시세 수집(worker)
 

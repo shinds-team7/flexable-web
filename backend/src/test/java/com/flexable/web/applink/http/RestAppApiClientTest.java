@@ -140,9 +140,9 @@ class RestAppApiClientTest {
 		assertThat(seen.get(seen.size() - 1)).startsWith("DELETE /internal/v1/web-links/" + LINK_ID + " key=");
 	}
 
-	/** 앱이 주기별 반영 기록(startedOn·entries)을 더해도 지금 웹이 기존 필드를 그대로 읽어야 한다(앱 docs/API.md 예시). */
+	/** 앱 docs/API.md 예시: 시작일과 주기별 반영 기록(오름차순, 0원 반영 포함)을 그대로 읽는다. */
 	@Test
-	void ignoresFieldsAddedByTheApp() {
+	void readsStartDateAndEntries() {
 		reply(200, """
 				{"total":1450000,"base":500000,"monthlyGoal":300000,
 				 "lastEntry":{"cycleEnd":"2026-11-25","choice":"MANUAL","amount":0,"createdAt":"2026-11-25T20:10:00+09:00"},
@@ -153,6 +153,23 @@ class RestAppApiClientTest {
 		assertThat(seed.total()).isEqualTo(1_450_000);
 		assertThat(seed.lastEntry().choice()).isEqualTo("MANUAL");
 		assertThat(seed.lastEntry().amount()).isZero();
+		assertThat(seed.startedOn()).hasToString("2026-08-26");
+		assertThat(seed.entries()).hasSize(2);
+		assertThat(seed.entries().get(0).totalAfter()).isEqualTo(1_450_000);
+		assertThat(seed.entries().get(1).amount()).isZero();
+
+		// 앱 서버가 추가 필드를 배포하기 전 응답은 시작일 없음·기록 없음
+		reply(200, """
+				{"total":0,"base":0,"monthlyGoal":0,"lastEntry":null,"updatedAt":"2026-10-24T20:00:00+09:00"}""");
+		seed = client().seedMoney(LINK_ID);
+		assertThat(seed.startedOn()).isNull();
+		assertThat(seed.entries()).isEmpty();
+
+		// 필수 값이 빠진 기록은 응답 전체를 믿지 않는다
+		reply(200, """
+				{"total":0,"base":0,"monthlyGoal":0,"lastEntry":null,"updatedAt":"2026-10-24T20:00:00+09:00",
+				 "entries":[{"cycleEnd":"2026-09-25","choice":"ALL","amount":1}]}""");
+		assertThat(kindOf(() -> client().seedMoney(LINK_ID))).isEqualTo(Kind.UNAVAILABLE);
 	}
 
 	@Test

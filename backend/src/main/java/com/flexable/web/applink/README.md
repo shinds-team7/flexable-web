@@ -6,7 +6,8 @@
 |---|---|
 | `AppLinkController` | `GET`·`POST`·`DELETE /api/v1/app-link`. 대상은 토큰의 웹 회원 id로만 찾는다(브라우저가 보낸 id·linkId를 받지 않음). 계약은 `backend/README.md` "API" |
 | `AppLinkService` | 공개 입구. `link`·`status`·`unlink`, 탈퇴 때 `user`가 부르는 `removeForWithdrawal`. 다른 패키지(seedmoney 등)는 `status`의 응답 DTO로 앱 시드머니를 읽는다 |
-| `AppLink`(+Repository) | `app_links`. 웹 회원당 하나(`user_id` 고유). 앱에서 마지막으로 받은 회원 정보·시드머니를 두고 연동과 함께 지운다 |
+| `AppLink`(+Repository) | `app_links`. 웹 회원당 하나(`user_id` 고유). 앱에서 마지막으로 받은 회원 정보·시드머니·시작일을 두고 연동과 함께 지운다 |
+| `SeedEntry` | `app_link_entries`. 주기별 반영 기록(앱이 준 순서·값 그대로). 조회마다 통째로 바꾸고, 연동 행을 지우면 DB가 함께 지운다 |
 | `LinkIdCipher` | `linkId` AES-256-GCM 암호화(`APP_LINK_ENCRYPTION_KEY`) |
 | `AppApiClient`·`AppApiException` | 앱 서버 호출 인터페이스와 실패 종류(`Kind`) |
 | `http/RestAppApiClient` | 운영. `/internal/v1/web-links/*`를 `X-Service-Key`로 호출(연결 3초·응답 5초, 재시도 없음) |

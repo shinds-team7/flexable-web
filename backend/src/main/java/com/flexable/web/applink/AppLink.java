@@ -2,15 +2,22 @@ package com.flexable.web.applink;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.flexable.web.applink.AppApiClient.AppProfile;
 import com.flexable.web.applink.AppApiClient.AppSeedMoney;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 
 /**
@@ -67,6 +74,15 @@ public class AppLink {
 	@Column(name = "seed_updated_at")
 	private Instant seedUpdatedAt;
 
+	@Column(name = "seed_started_on")
+	private LocalDate seedStartedOn;
+
+	/** 주기별 반영 기록(앱이 준 순서). 연동 행을 지우면 DB가 함께 지운다(ON DELETE CASCADE). */
+	@ElementCollection(fetch = FetchType.EAGER)
+	@CollectionTable(name = "app_link_entries", joinColumns = @JoinColumn(name = "app_link_id"))
+	@OrderColumn(name = "seq")
+	private List<SeedEntry> seedEntries = new ArrayList<>();
+
 	@Column(name = "synced_at", nullable = false)
 	private Instant syncedAt;
 
@@ -106,6 +122,8 @@ public class AppLink {
 			this.seedLastAmount = null;
 			this.seedLastCreatedAt = null;
 			this.seedUpdatedAt = null;
+			this.seedStartedOn = null;
+			this.seedEntries.clear();
 		}
 		else {
 			this.seedState = SEED_AVAILABLE;
@@ -118,6 +136,9 @@ public class AppLink {
 			this.seedLastAmount = last == null ? null : last.amount();
 			this.seedLastCreatedAt = last == null || last.createdAt() == null ? null : last.createdAt().toInstant();
 			this.seedUpdatedAt = seed.updatedAt() == null ? null : seed.updatedAt().toInstant();
+			this.seedStartedOn = seed.startedOn();
+			this.seedEntries.clear();
+			seed.entries().forEach(e -> this.seedEntries.add(new SeedEntry(e)));
 		}
 		this.syncedAt = now;
 		this.checkedAt = now;
@@ -183,6 +204,14 @@ public class AppLink {
 
 	Instant getSeedUpdatedAt() {
 		return seedUpdatedAt;
+	}
+
+	LocalDate getSeedStartedOn() {
+		return seedStartedOn;
+	}
+
+	List<SeedEntry> getSeedEntries() {
+		return seedEntries;
 	}
 
 	Instant getSyncedAt() {

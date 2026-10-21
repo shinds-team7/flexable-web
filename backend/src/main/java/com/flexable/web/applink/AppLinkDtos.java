@@ -2,6 +2,7 @@ package com.flexable.web.applink;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.flexable.web.common.Times;
 
@@ -52,8 +53,12 @@ public final class AppLinkDtos {
 							Times.at(l.getSeedLastCreatedAt()));
 			SeedMoney seed = AppLink.SEED_AVAILABLE.equals(seedStatus)
 					? new SeedMoney(seedStatus, l.getSeedTotal(), l.getSeedBase(), l.getSeedMonthlyGoal(), last,
-							Times.at(l.getSeedUpdatedAt()))
-					: new SeedMoney(seedStatus, null, null, null, null, null);
+							Times.at(l.getSeedUpdatedAt()), l.getSeedStartedOn(),
+							l.getSeedEntries().stream()
+								.map(e -> new Entry(e.getCycleEnd(), e.getChoice(), e.getAmount(), e.getTotalAfter(),
+										Times.at(e.getCreatedAt())))
+								.toList())
+					: new SeedMoney(seedStatus, null, null, null, null, null, null, null);
 			return new AppLinkResponse(enabled, true, null, Times.at(l.getCreatedAt()),
 					new Account(l.getAppEmail(), l.getAppProvider()), seed,
 					new Sync(l.stale() ? SYNC_STALE : SYNC_FRESH, Times.at(l.getSyncedAt())));
@@ -63,9 +68,16 @@ public final class AppLinkDtos {
 	public record Account(String email, String provider) {
 	}
 
-	/** status: available(금액 있음), budget_not_set(앱 예산 설정 전), not_received(아직 한 번도 받지 못함). 금액은 available일 때만 있다. */
+	/**
+	 * status: available(금액 있음), budget_not_set(앱 예산 설정 전), not_received(아직 한 번도 받지 못함). 금액은 available일 때만 있다.
+	 * startedOn은 앱 첫 하루 예산 기록일(없으면 null), entries는 주기별 반영 기록(주기 종료일 오름차순, 앱 계산 값 그대로).
+	 */
 	public record SeedMoney(String status, Long total, Long base, Long monthlyGoal, LastEntry lastEntry,
-			OffsetDateTime updatedAt) {
+			OffsetDateTime updatedAt, LocalDate startedOn, List<Entry> entries) {
+	}
+
+	/** totalAfter: 반영 후 합계(앱이 조회 시점의 모아둔 돈 기준으로 계산) */
+	public record Entry(LocalDate cycleEnd, String choice, long amount, long totalAfter, OffsetDateTime createdAt) {
 	}
 
 	/** choice: GOAL·ALL·MANUAL(앱 API 문서 "시드머니") */

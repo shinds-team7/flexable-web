@@ -3,7 +3,7 @@
 // 계약 초안은 docs/product/03-architecture.md §8(엔드포인트·필드), 계산 정의는 C-12. API가 생기면 fetch 함수 안만 바꾼다.
 // 금액은 모두 서버 계산 결과다. 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
 // 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { ApiError } from '@/lib/api';
 
 export type SavingsSort = 'BASE_RATE' | 'MAX_RATE' | 'TERM';
@@ -65,7 +65,10 @@ export type SavingsProductList = {
 };
 
 export type SavingsSimulateRequest = { productId: string; monthly: number; termMonths: SavingsTerm; rateBasis: RateBasis };
-export type SavingsSimulation = SavingsResult & { assumptions: string[]; notice: string; isSample: boolean };
+// 기간 동안 내 돈: m개월 끝까지 넣은 돈과 그때까지 쌓인 세전 이자(중도해지 금리가 아니라 약정 금리로 쌓인 몫). 마지막 점 = 만기 세전 이자
+// TODO(BE): 03 §8 simulate 응답에 series를 추가하는 것으로 계약을 맞출 것
+export type SavingsPoint = { month: number; principal: number; interestPreTax: number };
+export type SavingsSimulation = SavingsResult & { series: SavingsPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
 // 정책 적금(청년미래적금): 조건 직접 입력, 자격 판정·가입 연결 없음
 export type PolicyType = 'GENERAL' | 'PREFERRED';
@@ -138,6 +141,18 @@ const SAMPLE_RESULTS: Record<string, Record<SavingsTerm, Record<RateBasis, R>>> 
   p8: { 6: { BASE: [468000, 3276, 504, 2772, 470772, 0], MAX: [468000, 6687, 1029, 5658, 473658, 0] }, 12: { BASE: [936000, 12168, 1873, 10295, 946295, 0], MAX: [936000, 24840, 3825, 21015, 957015, 0] }, 24: { BASE: [1872000, 46800, 7207, 39593, 1911593, 0], MAX: [1872000, 95544, 14713, 80831, 1952831, 0] }, 36: { BASE: [2808000, 103896, 15999, 87897, 2895897, 0], MAX: [2808000, 212112, 32665, 179447, 2987447, 0] } },
 };
 
+// 매달 78,000원 · 기본금리로 m개월(1~36) 끝에 쌓인 세전 이자(C-12 회차 이자를 회차마다 내림해 합산). 만기 개월의 값은 위 세전 이자와 같다.
+const SAMPLE_ACCRUED: Record<string, number[]> = {
+  p1: [195, 585, 1170, 1950, 2925, 4095, 5460, 7020, 8775, 10725, 12870, 15210, 17745, 20475, 23400, 26520, 29835, 33345, 37050, 40950, 45045, 49335, 53820, 58500, 63375, 68445, 73710, 79170, 84825, 90675, 96720, 102960, 109395, 116025, 122850, 129870],
+  p2: [214, 643, 1286, 2144, 3216, 4503, 6004, 7720, 9650, 11795, 14154, 16728, 19516, 22519, 25736, 29168, 32814, 36675, 40750, 45040, 49544, 54263, 59196, 64344, 69706, 75283, 81074, 87080, 93300, 99735, 106384, 113248, 120326, 127619, 135126, 142848],
+  p3: [169, 507, 1014, 1690, 2535, 3549, 4732, 6084, 7605, 9295, 11154, 13182, 15379, 17745, 20280, 22984, 25857, 28899, 32110, 35490, 39039, 42757, 46644, 50700, 54925, 59319, 63882, 68614, 73515, 78585, 83824, 89232, 94809, 100555, 106470, 112554],
+  p4: [253, 760, 1520, 2534, 3801, 5322, 7096, 9124, 11405, 13940, 16728, 19770, 23065, 26614, 30416, 34472, 38781, 43344, 48160, 53230, 58553, 64130, 69960, 76044, 82381, 88972, 95816, 102914, 110265, 117870, 125728, 133840, 142205, 150824, 159696, 168822],
+  p5: [188, 565, 1131, 1887, 2834, 3971, 5300, 6820, 8532, 10437, 12535, 14827, 17313, 19993, 22868, 25939, 29206, 32669, 36329, 40186, 44241, 48494, 52946, 57597, 62448, 67499, 72751, 78204, 83859, 89716, 95776, 102039, 108506, 115177, 122052, 129133],
+  p6: [227, 682, 1364, 2274, 3411, 4776, 6368, 8188, 10235, 12510, 15012, 17742, 20699, 23884, 27296, 30936, 34803, 38898, 43220, 47770, 52547, 57552, 62784, 68244, 73931, 79846, 85988, 92358, 98955, 105780, 112832, 120112, 127619, 135354, 143316, 151506],
+  p7: [234, 702, 1404, 2340, 3510, 4914, 6552, 8424, 10530, 12870, 15444, 18252, 21294, 24570, 28080, 31824, 35802, 40014, 44460, 49140, 54054, 59202, 64584, 70200, 76050, 82134, 88452, 95004, 101790, 108810, 116064, 123552, 131274, 139230, 147420, 155844],
+  p8: [156, 468, 936, 1560, 2340, 3276, 4368, 5616, 7020, 8580, 10296, 12168, 14196, 16380, 18720, 21216, 23868, 26676, 29640, 32760, 36036, 39468, 43056, 46800, 50700, 54756, 58968, 63336, 67860, 72540, 77376, 82368, 87516, 92820, 98280, 103896],
+};
+
 const toResult = ([principal, interestPreTax, tax, interestAfterTax, maturityAmount, excludedAmount]: R, rateBasis: RateBasis): SavingsResult => ({
   principal, interestPreTax, tax, interestAfterTax, maturityAmount, excludedAmount, rateBasis,
 });
@@ -179,7 +194,9 @@ async function simulate(q: SavingsSimulateRequest): Promise<SavingsSimulation> {
   if (!p) throw new ApiError(404, 'PRODUCT_NOT_FOUND', '상품을 찾지 못했어요');
   if (q.monthly !== SAMPLE_MONTHLY) throw sampleOnly();
   const assumptions = [...assumptionsOf(p), ...(q.rateBasis === 'MAX' ? ['최고금리는 우대조건을 모두 채운 경우예요'] : [])];
-  return delay({ ...toResult(SAMPLE_RESULTS[p.id][q.termMonths][q.rateBasis], q.rateBasis), assumptions, notice: SAVINGS_EST, isSample: true });
+  // 예시의 기간 선은 기본금리만 있다(화면도 기본금리 기준 선만 그린다)
+  const series = q.rateBasis === 'BASE' ? SAMPLE_ACCRUED[p.id].slice(0, q.termMonths).map((interestPreTax, i) => ({ month: i + 1, principal: SAMPLE_MONTHLY * (i + 1), interestPreTax })) : [];
+  return delay({ ...toResult(SAMPLE_RESULTS[p.id][q.termMonths][q.rateBasis], q.rateBasis), series, assumptions, notice: SAVINGS_EST, isSample: true });
 }
 
 const POLICY_ASSUMPTIONS = ['기여금은 만기에 한 번에 받는다고 가정, 기여금에는 이자 없음', '기여금 적립 방식 확인 중 · 추정', '이자는 정액적립식 단리, 비과세'];
@@ -232,7 +249,10 @@ export const useSavingsProduct = (id: string | null, termMonths: SavingsTerm) =>
   useQuery({ queryKey: ['savings', 'product', id, termMonths], queryFn: () => fetchProduct(id!, termMonths), enabled: id !== null });
 export const useSavingsSimulation = (q: SavingsSimulateRequest | null) =>
   useQuery({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q!), enabled: q !== null });
-export const usePolicySavings = (code: string) =>
+/** 고른 상품마다 기본금리 계산 결과(기간 선 포함). 상품 순서대로 돌려준다. */
+export const useSavingsSimulations = (reqs: SavingsSimulateRequest[]) =>
+  useQueries({ queries: reqs.map((q) => ({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q) })) });
+export const usePolicySavings =(code: string) =>
   useQuery({ queryKey: ['savings', 'policy', code], queryFn: () => fetchPolicy(code), staleTime: 5 * 60_000 });
 export const usePolicySimulation = (q: PolicySimulateRequest | null) =>
   useQuery({ queryKey: ['savings', 'policy', 'simulate', q], queryFn: () => simulatePolicy(q!), enabled: q !== null });

@@ -121,7 +121,9 @@ function Withdraw({ social, onDone }: { social: boolean; onDone: () => void }) {
       <div className="set-row">
         <div>
           <p className="k">웹 탈퇴</p>
-          <p className="v">웹 계정과 웹에 저장한 정보를 지우고 앱 연동도 해제해요. 앱 계정과 앱 기록은 그대로예요.</p>
+          <p className="v">
+            웹 계정과 웹에 저장한 앱 연동 정보를 지워요. 앱 계정은 탈퇴되지 않아요. 백업·기록의 삭제 시점은 <Link to="/privacy">개인정보처리방침</Link>에 있어요.
+          </p>
         </div>
         {!open && (
           <button className="btn btn-line btn-sm" onClick={() => setOpen(true)}>

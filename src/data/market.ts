@@ -27,6 +27,56 @@ export type SimPoint = {
   returnRate: number;
   legs: { id: string; close: number | null; value: number; invested: number }[];
 };
+/**
+ * 기간 안 급변동 사건(서버 탐지, 03 C-8). code는 종목 사건의 종목(시장 사건이면 null). 수익률은 비율(0.05 = 5%).
+ * 이때 내 돈: valueBefore(시작 전날) → valueAfter(마지막 날), valueChange = after − before − 그 사이 넣은 돈. 아직 넣기 전이면 null.
+ */
+export type SimEvent = {
+  id: number;
+  code: string | null;
+  scope: 'STOCK' | 'MARKET';
+  startDate: string;
+  endDate: string;
+  windowDays: number;
+  direction: 'RISE' | 'FALL';
+  returnRate: number;
+  marketReturn: number | null;
+  headline: string;
+  hasExplanation: boolean;
+  sourceName: string | null;
+  sourceCount: number;
+  topSource: string | null;
+  score: number;
+  valueBefore: number | null;
+  valueAfter: number | null;
+  contributionInWindow: number | null;
+  valueChange: number | null;
+  noticeKey: string;
+};
+
+export type EvidenceSource = { type: string; externalId: string; title: string; publisher: string | null; date: string; url: string; weight: number };
+/** 사건 상세(GET /market/events/{id}). whatHappened는 설명이 없으면 null, 근거가 하나도 없으면 고정 문장. */
+export type EventDetail = {
+  id: number;
+  code: string | null;
+  name: string;
+  scope: 'STOCK' | 'MARKET';
+  startDate: string;
+  endDate: string;
+  windowDays: number;
+  direction: 'RISE' | 'FALL';
+  headline: string;
+  marketReaction: { returnRate: number; marketReturn: number | null; volumeRatio: number | null; weekReturn: number | null };
+  afterwards: { d30: number | null; d365: number | null };
+  sources: EvidenceSource[];
+  newsSearchUrl: string;
+  whatHappened: string | null;
+  aiGenerated: boolean;
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH';
+  noticeKey: string;
+  notice: string;
+};
+
 export type SimulationResult = {
   resolvedInput: { startDate: string; endDate: string; mode: FundingMode };
   contributionCount: number;
@@ -40,7 +90,7 @@ export type SimulationResult = {
   seriesBasis: 'WEEK_LAST_CLOSE';
   legs: { id: string; name: string; kind: string; weight: number; invested: number; finalValue: number }[];
   series: SimPoint[];
-  events: never[];
+  events: SimEvent[];
   assumptions: string[];
   noticeKey: string;
   notice: string;
@@ -50,6 +100,10 @@ export type SimulationResult = {
 /** 시장별 시가총액 상위 종목(서버 설정, 기본 100개) */
 export const useBoard = (board: Board) =>
   useQuery({ queryKey: ['market', 'instruments', board], queryFn: () => api<BoardListing>(`/market/instruments?board=${board}`), staleTime: 30 * 60_000 });
+
+/** 사건 상세. id가 null이면 부르지 않는다. 지난 일이라 자주 바뀌지 않는다. */
+export const useEventDetail = (id: number | null) =>
+  useQuery({ queryKey: ['market', 'event', id], queryFn: () => api<EventDetail>(`/market/events/${id}`), enabled: id != null, staleTime: 30 * 60_000 });
 
 /** req가 null이면 부르지 않는다. "결과 보기"를 누를 때만 req를 바꾼다. */
 export const useSimulation = (req: SimulationRequest | null) =>

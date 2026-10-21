@@ -6,6 +6,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpConnectTimeoutException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -83,7 +84,9 @@ public class RestAppApiClient implements AppApiClient {
 		LastEntry last = body.lastEntry() == null ? null
 				: new LastEntry(body.lastEntry().cycleEnd(), body.lastEntry().choice(),
 						body.lastEntry().amount() == null ? 0 : body.lastEntry().amount(), body.lastEntry().createdAt());
-		return new AppSeedMoney(body.total(), body.base(), body.monthlyGoal(), last, body.updatedAt());
+		List<Entry> entries = body.entries() == null ? List.of() : body.entries().stream().map(EntryBody::toEntry).toList();
+		return new AppSeedMoney(body.total(), body.base(), body.monthlyGoal(), last, body.updatedAt(), body.startedOn(),
+				entries);
 	}
 
 	@Override
@@ -176,6 +179,20 @@ public class RestAppApiClient implements AppApiClient {
 	record LastEntryBody(LocalDate cycleEnd, String choice, Long amount, OffsetDateTime createdAt) {
 	}
 
-	record SeedBody(Long total, Long base, Long monthlyGoal, LastEntryBody lastEntry, OffsetDateTime updatedAt) {
+	/** startedOn·entries는 앱 서버가 추가한 필드다. 없으면(배포 전) 시작일 없음·기록 없음으로 본다. */
+	record SeedBody(Long total, Long base, Long monthlyGoal, LastEntryBody lastEntry, OffsetDateTime updatedAt,
+			LocalDate startedOn, List<EntryBody> entries) {
+	}
+
+	record EntryBody(LocalDate cycleEnd, String choice, Long amount, Long totalAfter, OffsetDateTime createdAt) {
+
+		/** 필수 값이 빠졌거나 방법 이름이 저장 길이를 넘으면 응답 전체를 믿지 않는다(마지막 값을 stale로 보여 줌). */
+		Entry toEntry() {
+			if (cycleEnd == null || choice == null || choice.isBlank() || choice.length() > 10 || amount == null
+					|| totalAfter == null) {
+				throw new AppApiException(Kind.UNAVAILABLE);
+			}
+			return new Entry(cycleEnd, choice, amount, totalAfter, createdAt);
+		}
 	}
 }

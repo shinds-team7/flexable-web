@@ -1,0 +1,13 @@
+# 웹 화면 이미지(deploy/vm/web.Dockerfile) 빌드 컨텍스트에서 뺄 것
+.git
+node_modules
+mobile-demo/node_modules
+mobile-demo/dist
+mobile-demo/.expo
+dist
+backend
+deploy/vm/.env
+deploy/vm/backups
+.env
+.env.*
+*.log

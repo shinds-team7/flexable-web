@@ -23,6 +23,12 @@ export function IconSprite() {
       <symbol id="i-mark-on" viewBox="0 0 16 16">
         <path d="M4 2.5h8v11l-4-2.6-4 2.6z" fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
       </symbol>
+      <symbol id="i-share" viewBox="0 0 16 16">
+        <circle cx="12" cy="3.5" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <circle cx="4" cy="8" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <circle cx="12" cy="12.5" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M5.7 7l4.6-2.5M5.7 9l4.6 2.5" stroke="currentColor" strokeWidth="1.4" />
+      </symbol>
       <symbol id="i-kakao" viewBox="0 0 18 18">
         <path d="M9 2C4.6 2 1 4.8 1 8.2c0 2.2 1.5 4.1 3.7 5.2l-.9 3.3c-.1.3.3.5.5.3l3.9-2.6c.3 0 .5.1.8.1 4.4 0 8-2.8 8-6.2S13.4 2 9 2z" fill="#000" />
       </symbol>

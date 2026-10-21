@@ -76,9 +76,11 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         {won(amount)}
         <small>원</small>
       </p>
-      <p className="sub">
-        이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
-      </p>
+      {seed.current != null && (
+        <p className="sub">
+          이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
+        </p>
+      )}
       {editing ? (
         <form className="seed-edit" onSubmit={save} noValidate>
           <div className="field">
@@ -124,9 +126,16 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         </div>
       )}
       <div className="hero-foot">
-        <span className="meta">오늘 아낀 돈 {won(seed.todaySaved)}원</span>
-        <span className="meta">최근 정산 주기마다 평균 {won(seed.avgPerCycle)}원씩 남겼어요</span>
-        <span className="meta">앱에 입력한 기록 기준 · {fmtMonthDay(seed.asOf)}</span>
+        {seed.todaySaved != null && <span className="meta">오늘 아낀 돈 {won(seed.todaySaved)}원</span>}
+        {seed.isSample ? (
+          <span className="meta">최근 정산 주기마다 평균 {won(seed.avgPerCycle)}원씩 남겼어요</span>
+        ) : (
+          <span className="meta">매달 저축할 돈 {won(seed.avgPerCycle)}원</span>
+        )}
+        <span className="meta">
+          {seed.isSample ? '앱에 입력한 기록 기준' : '앱에서 확정한 값'} · {fmtMonthDay(seed.asOf)}
+          {seed.stale && ' · 지금은 앱 정보를 불러오지 못해 마지막으로 받은 값이에요'}
+        </span>
       </div>
       <figure className="profile">
         <img src="/characters/lv3-3.png" alt="" />
@@ -158,7 +167,7 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
 function SeedHistory({ seed }: { seed: SeedMoney }) {
   const [range, setRange] = useState(99);
   const data = seed.history.slice(-Math.min(range, seed.history.length));
-  const first = data[0]?.month.split('-').map(Number);
+  const first = data[0]?.date.split('-').map(Number);
   return (
     <div className="card">
       <div className="card-head">
@@ -170,15 +179,21 @@ function SeedHistory({ seed }: { seed: SeedMoney }) {
             </p>
           )}
         </div>
-        <div className="seg" role="group" aria-label="기간">
-          {RANGES.map((o) => (
-            <button key={o.r} aria-pressed={range === o.r} onClick={() => setRange(o.r)}>
-              {o.label}
-            </button>
-          ))}
-        </div>
+        {seed.history.length > 0 && (
+          <div className="seg" role="group" aria-label="기간">
+            {RANGES.map((o) => (
+              <button key={o.r} aria-pressed={range === o.r} onClick={() => setRange(o.r)}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      <SeedLineChart data={data} />
+      {seed.history.length > 0 ? (
+        <SeedLineChart data={data} />
+      ) : (
+        <p className="sub">앱에서 수입일 전날 시드머니를 반영하면 주기마다 쌓인 모양이 여기에 그려져요.</p>
+      )}
     </div>
   );
 }
@@ -196,7 +211,7 @@ function WhatIf({ seed }: { seed: SeedMoney }) {
       <div className="card-head">
         <div>
           <h2>이 돈을 굴렸다면?</h2>
-          <p className="meta">1년 전 오늘, {won(base)}원을 한 번에 넣었다고 같은 조건으로 계산했어요{seed.isSample && ' · 예시'}</p>
+          <p className="meta">1년 전 오늘, {won(base)}원을 한 번에 넣었다고 같은 조건으로 계산했어요 · 예시 수익률</p>
         </div>
       </div>
       <div className="stats">
@@ -350,7 +365,7 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
-            ) : seed.data.history.length === 0 && seed.data.manual == null ? (
+            ) : seed.data.history.length === 0 && seed.data.manual == null && seed.data.confirmed === 0 ? (
               <div className="empty-box card-hero">
                 <h3>아직 모은 돈이 없어요</h3>
                 <p className="sub">앱에 수입·지출을 기록하면 정산 주기가 끝날 때마다 남긴 돈이 쌓여요. 그 전에도 금액을 직접 넣고 굴려볼 수 있어요.</p>

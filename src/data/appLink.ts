@@ -14,8 +14,23 @@ export type AppSeedMoney =
       monthlyGoal: number; // 매달 저축할 돈
       lastEntry: { cycleEnd: string; choice: SeedChoice; amount: number; createdAt: string } | null;
       updatedAt: string;
+      /** 앱 첫 하루 예산 기록일. 없으면 null */
+      startedOn: string | null;
+      /** 주기별 반영 기록(주기 종료일 오름차순). totalAfter는 앱이 계산한 반영 후 합계 */
+      entries: SeedEntry[];
     }
-  | { status: 'budget_not_set' | 'not_received'; total: null; base: null; monthlyGoal: null; lastEntry: null; updatedAt: null };
+  | {
+      status: 'budget_not_set' | 'not_received';
+      total: null;
+      base: null;
+      monthlyGoal: null;
+      lastEntry: null;
+      updatedAt: null;
+      startedOn: null;
+      entries: null;
+    };
+
+export type SeedEntry = { cycleEnd: string; choice: SeedChoice; amount: number; totalAfter: number; createdAt: string | null };
 
 export type AppLink =
   | {
@@ -49,7 +64,10 @@ export function useLinkApp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (code: string) => api<AppLink>('/app-link', { method: 'POST', json: { code } }),
-    onSuccess: (data) => qc.setQueryData(KEY, data),
+    onSuccess: (data) => {
+      qc.setQueryData(KEY, data);
+      void qc.invalidateQueries({ queryKey: ['seed-money'] });
+    },
   });
 }
 
@@ -57,7 +75,7 @@ export function useUnlinkApp() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api<void>('/app-link', { method: 'DELETE' }),
-    onSuccess: () =>
+    onSuccess: () => {
       qc.setQueryData<AppLink>(KEY, (prev) => ({
         enabled: prev?.enabled ?? true,
         linked: false,
@@ -66,6 +84,8 @@ export function useUnlinkApp() {
         account: null,
         seedMoney: null,
         sync: null,
-      })),
+      }));
+      void qc.invalidateQueries({ queryKey: ['seed-money'] });
+    },
   });
 }

@@ -2,6 +2,7 @@ package com.flexable.web.applink;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * 앱 서버(project2) /internal/v1/web-links/* 호출. 운영은 http, 시연·로컬은 snapshot 구현을 쓴다.
@@ -38,10 +39,27 @@ public interface AppApiClient {
 	record AppProfile(String email, String provider) {
 	}
 
-	/** 앱이 확정한 값만 온다. 금액은 원 단위 정수이고 웹에서 다시 계산하지 않는다. */
-	record AppSeedMoney(long total, long base, long monthlyGoal, LastEntry lastEntry, OffsetDateTime updatedAt) {
+	/**
+	 * 앱이 확정한 값만 온다. 금액은 원 단위 정수이고 웹에서 다시 계산하지 않는다.
+	 * startedOn은 첫 하루 예산 기록일(없으면 null), entries는 확정 반영 기록 전부(주기 종료일 오름차순, 앱이 아직 보내지 않으면 빈 목록).
+	 */
+	record AppSeedMoney(long total, long base, long monthlyGoal, LastEntry lastEntry, OffsetDateTime updatedAt,
+			LocalDate startedOn, List<Entry> entries) {
+
+		public AppSeedMoney {
+			entries = entries == null ? List.of() : List.copyOf(entries);
+		}
+
+		/** 시작일·주기별 기록이 없는 응답(앱 서버가 추가 필드를 배포하기 전) */
+		public AppSeedMoney(long total, long base, long monthlyGoal, LastEntry lastEntry, OffsetDateTime updatedAt) {
+			this(total, base, monthlyGoal, lastEntry, updatedAt, null, List.of());
+		}
 	}
 
 	record LastEntry(LocalDate cycleEnd, String choice, long amount, OffsetDateTime createdAt) {
+	}
+
+	/** 주기별 반영 기록. totalAfter는 조회 시점의 모아둔 돈 + 그 주기까지 반영한 돈(앱 계산) */
+	record Entry(LocalDate cycleEnd, String choice, long amount, long totalAfter, OffsetDateTime createdAt) {
 	}
 }

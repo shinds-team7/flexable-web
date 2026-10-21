@@ -46,12 +46,18 @@ public final class SimulationEngine {
 	public record LegResult(String id, long invested, long finalValue) {
 	}
 
+	/** purchases: 종목별 매수 기록(날짜순). 사건 전후 내 돈(holdingAt)을 계산할 때 쓴다. */
 	public record Result(LocalDate startDate, LocalDate endDate, int contributionCount, long monthlyAmount,
 			long totalInvested, long finalValue, long profit, BigDecimal returnRate, List<LegResult> legs,
-			List<Point> series) {
+			List<Point> series, List<List<Buy>> purchases) {
 	}
 
-	private record Buy(LocalDate date, long amount, long close) {
+	/** 한 번 산 기록. amount는 원, close는 그날 종가(원). */
+	public record Buy(LocalDate date, long amount, long close) {
+	}
+
+	/** 어느 날 장 마감 기준 평가액과 그날까지 넣은 돈(원). */
+	public record Holding(long value, long invested) {
 	}
 
 	private SimulationEngine() {
@@ -161,7 +167,40 @@ public final class SimulationEngine {
 			legResults.add(new LegResult(legs.get(j).id(), invested[j], last.legs().get(j).value()));
 		}
 		return new Result(in.startDate(), end, n, in.mode() == Mode.LUMP_SUM ? amounts[0] : in.monthlyAmount(),
-				totalInvested, last.total(), profit, rate, legResults, series);
+				totalInvested, last.total(), profit, rate, legResults, series, buys.stream().map(List::copyOf).toList());
+	}
+
+	/**
+	 * date 장 마감 기준 평가액·넣은 돈(03 C-9). leg가 null이면 모든 종목 합. 그날 거래가 없으면 직전 종가로 평가한다.
+	 * 주 단위 시계열과 같은 규칙(수량 소수 8자리 내림, 종목별 평가액 원 단위 내림)을 쓴다.
+	 */
+	public static Holding holdingAt(Input in, Result r, Integer leg, LocalDate date) {
+		long value = 0;
+		long invested = 0;
+		for (int j = 0; j < in.legs().size(); j++) {
+			if (leg != null && leg != j) {
+				continue;
+			}
+			BigDecimal units = BigDecimal.ZERO;
+			for (Buy b : r.purchases().get(j)) {
+				if (b.date().isAfter(date)) {
+					break;
+				}
+				units = units.add(BigDecimal.valueOf(b.amount()).divide(BigDecimal.valueOf(b.close()), UNIT_SCALE, RoundingMode.DOWN));
+				invested += b.amount();
+			}
+			Long close = null;
+			for (DailyClose d : in.legs().get(j).closes()) {
+				if (d.date().isAfter(date)) {
+					break;
+				}
+				close = d.close();
+			}
+			if (close != null) {
+				value += units.multiply(BigDecimal.valueOf(close)).setScale(0, RoundingMode.DOWN).longValueExact();
+			}
+		}
+		return new Holding(value, invested);
 	}
 
 	static BigDecimal rate(long profit, long invested) {

@@ -60,6 +60,10 @@ public class Instrument {
 	@Column(name = "updated_at", nullable = false)
 	private Instant updatedAt;
 
+	/** OpenDART 고유번호(8자리). ETF·못 찾은 종목은 null. */
+	@Column(name = "corp_code", length = 8)
+	private String corpCode;
+
 	protected Instrument() {
 	}
 
@@ -86,6 +90,10 @@ public class Instrument {
 		this.capRank = null;
 		this.featuredReason = null;
 		this.updatedAt = now;
+	}
+
+	void setCorpCode(String corpCode) {
+		this.corpCode = corpCode;
 	}
 
 	Long getId() {
@@ -130,5 +138,9 @@ public class Instrument {
 
 	LocalDate getDataAsOf() {
 		return dataAsOf;
+	}
+
+	String getCorpCode() {
+		return corpCode;
 	}
 }

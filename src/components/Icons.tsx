@@ -52,9 +52,9 @@ export const Icon = ({ id, size = 12 }: { id: string; size?: number }) => (
 export const Logo = () => (
   <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
     <rect width="28" height="28" rx="8" style={{ fill: 'var(--brand)' }} />
-    <rect x="5" y="7" width="13" height="11" rx="3" fill="#fff" opacity=".9" />
-    <rect x="9" y="10" width="14" height="12" rx="3.5" stroke="#fff" strokeWidth="2" style={{ fill: 'var(--brand)' }} />
-    <rect x="18" y="14.5" width="5" height="2.6" rx="1.3" fill="#fff" />
+    <rect x="5" y="7" width="13" height="11" rx="3" opacity=".9" style={{ fill: 'var(--on-brand)' }} />
+    <rect x="9" y="10" width="14" height="12" rx="3.5" strokeWidth="2" style={{ fill: 'var(--brand)', stroke: 'var(--on-brand)' }} />
+    <rect x="18" y="14.5" width="5" height="2.6" rx="1.3" style={{ fill: 'var(--on-brand)' }} />
   </svg>
 );
 

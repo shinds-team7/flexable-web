@@ -1,14 +1,15 @@
 // 공통 틀: 상단 바(64px, 하위 탭 없음). 본문 최대 1344px(패딩 포함 1280px).
-// 로그인한 사용자는 로고를 누르면 홈(/home)으로 간다.
+// 로그인한 사용자와 체험 중인 손님은 로고를 누르면 홈(/home)으로 간다.
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { LEGAL_BASE, privacyHref } from '@/lib/legal';
 import { useSession } from '@/auth/session';
 import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
 import { Logo } from './Icons';
 
-/** 상단 메뉴. 순서·이름은 팀장 결정(2026-10-19). AI 목표 달성은 로그인이 필요하다(손님은 로그인으로). */
+/** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
 const NAV = [
   { to: '/invest', label: '투자 시뮬레이션' },
   { to: '/savings', label: '적금 비교' },
@@ -59,13 +60,14 @@ export function Layout() {
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const member = status === 'member';
+  const exploring = status === 'guest' && !['/', '/login', '/signup', '/oauth/callback'].includes(pathname);
   useEffect(() => setMenu(false), [pathname]);
 
   return (
     <>
       <header className="topnav">
         <div className="wrap">
-          <Link className="logo" to={member ? '/home' : '/'} aria-label="텅장관리 처음으로">
+          <Link className="logo" to={member || exploring ? '/home' : '/'} aria-label="텅장관리 처음으로">
             <Logo />
             텅장관리
           </Link>
@@ -80,10 +82,10 @@ export function Layout() {
             <button className="menu-btn" aria-expanded={menu} aria-controls="mainnav" onClick={() => setMenu((v) => !v)}>
               메뉴
             </button>
-            {member && <SeedChip />}
-            {member && (
+            {(member || exploring) && <SeedChip />}
+            {(member || exploring) && (
               <Link className="avatar" to="/me" aria-label="내 정보">
-                {displayName(user).slice(0, 1).toUpperCase()}
+                {member ? displayName(user).slice(0, 1).toUpperCase() : '체험'}
               </Link>
             )}
             {status === 'guest' && (
@@ -94,6 +96,15 @@ export function Layout() {
           </div>
         </div>
       </header>
+      {exploring && (
+        <div className="demo-banner" role="status">
+          <div className="wrap">
+            <span>체험 중이에요. 예시 데이터로 모든 기능을 써 볼 수 있고, 체험 내용은 저장되지 않아요.</span>
+            <Link to="/home">체험 홈</Link>
+            <Link to="/me">내 정보</Link>
+          </div>
+        </div>
+      )}
       <main id="main">
         <Outlet />
       </main>
@@ -101,24 +112,15 @@ export function Layout() {
   );
 }
 
-/** 로그인이 필요한 화면. 확인 중에는 빈 화면, 손님이면 로그인으로 보낸다. */
-export function RequireMember() {
-  const { status } = useSession();
-  const { pathname } = useLocation();
-  if (status === 'loading') return <div className="page" aria-busy="true" />;
-  if (status === 'guest') return <Navigate to="/login" replace state={{ from: pathname }} />;
-  return <Outlet />;
-}
-
-// 약관·개인정보처리방침·고객지원 원문은 앱 저장소(project2)의 웹 페이지 하나만 둔다(Play 등록 주소, 문서와 E2E로 일치 검사).
-export const LEGAL_BASE = 'https://project2-flex-sh.vercel.app';
+// 약관·개인정보처리방침 주소는 lib/legal. 기존 import 경로(@/components/Layout)를 위해 다시 내보낸다.
+export { LEGAL_BASE };
 export const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.flexable.app';
 
 export function Footer() {
   return (
     <footer className="footer">
       <a href={`${LEGAL_BASE}/terms`}>이용약관</a>
-      <a href={`${LEGAL_BASE}/privacy`}>개인정보처리방침</a>
+      <a href={privacyHref}>개인정보처리방침</a>
       <a href={`${LEGAL_BASE}/support`}>고객지원</a>
       <a href={PLAY_URL} target="_blank" rel="noreferrer">
         앱 받기(Google Play)

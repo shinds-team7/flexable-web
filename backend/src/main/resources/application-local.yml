@@ -1,0 +1,15 @@
+# 로컬 개발용: MySQL 없이 H2 파일 DB로 실행 (./gradlew bootRun --args='--spring.profiles.active=local')
+# WEB_JWT_SECRET을 넣지 않으면 실행할 때마다 임의 키를 만든다(재시작하면 다시 로그인).
+spring:
+  datasource:
+    url: jdbc:h2:file:./build/localdb/flexable-web;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    username: sa
+    password:
+
+app:
+  auth:
+    jwt:
+      secret: ${WEB_JWT_SECRET:${random.value}}
+  # 로컬은 앱 서버 없이 고정 연동(snapshot)으로 화면을 확인한다. 실제 앱 서버에 붙이려면 APP_LINK_MODE=http와 주소·키를 넣는다.
+  applink:
+    mode: ${APP_LINK_MODE:snapshot}

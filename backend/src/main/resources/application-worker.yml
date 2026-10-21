@@ -1,0 +1,4 @@
+# 수집 작업 전용 실행(04 §8). HTTP를 열지 않고 ingest 작업만 돈다.
+spring:
+  main:
+    web-application-type: none

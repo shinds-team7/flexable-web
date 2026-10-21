@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>텅장관리 웹 와이어프레임</title>
-<meta name="description" content="텅장관리(Flex-able) 데스크톱 웹 3라운드 반영본 와이어프레임. 모든 금액·종목·소식은 예시입니다.">
+<meta name="description" content="텅장관리(Flex-able) 데스크톱 웹 디자인 2차 회의 반영본 와이어프레임. 모든 금액·종목·소식은 예시입니다.">
 <style>
 /* ───────── 토큰: 앱 theme/index.ts → 웹. 다크는 새로 정함(대비 계산은 02-design.md 7장) ───────── */
 :root{
@@ -14,8 +14,9 @@
   --text:#101A33; --text-sub:#475069; --text-muted:#646E84; --text-faint:#A6AEC0;
   --rise:#D92D20; --fall:#1F6FE0; --rise-wash:rgba(217,45,32,.10); --fall-wash:rgba(31,111,224,.10);
   --baseline:#8A93A8;
-  --positive:#0B8A5B; --warn:#B95E00; --warn-soft:#FFF2E0; --danger:#D92D20; --danger-soft:#FDECEA;
-  --s1:#0046FF; --s2:#EB6834; --s3:#1BAF7A; --s4:#EDA100; --s5:#E87BA4;
+  --navy:#00236E; --sky:#4BAFF5; --lightblue:#8CD2F5; --asset-line:#00236E;
+  --positive:#087A50; --warn:#A35200; --warn-soft:#FFF2E0; --danger:#D92D20; --danger-soft:#FDECEA;
+  --s1:#2E9BE6; --s2:#EB6834; --s3:#08A974; --s4:#9B51E0; --s5:#A0522D;
   --focus:#0046FF;
   --note:#FFF6C9; --note-ink:#3A2E00; --note-line:#9C8636;
   --shadow-float:0 12px 40px rgba(16,26,51,.18);
@@ -35,7 +36,9 @@
     --text:#E8ECF5; --text-sub:#B4BCCF; --text-muted:#8E97AD; --text-faint:#5B6680;
     --rise:#EF4F55; --fall:#4C8DF6; --rise-wash:rgba(239,79,85,.14); --fall-wash:rgba(76,141,246,.14);
     --positive:#3CCB8E; --warn:#FFB35C; --warn-soft:#3A2A12; --danger:#EF4F55; --danger-soft:#3A1618;
-    --s1:#5B85FF; --s2:#D95926; --s3:#199E70; --s4:#C98500; --s5:#D55181;
+    --navy:#00236E; --sky:#4BAFF5; --lightblue:#8CD2F5; --asset-line:#8CD2F5;
+    /* 다크 2~5계열: 미검증 후보, 해커톤 Could·출시 전 검증 */
+    --s1:#5DB4F0; --s2:#F08A5D; --s3:#2FC28D; --s4:#B98AF0; --s5:#C9805E;
     --focus:#8FAEFF; --note:#3A3416; --note-ink:#F4E7A1; --note-line:#B8A452;
     --shadow-float:0 12px 40px rgba(0,0,0,.5); --scrim:rgba(0,0,0,.62);
     --g-bg:#131314; --g-line:#8E918F; --g-ink:#E3E3E3;
@@ -49,13 +52,16 @@
   --text:#E8ECF5; --text-sub:#B4BCCF; --text-muted:#8E97AD; --text-faint:#5B6680;
   --rise:#EF4F55; --fall:#4C8DF6; --rise-wash:rgba(239,79,85,.14); --fall-wash:rgba(76,141,246,.14);
   --positive:#3CCB8E; --warn:#FFB35C; --warn-soft:#3A2A12; --danger:#EF4F55; --danger-soft:#3A1618;
-  --s1:#5B85FF; --s2:#D95926; --s3:#199E70; --s4:#C98500; --s5:#D55181;
+  --navy:#00236E; --sky:#4BAFF5; --lightblue:#8CD2F5; --asset-line:#8CD2F5;
+    /* 다크 2~5계열: 미검증 후보, 해커톤 Could·출시 전 검증 */
+    --s1:#5DB4F0; --s2:#F08A5D; --s3:#2FC28D; --s4:#B98AF0; --s5:#C9805E;
   --focus:#8FAEFF; --note:#3A3416; --note-ink:#F4E7A1; --note-line:#B8A452;
   --shadow-float:0 12px 40px rgba(0,0,0,.5); --scrim:rgba(0,0,0,.62);
   --g-bg:#131314; --g-line:#8E918F; --g-ink:#E3E3E3;
   --wf:#1B2338;
 }
 
+/* 보조색 출처: 검색 답변 기준, 공식 CI 원문 미확인. 팔레트 사용은 제휴 표시가 아니다. Royal #2878F5는 하락 기준색이며 글자는 --fall 사용. */
 /* ───────── 기본 ───────── */
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -150,7 +156,7 @@ button.chip:hover{border-color:var(--line)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .tag-ex{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;border:1px dashed var(--text-muted);color:var(--text-muted);font-size:11px;font-weight:600;line-height:1;white-space:nowrap;vertical-align:middle}
 .tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:8px;background:var(--sunken);color:var(--text-sub);font-size:12px;font-weight:600;white-space:nowrap}
-.tag-ai{background:var(--brand-soft);color:var(--brand-text)}
+.tag-ai{background:var(--lightblue);color:var(--navy)}
 .lock{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:999px;background:var(--sunken);border:1px solid var(--line);color:var(--text-sub);font-size:12px;font-weight:700;white-space:nowrap}
 .lock svg{width:12px;height:12px}
 button.lock:hover{border-color:var(--brand)}
@@ -195,6 +201,7 @@ td.nw{white-space:nowrap}
 .chart-wrap{position:relative;width:100%;user-select:none}
 .chart-wrap svg{display:block;overflow:visible}
 .chart-wrap.refetching > svg,.chart-wrap.refetching > .pins{opacity:.4}
+#tmMain[aria-busy="true"] #tmStory,#tmMain[aria-busy="true"] #tmStats{opacity:.4}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--text-sub);align-items:center}
 .legend i{display:inline-block;width:16px;height:0;border-top:2.5px solid currentColor;vertical-align:middle;margin-right:6px}
 .legend i.dash{border-top-style:dashed;border-top-width:2px}
@@ -401,6 +408,42 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   .sim > .rail-col{top:auto;left:0;width:auto;max-height:80vh;border-radius:28px 28px 0 0;transform:translateY(105%)}
   .narrow-tip{display:flex !important}
 }
+
+/* 디자인 2차 회의: 문장 바·시장 줄 */
+.tm-sim{grid-template-columns:minmax(0,1fr) 360px}
+.condition-bar{margin-bottom:24px;position:relative}
+.condition-line{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.condition-sentence{font-size:20px;line-height:2.2;font-weight:600;flex:1}
+.condition-slot{border:0;border-bottom:2px solid var(--brand);border-radius:0;background:transparent;padding:0 2px;color:var(--brand-text);font-weight:700;min-height:40px}
+.receipt{font-size:13px;color:var(--text-sub);margin-top:8px}
+.condition-pop{position:absolute;z-index:55;background:var(--raised);box-shadow:var(--shadow-float);border-radius:20px;padding:20px;width:min(340px,calc(100vw - 64px));max-height:65vh;overflow:auto}
+.condition-pop .acts{display:flex;gap:8px;margin-top:16px}
+.condition-drawer{position:fixed;inset:0 0 0 auto;width:min(460px,100vw);max-width:none;max-height:100dvh;height:100dvh;margin:0;border-radius:24px 0 0 24px;overflow:auto}
+.condition-drawer .cond-full{display:flex;padding:0;background:transparent}
+.condition-drawer .dlg{padding:28px}
+.condition-drawer h2{margin-bottom:16px}
+.condition-mobile{display:none}
+.navy-surface{background:var(--navy);color:#fff}
+.navy-surface .sub,.navy-surface .meta,.navy-surface p{color:#fff}
+.navy-surface .tag-ex{color:var(--lightblue);border-color:var(--lightblue)}
+.trust{background:var(--navy);color:#fff;border-radius:20px;padding:28px;margin-top:32px}
+.trust > h2{grid-column:1/-1;font-size:20px}
+.trust p{color:#fff}
+.flow .n{background:var(--navy)}
+.current-track{height:12px;background:var(--sunken);border-radius:6px;overflow:hidden;margin:8px 0;max-width:340px}
+.current-track > span{display:block;width:60%;height:100%;background:var(--sky)}
+.pin.market .dot{border-radius:4px;background:var(--navy);color:#fff;font-size:10px;font-weight:800}
+.ev-ic.market{border-radius:4px;background:var(--navy);color:#fff}
+.assumption-chips{display:flex;gap:8px;flex-wrap:wrap}
+.assumption-chips details{padding:0;border:0}
+.assumption-chips summary{list-style:none;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--text-sub)}
+.assumption-chips summary::after{content:" ▾"}
+.assumption-chips details[open]{flex-basis:100%}
+.assumption-chips details[open] summary::after{content:" ▴"}
+@media(min-width:1024px) and (max-width:1279px){.tm-sim{grid-template-columns:minmax(0,1fr)}.condition-sentence{flex-basis:100%}}
+@media(max-width:1023px){.tm-sim{grid-template-columns:minmax(0,1fr)}.condition-desktop{display:none}.condition-mobile{display:block;font-size:17px}.condition-drawer{inset:auto 0 0;width:100%;height:auto;max-height:90dvh;border-radius:28px 28px 0 0}.tm-sim > .rail-col{top:auto;left:0;width:auto;max-height:80vh;border-radius:28px 28px 0 0;transform:translateY(105%)}}
+@media(max-width:767px){.condition-line{align-items:flex-start}.condition-pop{left:0!important}.condition-bar{padding:16px}.land-hero{gap:24px;padding-top:16px}.land-hero .cat-ph{display:none}.cta-stack{max-width:none}.page:has(#landChart){padding-top:16px}.trust{padding:20px}}
+
 </style>
 </head>
 
@@ -420,12 +463,12 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
 <!-- ───────── 와이어프레임 조작 띠 ───────── -->
 <div class="wf-bar" id="wfBar" role="region" aria-label="와이어프레임 조작(실제 사이트에는 없음)">
   <strong>와이어프레임</strong>
-  <span class="wf-sub">텅장관리 데스크톱 웹 3라운드 반영본 · 숫자·종목·소식은 모두 예시</span>
+  <span class="wf-sub">텅장관리 데스크톱 웹 디자인 2차 회의 반영본 · 숫자·종목·소식은 모두 예시</span>
   <label class="wf-group"><span>화면</span>
     <select id="wfScreen" aria-label="화면 이동">
       <option value="landing">랜딩</option><option value="login">로그인</option><option value="home">홈(대시보드)</option>
       <option value="stocks">주식 타임머신</option><option value="savings">적금 비교</option><option value="mix">섞어보기</option>
-      <option value="news">청년 돈 소식</option><option value="plus">플러스</option><option value="me">내 정보</option><option value="goal">웹 목표</option><option value="share">공유 결과</option><option value="billing">모의 결제 결과</option><option value="goal">웹 목표</option><option value="share">공유 결과</option><option value="billing">모의 결제 결과</option>
+      <option value="news">청년 돈 소식</option><option value="plus">플러스</option><option value="me">내 정보</option><option value="goal">웹 목표</option><option value="share">공유 결과</option><option value="billing">모의 결제 결과</option>
     </select></label>
   <div class="wf-group" role="group" aria-label="상태"><span>상태</span>
     <button data-set-state="default" aria-pressed="true">기본</button><button data-set-state="empty" aria-pressed="false">빈</button><button data-set-state="loading" aria-pressed="false">로딩</button><button data-set-state="error" aria-pressed="false">오류</button></div>
@@ -483,18 +526,20 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
         <h1 class="display">아낀 돈, 그때 굴렸다면 얼마였을까?</h1>
         <p class="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요. 진짜 돈은 움직이지 않아요.</p>
         <div class="cta-stack">
+          <a class="btn btn-primary" href="#stocks" data-go-demo>로그인 없이 첫 결과 보기</a>
+          <p class="meta">체험을 시작하면 기본 조건은 ‘지금 저축 속도로’로 바뀌어요.</p>
           <a class="social kakao" href="#login"><span class="logo-slot"><svg width="18" height="18"><use href="#i-kakao"/></svg></span>카카오 로그인</a>
-          <a <a class="social google" href="#login"><span class="logo-slot g-ph" aria-hidden="true">G</span>Google 계정으로 로그인</a><a class="social" style="background:var(--sunken)" href="#login">이메일로 로그인</a>
-          <a class="btn-text" href="#stocks" data-go-demo style="align-self:flex-start;margin-top:6px">로그인 없이 체험하기</a>
+          <a class="social google" href="#login"><span class="logo-slot g-ph" aria-hidden="true">G</span>Google 계정으로 로그인</a>
         </div>
       </div>
       <div class="card card-hero">
         <div class="card-head" style="margin-bottom:8px">
-          <div><h2>2020년 1월, 47만 원을 예시 반도체주에 한 번에</h2><p class="meta">예시 데이터예요. 실제 주가가 아니에요.</p></div>
+          <div><h2>47만원을 3년 전에 한 번에 넣었다면(예시)</h2><p class="meta">예시 데이터예요. 실제 주가가 아니에요.</p></div>
           <span class="tag-ex">예시</span>
         </div>
-        <div class="chart-wrap" id="landChart" role="group" aria-label="예시 차트: 2020년 1월부터 지금까지 내 자산 변화와 사건 핀"></div>
-        <div class="legend" style="margin-top:8px"><span><i style="color:var(--text)"></i>내 자산</span><span><i class="dash" style="color:var(--baseline)"></i>넣은 돈</span><span><span class="ev-ic rise" style="display:inline-grid;width:14px;height:14px;font-size:7px;vertical-align:middle;margin-right:4px">▲</span>크게 오른 때</span><span><span class="ev-ic fall" style="display:inline-grid;width:14px;height:14px;font-size:7px;vertical-align:middle;margin-right:4px">▼</span>크게 내린 때</span></div>
+        <div class="chart-wrap" id="landChart" role="group" aria-label="예시 차트: 3년 동안 지수 ETF·은행 평균 적금·넣은 돈과 사건 핀"></div>
+        <div class="legend" style="margin-top:8px"><span><i style="color:var(--asset-line)"></i>지수 ETF</span><span><i style="color:var(--baseline)"></i>은행 평균 적금</span><span><i class="dash" style="color:var(--baseline)"></i>넣은 돈</span><span><span class="ev-ic rise" style="display:inline-grid;width:14px;height:14px;font-size:7px;vertical-align:middle;margin-right:4px">▲</span>크게 오른 때</span><span><span class="ev-ic fall" style="display:inline-grid;width:14px;height:14px;font-size:7px;vertical-align:middle;margin-right:4px">▼</span>크게 내린 때</span></div>
+        <p class="meta" style="margin-top:10px">넣은 돈 = 이자 없이 모아 둔 경우. 평균 적금 가정은 본 화면과 같게 정하는 중이에요(미확인).</p>
       </div>
     </div>
 
@@ -506,8 +551,8 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
     </div>
 
     <div class="feat">
-      <div><h2>주식 타임머신</h2><p>"2020년 1월에 넣었다면 지금 얼마?"를 내 시드머니로 계산해요. 그래프의 ▲▼ 핀에 마우스를 올리면 그때 무슨 일이 있었는지, 누르면 왜 움직였는지 알려줘요.</p><a class="btn btn-soft" style="margin-top:20px" href="#stocks" data-go-demo>예시로 해보기</a></div>
-      <div class="sketch" aria-hidden="true"><div class="bar-ph" style="width:40%"></div><div class="bar-ph" style="width:70%;height:18px"></div><svg viewBox="0 0 300 90" style="width:100%;height:auto"><polyline points="0,70 40,62 60,80 90,55 130,40 160,58 200,35 240,45 300,20" fill="none" stroke-width="2" style="stroke:var(--text)"/><line x1="0" y1="66" x2="300" y2="66" stroke-dasharray="4 4" style="stroke:var(--baseline)"/><circle cx="60" cy="94" r="6" style="fill:var(--fall)"/><circle cx="90" cy="40" r="6" style="fill:var(--rise)"/></svg></div>
+      <div><h2>주식 타임머신</h2><p>"3년 전에 넣었다면 지금 얼마?"를 내 시드머니로 계산해요. 그래프의 ▲▼ 핀에 마우스를 올리면 그때 무슨 일이 있었는지, 누르면 왜 움직였는지 알려줘요.</p><a class="btn btn-soft" style="margin-top:20px" href="#stocks" data-go-demo>예시로 해보기</a></div>
+      <div class="sketch" aria-hidden="true"><div class="bar-ph" style="width:40%"></div><div class="bar-ph" style="width:70%;height:18px"></div><svg viewBox="0 0 300 90" style="width:100%;height:auto"><polyline points="0,70 40,62 60,80 90,55 130,40 160,58 200,35 240,45 300,20" fill="none" stroke-width="2" style="stroke:var(--asset-line)"/><line x1="0" y1="66" x2="300" y2="66" stroke-dasharray="4 4" style="stroke:var(--baseline)"/><circle cx="60" cy="94" r="6" style="fill:var(--fall)"/><circle cx="90" cy="40" r="6" style="fill:var(--rise)"/></svg></div>
     </div>
     <div class="feat flip">
       <div><h2>적금 비교</h2><p>같은 돈을 적금에 넣었다면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요. 광고로 순서를 바꾸지 않아요.</p><a class="btn btn-soft" style="margin-top:20px" href="#savings" data-go-demo>예시로 해보기</a></div>
@@ -519,11 +564,11 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
     </div>
 
     <div class="card card-hero" style="margin-top:48px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
-      <div><h2 style="font-size:22px;line-height:30px">무료로 충분히, 더 깊게는 월 990원 플러스</h2><p class="sub" style="margin-top:6px">사건 설명·기간 지정·정책 적금은 무료. 플러스는 정책 마감 리마인더·내 돈 리포트·정밀 모드·저장 확대예요.</p></div>
+      <div><h2 style="font-size:22px;line-height:30px">무료로 충분히, 더 깊게는 월 990원 플러스</h2><p class="sub" style="margin-top:6px">사건 설명·기간 지정·정책 적금은 무료. 플러스는 정책 마감 리마인더 등록 시연·저장 확대·광고 없음이에요.</p></div>
       <a class="btn btn-line" href="#plus">플러스 알아보기</a>
     </div>
 
-    <div class="trust">
+    <div class="trust"><h2>이렇게 만들었어요</h2>
       <div><h3>계좌 연결 없음</h3><p>앱에 직접 입력한 잔액·거래로만 계산해요. 은행 비밀번호를 받지 않아요.</p></div>
       <div><h3>실제 투자 아님</h3><p>지난 주가로 해보는 계산이에요. 사고파는 기능은 없고, 어떤 종목도 권하지 않아요.</p></div>
       <div><h3>출처를 밝혀요</h3><p>주가·금리·소식마다 출처와 기준일을 적어요. AI가 정리한 문장엔 표시를 붙여요.</p></div>
@@ -569,7 +614,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
             <div style="flex:1;min-width:240px">
               <p class="sub" style="font-weight:600">내 시드머니 <span class="tag-ex">예시</span></p>
               <p class="hero-num">470,000<small>원</small></p>
-              <p>이번 주기 남기는 중 <b id="currentValue">120,000원</b> · 확정 전</p><p class="meta">오늘 아낀 돈 3,000원 · 표시용·누적하지 않음(예시)</p><div class="toolbar"><button class="btn btn-line btn-sm" id="seedEdit">직접 수정</button><button class="btn btn-line btn-sm" id="demoTrade">거래 1건 시연</button><a href="#goal" class="btn btn-line btn-sm">웹 목표</a></div><form id="seedEditForm" hidden onsubmit="return false"><label>시드머니(원)<input id="seedEditAmount" class="input" type="number" min="0" value="470000"></label><button class="btn btn-primary" id="seedEditSave">저장</button><button class="btn btn-line" id="seedEditCancel">취소</button><button class="btn btn-line" id="seedReset">기록 기준으로 되돌리기</button></form><p id="seedManual" class="meta" hidden>직접 입력</p>
+              <div class="current-track" aria-hidden="true"><span id="currentProgress"></span></div><p>이번 주기 남기는 중 <b id="currentValue">120,000원</b> · 확정 전</p><span class="chip">오늘 아낀 돈 3,000원 · 표시용(예시)</span><p class="meta">오늘 아낀 돈은 누적하지 않아요.</p><div class="toolbar"><button class="btn btn-line btn-sm" id="seedEdit">직접 수정</button><button class="btn btn-line btn-sm" id="demoTrade">거래 1건 시연</button><a href="#goal" class="btn btn-line btn-sm">웹 목표</a></div><form id="seedEditForm" hidden onsubmit="return false"><label>시드머니(원)<input id="seedEditAmount" class="input" type="number" min="0" value="470000"></label><button class="btn btn-primary" id="seedEditSave">저장</button><button class="btn btn-line" id="seedEditCancel">취소</button><button class="btn btn-line" id="seedReset">기록 기준으로 되돌리기</button></form><p id="seedManual" class="meta" hidden>직접 입력</p>
               <p class="meta" style="margin-top:6px">앱에 입력한 기록 기준 · 10월 17일 · 최근 정산 주기는 정산 주기마다 평균 78,000원씩 남겼어요</p>
             </div>
           </div>
@@ -629,39 +674,39 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
   <div class="page">
     <div class="page-head">
       <div><h1 class="page-title">주식 타임머신</h1><p class="page-desc">내 시드머니를 지난 날짜로 보내 봐요. 과거 주가로 해보는 계산이에요.</p></div>
-      <div class="toolbar"><button class="btn btn-line btn-sm rail-open-btn" data-open-rail="tmRailCol">사건 목록</button><button class="btn btn-text" id="tmHelp">사용법 다시 보기</button></div>
+      <div class="toolbar"><button class="btn btn-line btn-sm rail-open-btn" data-open-rail="tmRailCol">사건 목록</button><button class="btn btn-text" id="tmHelp">사용법 보기</button></div>
     </div>
-    <div class="sim">
-      <aside class="cond-col col" id="tmConditions" aria-label="조건">
-        <div class="card cond-summary" style="justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px"><span class="sub" style="font-size:14px">2023.10부터 · 지금 저축 속도로 · 2종목</span><button class="btn btn-line btn-sm" data-expand-cond>조건 바꾸기</button></div>
+    <div class="card condition-bar" id="conditionBar">
+      <div class="condition-line">
+        <p class="condition-sentence condition-desktop"><button class="condition-slot" data-condition-slot="start" aria-expanded="false">3년 전 ▾</button>부터 <button class="condition-slot" data-condition-slot="how" aria-expanded="false">매달 78,000원씩 ▾</button> <button class="condition-slot" data-condition-slot="stock" aria-expanded="false">대표 지수 ETF ▾</button>에 넣었다면</p>
+        <p class="condition-mobile" id="tmConditionSummary">3년 전부터 · 매달 78,000원씩 · 대표 지수 ETF</p>
+        <button class="btn btn-line btn-sm" id="tmEditAll">조건 전체 수정</button>
+      </div>
+      <p class="receipt num" id="tmReceipt">36회 · 넣은 돈 2,808,000원 · 2023.10 ~ 2026.10 · 기준일 2026-10-16 (예시)</p>
+      <div class="condition-pop" id="conditionPop" role="dialog" aria-label="조건 수정" hidden></div>
+    </div>
+    <dialog id="tmConditions" class="condition-drawer" aria-labelledby="tmConditionsTitle"><div class="dlg"><h2 id="tmConditionsTitle">조건 전체 수정</h2><p class="meta">편집 중인 조건이에요. [다시 계산]을 눌러야 결과에 반영돼요.</p>
         <form class="card cond-full col" style="gap:22px" onsubmit="return false" aria-label="타임머신 조건">
           <div class="field"><span class="field-label">언제부터?</span>
-            <div class="chips" role="group" aria-label="시작 시점" id="tmStartChips"><button type="button" class="chip" aria-pressed="false">1년 전</button><button type="button" class="chip" aria-pressed="false">3년 전</button><button type="button" class="chip" aria-pressed="false">5년 전</button><button type="button" class="chip" aria-pressed="true">2020.01</button><button type="button" class="chip" aria-pressed="false">직접</button></div>
-            <input class="input" type="month" value="2023-10" min="2015-01" max="2026-10" aria-label="시작 월">
+            <div class="chips" role="group" aria-label="시작 시점" id="tmStartChips"><button type="button" class="chip" aria-pressed="false">1년 전</button><button type="button" class="chip" aria-pressed="true">3년 전</button><button type="button" class="chip" aria-pressed="false">날짜 직접 지정</button></div>
+            <input class="input" id="tmStartDate" type="date" value="2023-10-16" min="2023-10-16" max="2026-10-16" aria-label="시작 날짜(3년 안)"><p class="meta">3년 안에서 골라요. 5년은 데이터가 늘면 열어요.</p>
           </div>
-          <div class="field"><span class="field-label">얼마를?</span>
-            <label class="radio"><input type="radio" name="tmAmt" checked><div><b>내 시드머니 그대로 <span class="tag-ex">예시</span></b><span>470,000원 · 앱에 입력한 기록 기준</span></div></label>
-            <label class="radio"><input type="radio" name="tmAmt"><div><b>직접 입력</b><span>1만 원 ~ 1억 원</span></div></label>
-          </div>
+          <div class="field"><label id="tmAmountLabel" for="tmAmount">월 금액(원)</label><input id="tmAmount" class="input" type="number" min="10000" max="100000000" value="78000"><p class="meta" id="tmAmountHint">입력한 기록 기준 월평균(예시) · 직접 바꿀 수 있어요.</p></div>
           <div class="field"><span class="field-label">어떻게 넣을까?</span>
             <label class="radio"><input type="radio" name="tmHow" value="lump"><div><b>한 번에</b><span>시작한 달에 전부 넣어요</span></div></label>
             <label class="radio"><input type="radio" name="tmHow" value="split"><div><b>매달 나눠서</b><span>같은 금액을 지금까지 나눠 넣어요</span></div></label>
             <label class="radio"><input type="radio" name="tmHow" value="pace" checked><div><b>지금 저축 속도로</b><span>정산 주기마다 평균 남긴 78,000원을 그때부터 매달</span></div></label>
           </div>
           <div class="field"><span class="field-label">어떤 종목? <span class="muted" style="font-weight:500" id="tmMaxLbl">(최대 3개)</span></span>
-            <div class="chips" id="tmPicked">
-              <span class="chip" style="background:var(--card);border-color:var(--line)"><i style="width:10px;height:3px;background:var(--s1);display:inline-block;border-radius:2px"></i>예시 반도체주 50%<button type="button" class="btn-text" aria-label="예시 반도체주 빼기" style="color:var(--text-muted)">×</button></span>
-              <span class="chip" style="background:var(--card);border-color:var(--line)"><i style="width:10px;height:3px;background:var(--s2);display:inline-block;border-radius:2px"></i>예시 대표지수 ETF 50%<button type="button" class="btn-text" aria-label="예시 대표지수 ETF 빼기" style="color:var(--text-muted)">×</button></span>
-              <button type="button" class="chip">+ 종목 추가</button>
-            </div>
+            <div class="field" id="tmPicked"><label for="tmStockSelect">종목 구성(예시)</label><select id="tmStockSelect" class="input"><option value="index">대표 지수 ETF</option><option value="mixed">반도체주 + 대표 지수 ETF</option></select><div id="tmWeights" hidden><label for="tmWeight">반도체주 비율(%)</label><input id="tmWeight" class="input" type="number" min="0" max="100" value="50"><p class="meta">나머지는 대표 지수 ETF예요.</p></div></div>
             <div class="free-only" style="display:flex;align-items:center;gap:8px;margin-top:6px"><button type="button" class="lock" data-lock="종목을 5개까지 함께 넣어 볼 수 있어요"><svg><use href="#i-lock"/></svg>플러스</button><span class="meta">4·5번째 종목 칸</span></div>
-            <p class="meta" style="margin-top:4px">대표 지수 ETF(예시): 예시 2차전지주 · 예시 인터넷주 · 예시 미국지수 ETF</p>
+            <p class="meta" style="margin-top:4px">이 와이어프레임은 두 종목 구성만 계산하는 예시예요. 서비스 종목 한도는 위 표시를 따라요.</p>
           </div>
-          <details style="border:0;padding:0"><summary class="meta" style="font-weight:700">고급 설정</summary><p class="meta">기본 결과: 배당 재투자·세금·수수료 미반영</p><button class="lock" data-lock="정밀 모드는 배당 재투자·수수료·세금을 반영해요">정밀 모드 · 플러스</button></details>
-          <button type="button" class="btn btn-primary btn-block" id="tmRun">결과 보기</button>
+          <button type="button" class="btn btn-primary btn-block" id="tmRun">다시 계산</button>
         </form>
-      </aside>
-
+      <button type="button" class="btn btn-line btn-block" id="tmCancel">취소</button></div>
+    </dialog>
+    <div class="sim tm-sim">
       <div class="col stateful" id="tmMain">
         <div class="st-ok col">
           <div class="card">
@@ -678,7 +723,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
             <div class="chart-foot">
               <p class="meta" id="tmPinNote"></p>
               <p class="meta">주가: 예시 데이터 · 사건 정리: 예시 · 기준일 2026-10-16</p>
-              <div class="disclaimer"><svg width="16" height="16"><use href="#i-info"/></svg><span>과거 주가 기준이에요. 앞으로도 그렇다는 뜻은 아니에요. 세금·수수료는 빠져 있어요.</span></div>
+              <div class="disclaimer"><svg width="16" height="16"><use href="#i-info"/></svg><span>과거 시세로 계산한 가상 결과예요. 앞으로도 그렇다는 뜻은 아니에요</span></div><div class="assumption-chips"><details><summary>세금·수수료·배당 빠짐</summary><p>기본 결과는 세금·수수료·배당을 반영하지 않아요.</p></details><details><summary>소수점 매수 가정</summary><p>소수점 매수를 가정한 결과예요. 실제 증권사마다 다를 수 있어요.</p></details></div>
               <div class="toolbar"><button class="btn btn-soft btn-sm" data-toast="섞어보기에 담았어요">섞어보기에 담기</button><a class="btn btn-line btn-sm" href="#savings">적금이었다면?</a></div>
             </div>
             <div class="table-wrap" id="tmTable" hidden></div>
@@ -793,7 +838,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
         <div class="card cond-summary" style="justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px"><span class="sub" style="font-size:14px" id="mxSummary">조합 A · 주식 40 · 적금 30 · 통장 30</span><button class="btn btn-line btn-sm" data-expand-cond>조합 바꾸기</button></div>
         <div class="card cond-full col" style="gap:16px">
           <div class="chips" role="tablist" aria-label="조합" id="mxTabs"></div>
-          <p class="meta">시드머니 470,000원 · 2020년 1월에 한 번에 <span class="tag-ex">예시</span></p>
+          <p class="meta">시드머니 470,000원 · 3년 전에 한 번에 <span class="tag-ex">예시</span></p>
           <div class="col" style="gap:10px" id="mxRows"></div>
           <div class="alloc" id="mxAlloc" aria-hidden="true"></div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span id="mxSum"></span><button class="btn btn-text" id="mxFill" style="font-size:14px">나머지는 통장에</button></div>
@@ -875,13 +920,13 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
 <!-- ═════════════ 플러스 ═════════════ -->
 <section class="screen" id="scr-plus" data-title="플러스" hidden>
   <div class="page">
-    <div class="page-head"><div><h1 class="page-title">플러스</h1><p class="page-desc">정책 마감 리마인더와 월간 내 돈 리포트. 결과는 무료로도 끝까지 볼 수 있어요.</p></div></div>
+    <div class="page-head card navy-surface"><div><h1 class="page-title">플러스</h1><p class="page-desc">정책 마감 리마인더 등록 시연·저장 확대·광고 없음. 첫 결과는 무료예요.</p></div></div>
     <div class="plan-grid">
       <div class="card">
-        <h2 style="margin-bottom:8px">무료와 플러스 <span class="tag-ex">3라운드 확정</span></h2>
+        <h2 style="margin-bottom:8px">시연 가능한 혜택 <span class="tag-ex">예시</span></h2>
         <div class="table-wrap"><table>
           <thead><tr><th>기능</th><th>무료</th><th>플러스</th></tr></thead>
-          <tbody><tr><td>정책 마감 리마인더(시연·발송 없음)</td><td>—</td><td>제공</td></tr><tr><td>월간 내 돈 리포트(내 기록 해설)</td><td>—</td><td>제공</td></tr><tr><td>소식·맞춤 필터·사건 설명·근거 전부</td><td>무료</td><td>제공</td></tr><tr><td>기간 칩·날짜 지정·적립식·거치식</td><td>무료</td><td>제공</td></tr><tr><td>적금·정책 적금·공유·금액 공개 선택·목표 1개</td><td>무료</td><td>제공</td></tr><tr><td>종목 / 비교 / 프리셋</td><td>3 / 2 / 3</td><td>5 / 5 / 50</td></tr><tr><td>정밀 모드(배당 재투자·수수료·세금)·광고 없음</td><td>—</td><td>제공</td></tr></tbody></table></div>
+          <tbody><tr><td>정책 마감 리마인더 등록 시연(발송 없음)</td><td>—</td><td>제공</td></tr><tr><td>저장 한도 확대(종목 / 비교 / 프리셋)</td><td>3 / 2 / 3</td><td>5 / 5 / 50</td></tr><tr><td>광고 없음</td><td>기본 화면</td><td>제공</td></tr></tbody></table></div>
       </div>
       <div class="col">
         <div class="card card-hero">
@@ -892,7 +937,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
         </div>
         <div class="card">
           <h2 style="margin-bottom:8px">잠긴 곳은 이렇게 보여요</h2>
-          <p class="sub" style="font-size:14px">결과를 막지 않고, 저장 확대·정밀 모드 옆에 작은 표시만 붙여요. 누르면 그 자리에서 무엇이 열리는지 알려줘요.</p>
+          <p class="sub" style="font-size:14px">결과를 막지 않고, 저장 확대·리마인더 등록 옆에 작은 표시만 붙여요. 누르면 그 자리에서 무엇이 열리는지 알려줘요.</p>
           <div class="locked-row" style="margin-top:14px"><span>정책 마감 리마인더 설정</span><button class="lock" data-lock="정책 마감 리마인더 설정을 열어요(시연·실제 발송 없음)"><svg><use href="#i-lock"/></svg>플러스</button></div>
         </div>
         <div class="card">
@@ -937,24 +982,20 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:4px}
 </section>
 
 <section class="screen" id="scr-goal" data-title="웹 목표" hidden><div class="page" style="max-width:700px"><div class="card col"><h1>웹 목표 설정</h1><p class="meta">무료 목표 1개 · 웹에서 표시(앱 홈은 범위 밖)</p><label>목표 이름<input class="input" id="goalName" value="비상금"></label><label>목표 금액(원)<input class="input" id="goalAmount" type="number" min="1" value="1000000"></label><label>기한<input class="input" id="goalDue" type="date" value="2027-10-18"></label><div class="toolbar"><button id="goalSave" class="btn btn-primary">저장</button><button id="goalDelete" class="btn btn-line">삭제</button></div><p id="goalResult" role="status"></p></div></div></section>
-<section class="screen" id="scr-share" data-title="공유 결과" hidden><div class="page" style="max-width:700px"><div class="card col"><h1>공유된 조합</h1><span class="tag-ex">읽기 전용·예시</span><p id="sharedComposition">적금 70 · 주식 30</p><div class="alloc"><span style="width:70%;background:var(--s3)"></span><span style="width:30%;background:var(--s1)"></span></div><p id="sharedAmount">금액 비공개 · 상품·비율만 표시해요</p><p>예시은행 가 적금 / 국내 상장 대표 지수 ETF</p><p class="disclaimer">과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요.</p><p class="meta">소수점 매수를 가정한 결과(실제 증권사마다 다름)</p><a href="#stocks" class="btn btn-primary">내 돈으로 해보기</a><button id="shareRevoke" class="btn btn-line">공유 중단 시연</button><p id="shareStatus" role="status"></p></div></div></section>
+<section class="screen" id="scr-share" data-title="공유 결과" hidden><div class="page" style="max-width:700px"><div class="card col"><div class="card navy-surface"><h1>공유된 조합</h1><p>지난 시간으로 실험한 조합이에요.</p></div><span class="tag-ex">읽기 전용·예시</span><p id="sharedComposition">적금 70 · 주식 30</p><div class="alloc"><span style="width:70%;background:var(--s3)"></span><span style="width:30%;background:var(--s1)"></span></div><p id="sharedAmount">금액 비공개 · 상품·비율만 표시해요</p><p>예시은행 가 적금 / 국내 상장 대표 지수 ETF</p><p class="disclaimer">과거 시세로 계산한 가상 결과예요. 앞으로도 그렇다는 뜻은 아니에요</p><p class="meta">소수점 매수를 가정한 결과(실제 증권사마다 다름)</p><a href="#stocks" class="btn btn-primary">내 돈으로 해보기</a><button id="shareRevoke" class="btn btn-line">공유 중단 시연</button><p id="shareStatus" role="status"></p></div></div></section>
 <section class="screen" id="scr-billing" data-title="모의 결제 결과" hidden><div class="page" style="max-width:700px"><div class="card col"><h1>모의 결제</h1><p class="meta">실제 청구 없음 · 결제 결과 시연</p><p id="billingSummary">연 9,900원</p><div id="billingActions" class="toolbar"><button data-billing="success" class="btn btn-primary">결제 완료 시연</button><button data-billing="failure" class="btn btn-line">결제 실패 시연</button><button data-billing="cancel" class="btn btn-line">취소</button><button data-billing="revoke" class="btn btn-line">해지 확인</button></div><div id="billingResult" role="status"></div><a href="#plus" class="btn btn-line">요금 선택으로</a></div></div></section>
 </main>
 
 <!-- 타임머신 첫 방문 소개 -->
 <dialog id="introDlg" aria-labelledby="introTitle">
   <div class="dlg">
-    <svg viewBox="0 0 460 150" style="width:100%;height:auto;background:var(--sunken);border-radius:20px" aria-hidden="true">
-      <line x1="20" y1="110" x2="300" y2="110" stroke-width="2" stroke-dasharray="5 5" style="stroke:var(--baseline)"/>
-      <polyline points="20,105 60,95 90,125 130,90 170,70 210,85 250,55 300,48" fill="none" stroke-width="3" stroke-linejoin="round" style="stroke:var(--text)"/>
-      <circle cx="90" cy="138" r="9" style="fill:var(--fall)"/><text x="90" y="141" fill="#fff" font-size="9" text-anchor="middle">▼</text>
-      <circle cx="170" cy="54" r="9" stroke-width="3" style="fill:var(--rise);stroke:var(--text)"/><text x="170" y="57" fill="#fff" font-size="9" text-anchor="middle">▲</text>
-      <rect x="320" y="20" width="120" height="110" rx="14" style="fill:var(--card)"/><rect x="334" y="36" width="70" height="8" rx="4" style="fill:var(--text)"/><rect x="334" y="54" width="92" height="6" rx="3" style="fill:var(--line)"/><rect x="334" y="68" width="80" height="6" rx="3" style="fill:var(--line)"/><rect x="334" y="82" width="88" height="6" rx="3" style="fill:var(--line)"/>
-      <path d="M182 50 Q260 20 318 40" fill="none" stroke-width="1.5" stroke-dasharray="3 4" style="stroke:var(--text-muted)"/>
-    </svg>
-    <h2 id="introTitle" style="margin-top:20px">지난 시간으로 돈을 보내 보는 곳이에요</h2>
-    <p class="sub" style="margin-top:8px">언제·얼마·어떤 종목인지 고르면, 지금 얼마가 됐을지 보여줘요. 그래프의 ▲▼ 핀은 크게 오르내린 때예요. 누르면 오른쪽에서 이유를 읽을 수 있어요.</p>
-    <p class="meta">과거 시세의 가상 결과이며 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요.</p><div class="acts"><button class="btn btn-line" id="introSkip">이해했어요</button><button class="btn btn-primary" id="introTour">둘러보기(4단계)</button></div>
+    <h2 id="introTitle">월 얼마 남기세요?</h2>
+    <p class="sub" style="margin-top:8px">매달 남긴 돈을 3년 전부터 대표 지수 ETF에 넣었다면 어땠을지 봐요.</p>
+    <label class="field" style="margin-top:16px">월 금액(원)<input class="input" id="introAmount" type="number" min="10000" max="100000000" value="78000"></label>
+    <p class="meta" style="margin-top:12px">앱에 입력한 기록 기준 월평균 78,000원 · 시드머니 470,000원(예시)</p>
+    <p class="disclaimer" style="margin-top:16px">과거 시세로 계산한 가상 결과예요. 앞으로도 그렇다는 뜻은 아니에요</p>
+    <div class="acts"><button class="btn btn-primary" id="introFirst">첫 결과 보기</button></div>
+
   </div>
 </dialog>
 <div class="coach-spot" id="coachSpot" hidden></div>
@@ -1035,7 +1076,9 @@ function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; le
 const rnd = mulberry32(20261017);
 function gauss() { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 const WEEKS = [];
-for (let d = new Date(2020, 0, 6); d <= new Date(2026, 9, 12); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7)) WEEKS.push(d);
+for (let d = new Date(2023, 9, 16); d <= new Date(2026, 9, 12); d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7)) WEEKS.push(d);
+// 기준일 끝점도 포함하는 예시 스냅숏이다.
+WEEKS.push(new Date(2026,9,16));
 const N = WEEKS.length;
 const D = (y, m, dd = 1) => new Date(y, m - 1, dd).getTime();
 function regime(d) {
@@ -1099,14 +1142,22 @@ const EVENTS = [
     interp: ['수출 비중이 큰 기업의 이익이 줄 거란 걱정이 반영된 것으로 풀이돼요.', '협상 소식에 따라 다시 올랐어요.'],
     links: [L('관세 발표 기사 제목', '예시 매체', '2025.04.03'), L('수출 업종 자료', '예시 자료', '2025.04.08'), L('해설 기사', '예시 매체', '2025.04.14')], ai: true },
 ];
+// 3년 예시 스냅숏. 실제 금리 값·효력일·변경 횟수는 미확인이다.
+EVENTS.splice(0, EVENTS.length, ...EVENTS.filter(e => e.date >= '2023-10-16'));
+EVENTS.push(
+  {id:'m-index',date:'2024-08-05',kind:'market',marketType:'index',stock:'all',title:'대표 지수 급변(예시)',symbol:'지수',shock:null},
+  {id:'m-rate',date:'2024-10-14',kind:'market',marketType:'rate',stock:'all',title:'기준금리 변경',symbol:'%',before:'3.50%',after:'3.25%',effectiveDate:'2024-10-11 (예시·미확인)',shock:null},
+  {id:'e10',date:'2026-03-09',kind:'rise',stock:'B',shock:[.04,.06],title:'대표 지수 반등(예시)',summary:'같은 기간 대표 지수가 반등한 예시예요.',facts:['시연 데이터에서 대표 지수 상승(예시)'],interp:['다른 요인도 함께 작용했을 수 있어요.'],links:[L('지수 흐름 자료','예시 자료','2026.03.09')],ai:false}
+);
+EVENTS.sort((a,b)=>a.date.localeCompare(b.date));
 EVENTS.forEach(e => {
   const [y, m, d] = e.date.split('-').map(Number);
   const t = D(y, m, d);
   let best = 0;
   WEEKS.forEach((w, i) => { if (Math.abs(w.getTime() - t) < Math.abs(WEEKS[best].getTime() - t)) best = i; });
-  e.idx = best;
+  e.idx = best; e.startDate = fmtDate(WEEKS[Math.max(0,best-1)]).replaceAll('.','-'); e.endDate = fmtDate(WEEKS[best]).replaceAll('.','-');
 });
-const evAt = {}; EVENTS.forEach(e => (evAt[e.idx] = e));
+const evAt = {}; EVENTS.filter(e=>e.kind!=='market').forEach(e => (evAt[e.idx] = e));
 const PA = [100], PB = [100];
 for (let i = 1; i < N; i++) {
   const [mA, mB] = regime(WEEKS[i]);
@@ -1120,17 +1171,24 @@ for (let i = 1; i < N; i++) {
   }
   PA.push(PA[i - 1] * (1 + ra)); PB.push(PB[i - 1] * (1 + rb));
 }
-const STOCKS = { A: { name: '예시 반도체주', p: PA, color: 'var(--s1)' }, B: { name: '예시 대표지수 ETF', p: PB, color: 'var(--s2)' } };
+const STOCKS = { A: { name: '예시 반도체주', p: PA, color: 'var(--s2)' }, B: { name: '대표 지수 ETF', p: PB, color: 'var(--s1)' } };
 
 function startIndex(ym) {
-  const [y, m] = ym.split('-').map(Number);
-  const t = D(y, m, 1);
+  const [y, m, day = 1] = ym.split('-').map(Number);
+  const t = D(y, m, day);
   const i = WEEKS.findIndex(w => w.getTime() >= t);
-  return i < 0 ? 0 : i;
+  return i < 0 ? N - 1 : i;
 }
-function simulate({ amount, how, startIdx, pace = 78000 }) {
+function simulate({ amount, how, startIdx, pace = 78000, weightA = 0, startDate }) {
+  const start = startDate ? new Date(startDate+'T00:00:00') : WEEKS[startIdx];
+  const count = Math.max(1,(2026-start.getFullYear())*12+9-start.getMonth());
   const months = [];
-  for (let i = startIdx; i < N; i++) if (i === startIdx || WEEKS[i].getDate() <= 7) months.push(i);
+  for(let k=0;k<count;k++){
+    const date = new Date(start.getFullYear(),start.getMonth()+k,start.getDate());
+    const i = WEEKS.findIndex((w,j)=>j>=startIdx && w>=date);
+    if(i>=0)months.push(i);
+  }
+  if(!months.length)months.push(startIdx);
   const contrib = {};
   if (how === 'lump') contrib[startIdx] = amount;
   else if (how === 'split') months.forEach((i,k) => (contrib[i] = Math.floor(amount / months.length) + (k === 0 ? amount % months.length : 0)));
@@ -1138,22 +1196,22 @@ function simulate({ amount, how, startIdx, pace = 78000 }) {
   let uA = 0, uB = 0, princ = 0;
   const total = [], principal = [], vA = [], vB = [];
   for (let i = 0; i < N; i++) {
-    if (contrib[i]) { uA += contrib[i] * 0.5 / PA[i]; uB += contrib[i] * 0.5 / PB[i]; princ += contrib[i]; }
+    if (contrib[i]) { uA += contrib[i] * weightA / PA[i]; uB += contrib[i] * (1-weightA) / PB[i]; princ += contrib[i]; }
     const a = uA * PA[i], b = uB * PB[i];
     vA.push(a); vB.push(b); total.push(a + b); principal.push(princ);
   }
-  return { total, principal, vA, vB, startIdx };
+  return { total, principal, vA, vB, startIdx, weightA, count:how==='lump'?1:months.length };
 }
 function evChange(e, sim) {
   const i = e.idx;
   let p;
-  if (e.kind === 'info') p = 0;
+  if (e.kind === 'info' || e.kind === 'market') p = 0;
   else if (e.stock === 'A') p = PA[i] / PA[i - 1] - 1;
   else if (e.stock === 'B') p = PB[i] / PB[i - 1] - 1;
   else p = sim.total[i - 1] > 0 ? sim.total[i] / sim.total[i - 1] - 1 : PA[i] / PA[i - 1] - 1;
   const vals = e.stock === 'A' ? sim.vA : e.stock === 'B' ? sim.vB : sim.total;
   const before = vals[i - 1] || 0, after = vals[i] || 0;
-  const contribution = (sim.principal[i] - sim.principal[i-1]) * (e.stock === 'all' ? 1 : .5);
+  const contribution = (sim.principal[i] - sim.principal[i-1]) * (e.stock === 'all' ? 1 : e.stock === 'A' ? sim.weightA : 1-sim.weightA);
   return { p, before, after, diff: after - before - contribution };
 }
 const evStockName = e => (e.stock === 'all' ? '시장 전체' : STOCKS[e.stock].name);
@@ -1166,10 +1224,11 @@ function drawTimeChart(wrap, o) {
   const W = Math.max(280, wrap.clientWidth);
   const H = o.height || 400;
   const byStock = o.mode === 'byStock';
-  const m = { l: 56, r: byStock ? 128 : 16, t: 30, b: 44 };
+  const m = { l: W<500 ? 42 : 56, r: o.compact ? (W<500?64:104) : byStock && W>=600 ? 128 : 16, t: 30, b: o.compact ? 44 : 76 };
   const from = Math.max(o.from, o.sim.startIdx), to = o.to;
   const idx = []; for (let i = from; i <= to; i++) idx.push(i);
-  const lines = byStock ? [o.sim.vA, o.sim.vB, o.sim.principal.map(v => v / 2)] : [o.sim.total, o.sim.principal];
+  const stockLines=[['B',o.sim.vB],['A',o.sim.vA]].filter(([k])=>k==='A'?o.sim.weightA>0:o.sim.weightA<1);
+  const lines = byStock ? [...stockLines.map(([,arr])=>arr),o.sim.principal] : [o.sim.total, o.sim.principal];
   let lo = Infinity, hi = -Infinity;
   idx.forEach(i => lines.forEach(s => { lo = Math.min(lo, s[i]); hi = Math.max(hi, s[i]); }));
   const pad = (hi - lo) * 0.12 || hi * 0.1;
@@ -1178,6 +1237,11 @@ function drawTimeChart(wrap, o) {
   const X = i => m.l + (i - from) / Math.max(1, to - from) * (W - m.l - m.r);
   const Y = v => m.t + (1 - (v - y0) / (y1 - y0)) * (H - m.t - m.b);
   const s = svg('svg', { width: W, height: H, role: 'img', 'aria-hidden': 'true' }, wrap);
+  const selected = EVENTS.find(e=>e.id===o.selectedId);
+  if(selected && selected.idx>=from && selected.idx<=to){
+    const a = Math.max(from,selected.idx-1);
+    svg('rect',{x:X(a),y:m.t,width:Math.max(8,X(selected.idx)-X(a)),height:H-m.t-m.b,style:'fill:var(--asset-line);opacity:.08','data-event-range':selected.startDate+'~'+selected.endDate},s);
+  }
   ticks.forEach(t => {
     svg('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'grid-l' }, s);
     const tx = svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', class: 'axis-t' }, s); tx.textContent = krShort(t);
@@ -1212,18 +1276,24 @@ function drawTimeChart(wrap, o) {
       svg('path', { d: band, 'clip-path': `url(#${uid}b)`, fill: `url(#${uid}h2)` }, s);
     }
     svg('path', { d: princPath, style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' }, s);
-    svg('path', { d: path(tot), style: 'fill:none;stroke:var(--text);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round' }, s);
+    svg('path', { d: path(tot), style: 'fill:none;stroke:var(--asset-line);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round' }, s);
     const ex = X(to), ey = Y(tot[to]);
-    svg('circle', { cx: ex, cy: ey, r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' }, s);
+    svg('circle', { cx: ex, cy: ey, r: 4.5, style: 'fill:var(--asset-line);stroke:var(--card);stroke-width:2' }, s);
+    if(o.compact){
+      const bank = o.sim.principal.map((p,i)=>p*(1+.03*.846*(i-o.sim.startIdx)/52));
+      svg('path',{d:path(bank),style:'fill:none;stroke:var(--baseline);stroke-width:2'},s);
+      const lastLabels=[{name:'지수 ETF',y:Y(tot[to])},{name:'평균 적금',y:Y(bank[to])},{name:'넣은 돈',y:Y(pr[to])}].sort((a,b)=>a.y-b.y);
+      lastLabels.forEach((a,k)=>{a.labelY=Math.max(a.y,k?lastLabels[k-1].labelY+18:m.t);svg('line',{x1:ex,y1:a.y,x2:ex+6,y2:a.labelY,style:'stroke:var(--baseline)'},s);const t=svg('text',{x:ex+8,y:a.labelY+4,class:'axis-t'},s);t.textContent=a.name;});
+    }
   } else {
-    svg('path', { d: path(o.sim.principal.map(v => v / 2)), style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' }, s);
+    svg('path', { d: path(o.sim.principal), style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' }, s);
     const ends = [];
-    [['A', o.sim.vA], ['B', o.sim.vB]].forEach(([k, arr]) => {
+    stockLines.forEach(([k, arr]) => {
       svg('path', { d: path(arr), style: `fill:none;stroke:${STOCKS[k].color};stroke-width:2;stroke-linejoin:round` }, s);
       svg('circle', { cx: X(to), cy: Y(arr[to]), r: 4, style: `fill:${STOCKS[k].color};stroke:var(--card);stroke-width:2` }, s);
       ends.push({ k, y: Y(arr[to]), v: arr[to] });
     });
-    if (Math.abs(ends[0].y - ends[1].y) >= 30) {
+    if (W>=600 && (ends.length===1 || Math.abs(ends[0].y - ends[1].y) >= 30)) {
       ends.forEach(e => {
         const t1 = svg('text', { x: X(to) + 10, y: e.y - 2, class: 'axis-t', style: 'fill:var(--text);font-weight:600' }, s); t1.textContent = STOCKS[e.k].name;
         const t2 = svg('text', { x: X(to) + 10, y: e.y + 14, class: 'axis-t' }, s); t2.textContent = won(e.v) + '원';
@@ -1263,9 +1333,9 @@ function drawTimeChart(wrap, o) {
       tip.append(row('var(--baseline)', '넣은 돈', won(p) + '원'));
       const d = v - p; tip.append(h('div', { cls: 't-row' }, h('span', { text: '차이' }), h('b', { cls: 'num ' + cls(d), text: `${arrow(d)} ${signWon(d)}` })));
     } else {
-      tip.append(row(STOCKS.A.color, STOCKS.A.name, won(o.sim.vA[k]) + '원', true));
-      tip.append(row(STOCKS.B.color, STOCKS.B.name, won(o.sim.vB[k]) + '원', true));
-      tip.append(row('var(--baseline)', '종목당 넣은 돈', won(o.sim.principal[k] / 2) + '원'));
+      if(o.sim.weightA>0)tip.append(row(STOCKS.A.color, STOCKS.A.name, won(o.sim.vA[k]) + '원', true));
+      if(o.sim.weightA<1)tip.append(row(STOCKS.B.color, STOCKS.B.name, won(o.sim.vB[k]) + '원', true));
+      tip.append(row('var(--baseline)', '넣은 돈', won(o.sim.principal[k]) + '원'));
     }
     placeTip(X(k), byStock ? m.t + 40 : Y(mainArr[k]));
   });
@@ -1274,7 +1344,7 @@ function drawTimeChart(wrap, o) {
   // 사건 핀(HTML 버튼)
   const layer = h('div', { cls: 'pins' });
   wrap.append(layer);
-  const vis = EVENTS.filter(e => e.idx >= from && e.idx <= to && e.idx > o.sim.startIdx);
+  const vis = EVENTS.filter(e => e.kind !== 'market' && e.idx >= from && e.idx <= to && e.idx > o.sim.startIdx && !(o.sim.weightA===0&&e.stock==='A') && !(o.sim.weightA===1&&e.stock==='B'));
   const lineFor = e => (byStock ? (e.stock === 'B' ? o.sim.vB : o.sim.vA) : o.sim.total);
   const groups = [];
   vis.forEach(e => {
@@ -1339,9 +1409,28 @@ function drawTimeChart(wrap, o) {
       if (cluster) { if (o.onZoom) o.onZoom(Math.max(0, items[0].idx - 6), Math.min(N - 1, items[items.length - 1].idx + 8)); }
       else if (o.onSelect) o.onSelect(ref.id);
     });
-    b._ids = items.map(e => e.id);
+    b._ids = items.map(e => e.id); b._idx = ref.idx;
     layer.append(b); btns.push(b);
   });
+  // 시장 줄: 계단선 띠는 Should라 여기에는 그리지 않는다.
+  if(!o.compact){
+    const laneY=H-18;
+    svg('rect',{x:m.l,y:laneY-12,width:W-m.l-m.r,height:24,rx:4,style:'fill:var(--sunken)'},s);
+    const label=svg('text',{x:4,y:laneY+4,class:'axis-t'},s);label.textContent='시장';
+    EVENTS.filter(e=>e.kind==='market'&&e.idx>=from&&e.idx<=to).forEach(e=>{
+      const x=X(e.idx);
+      svg('line',{x1:x,x2:x,y1:H-m.b+24,y2:laneY-9,style:'stroke:var(--navy);stroke-width:1;stroke-dasharray:2 3'},s);
+      const b=h('button',{cls:'pin market',type:'button',tabindex:'-1','aria-label':e.marketType==='rate'?'시장 사건, 기준금리 변경, 3.50%에서 3.25%로(예시)':'시장 사건, 대표 지수 급변(예시)'},h('span',{cls:'dot','aria-hidden':'true',text:e.symbol}));
+      b.style.left=x+'px';b.style.top=laneY+'px';b._ids=[e.id];b._idx=e.idx;
+      if(o.selectedId===e.id)b.setAttribute('aria-pressed','true');
+      const show=()=>{tip.replaceChildren(h('div',{cls:'t-title',text:e.title+' (예시)'}),h('p',{text:e.marketType==='rate'?e.before+' → '+e.after:'코스피200 대용 급변(예시)'}),h('p',{cls:'meta',text:'값·효력일·변경 횟수 미확인'}));placeTip(x,laneY)};
+      b.addEventListener('focus',show);b.addEventListener('mouseenter',show);b.addEventListener('mouseleave',()=>tip.hidden=true);b.addEventListener('blur',()=>tip.hidden=true);
+      b.addEventListener('click',()=>{if(o.onSelect)o.onSelect(e.id)});
+      layer.append(b);btns.push(b);
+    });
+  }
+  btns.sort((a,b)=>a._idx-b._idx);
+  btns.forEach(b=>layer.append(b));
   // 로빙 tabindex: 차트 안 Tab 정지점은 하나
   const selBtn = btns.find(b => b.getAttribute('aria-pressed') === 'true') || btns[0];
   if (selBtn) selBtn.tabIndex = 0;
@@ -1355,11 +1444,12 @@ function drawTimeChart(wrap, o) {
     else if (ev.key === 'End') n = btns.length - 1;
     if (n != null) { ev.preventDefault(); btns.forEach(b => (b.tabIndex = -1)); btns[n].tabIndex = 0; btns[n].focus(); }
   });
-  return { shownCount: shown.reduce((a, g) => a + g.items.length, 0), visCount: vis.length, btns };
+  const marketCount=o.compact?0:EVENTS.filter(e=>e.kind==='market'&&e.idx>=from&&e.idx<=to).length;
+  return { shownCount: shown.reduce((a, g) => a + g.items.length, 0)+marketCount, visCount: vis.length+marketCount, btns };
 }
 
 /* ───────── 랜딩 예시 차트 ───────── */
-const landSim = simulate({ amount: 470000, how: 'lump', startIdx: 0 });
+const landSim = simulate({ amount: 470000, how: 'lump', startIdx: 0, weightA:0 });
 function renderLanding() {
   const wrap = $('#landChart');
   drawTimeChart(wrap, {
@@ -1381,8 +1471,9 @@ function renderLanding() {
 }
 
 /* ───────── 주식 타임머신 화면 ───────── */
-const tm = { start: '2023-10', how: 'pace', range: 0, mode: 'total', view: null, sel: null, table: false };
-function tmSim() { return simulate({ amount: seedMoney(), how: tm.how, startIdx: startIndex(tm.start) }); }
+const tm = { start: '2023-10-16', how: 'pace', amount:78000, total:470000, stock:'index', weightA:0, range: 0, mode: 'total', view: null, sel: null, table: false, initialized:!!store.get('fx.tour.stocks') };
+let tmDraft=null, slotDraft=null, slotAnchor=null, calcTimer=null;
+function tmSim() { return simulate({ amount:tm.total, pace:tm.amount, how:tm.how, startIdx:startIndex(tm.start), startDate:tm.start, weightA:tm.weightA }); }
 function tmWindow(sim) {
   if (tm.view) return tm.view;
   const to = N - 1;
@@ -1390,27 +1481,42 @@ function tmWindow(sim) {
   return { from, to };
 }
 function renderStocks() {
+  $$('[data-condition-slot],#tmEditAll').forEach(b=>b.disabled=!!tm.busy);
+  if(!tm.initialized){
+    $('#tmStory').textContent='월 금액을 정하면 첫 결과를 보여드려요.';
+    $('#tmStats').replaceChildren();$('#tmChart').replaceChildren();$('#tmRail').replaceChildren();$('#tmLegend').replaceChildren();$('#tmReceipt').textContent='첫 결과를 계산하면 회차·넣은 돈·실제 기간·기준일을 보여드려요.';
+    return;
+  }
   const sim = tmSim();
   const { from, to } = tmWindow(sim);
   const v = sim.total[N - 1], p = sim.principal[N - 1], d = v - p;
   const st = WEEKS[sim.startIdx];
   const when = `${st.getFullYear()}년 ${st.getMonth() + 1}월`;
-  const howTxt = tm.how === 'lump' ? `${when}에 ${plan() === 'demo' ? '예시 시드머니' : '내 시드머니'} ${won(seedMoney())}원을 한 번에 넣었다면` :
-    tm.how === 'split' ? `${when}부터 ${won(seedMoney())}원을 매달 나눠 넣었다면` : `${when}부터 매달 78,000원씩(모두 ${won(p)}원) 넣었다면`;
-  $('#tmStory').textContent = `${howTxt} 지금 ${won(v)}원이에요. 넣은 돈보다 ${won(Math.abs(d))}원 ${d >= 0 ? '많아요' : '적어요'}.`;
-  $('#tmStory').append(' ', h('span', { cls: 'tag-ex', text: '예시' }));
+  // 표시 중 조건과 결과는 적용할 때만 바꾼다
+  const howTxt = tm.how==='pace'?'매달 '+won(tm.amount)+'원씩':tm.how==='lump'?won(tm.total)+'원을 한 번에':won(tm.total)+'원을 '+sim.count+'회로 나눠';
+  const startTxt = tm.start==='2023-10-16'?'3년 전':tm.start==='2025-10-16'?'1년 전':tm.start.replaceAll('-','.');
+  const stockTxt = tm.stock==='index'?'대표 지수 ETF':'반도체주 '+Math.round(tm.weightA*100)+'% + 대표 지수 ETF '+Math.round((1-tm.weightA)*100)+'%';
+  $('[data-condition-slot="start"]').textContent=startTxt+' ▾';
+  $('[data-condition-slot="how"]').textContent=howTxt+' ▾';
+  $('[data-condition-slot="stock"]').textContent=stockTxt+' ▾';
+  $('#tmConditionSummary').textContent=startTxt+'부터 · '+howTxt+' · '+stockTxt;
+  const actualStart=fmtDate(WEEKS[sim.startIdx]);
+  $('#tmReceipt').textContent=sim.count+'회 · 넣은 돈 '+won(p)+'원 · '+fmtYM(WEEKS[sim.startIdx])+' ~ 2026.10 · 기준일 2026-10-16 (예시)'+(actualStart!==tm.start.replaceAll('-','.')?' · 실제 시작일 '+actualStart+' (거래일 보정)':'');
+  $('#tmStory').textContent='지금 '+won(v)+'원이에요. 넣은 돈보다 '+won(Math.abs(d))+'원 '+(d>=0?'많아요':'적어요')+'.';
+  $('#tmStory').append(' ',h('span',{cls:'tag-ex',text:'예시'}));
+
   const stats = $('#tmStats'); stats.replaceChildren(
     h('div', { cls: 'stat' }, h('span', { cls: 'lbl', text: '지금 가치' }), h('p', { cls: 'val', text: won(v) + '원' })),
     h('div', { cls: 'stat' }, h('span', { cls: 'lbl', text: '넣은 돈' }), h('p', { cls: 'val', text: won(p) + '원' })),
     h('div', { cls: 'stat' }, h('span', { cls: 'lbl', text: '차이' }), h('p', { cls: 'val ' + cls(d), text: `${arrow(d)} ${pctTxt(d / p)}` }), h('span', { cls: 'dl ' + cls(d), text: signWon(d) })));
   const lg = $('#tmLegend'); lg.replaceChildren();
   const li = (color, label, dash, box) => h('span', {}, h('i', { cls: box ? 'box' : dash ? 'dash' : '', style: box ? `background:${color}` : `color:${color}` }), label);
-  if (tm.mode === 'total') lg.append(li('var(--text)', '내 자산'), li('var(--baseline)', '넣은 돈', true), li('var(--rise-wash)', '넣은 돈보다 많을 때', false, true), li('var(--fall-wash)', '넣은 돈보다 적을 때', false, true));
-  else lg.append(li(STOCKS.A.color, STOCKS.A.name + ' 50%'), li(STOCKS.B.color, STOCKS.B.name + ' 50%'), li('var(--baseline)', '종목당 넣은 돈', true));
+  if (tm.mode === 'total') lg.append(li('var(--asset-line)', '내 자산'), li('var(--baseline)', '넣은 돈', true), li('var(--rise-wash)', '넣은 돈보다 많을 때', false, true), li('var(--fall-wash)', '넣은 돈보다 적을 때', false, true));
+  else {if(tm.weightA>0)lg.append(li(STOCKS.A.color,STOCKS.A.name+' '+Math.round(tm.weightA*100)+'%'));if(tm.weightA<1)lg.append(li(STOCKS.B.color,STOCKS.B.name+' '+Math.round((1-tm.weightA)*100)+'%'));lg.append(li('var(--baseline)','넣은 돈',true));}
   const wrap = $('#tmChart');
   wrap.setAttribute('aria-label', `내 자산 변화 차트, ${fmtYM(WEEKS[from])}부터 ${fmtYM(WEEKS[to])}까지. 아래 사건 핀은 화살표 키로 옮겨 다닐 수 있어요`);
   const r = drawTimeChart(wrap, {
-    sim, from, to, mode: tm.mode, height: 400, selectedId: tm.sel,
+    sim, from, to, mode: tm.mode, height: innerWidth<768?300:400, selectedId: tm.sel,
     onSelect: id => { tm.sel = id; renderStocks(); openRail('tmRailCol'); focusPin(id); },
     onZoom: (a, b) => { tm.view = { from: a, to: b }; $$('#tmRange button').forEach(x => x.setAttribute('aria-pressed', 'false')); renderStocks(); const f = wrap.querySelector('.pin'); if (f) f.focus(); },
   });
@@ -1418,20 +1524,30 @@ function renderStocks() {
   if (tm.view) note.append('이 기간을 확대했어요. ', h('button', { cls: 'btn-text', type: 'button', text: '전체 기간으로', onclick: () => { tm.view = null; tm.range = 0; syncSeg('#tmRange', '0'); renderStocks(); } }));
   else if (r.visCount > r.shownCount) note.textContent = `이 기간 사건 ${r.visCount}개 중 큰 ${r.shownCount}개를 차트에 표시했어요. 전부는 사건 목록에서 볼 수 있어요.`;
   else note.textContent = `사건 ${r.visCount}개 · 가까운 사건은 숫자 핀으로 묶었어요. 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.`;
+  if(!store.get('fx.firstPinSeen')){const pin=wrap.querySelector('.pin:not(.market)');if(pin){const n=h('div',{cls:'handnote',text:'첫 핀을 눌러 지난 일을 봐요'});wrap.append(n);n.style.left=Math.max(0,Math.min(wrap.clientWidth-235,parseFloat(pin.style.left)-110))+'px';n.style.top=Math.max(0,parseFloat(pin.style.top)-50)+'px';pin.addEventListener('focus',()=>{n.remove();store.set('fx.firstPinSeen','1')},{once:true});pin.addEventListener('mouseenter',()=>{n.remove();store.set('fx.firstPinSeen','1')},{once:true});}}
   renderTmRail(sim, from, to);
   renderTmTable(sim, from, to);
-  const loading = body.dataset.state === 'loading' && body.dataset.screen === 'stocks';
+  const loading = tm.busy || (body.dataset.state === 'loading' && body.dataset.screen === 'stocks');
+  $('#tmMain').setAttribute('aria-busy',String(loading));
   wrap.classList.toggle('refetching', loading);
   wrap.querySelectorAll('.calc-pill').forEach(x => x.remove());
   if (loading) wrap.append(h('div', { cls: 'calc-pill', role: 'status', text: '계산 중' }));
 }
 function focusPin(id) {
   const b = [...$('#tmChart').querySelectorAll('.pin')].find(x => x._ids && x._ids.includes(id));
-  if (b) { $$('#tmChart .pin').forEach(x => (x.tabIndex = -1)); b.tabIndex = 0; }
+  if (b) { $$('#tmChart .pin').forEach(x => (x.tabIndex = -1)); b.tabIndex = 0; if(!matchMedia('(max-width:1279px)').matches)b.focus({preventScroll:true}); }
+}
+function renderMarketCard(rail,e){
+  rail.append(h('button',{cls:'btn-text','data-back':'',text:'← 목록으로',onclick:backToList}),h('h2',{id:'evTitle',tabindex:'-1',text:e.marketType==='rate'?'기준금리 변경':'대표 지수 급변(예시)'}));
+  if(e.marketType==='rate'){
+    rail.append(h('p',{cls:'story num',text:e.before+' → '+e.after+' (예시)'}),h('p',{cls:'meta',text:'효력일 '+e.effectiveDate}),h('h3',{text:'근거'}),h('p',{text:'한국은행 통화정책방향 결정문 · 원문 연결 미확인'}),h('p',{cls:'meta',text:'금리 값·효력일·지원 기간 안 변경 횟수는 미확인. 개발·콘텐츠 담당이 공식 자료로 채워요.'}),h('p',{text:'같은 기간의 기준금리와 평가액을 함께 봐요. 기준금리는 은행 적금 금리와 다른 숫자예요.'}));
+  }else rail.append(h('p',{text:'코스피200 대용 지수의 급변을 함께 보는 예시예요. 날짜·수치는 예시이며 근거 원문은 미확인이에요.'}));
+  const sim=tmSim();
+  rail.append(h('a',{href:'#savings',cls:'btn-text',text:'이 기간 은행 평균 적금 보기 →',onclick:()=>{savingsRange={start:tm.start,end:'2026-10-16',actualStart:fmtDate(WEEKS[sim.startIdx]),months:Math.max(1,(2026-+tm.start.slice(0,4))*12+10-+tm.start.slice(5,7)),how:tm.how,amount:tm.how==='pace'?tm.amount:tm.total,count:sim.count,principal:sim.principal[N-1]};savingsMode='past';syncSavingsModes();specialSavings()}}),h('p',{cls:'disclaimer',text:'다른 요인도 함께 작용했을 수 있어요'}));
 }
 function renderTmRail(sim, from, to) {
   const rail = $('#tmRail'); rail.replaceChildren();
-  const list = EVENTS.filter(e => e.idx > sim.startIdx && e.idx >= from && e.idx <= to);
+  const list = EVENTS.filter(e => e.idx > sim.startIdx && e.idx >= from && e.idx <= to && !(sim.weightA===0&&e.stock==='A') && !(sim.weightA===1&&e.stock==='B'));
   const sel = EVENTS.find(e => e.id === tm.sel);
   if (!sel) {
     rail.append(h('div', { cls: 'card-head', style: 'margin-bottom:4px' }, h('h2', { text: `사건 목록 (${list.length})` }), h('span', { cls: 'tag-ex', text: '예시' })));
@@ -1441,13 +1557,14 @@ function renderTmRail(sim, from, to) {
     list.forEach(e => {
       const c = evChange(e, sim);
       ul.append(h('li', {}, h('button', { type: 'button', onclick: () => { tm.sel = e.id; renderStocks(); const back = $('#tmRail [data-back]'); if (back) back.focus(); } },
-        h('span', { cls: 'ev-ic ' + e.kind, 'aria-hidden': 'true', style: e.kind === 'info' ? 'background:var(--card);color:var(--text);border:1.5px solid var(--baseline)' : '', text: e.kind === 'rise' ? '▲' : e.kind === 'fall' ? '▼' : 'i' }),
-        h('span', {}, h('span', { cls: 'ev-t', style: 'display:block', text: e.title }), h('span', { cls: 'ev-m num', text: `${fmtDate(WEEKS[e.idx])} · ${e.kind === 'info' ? '참고' : arrow(c.p) + ' ' + pctTxt(c.p)}` })))));
+        h('span', { cls: 'ev-ic ' + e.kind, 'aria-hidden': 'true', style: e.kind === 'info' ? 'background:var(--card);color:var(--text);border:1.5px solid var(--baseline)' : '', text: e.kind === 'market' ? e.symbol : e.kind === 'rise' ? '▲' : e.kind === 'fall' ? '▼' : 'i' }),
+        h('span', {}, h('span', { cls: 'ev-t', style: 'display:block', text: e.title }), h('span', { cls: 'ev-m num', text: `${fmtDate(WEEKS[e.idx])} · ${e.kind==='market'?'시장 사건':e.kind === 'info' ? '참고' : arrow(c.p) + ' ' + pctTxt(c.p)}` })))));
     });
     rail.append(ul);
     return;
   }
-  const all = EVENTS.filter(e => e.idx > sim.startIdx);
+  if(sel.kind==='market'){renderMarketCard(rail,sel);return;}
+  const all = EVENTS.filter(e => e.kind!=='market' && e.idx > sim.startIdx);
   const k = all.indexOf(sel);
   const c = evChange(sel, sim);
   const locked = false;
@@ -1498,28 +1615,74 @@ function renderTmTable(sim, from, to) {
   const t2 = h('table', { style: 'margin-top:20px' }); t2.append(h('caption', { text: '사건(예시)' }));
   t2.append(h('thead', {}, h('tr', {}, h('th', { text: '날짜' }), h('th', { text: '종류' }), h('th', { text: '사건' }), h('th', { cls: 'r', text: '등락' }), h('th', { text: '출처' }))));
   const tb2 = h('tbody');
-  EVENTS.filter(e => e.idx > sim.startIdx && e.idx >= from && e.idx <= to).forEach(e => { const c = evChange(e, sim); tb2.append(h('tr', {}, h('td', { cls: 'num', text: fmtDate(WEEKS[e.idx]) }), h('td', { text: e.kind === 'rise' ? '급등' : e.kind === 'fall' ? '급락' : '참고' }), h('td', { text: e.title }), h('td', { cls: 'r ' + cls(c.p), text: e.kind === 'info' ? '—' : `${arrow(c.p)} ${pctTxt(c.p)}` }), h('td', { text: e.links[0].s + ' (예시)' }))); });
+  EVENTS.filter(e => e.idx > sim.startIdx && e.idx >= from && e.idx <= to).forEach(e => { const c = evChange(e, sim); tb2.append(h('tr', {}, h('td', { cls: 'num', text: fmtDate(WEEKS[e.idx]) }), h('td', { text: e.kind==='market'?'시장 사건':e.kind === 'rise' ? '급등' : e.kind === 'fall' ? '급락' : '참고' }), h('td', { text: e.title }), h('td', { cls: 'r ' + cls(c.p), text: e.kind === 'info' || e.kind==='market' ? '—' : `${arrow(c.p)} ${pctTxt(c.p)}` }), h('td', { text: e.kind==='market'?'공식 원문 미확인':e.links[0].s + ' (예시)' }))); });
   t2.append(tb2); box.append(t2);
 }
 function syncSeg(sel, val) { $$(sel + ' button').forEach(b => b.setAttribute('aria-pressed', String(Object.values(b.dataset)[0] === val))); }
 $('#tmRange').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; tm.range = +b.dataset.r; tm.view = null; syncSeg('#tmRange', b.dataset.r); renderStocks(); });
 $('#tmMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; tm.mode = b.dataset.m; syncSeg('#tmMode', b.dataset.m); renderStocks(); });
 $('#tmTableBtn').addEventListener('click', e => { const box = $('#tmTable'); box.hidden = !box.hidden; e.currentTarget.setAttribute('aria-expanded', String(!box.hidden)); e.currentTarget.textContent = box.hidden ? '표로 보기' : '표 닫기'; });
-$$('input[name=tmHow]').forEach(r => r.addEventListener('change', () => { tm.how = r.value; $('#tmRun').classList.add('pulse'); }));
-$('#tmStartChips').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  $$('#tmStartChips button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  const map = { '1년 전': '2025-10', '3년 전': '2023-10', '5년 전': '2021-10', '2020.01': '2020-01' };
-  const v = map[b.textContent.trim()];
-  const inp = $('#tmConditions input[type=month]');
-  if (v) { inp.value = v; tm.start = v; } else inp.focus();
+// 편집값은 결과값과 분리한다.
+const conditionValues=()=>({start:tm.start,how:tm.how,amount:tm.amount,total:tm.total,stock:tm.stock,weightA:tm.weightA});
+function validConditions(d){return d.start>='2023-10-16'&&d.start<='2026-10-16'&&Number.isFinite(d.amount)&&Number.isFinite(d.total)&&d.amount>=10000&&d.amount<=100000000&&d.total>=10000&&d.total<=100000000&&d.weightA>=0&&d.weightA<=1;}
+function closeConditionPop(){const p=$('#conditionPop');p.hidden=true;if(slotAnchor)slotAnchor.setAttribute('aria-expanded','false');}
+function applyConditions(d){
+  if(!validConditions(d)){toast('3년 안 날짜와 1만~1억원 금액을 확인해 주세요');return false}
+  closeConditionPop(); if($('#tmConditions').open)$('#tmConditions').close();
+  tm.busy=true; renderStocks();
+  clearTimeout(calcTimer);
+  calcTimer=setTimeout(()=>{Object.assign(tm,d,{view:null,sel:null,busy:false,initialized:true});renderStocks();toast('결과를 다시 계산했어요(예시)')},350);
+  return true;
+}
+function readDrawerAmount(){if(!tmDraft)return;if(tmDraft.how==='pace')tmDraft.amount=+$('#tmAmount').value;else tmDraft.total=+$('#tmAmount').value;}
+function syncDrawer(){
+  $('#tmStartDate').value=tmDraft.start;
+  $$('input[name=tmHow]').forEach(r=>r.checked=r.value===tmDraft.how);
+  $('#tmAmountLabel').textContent=tmDraft.how==='pace'?'월 금액(원)':'총액(원)';
+  $('#tmAmount').value=tmDraft.how==='pace'?tmDraft.amount:tmDraft.total;
+  $('#tmAmountHint').textContent=tmDraft.how==='pace'?'입력한 기록 기준 월평균(예시). 월 금액만 보여요.':'총액 하나만 보여요. 회차·넣은 돈은 결과 영수증 줄에서 확인해요.';
+  $('#tmStockSelect').value=tmDraft.stock;
+  $('#tmWeights').hidden=tmDraft.stock==='index';
+  $('#tmWeight').value=Math.round(tmDraft.weightA*100);
+  $$('#tmStartChips button').forEach(b=>b.setAttribute('aria-pressed',String((b.textContent==='1년 전'&&tmDraft.start==='2025-10-16')||(b.textContent==='3년 전'&&tmDraft.start==='2023-10-16'))));
+}
+$('#tmEditAll').onclick=()=>{closeConditionPop();tmDraft=conditionValues();syncDrawer();$('#tmConditions').showModal()};
+$('#tmCancel').onclick=()=>$('#tmConditions').close();
+$$('input[name=tmHow]').forEach(r=>r.onchange=()=>{readDrawerAmount();tmDraft.how=r.value;syncDrawer()});
+$('#tmAmount').oninput=readDrawerAmount;
+$('#tmStartDate').onchange=e=>{tmDraft.start=e.target.value;syncDrawer()};
+$('#tmStartChips').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.textContent==='1년 전')tmDraft.start='2025-10-16';else if(b.textContent==='3년 전')tmDraft.start='2023-10-16';else{$('#tmStartDate').focus();return}syncDrawer()};
+$('#tmStockSelect').onchange=e=>{tmDraft.stock=e.target.value;tmDraft.weightA=tmDraft.stock==='index'?0:.5;syncDrawer()};
+$('#tmWeight').oninput=e=>tmDraft.weightA=+e.target.value/100;
+$('#tmRun').onclick=()=>{readDrawerAmount();applyConditions({...tmDraft})};
+$$('[data-condition-slot]').forEach(b=>b.onclick=()=>{
+  closeConditionPop();slotAnchor=b;slotDraft=conditionValues();
+  b.setAttribute('aria-expanded','true');
+  const p=$('#conditionPop');p.replaceChildren();p.hidden=false;
+  const kind=b.dataset.conditionSlot;
+  p.append(h('h3',{text:kind==='start'?'언제부터?':kind==='how'?'어떻게 넣을까?':'어떤 종목?'}));
+  if(kind==='start'){
+    const chips=h('div',{cls:'chips'});
+    [['1년 전','2025-10-16'],['3년 전','2023-10-16']].forEach(([label,date])=>chips.append(h('button',{cls:'chip',text:label,onclick:()=>{slotDraft.start=date;p.querySelector('input').value=date}})));
+    p.append(chips,h('label',{},'날짜 직접 지정(3년 안)',h('input',{type:'date',cls:'input',min:'2023-10-16',max:'2026-10-16',value:tm.start,onchange:e=>slotDraft.start=e.target.value})));
+  }else if(kind==='how'){
+    const sel=h('select',{cls:'input','aria-label':'납입 방식',onchange:e=>slotDraft.how=e.target.value});
+    [['pace','지금 저축 속도로'],['lump','한 번에'],['split','매달 나눠서']].forEach(([value,label])=>sel.append(h('option',{value,text:label})));sel.value=tm.how;p.append(sel,h('p',{cls:'meta',text:'월 금액 또는 총액 하나로 표시해요. 금액 직접 입력은 [조건 전체 수정]에서 해요.'}));
+  }else{
+    const sel=h('select',{cls:'input','aria-label':'종목 구성',onchange:e=>{slotDraft.stock=e.target.value;slotDraft.weightA=slotDraft.stock==='index'?0:.5}});
+    [['index','대표 지수 ETF'],['mixed','반도체주 + 대표 지수 ETF']].forEach(([value,label])=>sel.append(h('option',{value,text:label})));sel.value=tm.stock;p.append(sel,h('p',{cls:'meta',text:'종목 추가·비율·직접 입력 금액은 [조건 전체 수정]에서 바꿔요.'}));
+  }
+  p.append(h('div',{cls:'acts'},h('button',{cls:'btn btn-primary btn-sm',text:'적용',onclick:()=>applyConditions({...slotDraft})}),h('button',{cls:'btn btn-line btn-sm',text:'취소',onclick:()=>{closeConditionPop();b.focus()}})));
+  const r=b.getBoundingClientRect(),bar=$('#conditionBar').getBoundingClientRect();
+  p.style.left=Math.max(0,Math.min(r.left-bar.left,bar.width-360))+'px';p.style.top=r.bottom-bar.top+8+'px';p.querySelector('button,input,select').focus();
 });
-$('#tmConditions input[type=month]').addEventListener('change', e => { if (e.target.value) tm.start = e.target.value; });
-$('#tmRun').addEventListener('click', () => { tm.view = null; tm.sel = null; renderStocks(); const sum = $('#tmConditions .cond-summary span'); if (sum) sum.textContent = `${tm.start.replace('-', '.')}부터 · ${tm.how === 'lump' ? '한 번에' : tm.how === 'split' ? '매달 나눠서' : '지금 저축 속도로'} · 2종목`; toast('결과를 다시 계산했어요'); });
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#conditionPop').hidden){e.preventDefault();closeConditionPop();if(slotAnchor)slotAnchor.focus()}});
+document.addEventListener('click',e=>{if(!e.target.closest('#conditionBar'))closeConditionPop()});
+
 
 /* ───────── 코치마크(타임머신 첫 방문) ───────── */
 const TOUR = [
-  { t: () => vis('#tmConditions .cond-full') || $('#tmConditions .cond-summary'), title: '조건부터 골라요', body: '언제부터, 얼마를, 어떤 종목에 넣을지 정해요. 처음엔 내 시드머니가 들어가 있어요.' },
+  { t: () => $('#conditionBar'), title: '문장의 밑줄 칸을 눌러요', body: '문장은 지금 보이는 결과의 조건이에요. 팝오버의 적용 또는 조건 전체 수정의 다시 계산으로 바꿔요.' },
   { t: () => $('#tmChart'), title: '진한 선이 내 돈이에요', body: '점선은 넣은 돈(원금)이에요. 진한 선이 점선보다 위에 있으면 늘어난 거예요.' },
   { t: () => $('#tmChart .pin'), title: '▲▼ 핀에 마우스를 올려 보세요', body: '크게 오르거나 내린 때예요. 무슨 일이 있었는지 짧게 보여줘요. 숫자 핀은 사건 여러 개를 묶은 거예요.' },
   { t: () => vis('#tmRail') || $('[data-open-rail="tmRailCol"]'), title: '누르면 여기서 이유를 읽어요', body: '무슨 일이 있었고 왜 움직였는지, 함께 볼 자료까지 정리해요.' },
@@ -1530,10 +1693,15 @@ function maybeTour() {
   if (store.get('fx.tour.stocks') || body.dataset.state !== 'default') return;
   setTimeout(() => { if (body.dataset.screen === 'stocks' && !$('#introDlg').open) $('#introDlg').showModal(); }, 250);
 }
-$('#introSkip').addEventListener('click', () => { store.set('fx.tour.stocks', '1'); $('#introDlg').close(); });
-$('#introDlg').addEventListener('close', () => {store.set('fx.tour.stocks','1');store.set('fx.disclaimerAck','1');renderStocks()});
-$('#introTour').addEventListener('click', () => { store.set('fx.tour.stocks', '1'); $('#introDlg').close(); startTour(); });
-$('#tmHelp').addEventListener('click', () => $('#introDlg').showModal());
+$('#introFirst').onclick=()=>{
+  const amount=+$('#introAmount').value;
+  if(amount<10000||amount>100000000||!Number.isFinite(amount)){toast('1만~1억원의 월 금액을 입력해 주세요');return}
+  store.set('fx.tour.stocks','1');store.set('fx.disclaimerAck','1');store.del('fx.firstPinSeen');
+  $('#introDlg').close();
+  applyConditions({...conditionValues(),how:'pace',amount,start:'2023-10-16',stock:'index',weightA:0});
+};
+$('#tmHelp').onclick=startTour;
+
 function startTour() { tourReturn = document.activeElement; tourStep = 0; showStep(); }
 function showStep() {
   const s = TOUR[tourStep]; const target = s.t();
@@ -1811,7 +1979,7 @@ function renderMixResult() {
   const amt = seedMoney();
   const cash = growth.rate(0).map(g => amt * g);
   const series = scs.map((sc, i) => ({ name: '조합 ' + sc.id, color: colors[i], pattern: ['', '8 3', '2 3', '10 3 2 3', '12 4'][i], values: scValues(sc) }));
-  const all = series.concat([{ name: '그냥 통장', color: 'var(--baseline)', width: 1.5, values: cash }, { name: '넣은 돈', color: 'var(--baseline)', dash: true, width: 1.5, values: WEEKS.map(() => amt) }]);
+  const all = series.concat([{ name: '넣은 돈(이자 없이 모은 경우)', color: 'var(--baseline)', dash: true, width: 1.5, values: cash }]);
   // 월 단위로 줄여서 그림
   const keep = WEEKS.map((w, i) => i === 0 || i === N - 1 || (w.getDate() <= 7)).map((k, i) => (k ? i : -1)).filter(i => i >= 0);
   const labels = keep.map(i => fmtYM(WEEKS[i]));
@@ -1821,8 +1989,8 @@ function renderMixResult() {
   const lg = $('#mxLegend'); lg.replaceChildren(...all.map(se => h('span', {}, h('i', { cls: se.dash ? 'dash' : '', style: `color:${se.color}` }), se.name)));
   const best = series.slice().sort((a, b) => b.values[N - 1] - a.values[N - 1])[0];
   const diff = best.values[N - 1] - cash[N - 1];
-  const st = $('#mxStory'); st.replaceChildren(`${best.name}가 그냥 통장보다 ${won(Math.abs(diff))}원 ${diff >= 0 ? '많아요' : '적어요'}. `, h('span', { cls: 'tag-ex', text: '예시' }));
-  const t = $('#mxTable'); t.replaceChildren(h('caption', { text: '조합 비교 · 2020년 1월에 한 번에 넣었다고 계산 · 예시' }));
+  const st = $('#mxStory'); st.replaceChildren(`${best.name}가 이자 없이 모은 경우보다 ${won(Math.abs(diff))}원 ${diff >= 0 ? '많아요' : '적어요'}. `, h('span', { cls: 'tag-ex', text: '예시' }));
+  const t = $('#mxTable'); t.replaceChildren(h('caption', { text: '조합 비교 · 3년 전에 한 번에 넣었다고 계산 · 예시' }));
   t.append(h('thead', {}, h('tr', {}, ...['조합', '지금 가치', '넣은 돈 대비', '넣은 돈 대비 가장 많이 줄어 있던 때', '계산 기준'].map((x, i) => h('th', { cls: i === 1 || i === 2 ? 'r' : '', text: x })))));
   const tb = h('tbody');
   all.filter(se => !se.dash).forEach(se => { const v = se.values[N - 1], d = v / amt - 1, dd = mdd(se.values); tb.append(h('tr', {}, h('td', {}, h('i', { style: `display:inline-block;width:14px;border-top:2.5px solid ${se.color};vertical-align:middle;margin-right:8px` }), se.name), h('td', { cls: 'r', text: won(v) + '원' }), h('td', { cls: 'r ' + cls(d), text: `${arrow(d)} ${pctTxt(d)}` }), h('td', { cls: 'num', text: dd.d < 0.005 ? '거의 없음' : `−${(dd.d * 100).toFixed(0)}% (${fmtYM(WEEKS[dd.at])})` }), h('td', { text: '넣은 돈 대비 최저' }))); });
@@ -1954,7 +2122,7 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-set-theme]'); if (t) applyTheme(t.dataset.setTheme);
 });
 $('#wfScreen').addEventListener('change', e => (location.hash = '#' + e.target.value));
-$('#wfResetTour').addEventListener('click', () => { store.del('fx.tour.stocks'); store.del('fx.landHint'); toast('첫 방문 안내를 초기화했어요'); if (body.dataset.screen === 'stocks') maybeTour(); else if (body.dataset.screen === 'landing') renderLanding(); });
+$('#wfResetTour').addEventListener('click', () => { store.del('fx.tour.stocks'); store.del('fx.disclaimerAck'); store.del('fx.landHint'); store.del('fx.firstPinSeen'); tm.initialized=false; if(body.dataset.screen==='stocks')renderStocks(); toast('첫 방문 안내를 초기화했어요'); if (body.dataset.screen === 'stocks') maybeTour(); else if (body.dataset.screen === 'landing') renderLanding(); });
 $('#meReplay').addEventListener('click', () => { store.del('fx.tour.stocks'); toast('다음에 타임머신을 열면 안내가 다시 나와요'); });
 $('#meTexture').addEventListener('change', e => { body.classList.toggle('texture', e.target.checked); toast(e.target.checked ? '원금 위·아래 면에 빗금을 더했어요' : '빗금을 껐어요'); });
 
@@ -1977,32 +2145,42 @@ function applyState() {
 
 
 /* 3라운드: 화면 시연만, 외부 API·스크립트 없음 */
-const SIM_NOTICE = '과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요.';
+const SIM_NOTICE = '과거 시세로 계산한 가상 결과예요. 앞으로도 그렇다는 뜻은 아니에요';
 const fractionalNotice = '소수점 매수를 가정한 결과(실제 증권사마다 다름)';
-['stocks','mix'].forEach(id => $('#scr-'+id+' .chart-foot').append(h('p',{cls:'meta',text:SIM_NOTICE}),h('p',{cls:'meta',text:fractionalNotice})));
+['mix'].forEach(id => $('#scr-'+id+' .chart-foot').append(h('p',{cls:'meta',text:SIM_NOTICE}),h('p',{cls:'meta',text:fractionalNotice})));
 $('#seedEdit').onclick=()=>{$('#seedEditForm').hidden=false};
 $('#seedEditCancel').onclick=()=>{$('#seedEditForm').hidden=true};
 function showSeed(){ $('.hero-num').replaceChildren(String(seedMoney()).replace(/\B(?=(\d{3})+(?!\d))/g,','),h('small',{text:'원'})); $$('.seed-chip b').forEach(b=>b.textContent=won(seedMoney())+'원'); $('#seedManual').hidden=seedOverride===null; }
 $('#seedEditSave').onclick=()=>{const v=Number($('#seedEditAmount').value);if(!Number.isFinite(v)||v<0){toast('0원 이상의 금액을 입력해 주세요');return}seedOverride=Math.floor(v);showSeed();$('#seedEditForm').hidden=true;toast('직접 입력값을 저장했어요')};
 $('#seedReset').onclick=()=>{seedOverride=null;showSeed();$('#seedEditForm').hidden=true};
-let currentDemo=120000; $('#demoTrade').onclick=()=>{currentDemo-=5000;$('#currentValue').textContent=won(currentDemo)+'원';toast('지출 5,000원 입력: current만 바뀌었어요(예시)')};
+let currentDemo=120000; $('#demoTrade').onclick=()=>{currentDemo=Math.max(0,currentDemo-5000);$('#currentValue').textContent=won(currentDemo)+'원';$('#currentProgress').style.width=Math.min(100,currentDemo/200000*100)+'%';toast('지출 5,000원 입력: 이번 주기 남기는 중인 돈만 바뀌었어요(예시)')};
 $('#goalSave').onclick=()=>{const a=Number($('#goalAmount').value),d=$('#goalDue').value;if(a<=0||!d){$('#goalResult').textContent='목표 금액과 기한을 입력해 주세요';return}const goal={name:$('#goalName').value,amount:a,due:d};store.set('fx.goal',JSON.stringify(goal));$('#goalResult').textContent=goal.name+' · 확정 시드머니 '+won(seedMoney())+'원 / '+won(a)+'원 · '+Math.min(100,Math.floor(seedMoney()/a*100))+'% · 기한 '+d;};
 $('#goalDelete').onclick=()=>{store.set('fx.goal','');$('#goalResult').textContent='목표를 삭제했어요'};
 $('#billingStart').onclick=()=>{const year=$('input[name=billingPlan]:checked').value==='year';$('#billingSummary').textContent=(year?'연 9,900원':'월 990원')+' · 모의 결제 · 실제 청구 없음';$('#billingResult').replaceChildren();location.hash='#billing'};
 $$('[data-billing]').forEach(b=>b.onclick=()=>{const type=b.dataset.billing;const r=$('#billingResult');r.replaceChildren();if(type==='success'){body.dataset.plan='plus';syncToolbar();r.textContent='모의 결제 완료 · 시연용 플러스 적용 · 실제 청구 없음'}if(type==='failure'){r.append(h('p',{text:'모의 결제 실패 · 예시 오류: 승인되지 않았어요'}),h('button',{cls:'btn btn-line',text:'다시 시도',onclick:()=>{r.textContent='다시 결제 결과를 선택해 주세요'}}))}if(type==='cancel')r.textContent='결제를 취소했어요 · 플랜 변경 없음';if(type==='revoke'){r.append(h('p',{text:'시연용 플러스를 해지할까요?'}),h('button',{cls:'btn btn-line',text:'유지',onclick:()=>r.replaceChildren()}),h('button',{cls:'btn btn-line',text:'모의 해지',onclick:()=>{body.dataset.plan='free';syncToolbar();r.textContent='모의 해지 완료 · 실제 청구 없음'}}))}});
 $('#scr-me .col').prepend(h('div',{cls:'toolbar'},h('a',{href:'#goal',cls:'btn btn-line',text:'웹 목표 설정'}),h('a',{href:'#billing',cls:'btn btn-line',text:'모의 결제·해지 결과'})));
-$('#scr-plus .col').append(h('div',{cls:'card'},h('h2',{text:'플러스 샘플'}),h('button',{cls:'btn btn-line',text:'리마인더 설정',onclick:e=>{if(!isPlus()){showLock(e.currentTarget,'정책 마감 리마인더 설정');return}$('#plusSamples').hidden=false}}),h('div',{id:'plusSamples',hidden:''},h('label',{},'수신 이메일',h('input',{cls:'input',type:'email',placeholder:'이메일 직접 입력'})),h('label',{cls:'check'},h('input',{type:'checkbox'}),'정책 마감 안내 수신 동의(시연)'),h('button',{cls:'btn btn-line',text:'저장 시연',onclick:()=>toast('설정 저장 시연 · 실제 발송 없음')})),h('button',{cls:'btn btn-line',text:'월간 내 돈 리포트',onclick:e=>{if(!isPlus()){showLock(e.currentTarget,'월간 내 돈 리포트');return}$('#reportSample').hidden=false}}),h('p',{id:'reportSample',hidden:'',cls:'meta',text:'내 돈 리포트 예시: 정산 주기마다 평균 78,000원을 남겼어요. 내 기록 해설 샘플이며 종목 판단·전망은 없어요.'})));
+$('#scr-plus .col').append(h('div',{cls:'card'},h('h2',{text:'플러스 샘플'}),h('button',{cls:'btn btn-line',text:'리마인더 설정',onclick:e=>{if(!isPlus()){showLock(e.currentTarget,'정책 마감 리마인더 설정');return}$('#plusSamples').hidden=false}}),h('div',{id:'plusSamples',hidden:''},h('label',{},'수신 이메일',h('input',{cls:'input',type:'email',placeholder:'이메일 직접 입력'})),h('label',{cls:'check'},h('input',{type:'checkbox'}),'정책 마감 안내 수신 동의(시연)'),h('button',{cls:'btn btn-line',text:'저장 시연',onclick:()=>toast('설정 저장 시연 · 실제 발송 없음')}))));
 $('#shareCopy').onclick=()=>{const show=$('#shareAmt').checked;$('#sharedAmount').textContent=show?'공개한 시드머니 '+won(seedMoney())+'원 · 현재 가치 '+won(scValues(mx.sc[mx.active])[N-1])+'원(예시)':'금액 비공개 · 상품·비율만 표시해요';$('#sharedComposition').textContent=scSummary(mx.sc[mx.active]);$('#shareStatus').textContent='';$('#shareDlg').close();location.hash='#share';toast('공유 결과 미리보기예요. 이 단일 HTML에서는 #share로 열어요')};
 $('#shareRevoke').onclick=()=>{$('#sharedComposition').textContent='공유가 중단되었어요';$('#sharedAmount').textContent='';$('#shareStatus').textContent='실제 서비스에서는 중단된 링크의 결과를 반환하지 않아요'};
-let savingsMode='now';
-function specialSavings(){const box=$('#specialSavings');box.replaceChildren();box.hidden=savingsMode==='now';$('#scr-savings .sim').hidden=savingsMode!=='now';if(savingsMode==='now')return;
-if(savingsMode==='past'){box.append(h('div',{cls:'card col'},h('h2',{text:'은행 평균 적금(한국은행)'}),h('p',{cls:'meta',text:'상품별 과거 금리는 표시하지 않아요 · 시연 금리 3.0% [가정]·실제 한국은행 시계열 미연결'}),h('p',{text:'매달 78,000원 · 36개월 · 원금 2,808,000원 · 평균 금리로 계속 모았다고 가정'}),h('p',{text:'추정 세후 이자 '+won(netInt(3,36,78000))+'원 · 실제 은행 계산과 다를 수 있어요'})));return}
+let savingsMode='now', savingsRange=null;
+function syncSavingsModes(){$$('[data-savings-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.savingsMode===savingsMode)))}
+function specialSavings(){syncSavingsModes();const box=$('#specialSavings');box.replaceChildren();box.hidden=savingsMode==='now';$('#scr-savings .sim').hidden=savingsMode!=='now';if(savingsMode==='now')return;
+if(savingsMode==='past'){
+const range=savingsRange||{start:'2023-10-16',end:'2026-10-16',actualStart:'2023.10.16',how:'pace',amount:78000,months:36,count:36,principal:2808000};
+const how=range.how==='pace'?'매달 '+won(range.amount)+'원씩':range.how==='lump'?won(range.amount)+'원을 한 번에':won(range.amount)+'원을 '+range.count+'회로 나눠';
+const estimate=range.how==='pace'?netInt(3,range.count,range.amount):range.how==='lump'?range.amount*.03*.846*range.months/12:netInt(3,range.count,range.amount/range.count);
+box.append(h('div',{cls:'card col'},h('h2',{text:'은행 평균 적금(한국은행)'}),h('p',{cls:'meta',text:'기간 '+range.start+' ~ '+range.end+' · 실제 시작일 '+range.actualStart+' (예시)'}),h('p',{cls:'meta',text:'상품별 과거 금리는 표시하지 않아요 · 금리 기준월 2026.10 (예시) · 연 3.0% [가정] · 실제 한국은행 시계열 미연결 [미확인]'}),h('p',{text:how+' · '+range.count+'회 · 넣은 돈 '+won(range.principal)+'원 (예시)'}),h('p',{text:'추정 세후 이자 '+won(estimate)+'원 · 합계 '+won(range.principal+estimate)+'원 (예시)'}),h('p',{cls:'meta',text:'기획팀이 만기·재가입 등 평균 적금 가정을 하나로 정하는 중이에요 [미확인]. 랜딩과 본 화면은 확정된 같은 가정을 써요. 현재 숫자는 화면 설명용 예시예요.'})));
+return}
 const card=h('div',{cls:'card col'},h('h2',{text:'청년미래적금 조건 직접 입력'}),h('p',{cls:'meta',text:'자격 자동 판정 없음 · 가입 버튼 없음 · 공식 상품 규칙 [미확인] · 예시: 36개월·월 최대 50만원·기여율 6%/12%'}));
-[['policyMonthly','월 납입(원)',78000],['policyTerm','기간(개월)',36],['policyRate','연 금리(%) [가정]',3],['policyContribution','기여율(%) [가정]',6],['policyTax','이자 세율(%) [가정]',0]].forEach(([id,label,value])=>card.append(h('label',{},label,h('input',{id,type:'number',cls:'input',min:'0',value:String(value),step:'any'}))));card.append(h('label',{},'유형(자격은 직접 확인)',h('select',{id:'policyType',cls:'input',onchange:e=>$('#policyContribution').value=e.target.value},h('option',{value:'6',text:'일반형 예시'}),h('option',{value:'12',text:'우대형 예시'}))),h('p',{cls:'meta',text:'[가정] 기여금 만기 일시 지급·기여금 이자 없음. 비과세 여부도 직접 입력. 공식 안내 링크는 확인 중 [미확인].'}),h('button',{id:'policyRun',cls:'btn btn-primary',text:'조건으로 계산하기',onclick:()=>{const m=+$('#policyMonthly').value,n=+$('#policyTerm').value,r=+$('#policyRate').value,g=+$('#policyContribution').value,t=+$('#policyTax').value;if(m<=0||m>500000||n<=0||n>120||r<0||g<0||t<0||t>100){$('#policyResult').textContent='납입·기간·금리·기여율·세율을 확인해 주세요(예시 한도: 월 50만원)';return}const principal=m*n,grant=Math.floor(principal*g/100),interest=Math.floor(m*r/100/12*n*(n+1)/2*(1-t/100));$('#policyResult').textContent='[가정·추정] 원금 '+won(principal)+'원 / 정부기여금 '+won(grant)+'원 / 이자 '+won(interest)+'원 / 합계 '+won(principal+grant+interest)+'원 · 은행 평균 적금 예시(연 3%, 세후) '+won(principal+netInt(3,n,m))+'원';}}),h('p',{id:'policyResult',role:'status'}));box.append(card);$('#policyRun').click();}
+card.append(h('label',{},'월 납입(원)',h('input',{id:'policyMonthly',type:'number',cls:'input',min:'1',value:'78000'})));
+const assumptions=h('details',{id:'policyAssumptions'},h('summary',{text:'계산 가정 · 36개월·일반형·연 3%·기여율 6%·세율 0% (예시) [미확인] [가정]'}));
+[['policyTerm','기간(개월) [미확인]',36],['policyRate','연 금리(%) [가정]',3],['policyContribution','기여율(%) [가정]',6],['policyTax','이자 세율(%) [가정]',0]].forEach(([id,label,value])=>assumptions.append(h('label',{cls:'field'},label,h('input',{id,type:'number',cls:'input',min:'0',value:String(value),step:'any'}))));
+assumptions.append(h('label',{cls:'field'},'일반/우대형 [미확인] · 자격은 별도 확인',h('select',{id:'policyType',cls:'input',onchange:e=>$('#policyContribution').value=e.target.value},h('option',{value:'6',text:'일반형 예시'}),h('option',{value:'12',text:'우대형 예시'}))),h('p',{cls:'meta',text:'[가정] 기여금 만기 일시 지급·기여금 이자 없음. 과세도 직접 입력. 공식 안내 링크·규칙은 [미확인]. 자격 판정과 별개예요.'}));
+card.append(assumptions,h('button',{id:'policyRun',cls:'btn btn-primary',text:'조건으로 계산하기',onclick:()=>{const m=+$('#policyMonthly').value,n=+$('#policyTerm').value,r=+$('#policyRate').value,g=+$('#policyContribution').value,t=+$('#policyTax').value;if(m<=0||m>500000||n<=0||n>120||r<0||g<0||t<0||t>100){$('#policyResult').textContent='납입·기간·금리·기여율·세율을 확인해 주세요(예시 한도: 월 50만원)';return}const principal=m*n,grant=Math.floor(principal*g/100),interest=Math.floor(m*r/100/12*n*(n+1)/2*(1-t/100));$('#policyResult').textContent='[가정·추정] 원금 '+won(principal)+'원 / 정부기여금 '+won(grant)+'원 / 이자 '+won(interest)+'원 / 합계 '+won(principal+grant+interest)+'원 · 은행 평균 적금 예시(연 3%, 세후) '+won(principal+netInt(3,n,m))+'원';}}),h('p',{id:'policyResult',role:'status'}));box.append(card);$('#policyRun').click();}
 $$('[data-savings-mode]').forEach(b=>b.onclick=()=>{savingsMode=b.dataset.savingsMode;$$('[data-savings-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));specialSavings()});
 $$('input[name=svWhen]').forEach((r,i)=>{r.onchange=()=>{savingsMode=i?'past':'now';specialSavings()}});
-$('#tmStartChips').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.textContent==='3년 전')));$('#tmConditions input[type=month]').value='2023-10';
-$$('#tmConditions .cond-summary span').forEach(x=>x.textContent='2023.10부터 · 지금 저축 속도로 · 2종목');
+// 타임머신 입력은 서랍을 열 때 표시 중 조건에서 복사한다.
+
 $('#scr-news .page-head').append(h('a',{href:'#savings',cls:'btn btn-line',text:'정책 적금 계산해 보기',onclick:()=>{savingsMode='policy';specialSavings()}}));
 // 자체 API 연결 전 로컬 시연 이벤트: 개인 금액·이메일 제외
 const demoEvents=[]; document.addEventListener('click',e=>{const b=e.target.closest('button,a');if(!b)return;demoEvents.push({event:b.classList.contains('pin')?'pin_select':'ui_action',at:Date.now()})});

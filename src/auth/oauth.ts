@@ -1,4 +1,4 @@
-// 카카오·Google 로그인: start → (공급자) → /oauth/callback?code= → exchange. 계약은 docs/API.md "소셜 로그인".
+// 카카오·Google 로그인: start → (공급자) → /oauth/callback?code= → exchange. 계약은 backend/README.md "API".
 import { api, apiUrl } from '@/lib/api';
 import type { AuthResponse } from './types';
 

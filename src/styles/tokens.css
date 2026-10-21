@@ -1,0 +1,106 @@
+/* 디자인 토큰(정본). 값은 여기서만 정하고, 부품은 역할 이름으로 부른다.
+   강조 색은 브랜드 블루 하나. 상승·하락·오류는 의미 색이라 강조로 치지 않는다.
+   다크는 [data-theme="dark"]일 때만(기본 라이트, 시스템 설정을 따르지 않음). */
+:root{
+  color-scheme: light;
+
+  /* 색 · 브랜드 */
+  --color-brand-primary:#0046FF;
+  --color-brand-primary-hover:#0037CC;
+  --color-brand-subtle:#EEF3FF;
+  --color-brand-text:#0046FF;
+  --color-on-brand:#FFFFFF;
+
+  /* 색 · 바탕과 선: 흰 캔버스 + 옅은 회색 보조 면 */
+  --color-bg-canvas:#FFFFFF;
+  --color-bg-subtle:#F4F6F9;
+  --color-surface:#FFFFFF;
+  --color-border:#E1E5EB;
+  --color-border-strong:#C5CCD6;
+
+  /* 색 · 글자 */
+  --color-text-primary:#191F28;
+  --color-text-secondary:#4E5968;
+  --color-text-tertiary:#6B7684;
+  --color-text-disabled:#A3ABB7;
+
+  /* 색 · 의미(상승 빨강, 하락 파랑. 등락 숫자에는 늘 ▲▼를 붙인다) */
+  --color-rise:#D92D20; --color-rise-wash:rgba(217,45,32,.10);
+  --color-fall:#1F6FE0; --color-fall-wash:rgba(31,111,224,.10);
+  --color-baseline:#8A93A8;
+  --color-positive:#0046FF;
+  --color-warning:#B95E00; --color-warning-subtle:#FFF2E0;
+  --color-danger:#D92D20; --color-danger-subtle:#FDEDEC;
+
+  /* 색 · 안내(체험 배너·안내 알림) */
+  --color-notice-bg:#EEF3FF; --color-notice-ink:#1B2B55; --color-notice-line:#C9D7FF;
+  /* 색 · 메모지(코치마크·차트 손글씨 메모). 실제 UI가 아님을 드러내려고 노랑을 유지한다 */
+  --color-memo-bg:#FFF6C9; --color-memo-ink:#3A2E00; --color-memo-line:#9C8636;
+
+  /* 색 · 차트 계열(블루 3단 + 회색 2단). 색만으로 구분하지 않게 범례·값을 같이 둔다 */
+  --color-series-1:#0046FF; --color-series-2:#5C8BFF; --color-series-3:#A7C0FF; --color-series-4:#6B7684; --color-series-5:#C3CAD4;
+
+  --color-focus:#0046FF;
+  --color-scrim:rgba(17,24,39,.5);
+
+  /* 외부 로그인 버튼(각 회사 버튼 규정이라 그대로) */
+  --color-kakao:#FEE500; --color-kakao-ink:rgba(0,0,0,.85);
+  --color-google-bg:#FFFFFF; --color-google-line:#747775; --color-google-ink:#1F1F1F;
+
+  /* 모양 */
+  --radius-soft:12px;     /* 카드·모달·큰 면 */
+  --radius-soft-sm:8px;   /* 버튼·입력·칩·안쪽 타일 */
+  --radius-xs:4px;        /* 막대·코드 */
+  --radius-login:12px;    /* 로그인 버튼 세 개(카카오·Google·이메일). 카카오 규정이 12px라 셋을 같이 맞춘다 */
+  --shadow-subtle:0 1px 2px rgba(17,24,39,.05);
+  --shadow-overlay:0 8px 28px rgba(17,24,39,.14);
+
+  /* 밀도: comfortable(시니어 가독성·넓은 화면) */
+  --density-control:48px;     /* 버튼·입력 높이 */
+  --density-control-sm:40px;  /* 작은 버튼 */
+  --density-pad:28px;         /* 카드 안쪽 */
+  --density-gap:24px;         /* 카드 사이 */
+  --density-row:56px;         /* 표·목록 한 줄 */
+  --font-size-body:16px;
+
+  --ease:cubic-bezier(.23,1,.32,1);
+  --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-sys:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",sans-serif;
+}
+
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --color-brand-primary:#4D7CFF;
+  --color-brand-primary-hover:#6A92FF;
+  --color-brand-subtle:#17213D;
+  --color-brand-text:#8DACFF;
+
+  --color-bg-canvas:#0F131A;
+  --color-bg-subtle:#171C25;
+  --color-surface:#141922;
+  --color-border:#283040;
+  --color-border-strong:#3A4456;
+
+  --color-text-primary:#E9EDF2;
+  --color-text-secondary:#B4BCC8;
+  --color-text-tertiary:#8E98A6;
+  --color-text-disabled:#5A6474;
+
+  --color-rise:#EF4F55; --color-rise-wash:rgba(239,79,85,.14);
+  --color-fall:#4C8DF6; --color-fall-wash:rgba(76,141,246,.14);
+  --color-positive:#8DACFF;
+  --color-warning:#FFB35C; --color-warning-subtle:#3A2A12;
+  --color-danger:#EF4F55; --color-danger-subtle:#3A1719;
+
+  --color-notice-bg:#17213D; --color-notice-ink:#D6E1FF; --color-notice-line:#2C3D6E;
+  --color-memo-bg:#3A3416; --color-memo-ink:#F4E7A1; --color-memo-line:#B8A452;
+
+  --color-series-1:#4D7CFF; --color-series-2:#7FA2FF; --color-series-3:#B9CCFF; --color-series-4:#8E98A6; --color-series-5:#525C6B;
+
+  --color-focus:#8DACFF;
+  --color-scrim:rgba(0,0,0,.6);
+  --color-google-bg:#131314; --color-google-line:#8E918F; --color-google-ink:#E3E3E3;
+
+  --shadow-subtle:0 1px 2px rgba(0,0,0,.3);
+  --shadow-overlay:0 8px 28px rgba(0,0,0,.5);
+}

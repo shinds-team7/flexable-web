@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: flexable-web
+  config:
+    # 로컬에서 키를 따로 두는 파일(커밋하지 않음, 양식 .env.example). 운영은 VM 환경변수로 넣는다.
+    import: optional:file:.env[.properties]
+  datasource:
+    # 비밀번호는 기본값을 두지 않는다. 운영 VM의 환경변수로만 넣는다(저장소 공개).
+    url: ${DB_URL:jdbc:mysql://localhost:3306/flexable_web?serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:flexable_web}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  auth:
+    jwt:
+      # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).
+      secret: ${WEB_JWT_SECRET:}
+      ttl-days: 30
+    oauth:
+      # 공급자 콘솔에 등록한 웹 백엔드 주소. 콜백은 {callback-base-url}/api/v1/auth/oauth/{provider}/callback
+      callback-base-url: ${OAUTH_CALLBACK_BASE_URL:http://localhost:8080}
+      # 로그인 뒤 돌아갈 웹 화면 주소(정확히 일치해야 함, 쉼표 구분)
+      allowed-redirect-uris: ${OAUTH_ALLOWED_REDIRECT_URIS:http://localhost:5173/oauth/callback}
+      # client-id가 비어 있는 공급자는 꺼진다. 비밀 값은 환경변수로만 넣는다.
+      kakao:
+        client-id: ${KAKAO_CLIENT_ID:}
+        client-secret: ${KAKAO_CLIENT_SECRET:}
+        admin-key: ${KAKAO_ADMIN_KEY:}
+        scope: ${KAKAO_SCOPE:}
+      google:
+        client-id: ${GOOGLE_CLIENT_ID:}
+        client-secret: ${GOOGLE_CLIENT_SECRET:}
+  cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  market:
+    # 시장(코스피·코스닥·ETF)마다 시가총액 상위 몇 종목을 목록에 보여 주고 계산·수집할지
+    top-limit: ${MARKET_TOP_LIMIT:100}
+  ingest:
+    # worker 프로필에서만 쓴다(외부 호출은 worker만, 04 §8)
+    price-source: ${MARKET_PRICE_SOURCE:kiwoom}
+    instrument-source: ${MARKET_INSTRUMENT_SOURCE:krx}
+    instrument-fallback: ${MARKET_INSTRUMENT_FALLBACK:kiwoom}
+    backfill-years: ${MARKET_BACKFILL_YEARS:5}
+    recheck-days: 10
+    run-on-start: ${MARKET_SYNC_ON_START:true}
+    cron: ${MARKET_SYNC_CRON:0 30 18 * * MON-FRI}
+    kiwoom:
+      base-url: ${KIWOOM_BASE_URL:https://api.kiwoom.com}
+      app-key: ${KIWOOM_APP_KEY:}
+      secret-key: ${KIWOOM_SECRET_KEY:}
+      page-delay: 250ms
+    krx:
+      base-url: ${KRX_BASE_URL:https://data-dbg.krx.co.kr/svc/apis}
+      auth-key: ${KRX_AUTH_KEY:}
+  applink:
+    # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
+    mode: ${APP_LINK_MODE:http}
+    # 앱 서버 주소(/internal/v1 앞까지)와 서비스 키. 비어 있으면 연동하기가 503 APP_UNAVAILABLE이다.
+    base-url: ${APP_LINK_BASE_URL:}
+    service-key: ${APP_LINK_SERVICE_KEY:}
+    # linkId 암호화 키(Base64, 32바이트). base-url이 있으면 필수, 바꾸면 기존 연동을 읽지 못한다.
+    encryption-key: ${APP_LINK_ENCRYPTION_KEY:}
+    connect-timeout: 3s
+    read-timeout: 5s
+    refresh-interval: 1m

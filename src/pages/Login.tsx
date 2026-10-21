@@ -7,6 +7,7 @@ import { useSession } from '@/auth/session';
 import type { AuthResponse } from '@/auth/types';
 import { Icon } from '@/components/Icons';
 import { LEGAL_BASE } from '@/components/Layout';
+import { privacyHref } from '@/lib/legal';
 import { api, errorText } from '@/lib/api';
 
 const LABEL: Record<OAuthProvider, string> = { kakao: '카카오 로그인', google: 'Google 계정으로 로그인' };
@@ -42,7 +43,7 @@ export function SocialButtons({ onError, onEmail }: { onError?: (msg: string) =>
         {LABEL.google}
       </button>
       {onEmail ? null : (
-        <button type="button" className="social" style={{ background: 'var(--sunken)', border: 0 }} onClick={() => navigate('/login?email=1')}>
+        <button type="button" className="social email" onClick={() => navigate('/login?email=1')}>
           이메일로 로그인
         </button>
       )}
@@ -90,19 +91,13 @@ export default function Login() {
             로그인
           </h1>
           <p className="sub" style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
-            앱과 같은 계정으로 로그인하면
+            웹 계정으로 로그인해요.
             <br />
-            앱에서 모은 돈을 그대로 불러와요.
+            앱과는 계정이 따로예요.
           </p>
           <SocialButtons onError={setError} onEmail={() => setEmailOpen(true)} />
           <div className="divider">또는</div>
-          <button
-            className="btn"
-            aria-expanded={emailOpen}
-            aria-controls="emailForm"
-            style={{ width: '100%', height: 48, borderRadius: 12, background: 'var(--sunken)' }}
-            onClick={() => setEmailOpen((v) => !v)}
-          >
+          <button type="button" className="social email" aria-expanded={emailOpen} aria-controls="emailForm" onClick={() => setEmailOpen((v) => !v)}>
             이메일로 로그인
           </button>
           {emailOpen && (
@@ -124,7 +119,7 @@ export default function Login() {
             </form>
           )}
           <p className="meta" style={{ textAlign: 'center' }}>
-            로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>과 <a href={`${LEGAL_BASE}/privacy`}>개인정보처리방침</a>에 동의하는 것으로 봐요.
+            로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>과 <a href={privacyHref}>개인정보처리방침</a>에 동의하는 것으로 봐요.
           </p>
           {error && (
             <div className="error-box" style={{ padding: 16 }} role="alert">

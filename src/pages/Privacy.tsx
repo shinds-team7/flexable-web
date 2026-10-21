@@ -1,15 +1,10 @@
 // 웹사이트 개인정보처리방침. 앱과 같은 운영자지만 계정·서버·DB가 따로라 웹이 처리하는 것만 적는다(앱 방침은 앱 웹에).
-// 항목별 근거 코드·확인 필요 항목·시행 절차는 docs/product/privacy-web.md. 코드를 바꿔 처리 항목이 달라지면 이 파일도 고친다.
+// 항목별 근거 코드·운영 확인 항목·시행 절차는 docs/product/privacy-web.md. 코드를 바꿔 처리 항목이 달라지면 이 파일도 고친다.
 import { Link } from 'react-router-dom';
-import { LEGAL_BASE, WEB_PRIVACY_EFFECTIVE } from '@/lib/legal';
+import { LEGAL_BASE, WEB_PRIVACY_EFFECTIVE, fmtEffective, webPrivacyInEffect } from '@/lib/legal';
 
 const OPERATOR = 'ucmnuniverse';
 const CONTACT = 'ucmnuniverse@gmail.com';
-
-/** 운영 정보가 정해지지 않은 자리. 시행 전에 모두 채운다. */
-function Todo({ children }: { children: string }) {
-  return <mark className="legal-todo">확인 필요: {children}</mark>;
-}
 
 export default function Privacy() {
   return (
@@ -18,9 +13,10 @@ export default function Privacy() {
         <div className="page-head">
           <h1 className="page-title">텅장관리 웹사이트 개인정보처리방침</h1>
         </div>
-        {!WEB_PRIVACY_EFFECTIVE && (
+        {!webPrivacyInEffect && (
           <p className="legal-draft" role="note">
-            시행 전 초안이에요. 시행일이 정해지기 전까지는 <a href={`${LEGAL_BASE}/privacy`}>텅장관리 개인정보처리방침</a>이 적용돼요.
+            {WEB_PRIVACY_EFFECTIVE ? `${fmtEffective()}부터 시행해요. ` : '시행 전 초안이에요. '}
+            그 전까지는 <a href={`${LEGAL_BASE}/privacy`}>텅장관리 개인정보처리방침</a>이 적용돼요.
           </p>
         )}
 
@@ -58,7 +54,8 @@ export default function Privacy() {
               <td>서비스 이용 과정에서 자동 생성</td>
               <td>
                 가입·이용약관 동의·개인정보 수집·이용 동의 일시, 가입 방법(이메일·카카오·Google), 화면 설정(테마, 이미 본 안내, 과거 계산 고지 확인 일시),
-                앱 연동 일시와 마지막 조회 일시, 서버 오류 기록에 남는 회원 번호
+                앱 연동 일시와 마지막 조회 일시, 서버 오류 기록에 남는 회원 번호, 웹 서버 접속 기록(접속 일시, IP 주소, 요청 주소, 응답 결과, 브라우저
+                정보)
               </td>
             </tr>
             <tr>
@@ -99,10 +96,11 @@ export default function Privacy() {
           </li>
           <li>로그인·연동 코드 입력 실패 기록은 횟수 제한을 위해 서버 메모리에만 최대 10분 보관합니다.</li>
           <li>
-            서버 오류 기록: <Todo>보관 기간</Todo>
+            웹 서버 접속 기록과 오류 기록은 서버 프로그램마다 최대 50MB까지 보관하고, 넘으면 오래된 기록부터 자동으로 삭제합니다.
           </li>
           <li>
-            데이터베이스 백업: <Todo>백업 여부와 보관 주기</Todo>
+            데이터베이스 백업은 매일 1회 만들고 7일이 지나면 자동 삭제합니다. 탈퇴·연동 해제로 파기한 정보도 백업에는 최대 7일 남을 수 있으며, 백업은 복구
+            목적 외에 쓰지 않습니다.
           </li>
           <li>법령에 따라 보관해야 하는 정보는 없습니다(유료 결제 기능이 없음).</li>
         </ul>
@@ -128,13 +126,9 @@ export default function Privacy() {
           </thead>
           <tbody>
             <tr>
-              <td>
-                <Todo>웹 서버를 제공하는 기관</Todo>
-              </td>
-              <td>웹 서버 운영 및 데이터 저장</td>
-              <td>
-                <Todo>대한민국 내 위치</Todo>
-              </td>
+              <td>대한상공회의소</td>
+              <td>웹 서버(가상 서버)와 네트워크 제공, 데이터 저장</td>
+              <td>대한민국</td>
             </tr>
             <tr>
               <td>Vercel Inc.</td>
@@ -166,12 +160,9 @@ export default function Privacy() {
           <li>비밀번호 단방향 암호화(BCrypt) 저장</li>
           <li>앱 연동 식별값 암호화(AES-256) 저장, 앱 서버와는 서버끼리만 별도 인증으로 통신</li>
           <li>로그인 연속 실패·연동 코드 연속 실패 시 일시 제한</li>
-          <li>
-            통신 구간 암호화: <Todo>웹 서버 HTTPS 적용 여부</Todo>
-          </li>
-          <li>
-            데이터베이스 접근 통제: <Todo>외부 접근 차단·접근 권한</Todo>
-          </li>
+          <li>이용자와 웹 사이의 통신 구간 암호화(HTTPS)</li>
+          <li>데이터베이스는 외부에서 접속할 수 없게 두고 웹 서버 프로그램만 내부망으로 접근, 서버 관리 권한은 운영자와 수탁자로 제한</li>
+          <li>데이터베이스 백업 파일은 서버 관리 계정만 읽을 수 있게 보관</li>
         </ul>
 
         <h2>11. 개인정보 보호책임자 및 문의처</h2>

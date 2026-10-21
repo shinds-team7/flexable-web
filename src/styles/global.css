@@ -531,7 +531,6 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .legal th,.legal td{border-bottom:1px solid var(--color-border);padding:10px 8px;text-align:left;vertical-align:top;color:var(--color-text-secondary)}
 .legal th{color:var(--color-text-primary);font-weight:700;white-space:nowrap}
 .legal-draft{background:var(--color-warning-subtle);color:var(--color-warning);border-radius:var(--radius-soft-sm);padding:12px 16px;margin-bottom:20px;font-weight:600}
-.legal-todo{background:var(--color-warning-subtle);color:var(--color-warning);border-radius:4px;padding:0 4px;font-weight:600}
 @media (max-width:640px){.legal table{font-size:13px}.legal th,.legal td{padding:8px 4px}}
 
 /* 청년 금융 소식 /news: 배너 · 오늘의 한 장 · 필터 · 목록(왼쪽 2열) · 저장함(오른쪽 레일, 좁으면 목록 위에서 접기) */

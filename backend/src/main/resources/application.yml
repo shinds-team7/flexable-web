@@ -33,6 +33,18 @@ management:
         enabled: true
 
 app:
+  ingest:
+    savings:
+      # 적금 공시 수집(finlife → 로컬 DB). worker 프로필은 켜짐. 로컬 api 서버에서 직접 받으려면 SAVINGS_INGEST_ENABLED=true
+      enabled: ${SAVINGS_INGEST_ENABLED:false}
+    finlife:
+      # 인증키는 환경변수로만 넣는다(저장소 공개)
+      api-key: ${FINLIFE_API_KEY:}
+      base-url: https://finlife.fss.or.kr/finlifeapi
+    youthcenter:
+      # 온통청년 청년정책 API 인증키. 환경변수로만 넣는다(저장소 공개)
+      api-key: ${YOUTHCENTER_API_KEY:}
+      base-url: https://www.youthcenter.go.kr/go/ythip/getPlcy
   auth:
     jwt:
       # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).

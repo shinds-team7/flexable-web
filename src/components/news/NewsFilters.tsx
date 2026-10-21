@@ -1,4 +1,4 @@
-// 분야 칩 · 검색 · 지역 · 나이대 · 진행중(지금 신청 가능) · 정렬. 모든 조건은 서로 독립이고 동시에 적용된다.
+// 회색 박스: 분야 칩 · 검색 · 지역 · 나이대. 박스 아래 줄: 진행중(지금 신청 가능) · 정렬. 모든 조건은 서로 독립이고 동시에 적용된다.
 import { AGE_BANDS, NEWS_CATEGORIES, REGIONS } from '@/data/news';
 import type { NewsFilter } from '@/lib/newsList';
 
@@ -20,9 +20,9 @@ export function NewsFilters({ value: f, onChange }: Props) {
           </button>
         ))}
       </div>
-      <div className="toolbar">
-        <label className="news-search">
-          <span className="sr-only">검색어</span>
+      <div className="toolbar news-fields">
+        <label className="news-field news-search">
+          <span className="news-field-k">검색</span>
           <input
             className="input"
             type="search"
@@ -31,10 +31,10 @@ export function NewsFilters({ value: f, onChange }: Props) {
             onChange={(e) => onChange({ query: e.target.value })}
           />
         </label>
-        <label>
-          <span className="sr-only">지역</span>
+        <label className="news-field">
+          <span className="news-field-k">지역</span>
           <select className="input news-select" value={f.region} onChange={(e) => onChange({ region: e.target.value as NewsFilter['region'] })}>
-            <option value="ALL">전체 지역</option>
+            <option value="ALL">전체</option>
             {REGIONS.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -42,10 +42,10 @@ export function NewsFilters({ value: f, onChange }: Props) {
             ))}
           </select>
         </label>
-        <label>
-          <span className="sr-only">나이대</span>
+        <label className="news-field">
+          <span className="news-field-k">나이</span>
           <select className="input news-select" value={f.age} onChange={(e) => onChange({ age: e.target.value as NewsFilter['age'] })}>
-            <option value="ALL">전체 나이</option>
+            <option value="ALL">전연령</option>
             {AGE_BANDS.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.label}
@@ -54,19 +54,25 @@ export function NewsFilters({ value: f, onChange }: Props) {
           </select>
         </label>
       </div>
-      <div className="toolbar">
-        <label className="check">
-          <input type="checkbox" checked={f.openOnly} onChange={(e) => onChange({ openOnly: e.target.checked })} />
-          진행중
-        </label>
-        <span className="spacer" />
-        <div className="seg" role="group" aria-label="정렬">
-          {SORTS.map((s) => (
-            <button key={s.id} type="button" aria-pressed={f.sort === s.id} onClick={() => onChange({ sort: s.id })}>
-              {s.label}
-            </button>
-          ))}
-        </div>
+    </div>
+  );
+}
+
+/** 필터 박스 아래 줄 오른쪽: 진행중 · 정렬. 왼쪽 개수 표시는 화면(News)이 둔다. */
+export function NewsSortBar({ value: f, onChange }: Props) {
+  return (
+    <div className="news-sortbar">
+      <label className="check">
+        <input type="checkbox" checked={f.openOnly} onChange={(e) => onChange({ openOnly: e.target.checked })} />
+        진행중
+      </label>
+      <span className="news-sortbar-div" aria-hidden="true" />
+      <div className="news-sort" role="group" aria-label="정렬">
+        {SORTS.map((s) => (
+          <button key={s.id} type="button" aria-pressed={f.sort === s.id} onClick={() => onChange({ sort: s.id })}>
+            {s.label}
+          </button>
+        ))}
       </div>
     </div>
   );

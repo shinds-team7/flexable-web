@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FeaturedNews } from '@/components/news/FeaturedNews';
 import { NewsBanner } from '@/components/news/NewsBanner';
 import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
-import { NewsFilters } from '@/components/news/NewsFilters';
+import { NewsFilters, NewsSortBar } from '@/components/news/NewsFilters';
 import { SavedNews } from '@/components/news/SavedNews';
 import { useNews, type YouthNews } from '@/data/news';
 import { readNewsFilter, useSavedNews, writeNewsFilter } from '@/data/newsSaved';
@@ -53,6 +53,21 @@ export default function News() {
                 전체 소식
               </h2>
               <NewsFilters value={filter} onChange={change} />
+              <div className="news-count">
+                <div className="news-count-l" aria-live="polite">
+                  {news.isSuccess && (
+                    <p className="meta">
+                      소식 <b className="num">{list.length}</b>개
+                    </p>
+                  )}
+                  {!isDefaultFilter(filter) && (
+                    <button type="button" className="btn btn-text" onClick={clear}>
+                      필터 지우기
+                    </button>
+                  )}
+                </div>
+                <NewsSortBar value={filter} onChange={change} />
+              </div>
               {news.isPending ? (
                 <div className="news-grid news-list" aria-busy="true" aria-label="소식을 불러오는 중">
                   {Array.from({ length: 6 }, (_, i) => (
@@ -66,45 +81,28 @@ export default function News() {
                     다시 불러오기
                   </button>
                 </div>
+              ) : list.length === 0 ? (
+                <div className="empty-box">
+                  <h3>조건에 맞는 소식이 없어요</h3>
+                  <p className="sub">다른 지역이나 분야로 찾아보세요.</p>
+                  <button type="button" className="btn btn-line" onClick={clear}>
+                    필터 지우기
+                  </button>
+                </div>
               ) : (
-                <>
-                  <div className="news-count" aria-live="polite">
-                    <p className="meta">
-                      소식 <b className="num">{list.length}</b>개
-                    </p>
-                    {!isDefaultFilter(filter) && (
-                      <button type="button" className="btn btn-text" onClick={clear}>
-                        필터 지우기
-                      </button>
-                    )}
-                  </div>
-                  {list.length === 0 ? (
-                    <div className="empty-box">
-                      <h3>조건에 맞는 소식이 없어요</h3>
-                      <p className="sub">다른 지역이나 분야로 찾아보세요.</p>
-                      <button type="button" className="btn btn-line" onClick={clear}>
-                        필터 지우기
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="news-grid news-list">
-                      {list.map((n) => (
-                        <NewsCard key={n.id} n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} />
-                      ))}
-                    </div>
-                  )}
-                </>
+                <div className="news-grid news-list">
+                  {list.map((n) => (
+                    <NewsCard key={n.id} n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} onToast={setToast} />
+                  ))}
+                </div>
               )}
             </section>
           </div>
           <SavedNews saved={saved} items={items} today={today} onRemove={remove} />
         </div>
       </div>
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
-        </div>
-      )}
+      {/* 알림 영역은 늘 두고 안의 글자만 바꾼다. 새로 끼워 넣은 role=status는 일부 스크린리더가 읽지 않는다 */}
+      <div role="status">{toast && <div className="toast">{toast}</div>}</div>
     </section>
   );
 }

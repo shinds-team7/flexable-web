@@ -73,5 +73,16 @@ export function ageText({ audience: { ageMin, ageMax } }: YouthNews) {
   return '나이 조건 공고문 확인';
 }
 
-/** 카드 조건 한 줄: "만 19~34세 / 소득 기준 있음". 소득 기준은 원문에 있을 때만 붙인다. */
-export const conditionText = (n: YouthNews) => (n.audience.incomeLimit ? `${ageText(n)} / 소득 기준 있음` : ageText(n));
+/** 카드 아래 정보 칩(분야 칩은 카드가 따로 앞에 둔다): 지역 · 나이 · 소득 기준(원문에 있을 때만) · 기관. */
+export const cardTags = (n: YouthNews) => [regionText(n), ageText(n), ...(n.audience.incomeLimit ? ['소득 기준 있음'] : []), n.source.org];
+
+const dotDate = (iso: string) => iso.replaceAll('-', '.');
+
+/** 카드 기간 줄: "2026.10.01 - 2026.10.24" / "상시 모집" / "~ 2026.10.24" / "2026.10.24 시작 · 마감일 미정" / "공고문 확인" */
+export function periodText(n: Pick<YouthNews, 'applyStart' | 'applyDeadline' | 'alwaysOpen'>) {
+  if (n.alwaysOpen) return '상시 모집';
+  if (n.applyStart && n.applyDeadline) return `${dotDate(n.applyStart)} - ${dotDate(n.applyDeadline)}`;
+  if (n.applyDeadline) return `~ ${dotDate(n.applyDeadline)}`;
+  if (n.applyStart) return `${dotDate(n.applyStart)} 시작 · 마감일 미정`;
+  return '공고문 확인';
+}

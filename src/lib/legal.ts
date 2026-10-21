@@ -9,7 +9,7 @@ export const LEGAL_BASE = 'https://project2-flex-sh.vercel.app';
  * 날짜를 넣으면 그날 전까지는 "시행 예정"으로 알리고, 그날부터 가입·로그인·하단 링크가 웹 방침으로 바뀐다(배포 없이).
  * 정할 때는 docs/product/privacy-web.md "시행 절차"를 따른다(시행 7일 전 고지).
  */
-export const WEB_PRIVACY_EFFECTIVE: string | null = '2026-10-28';
+export const WEB_PRIVACY_EFFECTIVE: string | null = '2026-10-21';
 
 /** 시행일이 지났는지(페이지를 열 때 판단) */
 export const webPrivacyInEffect =

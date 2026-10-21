@@ -52,6 +52,8 @@ npm ci && npm --prefix mobile-demo ci
 npm run dev
 # 웹 백엔드: backend/ 에서 ./gradlew bootRun --args='--spring.profiles.active=local' (H2, 실행·환경변수는 backend/README.md)
 # 소셜 로그인은 로컬 백엔드에 KAKAO_CLIENT_ID·GOOGLE_CLIENT_ID 등을 넣었을 때만 버튼이 동작한다.
+# 투자 시뮬레이션(/invest) 시세: backend/.env에 키움·KRX 키를 넣고 worker를 한 번 더 띄운다(외부 호출은 worker만).
+#   (cd backend && ./gradlew bootRun --args='--spring.profiles.active=local,worker')
 
 # 시연 (http://localhost:8081/m)
 npm run dev:m

@@ -1,6 +1,7 @@
 import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import Home from '@/pages/Home';
+import Invest from '@/pages/Invest';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Me from '@/pages/Me';
@@ -19,7 +20,7 @@ export const router = createBrowserRouter([
       { path: '/login', element: <Login /> },
       { path: '/signup', element: <Signup /> },
       { path: '/oauth/callback', element: <OAuthCallback /> },
-      { path: '/invest', element: <Placeholder title="투자 시뮬레이션" desc="조건 · 원금/평가액/적금 비교선 · 사건 목록/상세" wireframe="주식 타임머신" /> },
+      { path: '/invest', element: <Invest /> },
       { path: '/savings', element: <Savings /> },
       { path: '/mix', element: <Placeholder title="섞어보기" desc="배분 · 비교 · 프리셋 저장 · 공유" wireframe="섞어보기" /> },
       // 예전 경로(하위 탭 시절) 호환

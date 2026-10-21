@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { TimeChart } from '@/charts/TimeChart';
 import { Footer } from '@/components/Layout';
-import { N, simulateSample } from '@/data/sampleMarket';
+import { N, sampleChartData, simulateSample } from '@/data/sampleMarket';
 import { SocialButtons } from './Login';
 
 const HINT_KEY = 'fx.landHint';
@@ -26,7 +26,7 @@ const markSeen = () => {
 export default function Landing() {
   const { status } = useSession();
   const navigate = useNavigate();
-  const sim = useMemo(() => simulateSample({ amount: 470000, how: 'lump', startIdx: 0 }), []);
+  const chart = useMemo(() => sampleChartData(simulateSample({ amount: 470000, how: 'lump', startIdx: 0 })), []);
   if (status === 'member') return <Navigate to="/home" replace />;
 
   const placeHint = (wrap: HTMLDivElement) => {
@@ -67,7 +67,7 @@ export default function Landing() {
             </div>
             <TimeChart
               label="예시 차트: 2020년 1월부터 지금까지 내 자산 변화와 사건 핀"
-              sim={sim}
+              data={chart}
               from={0}
               to={N - 1}
               mode="total"

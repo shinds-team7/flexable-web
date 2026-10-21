@@ -8,7 +8,7 @@ export function TimeChart({ label, style, afterDraw, ...opts }: TimeChartOptions
   optsRef.current = opts;
   const afterRef = useRef(afterDraw);
   afterRef.current = afterDraw;
-  const { sim, from, to, mode, height, compact, selectedId } = opts;
+  const { data, from, to, mode, height, compact, selectedId } = opts;
 
   useEffect(() => {
     const wrap = ref.current;
@@ -24,7 +24,7 @@ export function TimeChart({ label, style, afterDraw, ...opts }: TimeChartOptions
     const ro = new ResizeObserver(draw);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [sim, from, to, mode, height, compact, selectedId]);
+  }, [data, from, to, mode, height, compact, selectedId]);
 
   return <div ref={ref} className="chart-wrap" role="group" aria-label={label} style={style} />;
 }

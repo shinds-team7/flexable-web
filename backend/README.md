@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **웹 계정(`config`·`common`·`auth`·`user`)과 앱 연동(`applink`)까지 구현됐다(2026-10-20).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`), 시세·투자 시뮬레이션(`market`·`simulation`·`ingest`의 시세 수집)까지 구현됐다(2026-10-20).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -62,10 +62,15 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /auth/oauth/exchange` | 없음 | `{code, codeVerifier}` → `{accessToken, expiresAt, user}`. 틀리거나 만료되면 401 `OAUTH_CODE_INVALID` |
 | `GET /me/settings` | Bearer | `{theme: "light"\|"dark", seenTours: [], disclaimerAckAt: null}` |
 | `PATCH /me/settings` | Bearer | 보낸 필드만 바꾼다. `theme`, `seenTours`(이미 본 목록에 병합, 키 `[a-z0-9-]` 40자·최대 24개), `disclaimerAck: true`(서버 시각으로 기록) |
+| `GET /market/instruments?board=KOSPI\|KOSDAQ\|ETF` | 없음 | 시가총액 상위 종목(기본 100) `{board, items:[{id,name,market,kind,board,rank,marketCap}], source, note, dataAsOf}`. worker가 아직 모으지 않았으면 `items: []` |
+| `GET /market/status` | 없음 | `{pricesAsOf, instrumentsAsOf, instruments, empty}` |
+| `POST /simulations/run` | 없음 | `{startDate:"YYYY-MM-01", funding:{mode:LUMP_SUM\|SPLIT\|PACE, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`(03 §8-2의 부분집합). 응답: 요약·주별 `series[{weekStart,date,tradingDays,total,invested,contributed,profit,returnRate,legs[…]}]`·`assumptions`·`noticeKey=SIM_PAST`·`sources`. 상위 목록 밖 종목·금액 범위·종목 1~3개·비율 합 1은 400, 시세를 아직 모으지 않은 종목은 503 `MARKET_UNAVAILABLE`(+`field`=종목 코드) |
 | `GET /app-link` | Bearer | 연동 상태 `AppLink`(아래). 연동돼 있고 마지막 조회에서 1분이 지났으면 앱 서버에서 회원 정보·시드머니를 다시 받는다. 앱 서버 장애면 저장한 마지막 값과 `sync.state: "stale"`. 앱에서 해제·앱 탈퇴(`LINK_NOT_FOUND`)면 웹 연동을 지우고 `{linked: false, reason: "app_unlinked"}` |
 | `POST /app-link` | Bearer | `{code}`(앱에서 받은 8자리, `K7M2-Q9XB`처럼 하이픈·소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
 | `GET /health` | 없음 | `{status: "UP"}` |
+
+투자 시뮬레이션 계산(`simulation.SimulationEngine`): 한 주(월~일)의 값 = 그 주 마지막 거래일 종가로 평가(휴장 주는 직전 종가). 납입은 시작 월부터 매달 그 달 첫 거래일 종가로 산다. 한 번에(`LUMP_SUM`) = 첫 달에 `totalAmount`, 매달 나눠서(`SPLIT`)·지금 저축 속도로(`PACE`) = 매달 `monthlyAmount`. 원 단위 정수·내림, 종목 배분 나머지는 첫 종목, 수량은 소수 8자리 내림(소수점 매수 가정). 배당·세금·수수료 미반영.
 
 `AppLink` = `{enabled, linked, reason, linkedAt, account: {email|null, provider}, seedMoney: {status, total, base, monthlyGoal, lastEntry: {cycleEnd, choice, amount, createdAt}|null, updatedAt}, sync: {status: "fresh"|"stale", syncedAt}}`. `enabled`는 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지이고, `false`면 화면이 [앱 연동하기]를 숨긴다. 미연동이면 `enabled`·`linked`·`reason` 말고는 `null`. `seedMoney.status`는 `available`(금액 있음)·`budget_not_set`(앱 예산 설정 전, 연동은 유지)·`not_received`(아직 한 번도 받지 못함)이고 금액은 `available`일 때만 있다. 금액은 앱 서버 값 그대로다(웹에서 계산하지 않음). `linkId`는 응답·로그에 넣지 않는다.
 
@@ -80,7 +85,19 @@ cd backend
 ./gradlew test                                              # 테스트(H2 메모리 DB, 실행마다 임의 서명 키)
 ./gradlew bootRun --args='--spring.profiles.active=local'   # MySQL 없이 H2 파일 DB(build/localdb/)로 실행
 curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
+
+# 시세 수집(worker, HTTP 없음). 같은 H2 파일 DB를 api와 함께 쓴다. 키는 backend/.env(양식 .env.example)
+./gradlew bootRun --args='--spring.profiles.active=local,worker'
 ```
+
+시세 수집(`ingest.MarketSyncJob`, worker만 외부 API를 부른다 04 §8): 켜질 때 한 번(`MARKET_SYNC_ON_START`)과 평일 18:30(`MARKET_SYNC_CRON`)에 돈다. ① 시장별 종목 목록을 받아 시가총액 상위 `MARKET_TOP_LIMIT`개를 `instruments`에 바꿔 넣고 ② 그 종목들의 일봉을 `daily_prices`에 저장한다. 처음에는 `MARKET_BACKFILL_YEARS`년 치, 이후에는 마지막 거래일 10일 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 실행 결과는 `ingest_runs`. 처음 실행은 300종목 × 5년이라 몇 분 걸리고, 다 받기 전에는 그 종목 계산이 503이다.
+
+| 소스 | 구현(`ingest`) | 비고 |
+|---|---|---|
+| 일봉 | `kiwoom.KiwoomPriceSource`(ka10081 주식일봉, 수정주가, `next-key` 연속조회) | `MARKET_PRICE_SOURCE=kiwoom\|fake` |
+| 종목 목록 | `krx.KrxInstrumentSource`(코스피·코스닥·ETF 일별매매정보 `MKTCAP`), 대체 `kiwoom.KiwoomInstrumentSource`(ka10099, 상장주식수 × 종가 어림) | `MARKET_INSTRUMENT_SOURCE`, 시장별로 실패하면 `MARKET_INSTRUMENT_FALLBACK`(예: KRX ETF API 미승인 401) |
+
+새 소스는 `ingest.PriceSource`/`InstrumentSource`를 구현하고 `ingest.IngestConfig`의 `switch`에 이름을 추가한 뒤 환경 변수를 바꾼다. `market`·`simulation`·화면은 바꾸지 않는다. 키움 HTTP 클라이언트는 JDK `HttpClient`를 쓴다(`HttpURLConnection`은 연속조회 두 번째 요청에서 Read timed out).
 
 `local` 프로필은 `WEB_JWT_SECRET`이 없으면 실행할 때마다 임의 키를 만든다(재시작하면 다시 로그인). 앱 연동은 `APP_LINK_MODE=snapshot`(앱 서버 없이 고정 데이터, 앱 코드 규칙에 맞는 아무 8자리, 예: `K7M2-Q9XB`)이 기본이다. 재시작하면 연동을 읽을 수 없으므로 [해제] 후 다시 연동한다. 웹 화면(`npm run dev`)의 `/api` 프록시는 기본 `http://localhost:8080`을 본다. worker 실행은 `--spring.profiles.active=worker`(HTTP 없음).
 
@@ -101,14 +118,21 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, `KAKAO_ADMIN_KEY`, `KAKAO_SCOPE` | 공급자 비밀 값(admin key는 탈퇴 시 카카오 연결 끊기용) | 없음 |
 | `CORS_ORIGINS` | 다른 출처에서 부를 때만(쉼표 구분). 운영은 프록시로 같은 출처 | `http://localhost:5173` |
 | `PORT` | 서버 포트 | `8080` |
+| `MARKET_TOP_LIMIT` | 시장마다 시가총액 상위 몇 종목을 보여 주고 계산·수집할지 | `100` |
+| `MARKET_PRICE_SOURCE`, `MARKET_INSTRUMENT_SOURCE`, `MARKET_INSTRUMENT_FALLBACK` | worker 수집 소스(위 표) | `kiwoom`, `krx`, `kiwoom` |
+| `MARKET_BACKFILL_YEARS`, `MARKET_SYNC_ON_START`, `MARKET_SYNC_CRON` | 처음 받을 기간, 켜질 때 한 번 돌지, 정기 실행 시각(Asia/Seoul) | `5`, `true`, `0 30 18 * * MON-FRI` |
+| `KIWOOM_BASE_URL`, `KIWOOM_APP_KEY`, `KIWOOM_SECRET_KEY` | 키움 REST API(모의투자는 `https://mockapi.kiwoom.com`) | `https://api.kiwoom.com`, 없음 |
+| `KRX_BASE_URL`, `KRX_AUTH_KEY` | KRX 정보데이터시스템 Open API(API마다 이용 신청) | `https://data-dbg.krx.co.kr/svc/apis`, 없음 |
 | `APP_LINK_BASE_URL` | 앱 서버 주소(`/internal/v1` 앞까지). 비어 있으면 [앱 연동하기]가 503 | 없음 |
 | `APP_LINK_SERVICE_KEY` | `X-Service-Key` 값. 앱 서버 `WEB_LINK_SERVICE_KEYS` 중 하나와 같아야 한다(32자 이상) | 없음 |
 | `APP_LINK_ENCRYPTION_KEY` | `linkId` 암호화 키(Base64, 32바이트, 예: `openssl rand -base64 32`). `APP_LINK_BASE_URL`이 있으면 필수(없으면 시작 실패). **바꾸면 저장된 연동을 읽을 수 없다**(사용자가 해제 후 다시 연동해야 함) | 없음 |
 | `APP_LINK_MODE` | `http`(앱 서버 호출) 또는 `snapshot`(고정 데이터, 시연용) | `http`(`local` 프로필은 `snapshot`) |
 
+로컬에서는 `backend/.env`(커밋하지 않음, 양식 `.env.example`)에 넣으면 `application.yml`이 읽는다(`spring.config.import`).
+
 ## 데이터
 
-Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함. `V3__app_links.sql`: `app_links`(applink: 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니와 조회 시각). 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함. `V3__app_links.sql`: `app_links`(applink: 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니와 조회 시각). `V4__market.sql`: `instruments`(market: 코드 UNIQUE, 시장·시가총액 순위·출처·기준일), `daily_prices`(market: `(instrument_id, trade_date)` PK, 수정주가 종가·거래량·출처·수집 시각), `ingest_runs`(ingest: 수집 실행 기록). 앱 DB와 외래 키는 없다.
 
 ## 아직 정해지지 않은 것
 

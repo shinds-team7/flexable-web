@@ -5,6 +5,7 @@ import Invest from '@/pages/Invest';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Me from '@/pages/Me';
+import News from '@/pages/News';
 import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
@@ -28,7 +29,7 @@ export const router = createBrowserRouter([
       { path: '/lab/stocks', element: <Navigate to="/invest" replace /> },
       { path: '/lab/savings', element: <Navigate to="/savings" replace /> },
       { path: '/lab/mix', element: <Navigate to="/mix" replace /> },
-      { path: '/news', element: <Placeholder title="청년 금융 소식" desc="혜택 · 대상 · 마감 · 원문 · 계산 연결 · 챙기기" wireframe="청년 돈 소식" /> },
+      { path: '/news', element: <News /> },
       { path: '/news/:id', element: <Placeholder title="소식 상세" desc="소식 한 건의 자세한 내용" wireframe="청년 돈 소식" /> },
       { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <Placeholder title="모의 결제 결과" desc="모의 완료 · 실패 · 해지 확인" wireframe="모의 결제 결과" /> },

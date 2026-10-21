@@ -539,3 +539,103 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .tag.down{background:var(--fall-wash);color:var(--fall)}
 /* 차트 아래 사건 목록: 길면 안에서 스크롤 */
 .ev-list-scroll{max-height:320px;overflow:auto;border-top:1px solid var(--line)}
+
+/* 청년 금융 소식 /news: 배너 · 오늘의 한 장 · 필터 · 목록(왼쪽 2열) · 저장함(오른쪽 레일, 좁으면 목록 위에서 접기) */
+.news-banner{display:flex;align-items:center;justify-content:space-between;gap:24px;background:var(--brand-soft);border-radius:var(--radius-soft);padding:20px 24px 20px 28px;margin-bottom:24px;min-height:152px}
+.news-banner-copy{min-width:0}
+.news-banner-main{font-size:24px;line-height:32px;font-weight:800;color:var(--text)}
+.news-banner-sub{color:var(--text-sub);margin-top:6px}
+.news-banner-art{flex:none;width:300px;height:112px;border-radius:var(--radius-soft-sm);overflow:hidden}
+.news-banner-art img{width:100%;height:100%;object-fit:cover;display:block}
+.news-banner-ph{width:100%;height:100%;display:grid;place-items:center;border:1.5px dashed var(--text-faint);border-radius:var(--radius-soft-sm);background:var(--card);color:var(--text-muted);font-size:12px}
+.news-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.news-main-title{font-size:20px;line-height:1.4;margin-top:10px}
+.news-main-benefit{font-weight:700;font-size:16px;margin-top:4px}
+.news-age{font-size:12px;font-weight:600;color:var(--text-muted)}
+.news-page .news-feature{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;padding:20px 24px;min-height:276px}
+.news-facts-box{padding:10px 14px;display:flex;flex-direction:column;justify-content:center}
+.news-facts{margin:0}
+.news-facts dt{flex:none;white-space:nowrap;font-size:13px}
+.news-facts dd{margin:0;text-align:right;font-size:13px}
+.news-facts .set-row{padding:5px 0;flex-wrap:nowrap;gap:12px}
+.news-filters{display:flex;flex-direction:column;gap:12px;background:var(--sunken);border-radius:var(--radius-soft);padding:20px 24px}
+/* 검색 · 지역 · 나이: 왼쪽에 이름표, 오른쪽에 입력 */
+.news-fields{gap:12px 24px;margin-top:4px;padding-top:16px;border-top:1px solid var(--line)}
+.news-fields .input{height:38px;font-size:14px}
+.news-field{display:flex;align-items:center;gap:10px;min-width:0}
+.news-field-k{flex:none;font-size:14px;font-weight:700;color:var(--text-sub)}
+.news-search{flex:1 1 240px}
+.news-search .input{flex:1;min-width:0}
+/* 회색 필터 박스(--sunken)와 구별되도록 선택 전 칩·입력은 카드색 + 테두리 */
+.news-filters .chip:not([aria-pressed="true"]),.news-filters .input{background-color:var(--card);border-color:var(--line)}
+.news-filters button.chip:not([aria-pressed="true"]):hover{background:var(--brand-softer)}
+/* 기본 화살표 대신 오른쪽 여백을 둔 꺾쇠(글자색 토큰을 따라 다크에서도 보임) */
+select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appearance:none;padding-right:40px;background-image:linear-gradient(45deg,transparent 50%,var(--text-sub) 50%),linear-gradient(135deg,var(--text-sub) 50%,transparent 50%);background-position:right 19px center,right 14px center;background-size:5px 5px;background-repeat:no-repeat}
+/* 필터 박스 아래 한 줄: 왼쪽 개수 · 필터 지우기 / 오른쪽 진행중 | 정렬(글자 버튼, 고른 것은 밑줄) */
+.news-count{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 12px;min-height:32px}
+.news-count-l{display:flex;align-items:center;gap:12px}
+.news-count-l .btn-text{font-size:13px}
+.news-sortbar{display:flex;align-items:center;gap:12px}
+.news-sortbar .check{font-size:13px}
+.news-sortbar-div{width:1px;height:14px;background:var(--line)}
+.news-sort{display:flex;gap:2px}
+.news-sort button{background:none;border:0;padding:4px 6px;border-radius:var(--radius-soft-sm);font-size:13px;font-weight:600;color:var(--text-muted)}
+.news-sort button:hover{color:var(--text)}
+.news-sort button[aria-pressed="true"]{color:var(--text);font-weight:700;text-decoration:underline;text-underline-offset:4px}
+/* 카드는 4줄(위 · 본문 · 공고문 · 아래). 목록 그리드의 줄을 subgrid로 나눠 써서 같은 줄 카드끼리 공고문 버튼·구분선 높이가 같다 */
+.news-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;grid-auto-rows:auto minmax(var(--news-body-min),auto) auto auto;--news-body-min:138px}
+.news-list .news-card{padding:16px;display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:10px;transition:border-color .15s}
+/* 마우스를 올리거나 키보드로 카드 안에 들어오면 테두리를 진하게 */
+.news-list .news-card:hover,.news-list .news-card:has(:focus-visible){border-color:var(--color-border-strong)}
+.news-card .news-corrected{font-size:12px;font-weight:700;color:var(--warn)}
+.news-card-acts{flex:none;display:flex;align-items:center;margin-right:-6px}
+.news-card-body{display:flex;flex-direction:column;gap:8px;min-width:0}
+.news-card-sum{font-size:14px;line-height:1.5;color:var(--text-sub);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.news-period{font-size:14px;margin-top:4px}
+.news-period b{margin-right:6px}
+.news-calc{align-self:flex-start;font-size:13px;font-weight:600;color:var(--brand-text)}
+.news-card-cta{display:flex;justify-content:flex-end;align-items:flex-end}
+.news-notice{height:32px;padding:0 12px;font-size:13px;color:var(--brand-text);border-color:var(--brand);background:var(--brand-softer)}
+.news-card-foot{padding-top:12px;border-top:1px solid var(--line)}
+/* 예시 표시는 칩 마지막 줄 오른쪽 끝 */
+.news-chips-ex{margin-left:auto;display:inline-flex;align-items:center;height:22px}
+/* 정보 칩: 분야는 회색 바탕으로 살짝 구분, 나머지는 흰 테두리 칩 */
+.news-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.news-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--radius-soft-sm);border:1px solid var(--color-border-strong);background:var(--card);color:var(--text-sub);font-size:12px;font-weight:600;white-space:nowrap}
+.news-chip.cat{background:var(--sunken);border-color:var(--color-border-strong);color:var(--text);font-weight:700}
+/* 소식 화면 마감 배지: 테두리 없이 D-9(calm)와 같은 모양. 7일 이내는 브랜드 블루 글자, 오늘 마감은 빨강 */
+.news-page .dday{border-color:transparent;background:var(--brand-soft)}
+.news-page .dday.calm{background:var(--sunken)}
+.news-page .dday.urgent{background:var(--danger-soft);color:var(--danger)}
+/* 소식 화면은 목록을 넓게: 저장함을 320px로 고정(홈의 .g84는 그대로). 1023px 이하는 한 단 */
+@media (min-width:1024px){.news-page .g84{grid-template-columns:minmax(0,1fr) 320px}}
+.news-rail{max-height:calc(100vh - 96px);overflow:auto}
+.news-rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.news-saved-toggle{display:none}
+.news-saved-empty{padding:8px 0}
+.news-saved-list{list-style:none;margin:0;padding:0}
+.news-saved-item{padding:12px 0;border-bottom:1px solid var(--line)}
+.news-saved-item.closed .news-saved-title{color:var(--text-muted)}
+.news-saved-title{font-size:14px;font-weight:700;line-height:1.45}
+.news-saved-acts{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}
+.news-saved-acts .spacer{flex:1}
+.news-remove{font-size:13px;color:var(--text-muted)}
+@media (max-width:1023px){
+  .news-rail{order:-1;max-height:none}
+  .news-saved-toggle{display:inline-flex}
+  .news-rail.collapsed .news-saved-body{display:none}
+  .news-rail.collapsed .news-rail-head{margin-bottom:0}
+}
+@media (max-width:1279px){
+  .news-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:767px){
+  .news-banner{min-height:0;padding:20px}
+  .news-banner-art{display:none}
+  .news-banner-main{font-size:20px;line-height:28px}
+  .news-list{grid-template-columns:minmax(0,1fr)}
+  .news-filters .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+  .news-filters .news-field:not(.news-search){flex:1 1 140px}
+  select.news-select{flex:1;min-width:0}
+  .news-filters{padding:16px}
+}

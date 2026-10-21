@@ -28,7 +28,10 @@ function h(tag: string, props: Props = {}, ...kids: (Node | string | null)[]) {
 
 /** 차트 한 줄(종목). values·invested는 점마다 원 단위. */
 export type ChartLeg = { name: string; color: string; values: number[]; invested: number[] };
-/** 사건 핀. change는 그 주 등락률(p)과 그때 내 돈 변화(diff, 넣은 돈 제외). leg는 종목 줄 번호, null이면 시장 전체. */
+/**
+ * 사건 핀. change는 사건 기간 등락률(p)과 그때 내 돈 변화(diff, 넣은 돈 제외). leg는 종목 줄 번호, null이면 시장 전체.
+ * days·period를 주면 툴팁에 그대로 쓰고(서버 사건), 없으면 그 주 5거래일로 본다(랜딩 예시).
+ */
 export type ChartEvent = {
   id: string;
   idx: number;
@@ -37,6 +40,8 @@ export type ChartEvent = {
   leg: number | null;
   sourceName: string;
   change: { p: number; before: number; diff: number };
+  days?: number;
+  period?: string;
 };
 export type ChartData = {
   dates: Date[]; // 점마다 x축 날짜(주 시작일)
@@ -66,6 +71,8 @@ export type TimeChartOptions = {
   onHover?: () => void;
   onSelect?: (id: string) => void;
   onZoom?: (from: number, to: number) => void;
+  /** 묶음 핀을 더 확대해도 풀 수 없을 때(같은 주에 겹친 사건 등) 그 사건들의 id. 없으면 첫 사건을 고른다. */
+  onPickMany?: (ids: string[]) => void;
 };
 
 export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
@@ -236,13 +243,24 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const yv = Y(lineFor(ref)[ref.idx]);
     const y = Math.max(m.t - 16, Math.min(H - m.b + 6, kind === 'fall' ? yv + 22 : yv - 22));
     const cluster = items.length > 1;
+    // 묶음을 누르면 확대: 앞뒤 여유를 두고, 이미 그만큼 확대돼 있으면 더 좁게. 같은 주에 겹쳐 확대로 풀 수 없으면 사건 고르기
+    const first = items[0].idx;
+    const last = items[items.length - 1].idx;
+    const zoomTo = [
+      [Math.max(0, first - 6), Math.min(N - 1, last + 8)],
+      [Math.max(0, first - 2), Math.min(N - 1, last + 2)],
+    ].find(([a, b]) => b - a < to - from);
+    const canZoom = cluster && first !== last && zoomTo != null;
     const b = h('button', { cls: 'pin ' + (cluster ? 'cluster ' : '') + kind, type: 'button', tabindex: '-1' }) as HTMLButtonElement;
     b.style.left = x + 'px';
     b.style.top = y + 'px';
     b.append(h('span', { cls: 'dot', 'aria-hidden': 'true', text: cluster ? String(items.length) : kind === 'rise' ? '▲' : kind === 'fall' ? '▼' : 'i' }));
     svg('line', { x1: x, x2: x, y1: yv, y2: y + (y > yv ? -9 : 9), style: 'stroke:var(--text-muted);stroke-width:1;pointer-events:none' }, s);
     if (cluster) {
-      b.setAttribute('aria-label', `사건 ${items.length}개 묶음, ${fmtYM(WEEKS[items[0].idx])}부터 ${fmtYM(WEEKS[items[items.length - 1].idx])}. 누르면 이 기간을 확대해요`);
+      b.setAttribute(
+        'aria-label',
+        `사건 ${items.length}개 묶음, ${fmtYM(WEEKS[first])}부터 ${fmtYM(WEEKS[last])}. ${canZoom ? '누르면 이 기간을 확대해요' : '누르면 사건을 골라 볼 수 있어요'}`,
+      );
     } else {
       const c = ref.change;
       const kTxt = ref.kind === 'rise' ? '급등' : ref.kind === 'fall' ? '급락' : '참고';
@@ -257,14 +275,14 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
           const c = e.change;
           tip.append(h('div', { cls: 't-row' }, h('span', { text: `${fmtYM(WEEKS[e.idx])} ${e.title}` }), h('b', { cls: 'num ' + cls(c.p), text: `${arrow(c.p)}${pctTxt(c.p)}` })));
         });
-        tip.append(h('div', { cls: 't-more', text: '눌러서 이 기간 확대' }));
+        tip.append(h('div', { cls: 't-more', text: canZoom ? '눌러서 이 기간 확대' : '눌러서 사건 고르기' }));
       } else {
         const c = ref.change;
-        if (ref.kind !== 'info') tip.append(h('div', { cls: 't-val num ' + cls(c.p), text: `${arrow(c.p)} ${pctTxt(c.p)} · 5거래일` }));
+        if (ref.kind !== 'info') tip.append(h('div', { cls: 't-val num ' + cls(c.p), text: `${arrow(c.p)} ${pctTxt(c.p)} · ${ref.days ?? 5}거래일` }));
         tip.append(h('div', { cls: 't-title', text: ref.title }));
-        tip.append(h('div', { text: `${evPeriod(WEEKS, ref.idx)} · ${ref.leg == null ? '시장 전체' : (d.legs[ref.leg]?.name ?? '')}` }));
+        tip.append(h('div', { text: `${ref.period ?? evPeriod(WEEKS, ref.idx)} · ${ref.leg == null ? '시장 전체' : (d.legs[ref.leg]?.name ?? '')}` }));
         if (ref.kind !== 'info' && c.before > 0) tip.append(h('div', {}, '이때 내 돈 ', h('b', { cls: 'num', style: 'color:var(--text)', text: signWon(c.diff) })));
-        tip.append(h('div', { cls: 'meta', text: '출처: ' + ref.sourceName }));
+        if (ref.sourceName) tip.append(h('div', { cls: 'meta', text: '출처: ' + ref.sourceName }));
         tip.append(h('div', { cls: 't-more', text: '눌러서 이유 보기' }));
       }
       placeTip(x, y);
@@ -275,8 +293,9 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     b.addEventListener('mouseleave', () => (tip.hidden = true));
     b.addEventListener('blur', () => (tip.hidden = true));
     b.addEventListener('click', () => {
-      if (cluster) o.onZoom?.(Math.max(0, items[0].idx - 6), Math.min(N - 1, items[items.length - 1].idx + 8));
-      else o.onSelect?.(ref.id);
+      if (canZoom && zoomTo) o.onZoom?.(zoomTo[0], zoomTo[1]);
+      else if (cluster && o.onPickMany) o.onPickMany(items.map((e) => e.id));
+      else o.onSelect?.(cluster ? items[0].id : ref.id);
     });
     layer.append(b);
     btns.push(b);

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChartData } from '@/charts/drawTimeChart';
+import { SeriesKey } from '@/charts/SeriesKey';
 import { TimeChart } from '@/charts/TimeChart';
 import { EventPanel, eventPeriod } from '@/components/EventPanel';
 import { Icon } from '@/components/Icons';
@@ -306,7 +307,7 @@ export default function Invest() {
                     <div className="chips" id="tmPicked">
                       {picked.map((p, j) => (
                         <span key={p.id} className="chip" style={{ background: 'var(--card)', borderColor: 'var(--line)', height: 36 }}>
-                          <i style={{ width: 10, height: 3, background: COLORS[j], display: 'inline-block', borderRadius: 2 }} />
+                          <SeriesKey index={j} color={COLORS[j]} />
                           {p.name}
                           <b className="num" style={{ color: 'var(--text)' }}>{weights[j]}%</b>
                           <button type="button" className="btn-text" aria-label={`${p.name} 빼기`} style={{ color: 'var(--text-muted)' }} onClick={() => toggle(p)}>
@@ -537,7 +538,7 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
         <div>
           {picked.map((p, j) => (
             <label key={p.id} className="weight-row">
-              <i style={{ width: 12, height: 12, borderRadius: 3, background: COLORS[j] }} />
+              <SeriesKey index={j} color={COLORS[j]} />
               <span style={{ fontWeight: 600 }}>{p.name}</span>
               <span style={{ position: 'relative' }}>
                 <input
@@ -730,7 +731,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
           <>
             {r.legs.map((l, j) => (
               <span key={l.id}>
-                <i style={{ color: COLORS[j] }} />
+                <SeriesKey index={j} color={COLORS[j]} />
                 {l.name} {Math.round(l.weight * 100)}%
               </span>
             ))}
@@ -859,7 +860,7 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
               </th>
               {r.legs.map((l, j) => (
                 <th key={l.id} scope="col" className="r">
-                  <i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: COLORS[j], marginRight: 4 }} />
+                  <SeriesKey index={j} color={COLORS[j]} />
                   {l.name}
                 </th>
               ))}

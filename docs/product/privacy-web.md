@@ -23,7 +23,7 @@
 | 서버 오류 기록의 회원 번호 | `AppLinkService` 경고·오류 로그의 `userId`(이메일·linkId는 남기지 않음) |
 | 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음 |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
-| 연동 해제·앱 해제 확인 시 파기 | `AppLinkService.unlink`, `sync`의 `LINK_NOT_FOUND` 처리 |
+| 연동 해제·앱 해제·앱 탈퇴 확인 시 파기 | `AppLinkService.unlink`, `sync`의 `LINK_NOT_FOUND` 처리(앱 탈퇴 시 앱이 연동을 함께 지우므로 같은 경로). 웹이 주기적으로 확인하지는 않고 다음 조회 때 파기한다 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(`LoginAttemptLimiter`, 연동 코드 제한) |
 | 비회원 체험은 서버 저장 없음 | 로그인 전 화면은 예시 데이터만 사용(`isSample`) |
 
@@ -43,13 +43,14 @@
 ## 4. 앱 쪽과 맞출 것
 
 - 앱 방침에 "이용자가 웹 연동을 하면 웹(같은 운영자)에서 이용하는 항목·목적, 앱 설정에서 해제 가능"을 넣는다. 앱 담당 협의안(flexable-app `docs/web-seed-entries-handoff.md`)의 문구를 기준으로 하되, 항목 목록은 이 문서 2와 같게 맞춘다.
+  - **반영됨(2026-10-21):** 앱 1.4.0 production 원격 업데이트를 2026-10-21 17:51 KST에 게시했다(업데이트 그룹 `5822362e-5688-4c1e-a22b-ced4e06e0bf0`, 앱 커밋 `7097b55`, 실기기 반영 확인). 앱 방침 개정(2026-10-28 시행)과 연동 코드 발급 전 선택 동의가 들어 있다. 앱 방침의 웹 연동 보유 기간에 "앱 회원 탈퇴"가 들어가(앱 탈퇴 시 연동도 함께 삭제) 웹 방침 3·4항도 같이 맞췄다.
 - **주기별 반영 기록·시작일(`startedOn`)**: 앱 API는 구현됐고 배포 전이다. 웹이 이를 받아 저장하는 코드가 배포되는 날 웹 방침 1항 "앱 연동"에 "주기별 반영 기록(주기 종료일·방법·금액·반영 후 합계·반영 일시), 시작일"을 더하고 같은 날 시행한다.
 - 앱 HANDOFF의 "이후 유동자산 집계"는 04 §5-2 범위 밖이다. 넘기려면 04와 두 방침을 먼저 고친다.
 
 ## 5. 시행 절차
 
 1. 3의 확인 필요 항목을 모두 채운다(`Privacy.tsx`에 "확인 필요"가 남아 있으면 시행하지 않는다).
-2. 시행일을 정한다. 웹 백엔드로 가입을 받기 **전**이어야 하며, 앱 방침 개정과 같은 날로 맞추는 것을 권한다.
+2. 시행일을 정한다. 웹 백엔드로 가입을 받기 **전**이어야 하며, 앱 방침 개정과 같은 날(앱 1.4.0 개정 시행일 2026-10-28)로 맞추는 것을 권한다. 3의 확인 필요 항목이 그때까지 채워지지 않으면 이후 날짜로 정한다.
 3. 시행 7일 전: `/privacy` 초안 안내를 "○월 ○일 시행 예정"으로 바꾸고 웹에 알린다.
 4. 시행일: `lib/legal.ts`의 `WEB_PRIVACY_EFFECTIVE`에 날짜를 넣어 가입·로그인·하단 링크를 웹 방침으로 바꾼다. `APP_LINK_BASE_URL`은 이 뒤에 넣는다([HANDOFF](HANDOFF.md)).
 5. 이미 앱 방침에 동의하고 웹 백엔드로 가입한 회원이 있으면, 시행일에 다시 동의를 받을지 정한다(웹 백엔드 운영 전이면 해당 없음).

@@ -67,7 +67,7 @@
 |---|---|---|
 | 앱 회원 정보: 이메일·로그인 방법(`email`은 소셜 계정이면 null 가능, `provider` = email·kakao·google) | `GET /internal/v1/web-links/{linkId}/profile` | 화면 표시용 최소값만 |
 | 시드머니(앱에서 확정한 값): `total`(모아둔 돈 + 반영한 돈), `base`(모아둔 돈), `monthlyGoal`(매달 저축할 돈), `lastEntry`(마지막 반영: 주기 끝 날짜·방법·금액), `updatedAt` | `GET /internal/v1/web-links/{linkId}/seed-money`. 앱 예산 설정 전이면 404 `BUDGET_NOT_SET` | 마지막 값과 받은 시각(`app_links`, 연동과 함께 삭제) |
-| 주기별 반영 기록(2026-10-20 결정, **앱 API 추가 예정**): 수입일 직전 반영 창에서 사용자가 세 방법 중 하나로 반영을 마친 주기마다 1건 — 주기 끝 날짜·방법·금액·반영 직후 시드머니 합계·반영 시각. 반영하지 않고 넘어간 주기는 기록이 없다 | `GET /internal/v1/web-links/{linkId}/seed-money`의 `entries`(추가 예정) | 받은 기록(연동과 함께 삭제). 홈의 '시드머니가 쌓인 모양' 꺾은선에 쓴다 |
+| 주기별 반영 기록(2026-10-20 결정, 앱 API main 머지·웹 저장 10-21 구현): 수입일 직전 반영 창에서 사용자가 세 방법 중 하나로 반영을 마친 주기마다 1건 — 주기 끝 날짜·방법·금액·반영 직후 시드머니 합계·반영 시각. 반영하지 않고 넘어간 주기는 기록이 없다 | `GET /internal/v1/web-links/{linkId}/seed-money`의 `startedOn`·`entries` | 받은 기록(`app_link_entries`, 연동과 함께 삭제). 홈의 '시드머니가 쌓인 모양' 꺾은선에 쓴다 |
 
 거래 목록·카테고리 같은 원본 기록은 넘기지 않는다. 금액 계산은 project2가 하고 웹은 다시 계산하지 않는다(누적 합계도 앱이 기록마다 준다). 시드머니는 앱에서 사용자가 수입일 전날 확정한 값이라(2026-10-20 결정, [decisions](decisions.md) ②) 수입일 즈음에만 바뀐다. 반영 대기(`pending`)와 반영 창의 후보 금액은 넘기지 않는다. 주기별 기록은 사용자가 반영을 마친 확정 기록만 넘긴다(2026-10-20 범위 확대). 정확한 응답 형식은 [앱 API 문서](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) "웹사이트 연동"·"시드머니". 정보 범위를 넓힐 때는 이 표부터 고친다.
 

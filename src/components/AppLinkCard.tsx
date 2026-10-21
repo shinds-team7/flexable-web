@@ -81,9 +81,20 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
         </p>
       )}
       <p className="v">
-        앱 <b>설정 › 웹 연동 코드 받기</b>에서 받은 8자리 코드를 입력해 주세요. 코드는 10분 동안 한 번만 쓸 수 있어요. 연동하면 앱의 로그인 방법·이메일과
-        앱에서 확정한 시드머니만 불러오고, 거래 기록은 불러오지 않아요.
+        앱 <b>설정 › 웹 연동 코드 받기</b>에서 받은 8자리 코드를 입력해 주세요. 코드는 10분 동안 한 번만 쓸 수 있어요.
       </p>
+      <div className="card-sunken" id="app-link-items">
+        <p className="k">연동하면 앱에서 불러오는 정보</p>
+        <ul className="meta" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+          <li>앱 계정의 로그인 방법과 이메일(없을 수 있음)</li>
+          <li>앱에서 확정한 시드머니: 합계·모아둔 돈·매달 저축할 돈·시작일·갱신 일시</li>
+          <li>주기별 반영 기록: 주기 종료일·반영 방법·금액·반영 후 합계·반영 일시</li>
+        </ul>
+        <p className="meta" style={{ marginTop: 4 }}>
+          시드머니를 웹에서 보여 주고 투자·적금 시뮬레이션에 쓰기 위해서예요. 거래 기록은 불러오지 않고, 연동하는 동안만 보관하며 해제하면 바로 지워요.
+          자세한 내용은 <a href="/privacy">웹 개인정보처리방침</a>에 있어요.
+        </p>
+      </div>
       <form className="row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={submit}>
         <div className="field" style={{ flex: '1 1 200px' }}>
           <label htmlFor="app-link-code">연동 코드</label>
@@ -100,8 +111,8 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
             onChange={(e) => setCode(e.target.value.toUpperCase())}
           />
         </div>
-        <button className="btn btn-primary" disabled={link.isPending || code.trim() === ''}>
-          {link.isPending ? '연동하는 중…' : '앱 연동하기'}
+        <button className="btn btn-primary" disabled={link.isPending || code.trim() === ''} aria-describedby="app-link-items">
+          {link.isPending ? '연동하는 중…' : '동의하고 연동하기'}
         </button>
       </form>
       {link.isError && (

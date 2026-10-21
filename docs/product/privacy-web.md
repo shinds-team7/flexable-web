@@ -17,6 +17,7 @@
 | 이메일, 비밀번호(BCrypt) | `users.email`(user), `user_credentials.password_hash`(auth, `SecurityConfig` BCrypt) |
 | 카카오·Google 회원 식별값, 확인된 이메일 | `user_identities`(auth). 확인되지 않은 이메일은 저장하지 않음(`RestOAuthProviderClient`·`OAuthUserService`) |
 | 앱 연동 항목 | `app_links`(applink, V3): `app_email`·`app_provider`, `seed_*`, `link_id_cipher`(AES-256-GCM, `LinkIdCipher`) |
+| 시작일·주기별 반영 기록 | `app_links.seed_started_on`, `app_link_entries`(V6: 주기 종료일·방법·금액·반영 후 합계·반영 일시). 조회마다 통째로 바꾸고 연동 행 삭제 시 함께 삭제(FK CASCADE) |
 | 동의·가입 일시, 가입 방법 | `users.terms_agreed_at`·`privacy_agreed_at`·`created_at`, `user_identities.provider` |
 | 화면 설정 | `user_settings`(theme·seen_tours·disclaimer_ack_at) |
 | 연동 일시·마지막 조회 일시 | `app_links.created_at`·`synced_at`·`checked_at` |

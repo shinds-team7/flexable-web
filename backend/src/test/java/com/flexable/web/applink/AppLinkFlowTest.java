@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -44,6 +45,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import com.flexable.web.applink.AppApiClient.AppProfile;
 import com.flexable.web.applink.AppApiClient.AppSeedMoney;
 import com.flexable.web.applink.AppApiClient.CreatedLink;
+import com.flexable.web.applink.AppApiClient.Entry;
 import com.flexable.web.applink.AppApiClient.LastEntry;
 import com.flexable.web.applink.AppApiException.Kind;
 import com.jayway.jsonpath.JsonPath;
@@ -233,6 +235,66 @@ class AppLinkFlowTest {
 		lookup(token).andExpect(jsonPath("$.linked").value(false)).andExpect(jsonPath("$.reason").value("app_unlinked"));
 		assertThat(rows(userId(token))).isZero();
 		lookup(token).andExpect(jsonPath("$.linked").value(false)).andExpect(jsonPath("$.reason").isEmpty());
+	}
+
+	/** 주기별 반영 기록은 조회마다 통째로 바뀌고, /me/seed-money로 그대로 나가며, 해제하면 함께 지워진다. */
+	@Test
+	void seedEntriesAreReplacedAndServedAsSeedMoney() throws Exception {
+		String token = signup();
+		mvc.perform(get("/api/v1/me/seed-money").header("Authorization", "Bearer " + token))
+			.andExpect(status().isOk()).andExpect(jsonPath("$.source").value("none")).andExpect(jsonPath("$.total").isEmpty());
+
+		OffsetDateTime at = OffsetDateTime.parse("2026-09-25T20:10:00+09:00");
+		when(app.seedMoney(anyString())).thenReturn(new AppSeedMoney(1_450_000, 500_000, 300_000,
+				new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 650_000, at), at, LocalDate.parse("2026-06-26"),
+				List.of(new Entry(LocalDate.parse("2026-07-25"), "GOAL", 300_000, 800_000, at),
+						new Entry(LocalDate.parse("2026-08-25"), "MANUAL", 0, 800_000, at),
+						new Entry(LocalDate.parse("2026-09-25"), "ALL", 650_000, 1_450_000, at))));
+		link(token, CODE).andExpect(status().isCreated())
+			.andExpect(jsonPath("$.seedMoney.startedOn").value("2026-06-26"))
+			.andExpect(jsonPath("$.seedMoney.entries.length()").value(3));
+		long linkRow = jdbc.queryForObject("SELECT id FROM app_links WHERE user_id = ?", Long.class, userId(token));
+
+		mvc.perform(get("/api/v1/me/seed-money").header("Authorization", "Bearer " + token))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.source").value("app"))
+			.andExpect(jsonPath("$.status").value("available"))
+			.andExpect(jsonPath("$.total").value(1_450_000))
+			.andExpect(jsonPath("$.base").value(500_000))
+			.andExpect(jsonPath("$.startedOn").value("2026-06-26"))
+			.andExpect(jsonPath("$.entries[0].cycleEnd").value("2026-07-25"))
+			.andExpect(jsonPath("$.entries[1].amount").value(0))
+			.andExpect(jsonPath("$.entries[2].totalAfter").value(1_450_000))
+			.andExpect(jsonPath("$.entries[2].createdAt", endsWith("+09:00")))
+			.andExpect(jsonPath("$.sync.status").value("fresh"));
+
+		// 모아둔 돈을 고치면 앱이 누적값을 다시 계산해 준다. 웹은 받은 대로 바꾼다.
+		when(app.seedMoney(anyString())).thenReturn(new AppSeedMoney(1_550_000, 600_000, 300_000,
+				new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 650_000, at), at, LocalDate.parse("2026-06-26"),
+				List.of(new Entry(LocalDate.parse("2026-09-25"), "ALL", 950_000, 1_550_000, at))));
+		lookup(token).andExpect(jsonPath("$.seedMoney.entries.length()").value(1))
+			.andExpect(jsonPath("$.seedMoney.entries[0].totalAfter").value(1_550_000));
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
+			.isEqualTo(1);
+
+		// 예산 설정 전으로 바뀌면 기록도 지운다
+		when(app.seedMoney(anyString())).thenThrow(new AppApiException(Kind.BUDGET_NOT_SET));
+		lookup(token).andExpect(jsonPath("$.seedMoney.status").value("budget_not_set"))
+			.andExpect(jsonPath("$.seedMoney.entries").isEmpty());
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
+			.isZero();
+
+		reset(app);
+		when(app.enabled()).thenReturn(true);
+		when(app.profile(anyString())).thenReturn(PROFILE);
+		when(app.seedMoney(anyString())).thenReturn(new AppSeedMoney(1_450_000, 500_000, 300_000, null, at,
+				LocalDate.parse("2026-06-26"), List.of(new Entry(LocalDate.parse("2026-07-25"), "GOAL", 300_000, 800_000, at))));
+		lookup(token).andExpect(jsonPath("$.seedMoney.entries.length()").value(1));
+		unlink(token).andExpect(status().isNoContent());
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
+			.isZero();
+		mvc.perform(get("/api/v1/me/seed-money").header("Authorization", "Bearer " + token))
+			.andExpect(jsonPath("$.source").value("none"));
 	}
 
 	@Test

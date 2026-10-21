@@ -1,8 +1,9 @@
-// 시드머니가 쌓인 모양: 정산 주기마다 누적액을 잇는 꺾은선 그래프. 점마다 그 주기에 남긴 돈을 툴팁으로 보여 준다.
+// 시드머니가 쌓인 모양: 정산 주기마다 누적액을 잇는 꺾은선 그래프. 점마다 그 주기에 반영한 돈을 툴팁으로 보여 준다.
+// 첫 점은 시작일의 모아둔 돈(saved=null)일 수 있다. 누적액은 앱이 준 값이고 여기서 계산하지 않는다.
 import { useEffect, useRef, useState } from 'react';
 import { krShort, niceTicks, won } from '@/lib/format';
 
-export type SeedPoint = { month: string; saved: number; cum: number }; // month: "2026-04"
+export type SeedPoint = { date: string; saved: number | null; cum: number }; // date: "2026-04-25", saved=null이면 시작점
 
 const H = 260;
 const M = { l: 56, r: 20, t: 20, b: 32 };
@@ -27,10 +28,12 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
   const hi = ticks[ticks.length - 1];
   const step = data.length > 1 ? (W - M.l - M.r) / (data.length - 1) : 0;
   const X = (i: number) => (data.length > 1 ? M.l + step * i : (M.l + W - M.r) / 2);
-  const Y = (v: number) => M.t + (1 - (v - lo) / (hi - lo)) * (H - M.t - M.b);
+  const Y = (v: number) => M.t + (1 - (v - lo) / (hi - lo || 1)) * (H - M.t - M.b);
   const line = data.map((d, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(d.cum).toFixed(1)}`).join(' ');
   const label = (m: string, i: number) => {
     const [y, mo] = m.split('-').map(Number);
+    const prev = i > 0 ? data[i - 1].date.slice(0, 7) : '';
+    if (i > 0 && prev === m.slice(0, 7)) return `${mo}.${Number(m.slice(8, 10))}`;
     return mo === 1 || i === 0 ? `${y}.${String(mo).padStart(2, '0')}` : `${mo}월`;
   };
   const every = data.length <= 12 ? 1 : 3;
@@ -43,7 +46,7 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
   };
 
   const h = hover != null ? data[hover] : null;
-  const [hy, hm] = h ? h.month.split('-').map(Number) : [0, 0];
+  const [hy, hm, hd] = h ? h.date.split('-').map(Number) : [0, 0, 0];
   const tipLeft = hover != null ? (X(hover) + 12 + 200 > W ? X(hover) - 212 : X(hover) + 12) : 0;
   const tipTop = h ? Math.max(0, Y(h.cum) - 84) : 0;
 
@@ -60,8 +63,8 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
         ))}
         {data.map((d, i) =>
           i % every === 0 || i === last ? (
-            <text key={d.month} className="axis-t" x={X(i)} y={H - 10} textAnchor="middle">
-              {label(d.month, i)}
+            <text key={i} className="axis-t" x={X(i)} y={H - 10} textAnchor="middle">
+              {label(d.date, i)}
             </text>
           ) : null,
         )}
@@ -69,7 +72,7 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
         <path d={line} style={{ fill: 'none', stroke: 'var(--brand)', strokeWidth: 2.5, strokeLinejoin: 'round', strokeLinecap: 'round' }} />
         {data.map((d, i) => (
           <circle
-            key={d.month}
+            key={i}
             cx={X(i)}
             cy={Y(d.cum)}
             r={hover === i || i === last ? 5 : 3.5}
@@ -80,15 +83,13 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
       </svg>
       {h && (
         <div className="tip" style={{ left: tipLeft, top: tipTop, width: 200 }}>
-          <div className="meta">
-            {hy}년 {hm}월 정산
-          </div>
+          <div className="meta">{h.saved == null ? `${hy}년 ${hm}월 ${hd}일 시작` : `${hy}년 ${hm}월 ${hd}일 정산`}</div>
           <div className="t-val num">{won(h.cum)}원</div>
-          <div>그 주기에 남긴 돈 {won(h.saved)}원</div>
+          <div>{h.saved == null ? '처음 모아둔 돈' : `그 주기에 반영한 돈 ${won(h.saved)}원`}</div>
         </div>
       )}
       <p className="sr-only">
-        {data.map((d) => `${d.month} 누적 ${won(d.cum)}원`).join(', ')}
+        {data.map((d) => `${d.date} ${d.saved == null ? '시작' : '누적'} ${won(d.cum)}원`).join(', ')}
       </p>
     </div>
   );

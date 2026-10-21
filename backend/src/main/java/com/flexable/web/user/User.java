@@ -23,7 +23,8 @@ public class User {
 	@Column(name = "terms_agreed_at", nullable = false)
 	private Instant termsAgreedAt;
 
-	@Column(name = "privacy_agreed_at", nullable = false)
+	/** 2026-10-21 전 가입자의 개인정보 수집·이용 동의(필수) 시각. 이후 가입자는 동의 대신 방침 안내라 null(V7) */
+	@Column(name = "privacy_agreed_at")
 	private Instant privacyAgreedAt;
 
 	@Column(name = "created_at", nullable = false)
@@ -35,7 +36,6 @@ public class User {
 	User(String email, Instant now) {
 		this.email = email;
 		this.termsAgreedAt = now;
-		this.privacyAgreedAt = now;
 		this.createdAt = now;
 	}
 

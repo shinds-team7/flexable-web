@@ -2,12 +2,33 @@
 
 > 2026-10-20 결정([decisions](decisions.md) ⑤): 웹과 앱은 **같은 운영자**(ucmnuniverse)지만 계정·서버·DB가 따로라 개인정보처리방침을 **각자** 둔다. 원문은 웹 [`src/pages/Privacy.tsx`](../../src/pages/Privacy.tsx)(`/privacy`), 앱은 앱 웹 `/privacy`(flexable-app `docs/play-store/privacy-policy.md`). 웹 방침은 **2026-10-21 시행**(`lib/legal.ts` `WEB_PRIVACY_EFFECTIVE`). 처음 10-28(7일 고지)로 잡았다가 앱 연동을 10-21부터 켜기로 해(사용자 결정) 당겼다. 웹 백엔드(solpa)가 10-21에 처음 열린 서비스라 바꾸는 방침이 아니라 첫 방침으로 보고 바로 시행한다(법적 판단 최종 확인은 담당자). 시행일 코드는 날짜로 링크를 바꾸므로(시행 전에는 `/privacy` "시행 예정"·하단 시행 안내) 다음 개정에도 쓴다. `VITE_API_URL`로 앱 서버를 부르는 배포(지금 Vercel)는 회원 정보를 앱 서버가 처리하므로 계속 앱 방침을 가리킨다.
 
+## 0. 2026-10-21 법률 검토 반영
+
+외부 법률 검토 의견(코드·서버·계약서를 직접 검증한 의견서는 아님)을 받아 방침을 13개 조로 다시 썼다. 결정과 남은 확인:
+
+| 검토 쟁점 | 반영 |
+|---|---|
+| 개인정보처리자 식별 | **강선후**(운영 이름 ucmnuniverse)를 처리자·보호책임자로 적는다(사용자 결정). 앱 방침도 같게 맞춘다 |
+| 방침 전체 동의 ≠ 처리 근거 | 가입·로그인·설정은 계약 이행(법 15조1항4호)으로 처리하고 가입 화면은 **안내**만 한다(사용자 결정). 웹 백엔드 가입은 `agreePrivacy`를 받지 않고 `users.privacy_agreed_at`은 V7부터 NULL 허용(그 전 가입자의 동의 시각은 그대로). 앱 서버를 부르는 배포(Vercel)는 앱 가입 규칙대로 체크박스 유지 |
+| 앱 연동은 선택 동의 | 웹 연동 카드에 처리자·목적·항목·보유 기간·거부 권리와 영향을 보여 주고 [동의하고 연동하기]. 앱 코드 발급 화면에도 같은 동의(앱 담당) |
+| 앱 해제가 "다음 조회 때"만 반영 | `AppLinkRecheckJob`이 매일 03:20(KST) 모든 연동을 다시 확인 → 앱 해제·탈퇴는 늦어도 다음 날 새벽 반영 |
+| 탈퇴 "즉시 모든 정보 파기" | 운영 DB(지체 없이)·백업(최대 7일)·기록(최대 7일)을 나눠 적음. 백업 복원 시 삭제 재적용 절차는 `deploy/vm/README.md` |
+| 로그 50MB(용량만) | 접속·오류 기록 **최대 7일**(사용자 결정). `deploy/vm/purge-logs.sh` 매주 root cron |
+| 백업 `-mtime +7`은 8일째 삭제 | `backup.sh`를 분 단위(`7일 − 1시간`)로 바꿔 만든 때부터 최대 7일 |
+| 관리자 접근 기록 1년 | 일반 접속 기록과 구분. VM `auth.log` 1년 보관(logrotate)·월 1회 점검, VM 종료 전 반출(`deploy/vm/README.md`) |
+| Vercel 행 | solpa 화면은 VM nginx가 직접 제공해 Vercel이 처리하지 않음 → 웹 방침에서 뺐다. Vercel 배포는 앱 계정·앱 방침(제1조3항) |
+| 국외 이전 | 웹 서버·DB는 국내. **문의 메일 Gmail(Google LLC, 미국 등)**을 국외 보관으로 적음(사용자 결정). 문의 처리 후 30일 이내 삭제를 운영자가 지켜야 함 |
+| 실패 제한 10분 | 실제 동작대로: 각 실패 시각부터 10분, 메모리에서는 다음 정리 때·재시작 때 삭제 |
+| 시행일 10-21 | solpa 백엔드가 10-21 처음 열렸고 그 전 가입은 팀 시험 계정뿐. 같은 날 보완해 변경 이력에 적음 |
+
+**남은 확인(운영자)**: ① 대한상공회의소의 정확한 기관명·재수탁·VM 스냅숏/백업 여부와 보관 기간(아카데미에 문의) ② 위탁 관계 문서(목적 외 처리 금지·안전조치·종료 시 파기)를 아카데미와 주고받을 수 있는지 ③ 오늘 solpa에서 만든 시험 계정 정리 ④ 문의 메일 30일 삭제 습관 ⑤ 만 14세 미만 가입 제한을 화면 문구 말고 확인 절차로 둘지.
+
 ## 1. 원칙
 
 - **구현 기준으로 쓴다.** 실제로 처리하는 것만, 실제 동작대로(삭제 시점 등은 코드 그대로) 적는다. 계획만 있는 기능(사용 지표 이벤트, 결제 등)은 넣지 않고 도입 전에 개정한다(사용 지표는 decisions 확정 16).
 - 배포 전 항목은 배포와 같은 날 시행되게 넣는다(예: 앱 주기별 반영 기록 — 아래 4).
 - 운영자·보호책임자·문의처·권리 행사·만 14세 미만·변경 고지(시행 7일 전) 문구는 앱 방침과 **같게** 유지한다.
-- 같은 운영자 안의 이동이므로 앱→웹 연동은 제3자 제공이 아니라 이용자가 연동했을 때의 이용으로 적는다. 양쪽 방침의 "제3자에게 제공하지 않음" 문구는 유지한다. 법적 판단의 최종 확인은 담당자가 한다.
+- 앱·웹 모두 강선후가 처리자이므로 앱→웹 연동은 제3자 제공이 아니라 같은 처리자의 선택 동의 기반 이용으로 적는다(법 15조1항1호). 처리자가 달라지면 제3자 제공으로 다시 설계한다.
 - **코드를 바꿔 웹이 처리하는 개인정보가 달라지면 같은 PR에서 이 문서의 표와 `Privacy.tsx`를 고친다**(AGENTS.md).
 
 ## 2. 방침 항목 ↔ 근거
@@ -18,18 +39,21 @@
 | 카카오·Google 회원 식별값, 확인된 이메일 | `user_identities`(auth). 확인되지 않은 이메일은 저장하지 않음(`RestOAuthProviderClient`·`OAuthUserService`) |
 | 앱 연동 항목 | `app_links`(applink, V3): `app_email`·`app_provider`, `seed_*`, `link_id_cipher`(AES-256-GCM, `LinkIdCipher`) |
 | 시작일·주기별 반영 기록 | `app_links.seed_started_on`, `app_link_entries`(V6: 주기 종료일·방법·금액·반영 후 합계·반영 일시). 조회마다 통째로 바꾸고 연동 행 삭제 시 함께 삭제(FK CASCADE) |
-| 동의·가입 일시, 가입 방법 | `users.terms_agreed_at`·`privacy_agreed_at`·`created_at`, `user_identities.provider` |
+| 동의·가입 일시, 가입 방법 | `users.terms_agreed_at`·`created_at`, `user_identities.provider`. `privacy_agreed_at`은 10-21 전 가입자만(V7) |
 | 화면 설정 | `user_settings`(theme·seen_tours·disclaimer_ack_at) |
 | 연동 일시·마지막 조회 일시 | `app_links.created_at`·`synced_at`·`checked_at` |
 | 서버 오류 기록의 회원 번호 | `AppLinkService` 경고·오류 로그의 `userId`(이메일·linkId는 남기지 않음) |
 | 웹 서버 접속 기록 | `deploy/vm/nginx.conf` `log_format web_access`: IP(앞단 프록시 주소일 수 있음)·일시·메서드·경로(쿼리 제외)·응답 코드·크기·브라우저 정보 |
-| 기록 보관 최대 50MB | `deploy/vm/docker-compose.yml` 로그 회전 10MB × 5개(컨테이너마다) |
-| 백업 매일·7일 | `deploy/vm/backup.sh`(KEEP_DAYS 7, 파일 권한 600), VM crontab 04:00 |
-| 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인) |
+| 기록 최대 7일·50MB | `deploy/vm/purge-logs.sh`(매주 일요일 04:00 root cron), `docker-compose.yml` 로그 회전 10MB × 5개 |
+| 백업 매일·만든 때부터 최대 7일 | `deploy/vm/backup.sh`(`-mmin +(7일−1시간)`, 파일 권한 600), VM crontab 매일 04:00 |
+| 앱 해제 늦어도 다음 날 새벽 반영 | `applink.AppLinkRecheckJob`(매일 03:20 KST, `AppLinkService.recheckAll`) |
+| 연동 코드는 저장하지 않음 | `AppLinkService.link` → `AppApiClient.create`로 전달만, DB·로그에 없음 |
+| 문의 메일 국외 보관 | Gmail(Google LLC). 처리 후 30일 이내 삭제(운영자 수작업) |
+| 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인). 정확한 기관명·스냅숏은 확인 전(0) |
 | 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음 |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
 | 연동 해제·앱 해제 확인 시 파기 | `AppLinkService.unlink`, `sync`의 `LINK_NOT_FOUND` 처리 |
-| 실패 기록 메모리 10분 | `common.AttemptLimiter`(`LoginAttemptLimiter`, 연동 코드 제한) |
+| 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |
 | 비회원 체험은 서버 저장 없음 | 로그인 전 화면은 예시 데이터만 사용(`isSample`) |
 
 ## 3. 시행 전 확인 항목(10-21 모두 채움)

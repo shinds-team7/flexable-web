@@ -51,7 +51,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 
 | 메서드·경로 | 인증 | 내용 |
 |---|---|---|
-| `POST /auth/signup` | 없음 | `{email, password, agreeTerms, agreePrivacy}` → 201 `{accessToken, expiresAt, user}`. 비밀번호 8~64자·영문+숫자, 두 동의 모두 `true`. 같은 웹 이메일이 있으면 409 `EMAIL_UNAVAILABLE` |
+| `POST /auth/signup` | 없음 | `{email, password, agreeTerms}` → 201 `{accessToken, expiresAt, user}`. 비밀번호 8~64자·영문+숫자, `agreeTerms`는 `true`. 개인정보는 동의가 아니라 계약 이행으로 처리하고 방침을 안내한다(예전 `agreePrivacy`는 무시, V7). 같은 웹 이메일이 있으면 409 `EMAIL_UNAVAILABLE` |
 | `POST /auth/login` | 없음 | `{email, password}` → `{accessToken, expiresAt, user}`. 틀리면 401 `INVALID_CREDENTIALS`(없는 이메일과 구분하지 않음), 이메일별 10분에 5회 실패하면 429 `TOO_MANY_ATTEMPTS` + `retryAfterSeconds` |
 | `POST /auth/logout` | Bearer | 204. 이 회원의 **웹** 토큰을 모든 기기에서 폐기(`tokenVersion` 증가). 앱 세션·연동은 그대로 |
 | `GET /me` | Bearer | `{id, email, createdAt, provider, hasPassword}`. `provider`는 `email`·`kakao`·`google`, 소셜로 가입했고 이메일을 받지 못했으면 `email`은 `null` |

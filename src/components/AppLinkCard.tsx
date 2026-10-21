@@ -84,15 +84,19 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
         앱 <b>설정 › 웹 연동 코드 받기</b>에서 받은 8자리 코드를 입력해 주세요. 코드는 10분 동안 한 번만 쓸 수 있어요.
       </p>
       <div className="card-sunken" id="app-link-items">
-        <p className="k">연동하면 앱에서 불러오는 정보</p>
+        <p className="k">앱 연동을 위한 개인정보 수집·이용 동의(선택)</p>
         <ul className="meta" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-          <li>앱 계정의 로그인 방법과 이메일(없을 수 있음)</li>
-          <li>앱에서 확정한 시드머니: 합계·모아둔 돈·매달 저축할 돈·시작일·갱신 일시</li>
-          <li>주기별 반영 기록: 주기 종료일·반영 방법·금액·반영 후 합계·반영 일시</li>
+          <li>처리자: 텅장관리 운영자 강선후(앱과 웹 같은 운영자)</li>
+          <li>목적: 앱 계정 연결 확인, 연동 상태 관리, 앱에서 확정한 시드머니를 웹에 표시·갱신하고 시뮬레이션에 사용</li>
+          <li>
+            항목: 연동 코드, 앱 계정 이메일(없을 수 있음)·가입 방법, 연동 식별값, 연동·조회 일시, 시드머니(합계·모아둔 돈·매달 저축할 돈·마지막 반영·갱신
+            일시), 앱 사용 시작일, 주기별 반영 기록(주기 종료일·반영 방법·금액·반영 후 합계·반영 일시). 거래 기록은 불러오지 않아요
+          </li>
+          <li>보유 기간: 연동 해제 또는 웹 탈퇴 때까지. 앱에서 해제하면 늦어도 다음 날 새벽까지 웹에서도 지워요</li>
+          <li>동의하지 않을 수 있어요. 동의하지 않으면 앱 연동만 쓸 수 없고 다른 웹 기능은 그대로 쓸 수 있어요</li>
         </ul>
         <p className="meta" style={{ marginTop: 4 }}>
-          시드머니를 웹에서 보여 주고 투자·적금 시뮬레이션에 쓰기 위해서예요. 거래 기록은 불러오지 않고, 연동하는 동안만 보관하며 해제하면 바로 지워요.
-          자세한 내용은 <a href="/privacy">웹 개인정보처리방침</a>에 있어요.
+          연동은 여기나 앱 설정에서 언제든 해제할 수 있어요. 자세한 내용은 <a href="/privacy">웹 개인정보처리방침</a>에 있어요.
         </p>
       </div>
       <form className="row" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }} onSubmit={submit}>
@@ -188,7 +192,7 @@ function Linked({ link, refreshing, onRefresh }: { link: Extract<AppLink, { link
       <div className="set-row">
         <div>
           <p className="k">연동 해제</p>
-          <p className="v">웹에 저장한 앱 정보를 지우고 연동을 끝내요. 앱 계정과 앱 기록은 그대로예요. 앱 로그아웃으로는 해제되지 않아요.</p>
+          <p className="v">앱과 웹의 연결을 해제하고 웹에 저장한 연동 정보를 지워요. 웹 계정과 앱 계정은 그대로예요. 앱 로그아웃으로는 해제되지 않아요.</p>
         </div>
         <button className="btn btn-line btn-sm" onClick={() => setConfirming(true)} disabled={unlink.isPending}>
           {unlink.isPending ? '해제하는 중…' : '해제하기'}

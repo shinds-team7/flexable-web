@@ -104,6 +104,34 @@ public class AppLinkService {
 		return sync(link);
 	}
 
+	/**
+	 * 매일 모든 연동을 앱 서버에 다시 확인한다(AppLinkRecheckJob). 웹에 들어오지 않는 회원도 앱에서 해제·앱 탈퇴하면 하루 안에
+	 * 웹의 연동 정보가 지워지게 하기 위해서다(방침 제3조·제4조). 처리 중인 회원은 건너뛰고 다음 날 다시 본다.
+	 *
+	 * @return 이번에 지운(앱에서 해제된) 연동 수
+	 */
+	public int recheckAll() {
+		int removed = 0;
+		for (long userId : links.findAllUserIds()) {
+			if (!busy.add(userId)) {
+				continue;
+			}
+			try {
+				AppLink link = links.findByUserId(userId).orElse(null);
+				if (link != null && !sync(link).linked()) {
+					removed++;
+				}
+			}
+			catch (RuntimeException e) {
+				log.warn("연동 일일 확인 실패: userId={}, cause={}", userId, e.getClass().getSimpleName());
+			}
+			finally {
+				busy.remove(userId);
+			}
+		}
+		return removed;
+	}
+
 	/** 웹에서 해제. 앱 서버에서 먼저 지우고, 실패하면(장애) 연동을 그대로 두어 다시 시도할 수 있게 한다. 연동이 없으면 아무것도 하지 않는다. */
 	public void unlink(long userId) {
 		if (!busy.add(userId)) {

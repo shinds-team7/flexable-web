@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import type { AuthResponse } from '@/auth/types';
 import { LEGAL_BASE } from '@/components/Layout';
-import { privacyHref } from '@/lib/legal';
+import { privacyHref, usesWebBackend } from '@/lib/legal';
 import { api, errorText } from '@/lib/api';
 
 export default function Signup() {
@@ -13,7 +13,8 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
-  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  // 웹 백엔드는 가입 정보를 계약 이행으로 처리하고 방침은 안내만 한다(동의 체크 없음). 앱 서버를 부르는 배포는 앱 가입 규칙(개인정보 동의 필수)을 따른다.
+  const [agreePrivacy, setAgreePrivacy] = useState(usesWebBackend);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -26,7 +27,7 @@ export default function Signup() {
     try {
       const r = await api<AuthResponse>('/auth/signup', {
         method: 'POST',
-        json: { email: email.trim(), password, agreeTerms, agreePrivacy },
+        json: usesWebBackend ? { email: email.trim(), password, agreeTerms } : { email: email.trim(), password, agreeTerms, agreePrivacy },
       });
       signIn(r);
       navigate('/home', { replace: true });
@@ -77,13 +78,21 @@ export default function Signup() {
                   <a href={`${LEGAL_BASE}/terms`}>서비스 이용약관</a>에 동의해요(필수)
                 </span>
               </label>
-              <label className="check">
-                <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
-                <span>
-                  <a href={privacyHref}>개인정보 수집·이용</a>에 동의해요(필수)
-                </span>
-              </label>
+              {!usesWebBackend && (
+                <label className="check">
+                  <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
+                  <span>
+                    <a href={privacyHref}>개인정보 수집·이용</a>에 동의해요(필수)
+                  </span>
+                </label>
+              )}
             </div>
+            {usesWebBackend && (
+              <p className="meta">
+                이메일·비밀번호 등 계정에 필요한 정보는 회원가입과 서비스 제공을 위해 처리해요. 처리 항목·보유 기간·권리 행사 방법은{' '}
+                <a href={privacyHref}>개인정보처리방침</a>에 있어요.
+              </p>
+            )}
             <button className="btn btn-primary btn-block" disabled={busy || !agreeTerms || !agreePrivacy}>
               {busy ? '가입하는 중…' : '가입하기'}
             </button>

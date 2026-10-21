@@ -68,6 +68,8 @@ class AppLinkFlowTest {
 	JdbcTemplate jdbc;
 	@MockitoBean
 	AppApiClient app;
+	@Autowired
+	AppLinkService appLinks;
 
 	private String linkId;
 
@@ -295,6 +297,22 @@ class AppLinkFlowTest {
 			.isZero();
 		mvc.perform(get("/api/v1/me/seed-money").header("Authorization", "Bearer " + token))
 			.andExpect(jsonPath("$.source").value("none"));
+	}
+
+	/** 웹에 다시 들어오지 않아도 매일 확인에서 앱 해제를 알아 웹 연동 정보를 지운다. 다른 회원의 연동과 앱 장애는 그대로 둔다. */
+	@Test
+	void dailyRecheckRemovesLinksUnlinkedInApp() throws Exception {
+		String gone = signup();
+		String kept = signup();
+		link(gone, CODE).andExpect(status().isCreated());
+		when(app.create(anyString())).thenReturn(new CreatedLink(linkId + "-2", PROFILE));
+		link(kept, CODE).andExpect(status().isCreated());
+		when(app.profile(linkId)).thenThrow(new AppApiException(Kind.LINK_NOT_FOUND));
+		when(app.profile(linkId + "-2")).thenThrow(new AppApiException(Kind.UNAVAILABLE));
+
+		assertThat(appLinks.recheckAll()).isGreaterThanOrEqualTo(1);
+		assertThat(rows(userId(gone))).isZero();
+		assertThat(rows(userId(kept))).isEqualTo(1);
 	}
 
 	@Test

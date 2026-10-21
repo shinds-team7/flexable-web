@@ -33,7 +33,7 @@ src/                     웹사이트(Vite + React + TypeScript, React Router, T
 mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
 scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
 backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)·앱 연동(applink), 시세·투자 시뮬레이션(market·simulation, 수집은 worker의 ingest)까지 구현. 패키지 책임·API는 backend/README.md
-deploy/closed-network/   폐쇄망 VM 반입 묶음(예정)
+deploy/vm/               웹 VM 배포(Docker Compose: nginx·웹 백엔드·MySQL). 실행 설명서 deploy/vm/README.md
 docs/product/            웹 기획·아키텍처·개발 인수인계 정본
 docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 ```

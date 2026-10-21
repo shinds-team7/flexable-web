@@ -46,15 +46,14 @@ export default function Landing() {
     <section>
       <div className="page land">
         <div className="land-hero">
-          <div>
-            <img className="land-char" src="/characters/lv3-3.png" alt="" width={112} height={112} />
+          <div className="land-copy">
             <h1 className="display">아낀 돈, 그때 굴렸다면 얼마였을까?</h1>
-            <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요. 진짜 돈은 움직이지 않아요.</p>
+            <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요.</p>
             <div className="cta-stack">
-              <SocialButtons />
               <Link className="btn-text land-try" to="/home">
                 로그인 없이 체험하기
               </Link>
+              <SocialButtons />
             </div>
           </div>
           <div className="card card-hero">

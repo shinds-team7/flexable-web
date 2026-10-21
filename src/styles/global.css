@@ -231,12 +231,13 @@ dialog::backdrop{background:var(--scrim)}
 
 /* ───────── 랜딩 ───────── */
 .page.land{padding-top:0}
-.land-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:center;padding:48px 0 64px}
-.land-char{display:block;width:112px;height:112px;object-fit:contain;margin-bottom:32px}
+.land-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:stretch;padding:48px 0 64px}
+.land-copy{display:flex;flex-direction:column}
 .display{font-size:56px;line-height:64px;font-weight:800;letter-spacing:-.03em}
 .lead{font-size:17px;line-height:28px;color:var(--text-sub);margin-top:16px;max-width:30em}
-.cta-stack{display:flex;flex-direction:column;gap:12px;margin-top:32px;max-width:360px}
-.land-try{align-self:flex-start;margin-top:4px}
+/* 버튼 묶음을 아래로 붙여 이메일 버튼 하단을 오른쪽 카드 하단에 맞춘다 */
+.cta-stack{display:flex;flex-direction:column;gap:12px;margin-top:auto;padding-top:32px;max-width:360px}
+.land-try{align-self:flex-end;margin-bottom:-4px}
 .land-legend{margin-top:12px}
 .land-legend i.total{color:var(--text)}
 .land-legend i.base{color:var(--baseline)}
@@ -361,7 +362,6 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .stats{grid-template-columns:minmax(0,1fr)}
   .news-grid,.flow,.trust{grid-template-columns:minmax(0,1fr)}
   .land-hero{padding:32px 0 48px}
-  .land-char{width:88px;height:88px;margin-bottom:24px}
   .feat{padding:48px 0}
   .land-plus{padding:20px}
   .display{font-size:36px;line-height:44px}

@@ -578,7 +578,9 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .news-sort button[aria-pressed="true"]{color:var(--text);font-weight:700;text-decoration:underline;text-underline-offset:4px}
 /* 카드는 4줄(위 · 본문 · 공고문 · 아래). 목록 그리드의 줄을 subgrid로 나눠 써서 같은 줄 카드끼리 공고문 버튼·구분선 높이가 같다 */
 .news-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;grid-auto-rows:auto minmax(var(--news-body-min),auto) auto auto;--news-body-min:138px}
-.news-list .news-card{padding:16px;display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:10px}
+.news-list .news-card{padding:16px;display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:10px;transition:border-color .15s}
+/* 마우스를 올리거나 키보드로 카드 안에 들어오면 테두리를 진하게 */
+.news-list .news-card:hover,.news-list .news-card:has(:focus-visible){border-color:var(--color-border-strong)}
 .news-card .news-corrected{font-size:12px;font-weight:700;color:var(--warn)}
 .news-card-acts{flex:none;display:flex;align-items:center;margin-right:-6px}
 .news-card-body{display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -595,7 +597,12 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .news-chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
 .news-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:var(--radius-soft-sm);border:1px solid var(--color-border-strong);background:var(--card);color:var(--text-sub);font-size:12px;font-weight:600;white-space:nowrap}
 .news-chip.cat{background:var(--sunken);border-color:var(--color-border-strong);color:var(--text);font-weight:700}
-.dday.urgent{background:var(--danger-soft);color:var(--danger);border-color:var(--danger)}
+/* 소식 화면 마감 배지: 테두리 없이 D-9(calm)와 같은 모양. 7일 이내는 브랜드 블루 글자, 오늘 마감은 빨강 */
+.news-page .dday{border-color:transparent;background:var(--brand-soft)}
+.news-page .dday.calm{background:var(--sunken)}
+.news-page .dday.urgent{background:var(--danger-soft);color:var(--danger)}
+/* 소식 화면은 목록을 넓게: 저장함을 320px로 고정(홈의 .g84는 그대로). 1023px 이하는 한 단 */
+@media (min-width:1024px){.news-page .g84{grid-template-columns:minmax(0,1fr) 320px}}
 .news-rail{max-height:calc(100vh - 96px);overflow:auto}
 .news-rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .news-saved-toggle{display:none}

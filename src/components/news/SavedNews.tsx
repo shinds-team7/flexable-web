@@ -1,14 +1,22 @@
-// 오른쪽 저장함. 필터·마감과 상관없이 저장한 소식은 남는다. 좁은 화면에서는 목록 위에서 접었다 펼친다.
+// 오른쪽 저장함. 필터·마감과 상관없이 저장한 소식은 남는다. 마감 임박순(마감된 소식은 맨 아래). 좁은 화면에서는 목록 위에서 접었다 펼친다.
 import { useState } from 'react';
 import type { YouthNews } from '@/data/news';
 import type { SavedNews as Saved } from '@/data/newsSaved';
 import { deadlineState } from '@/lib/deadline';
+import { savedDeadlineKey } from '@/lib/newsList';
 import { DeadlineBadge, NoticeLink } from './NewsBits';
 
 type Props = { saved: Saved[]; items: YouthNews[]; today: string; onRemove: (id: string) => void };
 
 export function SavedNews({ saved, items, today, onRemove }: Props) {
   const [open, setOpen] = useState(false);
+  // 목록에 같은 소식이 있으면 최신 값(기한 변경·정정)을 쓴다
+  const rows = saved
+    .map((s) => {
+      const cur = items.find((n) => n.id === s.id);
+      return { s, cur, period: cur ?? s };
+    })
+    .sort((a, b) => savedDeadlineKey(a.period, today) - savedDeadlineKey(b.period, today));
   return (
     <aside className={'card rail news-rail' + (open ? '' : ' collapsed')} aria-labelledby="news-saved-title">
       <div className="news-rail-head">
@@ -27,10 +35,7 @@ export function SavedNews({ saved, items, today, onRemove }: Props) {
           </div>
         ) : (
           <ul className="news-saved-list">
-            {saved.map((s) => {
-              // 목록에 같은 소식이 있으면 최신 값(기한 변경·정정)을 쓴다
-              const cur = items.find((n) => n.id === s.id);
-              const period = cur ?? s;
+            {rows.map(({ s, cur, period }) => {
               const closed = deadlineState(period, today).kind === 'closed';
               return (
                 <li key={s.id} className={'news-saved-item' + (closed ? ' closed' : '')}>

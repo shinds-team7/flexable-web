@@ -1,7 +1,7 @@
 // 소식 목록 거르기·정렬·오늘의 한 장 고르기. 화면과 분리한 순수 함수라 서버 쿼리로 옮기기 쉽다.
 // '추천' 정렬은 두지 않는다(01-product.md §7). 정렬은 사용자가 고른 기준(마감 임박순·새로운 순)만.
 import { AGE_BANDS, type AgeBandId, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
-import { canApplyNow, daysBetween, deadlineState } from './deadline';
+import { canApplyNow, daysBetween, deadlineState, type ApplyPeriod } from './deadline';
 
 export type NewsSort = 'deadline' | 'new';
 export type NewsFilter = {
@@ -38,11 +38,14 @@ function matchesAge(n: YouthNews, a: NewsFilter['age']) {
 }
 
 /** 마감 임박순 키. 마감일 있는 것 → 상시 → 마감일 미정 순 */
-function deadlineKey(n: YouthNews, today: string) {
+function deadlineKey(n: ApplyPeriod, today: string) {
   if (n.alwaysOpen) return 1e6;
   if (!n.applyDeadline) return 2e6;
   return daysBetween(today, n.applyDeadline);
 }
+
+/** 저장함 정렬 키: 목록과 같은 마감 임박순, 마감된 소식은 맨 아래 */
+export const savedDeadlineKey = (p: ApplyPeriod, today: string) => (deadlineState(p, today).kind === 'closed' ? 3e6 : deadlineKey(p, today));
 
 const postedKey = (n: YouthNews, today: string) => (n.postedAt ? daysBetween(today, n.postedAt) : -Infinity);
 

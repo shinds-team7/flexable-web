@@ -64,6 +64,10 @@ public class DailyPrice {
 		return close;
 	}
 
+	Long getVolume() {
+		return volume;
+	}
+
 	String getSource() {
 		return source;
 	}

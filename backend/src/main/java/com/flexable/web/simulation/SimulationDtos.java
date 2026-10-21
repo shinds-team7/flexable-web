@@ -46,6 +46,18 @@ public final class SimulationDtos {
 	public record Source(String name, String note) {
 	}
 
+	/**
+	 * 기간 안 사건 후보(03 §8-2). code는 종목 사건의 종목, 시장 사건이면 null. returnRate·marketReturn은 비율.
+	 * valueBefore·valueAfter: 사건 시작 전날·마지막 날 종가 기준 평가액(종목 사건은 그 종목, 시장 사건은 전체),
+	 * contributionInWindow: 그 사이 넣은 돈, valueChange = after − before − 넣은 돈. 아직 넣기 전이면 금액 필드는 null.
+	 * score: 탐지 점수(클수록 큰 움직임). sourceName: 근거 출처(없으면 null), sourceCount: 근거 수.
+	 */
+	public record EventItem(long id, String code, String scope, LocalDate startDate, LocalDate endDate, int windowDays, String direction,
+			double returnRate, Double marketReturn, String headline, boolean hasExplanation, String sourceName, int sourceCount,
+			String topSource, double score, Long valueBefore, Long valueAfter, Long contributionInWindow, Long valueChange,
+			String noticeKey) {
+	}
+
 	public record RunResponse(
 			ResolvedInput resolvedInput,
 			int contributionCount,
@@ -59,7 +71,7 @@ public final class SimulationDtos {
 			String seriesBasis,
 			List<LegInfo> legs,
 			List<Point> series,
-			List<Object> events,
+			List<EventItem> events,
 			List<String> assumptions,
 			String noticeKey,
 			String notice,

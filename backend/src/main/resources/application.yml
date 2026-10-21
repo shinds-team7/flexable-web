@@ -59,6 +59,8 @@ app:
   market:
     # 시장(코스피·코스닥·ETF)마다 시가총액 상위 몇 종목을 목록에 보여 주고 계산·수집할지
     top-limit: ${MARKET_TOP_LIMIT:100}
+    # 사건 탐지에서 시장 전체로 보는 종목(코스피200 추종 ETF). 종목 사건은 이 종목 수익률을 빼고 재고, 시장 사건은 이 종목에 붙인다
+    index-proxy: ${MARKET_INDEX_PROXY:069500}
   ingest:
     # worker 프로필에서만 쓴다(외부 호출은 worker만, 04 §8)
     price-source: ${MARKET_PRICE_SOURCE:kiwoom}
@@ -76,6 +78,14 @@ app:
     krx:
       base-url: ${KRX_BASE_URL:https://data-dbg.krx.co.kr/svc/apis}
       auth-key: ${KRX_AUTH_KEY:}
+    # 사건 근거 공시: dart | fake | none. dart는 키가 비어 있으면 공시 단계를 건너뛴다(탐지는 한다)
+    disclosure-source: ${MARKET_DISCLOSURE_SOURCE:dart}
+    dart:
+      base-url: ${DART_BASE_URL:https://opendart.fss.or.kr}
+      api-key: ${DART_API_KEY:}
+      # 한 번 실행에서 공시를 찾을 사건 수 상한(OpenDART 하루 20,000건 한도). 남은 사건은 다음 실행에 이어서
+      max-calls: ${DART_MAX_CALLS:5000}
+      call-delay: 100ms
   applink:
     # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
     mode: ${APP_LINK_MODE:http}

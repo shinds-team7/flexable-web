@@ -5,7 +5,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ChartData } from '@/charts/drawTimeChart';
+import { SeriesKey } from '@/charts/SeriesKey';
 import { TimeChart } from '@/charts/TimeChart';
+import { EventPanel, eventPeriod } from '@/components/EventPanel';
 import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
 import { useBoard, useSimulation, type Board, type FundingMode, type Instrument, type SimPoint, type SimulationRequest, type SimulationResult } from '@/data/market';
@@ -55,6 +57,12 @@ const weightProblem = (w: number[]) => {
 };
 const capText = (n: number | null) => (n == null ? '' : n >= 1e12 ? `${(n / 1e12).toFixed(1)}조` : krShort(n));
 
+/** 사건 시작일이 들어 있는 주의 번호(시계열 칸). 범위 밖이면 -1. */
+function eventIdx(r: SimulationResult, startDate: string) {
+  for (let i = r.series.length - 1; i >= 0; i--) if (r.series[i].weekStart <= startDate) return i;
+  return -1;
+}
+
 function toChart(r: SimulationResult): ChartData {
   return {
     dates: r.series.map((p) => parseDay(p.weekStart)),
@@ -71,7 +79,25 @@ function toChart(r: SimulationResult): ChartData {
       invested: r.series.map((p) => p.legs[j].invested),
     })),
     startIdx: 0,
-    events: [],
+    // 핀: 사건 기간 등락률과 그때 내 돈(서버 계산). 시장 사건은 leg=null
+    events: r.events.flatMap((e) => {
+      const idx = eventIdx(r, e.startDate);
+      if (idx < 0) return [];
+      const leg = e.code == null ? -1 : r.legs.findIndex((l) => l.id === e.code);
+      return [
+        {
+          id: String(e.id),
+          idx,
+          kind: e.direction === 'RISE' ? ('rise' as const) : ('fall' as const),
+          title: e.headline,
+          leg: leg < 0 ? null : leg,
+          sourceName: e.sourceCount > 0 ? `${e.sourceName} ${e.sourceCount}건` : '',
+          change: { p: e.returnRate, before: e.valueBefore ?? 0, diff: e.valueChange ?? 0 },
+          days: e.windowDays,
+          period: eventPeriod(e),
+        },
+      ];
+    }),
   };
 }
 
@@ -281,7 +307,7 @@ export default function Invest() {
                     <div className="chips" id="tmPicked">
                       {picked.map((p, j) => (
                         <span key={p.id} className="chip" style={{ background: 'var(--card)', borderColor: 'var(--line)', height: 36 }}>
-                          <i style={{ width: 10, height: 3, background: COLORS[j], display: 'inline-block', borderRadius: 2 }} />
+                          <SeriesKey index={j} color={COLORS[j]} />
                           {p.name}
                           <b className="num" style={{ color: 'var(--text)' }}>{weights[j]}%</b>
                           <button type="button" className="btn-text" aria-label={`${p.name} 빼기`} style={{ color: 'var(--text-muted)' }} onClick={() => toggle(p)}>
@@ -512,7 +538,7 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
         <div>
           {picked.map((p, j) => (
             <label key={p.id} className="weight-row">
-              <i style={{ width: 12, height: 12, borderRadius: 3, background: COLORS[j] }} />
+              <SeriesKey index={j} color={COLORS[j]} />
               <span style={{ fontWeight: 600 }}>{p.name}</span>
               <span style={{ position: 'relative' }}>
                 <input
@@ -556,6 +582,11 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
   const r = sim.data;
   const chart = useMemo(() => (r ? toChart(r) : null), [r]);
   const [range, setRange] = useState<0 | 52 | 156>(0);
+  // 묶음 핀을 눌러 확대한 구간(없으면 기간 버튼대로), 고른 사건
+  const [zoom, setZoom] = useState<{ from: number; to: number } | null>(null);
+  const [sel, setSel] = useState<number | null>(null);
+  const [focusIds, setFocusIds] = useState<number[] | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<'total' | 'byStock'>('total');
   const [showTable, setShowTable] = useState(false);
 
@@ -608,8 +639,19 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
   }
 
   const N = r.series.length;
-  const from = range ? Math.max(0, N - 1 - range) : 0;
-  const to = N - 1;
+  // 표는 기간 버튼(1년·3년·전체)만 따르고 늘 최근 주까지 보여 준다. 묶음 핀 확대는 차트에만 적용한다
+  const rangeFrom = range ? Math.max(0, N - 1 - range) : 0;
+  const from = zoom ? zoom.from : rangeFrom;
+  const to = zoom ? zoom.to : N - 1;
+  const shownEvents = r.events.filter((e) => {
+    const i = eventIdx(r, e.startDate);
+    return i >= from && i <= to;
+  });
+  const legNames = Object.fromEntries(r.legs.map((l) => [l.id, l.name]));
+  const pick = (id: number | null) => {
+    setSel(id);
+    requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  };
   const when = ymText(r.resolvedInput.startDate.slice(0, 7));
   const names = r.legs.map((l) => l.name).join('·');
   const story =
@@ -648,7 +690,15 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
               [0, '전체'],
             ] as const
           ).map(([v, t]) => (
-            <button key={v} type="button" aria-pressed={range === v} onClick={() => setRange(v)}>
+            <button
+              key={v}
+              type="button"
+              aria-pressed={!zoom && range === v}
+              onClick={() => {
+                setZoom(null);
+                setRange(v);
+              }}
+            >
               {t}
             </button>
           ))}
@@ -681,7 +731,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
           <>
             {r.legs.map((l, j) => (
               <span key={l.id}>
-                <i style={{ color: COLORS[j] }} />
+                <SeriesKey index={j} color={COLORS[j]} />
                 {l.name} {Math.round(l.weight * 100)}%
               </span>
             ))}
@@ -691,11 +741,53 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
           </>
         )}
       </div>
-      <TimeChart label={`${when}부터 주마다 내 자산 변화`} data={chart} from={from} to={to} mode={mode} height={400} />
+      <TimeChart
+        label={`${when}부터 주마다 내 자산 변화. 사건 핀은 화살표 키로 옮겨 다닐 수 있어요`}
+        data={chart}
+        from={from}
+        to={to}
+        mode={mode}
+        height={400}
+        selectedId={sel == null ? null : String(sel)}
+        onSelect={(id) => {
+          setFocusIds(null);
+          pick(Number(id));
+        }}
+        onZoom={(a, b) => setZoom({ from: a, to: b })}
+        onPickMany={(ids) => {
+          setFocusIds(ids.map(Number));
+          pick(null);
+        }}
+      />
+      <p className="meta" style={{ marginTop: 6 }}>
+        {zoom ? (
+          <>
+            이 기간을 확대했어요.{' '}
+            <button
+              type="button"
+              className="btn-text"
+              onClick={() => {
+                setZoom(null);
+                setFocusIds(null);
+              }}
+            >
+              전체 기간으로
+            </button>
+          </>
+        ) : shownEvents.length > 0 ? (
+          '▲▼ 핀은 크게 오르내린 때예요. 가까운 사건은 숫자 핀으로 묶었고, 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
+        ) : (
+          '이 기간에는 크게 오르내린 때가 없어요.'
+        )}
+      </p>
+
+      <div ref={panelRef} style={{ marginTop: 12 }}>
+        <EventPanel events={shownEvents} names={legNames} selectedId={sel} onSelect={pick} focusIds={focusIds} onClearFocus={() => setFocusIds(null)} />
+      </div>
 
       <div className="chart-foot">
         <p className="meta">
-          주가: {r.sources[0]?.name} · 주 마지막 거래일 종가 · 종목 정보: {r.sources[1]?.name} · 기준일 {asOf}
+          주가: {r.sources[0]?.name} · 주 마지막 거래일 종가 · 종목 정보: {r.sources[1]?.name} · 사건 근거: 금융감독원 OpenDART · 기준일 {asOf}
         </p>
         <div className="disclaimer">
           <Icon id="i-info" size={16} />
@@ -713,7 +805,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         </div>
       </div>
 
-      {showTable && <ResultTable r={r} from={from} to={to} />}
+      {showTable && <ResultTable r={r} from={rangeFrom} to={N - 1} />}
     </div>
   );
 }
@@ -768,7 +860,7 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
               </th>
               {r.legs.map((l, j) => (
                 <th key={l.id} scope="col" className="r">
-                  <i style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: COLORS[j], marginRight: 4 }} />
+                  <SeriesKey index={j} color={COLORS[j]} />
                   {l.name}
                 </th>
               ))}

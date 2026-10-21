@@ -11,6 +11,14 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, DailyPri
 
 	List<DailyPrice> findByInstrumentIdAndTradeDateGreaterThanEqualOrderByTradeDateAsc(long instrumentId, LocalDate from);
 
+	List<DailyPrice> findByInstrumentIdOrderByTradeDateAsc(long instrumentId);
+
+	/** 근거 조회 시작일: before 앞 거래일 5개, 최근부터. */
+	List<DailyPrice> findTop5ByInstrumentIdAndTradeDateLessThanOrderByTradeDateDesc(long instrumentId, LocalDate before);
+
+	/** after(포함) 이후 첫 거래일. */
+	Optional<DailyPrice> findFirstByInstrumentIdAndTradeDateGreaterThanEqualOrderByTradeDateAsc(long instrumentId, LocalDate after);
+
 	List<DailyPrice> findByInstrumentIdAndTradeDateBetween(long instrumentId, LocalDate from, LocalDate to);
 
 	@Query("select max(p.tradeDate) from DailyPrice p where p.instrumentId = :instrumentId")

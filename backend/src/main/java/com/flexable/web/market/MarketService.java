@@ -177,6 +177,31 @@ public class MarketService {
 		return save.size();
 	}
 
+	/** OpenDART 고유번호를 아직 모르는 종목 코드(상위 목록 안 STOCK). ETF는 공시 주체가 아니라 뺀다. */
+	@Transactional(readOnly = true)
+	public List<String> stockCodesWithoutCorpCode() {
+		return instruments.findByCapRankNotNull().stream()
+			.filter(i -> "STOCK".equals(i.getKind()) && i.getCorpCode() == null)
+			.map(Instrument::getCode)
+			.toList();
+	}
+
+	/** 종목코드 → OpenDART 고유번호. 맵에 있는 종목만 바꾸고 바꾼 수를 돌려준다. */
+	@Transactional
+	public int setCorpCodes(Map<String, String> corpCodes) {
+		List<Instrument> found = instruments.findByCodeIn(List.copyOf(corpCodes.keySet()));
+		int n = 0;
+		for (Instrument i : found) {
+			String c = corpCodes.get(i.getCode());
+			if (c != null && !c.equals(i.getCorpCode())) {
+				i.setCorpCode(c);
+				n++;
+			}
+		}
+		instruments.saveAll(found);
+		return n;
+	}
+
 	private static InstrumentView view(Instrument i) {
 		return new InstrumentView(i.getCode(), i.getName(), i.getMarket(), i.getKind(), i.getBoard(), i.getCapRank(), i.getMarketCap());
 	}

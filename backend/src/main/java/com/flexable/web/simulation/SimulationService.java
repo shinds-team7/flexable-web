@@ -17,8 +17,11 @@ import org.springframework.stereotype.Service;
 import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
 import com.flexable.web.market.DailyClose;
+import com.flexable.web.market.EventDtos;
+import com.flexable.web.market.EventService;
 import com.flexable.web.market.MarketDtos.InstrumentView;
 import com.flexable.web.market.MarketService;
+import com.flexable.web.simulation.SimulationDtos.EventItem;
 import com.flexable.web.simulation.SimulationDtos.Funding;
 import com.flexable.web.simulation.SimulationDtos.LegInfo;
 import com.flexable.web.simulation.SimulationDtos.ResolvedInput;
@@ -42,10 +45,12 @@ public class SimulationService {
 			"배당 재투자·세금·수수료는 빠져 있어요.");
 
 	private final MarketService market;
+	private final EventService events;
 	private final Clock clock;
 
-	public SimulationService(MarketService market, Clock clock) {
+	public SimulationService(MarketService market, EventService events, Clock clock) {
 		this.market = market;
+		this.events = events;
 		this.clock = clock;
 	}
 
@@ -96,9 +101,10 @@ public class SimulationService {
 			legs.add(new LegInput(id, weights.get(j), closes));
 		}
 
+		SimulationEngine.Input input = new SimulationEngine.Input(start, f.mode(), total, monthly, legs);
 		SimulationEngine.Result r;
 		try {
-			r = SimulationEngine.run(new SimulationEngine.Input(start, f.mode(), total, monthly, legs));
+			r = SimulationEngine.run(input);
 		}
 		catch (IllegalArgumentException e) {
 			throw ApiException.invalid("startDate", e.getMessage());
@@ -116,7 +122,29 @@ public class SimulationService {
 				new Source(String.join("·", src.instruments()), "종목 이름·시장"));
 		return new RunResponse(new ResolvedInput(r.startDate(), r.endDate(), f.mode()), r.contributionCount(),
 				r.monthlyAmount(), r.totalInvested(), r.finalValue(), r.profit(), r.returnRate(), SimulationEngine.VERSION,
-				r.endDate(), "WEEK_LAST_CLOSE", legInfo, r.series(), List.of(), ASSUMPTIONS, "SIM_PAST", NOTICE, sources);
+				r.endDate(), "WEEK_LAST_CLOSE", legInfo, r.series(), events(input, r, info), ASSUMPTIONS, "SIM_PAST", NOTICE, sources);
+	}
+
+	/** 기간 안 사건과 사건 전후 내 돈(03 C-9). 시장 사건은 조합 전체, 종목 사건은 그 종목 평가액으로 잰다. */
+	private List<EventItem> events(SimulationEngine.Input in, SimulationEngine.Result r, Map<String, InstrumentView> info) {
+		List<String> codes = in.legs().stream().map(LegInput::id).toList();
+		List<EventItem> out = new ArrayList<>();
+		for (EventDtos.EventView e : events.eventsBetween(codes, r.startDate(), r.endDate())) {
+			boolean marketWide = "MARKET".equals(e.scope());
+			Integer leg = marketWide ? null : codes.indexOf(e.code());
+			SimulationEngine.Holding before = SimulationEngine.holdingAt(in, r, leg, e.startDate().minusDays(1));
+			SimulationEngine.Holding after = SimulationEngine.holdingAt(in, r, leg, e.endDate());
+			boolean held = before.invested() > 0;
+			long added = after.invested() - before.invested();
+			String name = marketWide ? null : info.get(e.code()).name();
+			var top = e.sources().isEmpty() ? null : e.sources().getFirst();
+			out.add(new EventItem(e.id(), marketWide ? null : e.code(), e.scope(), e.startDate(), e.endDate(), e.windowDays(), e.direction(),
+					e.returnRate(), e.marketReturn(), EventDtos.headline(name, e.scope(), e.direction(), e.windowDays()), false,
+					top == null ? null : "DART 공시", e.sources().size(), top == null ? null : top.title(), e.score(),
+					held ? before.value() : null, held ? after.value() : null, held ? added : null,
+					held ? after.value() - before.value() - added : null, EventDtos.NOTICE_KEY));
+		}
+		return out;
 	}
 
 	private static long range(String field, Long v, long min, long max) {

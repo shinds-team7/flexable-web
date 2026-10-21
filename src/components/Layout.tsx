@@ -2,7 +2,7 @@
 // 로그인한 사용자와 체험 중인 손님은 로고를 누르면 홈(/home)으로 간다.
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { LEGAL_BASE, privacyHref } from '@/lib/legal';
+import { LEGAL_BASE, fmtEffective, privacyHref, privacyNotice } from '@/lib/legal';
 import { useSession } from '@/auth/session';
 import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
@@ -121,6 +121,7 @@ export function Footer() {
     <footer className="footer">
       <a href={`${LEGAL_BASE}/terms`}>이용약관</a>
       <a href={privacyHref}>개인정보처리방침</a>
+      {privacyNotice && <Link to="/privacy">웹 개인정보처리방침 시행 안내({fmtEffective()})</Link>}
       <a href={`${LEGAL_BASE}/support`}>고객지원</a>
       <a href={PLAY_URL} target="_blank" rel="noreferrer">
         앱 받기(Google Play)

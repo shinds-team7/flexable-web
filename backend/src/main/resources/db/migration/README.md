@@ -7,8 +7,9 @@
 | `V2__social_login.sql` | `user_identities`(auth), `users.email`·`user_credentials.password_hash` NULL 허용 |
 | `V3__app_links.sql` | `app_links`(applink): 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니 |
 | `V4__market.sql` | `instruments`(market: 시장별 시가총액 상위 종목), `daily_prices`(market: 수정주가 일봉), `ingest_runs`(ingest: 수집 실행 기록) |
-| `V5__savings.sql` | `savings_products`·`savings_rate_options`(savings): 금융감독원 finlife 적금 공시 복사본(상품·기간별 기본/최고 금리) |
-| `V6__savings_policies.sql` | `savings_policies`(savings): 온통청년 청년정책 중 적금·저축·통장 계열 |
-| `V7__savings_policy_region.sql` | `savings_policies.region`: 정책 지역(중앙부처는 '전국') |
+| `V5__market_events.sql` | `instruments.corp_code`(OpenDART 고유번호), `market_events`(market: 급변동 사건), `event_sources`(market: 사건 근거 공시) |
+| `V6__savings.sql` | `savings_products`·`savings_rate_options`(savings): 금융감독원 finlife 적금 공시 복사본(상품·기간별 기본/최고 금리) |
+| `V7__savings_policies.sql` | `savings_policies`(savings): 온통청년 청년정책 중 적금·저축·통장 계열 |
+| `V8__savings_policy_region.sql` | `savings_policies.region`: 정책 지역(중앙부처는 '전국') |
 
 MySQL과 H2(MySQL 모드, 로컬·테스트) 양쪽에서 돌아야 한다. 테스트(`./gradlew test`)가 매번 처음부터 적용하고 `ddl-auto=validate`로 엔티티와 맞는지 본다.

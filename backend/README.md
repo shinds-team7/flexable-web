@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`), 시세·투자 시뮬레이션(`market`·`simulation`·`ingest`의 시세 수집)까지 구현됐다(2026-10-20).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`), 시세·투자 시뮬레이션(`market`·`simulation`·`ingest`의 시세 수집), 급변동 사건 탐지·DART 공시 근거 수집과 사건 API(`market`·`ingest`·`simulation`)까지 구현됐다(2026-10-21).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -63,8 +63,9 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `GET /me/settings` | Bearer | `{theme: "light"\|"dark", seenTours: [], disclaimerAckAt: null}` |
 | `PATCH /me/settings` | Bearer | 보낸 필드만 바꾼다. `theme`, `seenTours`(이미 본 목록에 병합, 키 `[a-z0-9-]` 40자·최대 24개), `disclaimerAck: true`(서버 시각으로 기록) |
 | `GET /market/instruments?board=KOSPI\|KOSDAQ\|ETF` | 없음 | 시가총액 상위 종목(기본 100) `{board, items:[{id,name,market,kind,board,rank,marketCap}], source, note, dataAsOf}`. worker가 아직 모으지 않았으면 `items: []` |
+| `GET /market/events/{id}` | 없음 | 사건 상세 `{id, code, name, scope, startDate, endDate, windowDays, direction, headline, marketReaction:{returnRate, marketReturn, volumeRatio, weekReturn}, afterwards:{d30, d365}, sources:[{type, externalId, title, publisher, date, url, weight}], newsSearchUrl, whatHappened, whyItMoved, aiGenerated, confidence, noticeKey=EVENT_EXPLAIN, notice}`(03 C-10). 수익률은 비율, 30·365일 뒤가 아직 안 왔으면 `null`. 설명(LLM) 전이라 `whatHappened`는 수치로 만든 사실 문장(기간·등락률·같은 기간 시장·공시 수, 원인 단정 없음)이고 `aiGenerated=false`, `confidence`는 근거가 없으면 `LOW`. 없으면 404 `NOT_FOUND` |
 | `GET /market/status` | 없음 | `{pricesAsOf, instrumentsAsOf, instruments, empty}` |
-| `POST /simulations/run` | 없음 | `{startDate:"YYYY-MM-01", funding:{mode:LUMP_SUM\|SPLIT\|PACE, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`(03 §8-2의 부분집합). 응답: 요약·주별 `series[{weekStart,date,tradingDays,total,invested,contributed,profit,returnRate,legs[…]}]`·`assumptions`·`noticeKey=SIM_PAST`·`sources`. 상위 목록 밖 종목·금액 범위·종목 1~3개·비율 합 1은 400, 시세를 아직 모으지 않은 종목은 503 `MARKET_UNAVAILABLE`(+`field`=종목 코드) |
+| `POST /simulations/run` | 없음 | `{startDate:"YYYY-MM-01", funding:{mode:LUMP_SUM\|SPLIT\|PACE, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`(03 §8-2의 부분집합). 응답: 요약·주별 `series[{weekStart,date,tradingDays,total,invested,contributed,profit,returnRate,legs[…]}]`·`assumptions`·`noticeKey=SIM_PAST`·`sources`. 상위 목록 밖 종목·금액 범위·종목 1~3개·비율 합 1은 400, 시세를 아직 모으지 않은 종목은 503 `MARKET_UNAVAILABLE`(+`field`=종목 코드). `events[]`: 기간 안에 시작한 고른 종목의 사건 + 시장 사건 `{id, code(시장 사건은 null), scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline, hasExplanation, sourceName, sourceCount, topSource, score, valueBefore, valueAfter, contributionInWindow, valueChange, noticeKey}`. 이때 내 돈(03 C-9)은 종목 사건이면 그 종목, 시장 사건이면 전체 평가액으로 사건 시작 전날·마지막 날 종가 기준이고, `valueChange = after − before − 그 사이 넣은 돈`, 아직 넣기 전이면 금액 필드가 `null`. 핀 8개 선택·묶음은 화면이 한다 |
 | `GET /app-link` | Bearer | 연동 상태 `AppLink`(아래). 연동돼 있고 마지막 조회에서 1분이 지났으면 앱 서버에서 회원 정보·시드머니를 다시 받는다. 앱 서버 장애면 저장한 마지막 값과 `sync.state: "stale"`. 앱에서 해제·앱 탈퇴(`LINK_NOT_FOUND`)면 웹 연동을 지우고 `{linked: false, reason: "app_unlinked"}` |
 | `POST /app-link` | Bearer | `{code}`(앱에서 받은 8자리, `K7M2-Q9XB`처럼 하이픈·소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
@@ -95,14 +96,17 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 ./gradlew bootRun --args='--spring.profiles.active=local,worker'
 ```
 
-시세 수집(`ingest.MarketSyncJob`, worker만 외부 API를 부른다 04 §8): 켜질 때 한 번(`MARKET_SYNC_ON_START`)과 평일 18:30(`MARKET_SYNC_CRON`)에 돈다. ① 시장별 종목 목록을 받아 시가총액 상위 `MARKET_TOP_LIMIT`개를 `instruments`에 바꿔 넣고 ② 그 종목들의 일봉을 `daily_prices`에 저장한다. 처음에는 `MARKET_BACKFILL_YEARS`년 치, 이후에는 마지막 거래일 10일 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 실행 결과는 `ingest_runs`. 처음 실행은 300종목 × 5년이라 몇 분 걸리고, 다 받기 전에는 그 종목 계산이 503이다.
+시세 수집(`ingest.MarketSyncJob`, worker만 외부 API를 부른다 04 §8): 켜질 때 한 번(`MARKET_SYNC_ON_START`)과 평일 18:30(`MARKET_SYNC_CRON`)에 돈다. ① 시장별 종목 목록을 받아 시가총액 상위 `MARKET_TOP_LIMIT`개를 `instruments`에 바꿔 넣고 ② 그 종목들의 일봉을 `daily_prices`에 저장한다. 처음에는 `MARKET_BACKFILL_YEARS`년 전 그 달 1일보다 일주일 앞부터(화면 "5년 전"이 그 달 1일부터 계산), 이후에는 마지막 거래일 10일 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 실행 결과는 `ingest_runs`. 처음 실행은 300종목 × 5년이라 몇 분 걸리고, 다 받기 전에는 그 종목 계산이 503이다.
 
 | 소스 | 구현(`ingest`) | 비고 |
 |---|---|---|
 | 일봉 | `kiwoom.KiwoomPriceSource`(ka10081 주식일봉, 수정주가, `next-key` 연속조회) | `MARKET_PRICE_SOURCE=kiwoom\|fake` |
+| 사건 근거 공시 | `dart.DartDisclosureSource`(OpenDART `corpCode.xml`·`list.json`, 원문 링크 `dart.fss.or.kr`), 가짜 `fake.FakeDisclosureSource` | `MARKET_DISCLOSURE_SOURCE=dart\|fake\|none`. `DART_API_KEY`가 비어 있으면 공시 단계를 건너뛴다(탐지는 한다) |
 | 종목 목록 | `krx.KrxInstrumentSource`(코스피·코스닥·ETF 일별매매정보 `MKTCAP`), 대체 `kiwoom.KiwoomInstrumentSource`(ka10099, 상장주식수 × 종가 어림) | `MARKET_INSTRUMENT_SOURCE`, 시장별로 실패하면 `MARKET_INSTRUMENT_FALLBACK`(예: KRX ETF API 미승인 401) |
 
-새 소스는 `ingest.PriceSource`/`InstrumentSource`를 구현하고 `ingest.IngestConfig`의 `switch`에 이름을 추가한 뒤 환경 변수를 바꾼다. `market`·`simulation`·화면은 바꾸지 않는다. 키움 HTTP 클라이언트는 JDK `HttpClient`를 쓴다(`HttpURLConnection`은 연속조회 두 번째 요청에서 Read timed out).
+사건 탐지·공시 근거(`ingest.MarketEventJob`, 03 §5-3·5-4): 시세 수집이 끝나면 이어서 돈다. ① 시장 대용 종목(`MARKET_INDEX_PROXY`, 기본 KODEX 200)과 상위 목록 종목마다 저장된 전체 일봉으로 사건을 다시 찾아 `market_events`에 바꿔 넣는다(`market.EventDetector`, 03 C-8 v1). 종목 사건은 시장 영향을 뺀 초과수익률 z ≥ 3이고 하루 ±4%(ETF 3%) 이상, 또는 ±15% 이상이다. 하루 사건이 없으면 5영업일 누적 z ≥ 3.5인데, 가장 큰 하루를 빼고도 나머지 4일 누적 z ≥ 3.5여야 한다(하루에 몰린 움직임이 며칠짜리 사건으로 번지지 않게). 시장 사건(`scope=MARKET`)은 대용 종목이 하루 ±3% 이상인 날이고 대용 종목에 붙는다. 3영업일 안 사건은 합치되 한 사건은 5거래일을 넘지 않고, 종목 사건은 연도별 점수 상위 6건만 남긴다. 다시 탐지하면 같은 시작일이거나 기간이 겹치는 사건을 갱신해 id·근거를 지킨다. ② 공시 소스가 켜져 있으면 고유번호가 없는 종목만 `corpCode.xml`로 채운다. 이어 근거를 아직 찾지 않았거나 마지막 날 + 3일 전에 찾은 종목 사건마다 사건 시작 5거래일 전부터 마지막 날까지 `list.json`을 조회한다. 보고서 이름 키워드 점수(`ingest.DisclosureKeywords`: 잠정실적·공급계약·증자·합병·최대주주 변경 3점, 자기주식·배당·중대재해 2점, 대량보유·주주총회 1점 등) 순으로 사건당 5건까지 `event_sources`에 둔다. 거의 매일 나오는 임원 지분 보고는 근거로 쓰지 않는다. 시장 전체 사건은 회사 공시와 연결하지 않는다. 한 번에 `DART_MAX_CALLS`건까지 처리하고 나머지는 다음 실행에서 이어 한다. 키 문제·한도 초과(010·011·012·020·901)면 공시 단계만 멈춘다. `list.json`에는 접수 시각이 없어 "장 마감 뒤 공시는 다음 영업일 사건"을 가리지 못한다. 실행 결과는 `ingest_runs`(job=`market-events`)에 남는다.
+
+새 소스는 `ingest.PriceSource`/`InstrumentSource`/`DisclosureSource`를 구현하고 `ingest.IngestConfig`의 `switch`에 이름을 추가한 뒤 환경 변수를 바꾼다. `market`·`simulation`·화면은 바꾸지 않는다. 키움 HTTP 클라이언트는 JDK `HttpClient`를 쓴다(`HttpURLConnection`은 연속조회 두 번째 요청에서 Read timed out).
 
 `local` 프로필은 `WEB_JWT_SECRET`이 없으면 실행할 때마다 임의 키를 만든다(재시작하면 다시 로그인). 앱 연동은 `APP_LINK_MODE=snapshot`(앱 서버 없이 고정 데이터, 앱 코드 규칙에 맞는 아무 8자리, 예: `K7M2-Q9XB`)이 기본이다. 재시작하면 연동을 읽을 수 없으므로 [해제] 후 다시 연동한다. 웹 화면(`npm run dev`)의 `/api` 프록시는 기본 `http://localhost:8080`을 본다. worker 실행은 `--spring.profiles.active=worker`(HTTP 없음).
 
@@ -128,6 +132,8 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `MARKET_BACKFILL_YEARS`, `MARKET_SYNC_ON_START`, `MARKET_SYNC_CRON` | 처음 받을 기간, 켜질 때 한 번 돌지, 정기 실행 시각(Asia/Seoul) | `5`, `true`, `0 30 18 * * MON-FRI` |
 | `KIWOOM_BASE_URL`, `KIWOOM_APP_KEY`, `KIWOOM_SECRET_KEY` | 키움 REST API(모의투자는 `https://mockapi.kiwoom.com`) | `https://api.kiwoom.com`, 없음 |
 | `KRX_BASE_URL`, `KRX_AUTH_KEY` | KRX 정보데이터시스템 Open API(API마다 이용 신청) | `https://data-dbg.krx.co.kr/svc/apis`, 없음 |
+| `MARKET_INDEX_PROXY` | 사건 탐지에서 시장 전체로 보는 종목 코드(코스피200 추종 ETF) | `069500` |
+| `MARKET_DISCLOSURE_SOURCE`, `DART_BASE_URL`, `DART_API_KEY`, `DART_MAX_CALLS` | 사건 근거 공시 소스, OpenDART 주소·인증키, 한 번 실행에서 공시를 찾을 사건 수 상한(하루 20,000건 한도 안) | `dart`, `https://opendart.fss.or.kr`, 없음, `5000` |
 | `APP_LINK_BASE_URL` | 앱 서버 주소(`/internal/v1` 앞까지). 비어 있으면 [앱 연동하기]가 503 | 없음 |
 | `APP_LINK_SERVICE_KEY` | `X-Service-Key` 값. 앱 서버 `WEB_LINK_SERVICE_KEYS` 중 하나와 같아야 한다(32자 이상) | 없음 |
 | `APP_LINK_ENCRYPTION_KEY` | `linkId` 암호화 키(Base64, 32바이트, 예: `openssl rand -base64 32`). `APP_LINK_BASE_URL`이 있으면 필수(없으면 시작 실패). **바꾸면 저장된 연동을 읽을 수 없다**(사용자가 해제 후 다시 연동해야 함) | 없음 |
@@ -137,7 +143,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 ## 데이터
 
-Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함. `V3__app_links.sql`: `app_links`(applink: 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니와 조회 시각). `V4__market.sql`: `instruments`(market: 코드 UNIQUE, 시장·시가총액 순위·출처·기준일), `daily_prices`(market: `(instrument_id, trade_date)` PK, 수정주가 종가·거래량·출처·수집 시각), `ingest_runs`(ingest: 수집 실행 기록). 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함. `V3__app_links.sql`: `app_links`(applink: 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니와 조회 시각). `V4__market.sql`: `instruments`(market: 코드 UNIQUE, 시장·시가총액 순위·출처·기준일), `daily_prices`(market: `(instrument_id, trade_date)` PK, 수정주가 종가·거래량·출처·수집 시각), `ingest_runs`(ingest: 수집 실행 기록). `V5__market_events.sql`: `instruments.corp_code`(OpenDART 고유번호), `market_events`(market: 급변동 사건, `(instrument_id, scope, start_date, detector_version)` UNIQUE, 수익률·z·점수·연도 순위·근거 확인 시각), `event_sources`(market: 사건 근거, DART 접수번호·보고서 이름·제출인·접수일·원문 링크·키워드 점수, 사건을 지우면 함께 지워짐). 앱 DB와 외래 키는 없다.
 
 ## 아직 정해지지 않은 것
 

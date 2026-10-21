@@ -1,6 +1,6 @@
-# 웹 개인정보처리방침 — 근거·확인 필요·시행 절차
+# 웹 개인정보처리방침 — 근거·운영 확인·시행 절차
 
-> 2026-10-20 결정([decisions](decisions.md) ⑤): 웹과 앱은 **같은 운영자**(ucmnuniverse)지만 계정·서버·DB가 따로라 개인정보처리방침을 **각자** 둔다. 원문은 웹 [`src/pages/Privacy.tsx`](../../src/pages/Privacy.tsx)(`/privacy`), 앱은 앱 웹 `/privacy`(flexable-app `docs/play-store/privacy-policy.md`). 지금 웹 방침은 **시행 전 초안**이다.
+> 2026-10-20 결정([decisions](decisions.md) ⑤): 웹과 앱은 **같은 운영자**(ucmnuniverse)지만 계정·서버·DB가 따로라 개인정보처리방침을 **각자** 둔다. 원문은 웹 [`src/pages/Privacy.tsx`](../../src/pages/Privacy.tsx)(`/privacy`), 앱은 앱 웹 `/privacy`(flexable-app `docs/play-store/privacy-policy.md`). 웹 방침은 **2026-10-21 시행**(`lib/legal.ts` `WEB_PRIVACY_EFFECTIVE`). 처음 10-28(7일 고지)로 잡았다가 앱 연동을 10-21부터 켜기로 해(사용자 결정) 당겼다. 웹 백엔드(solpa)가 10-21에 처음 열린 서비스라 바꾸는 방침이 아니라 첫 방침으로 보고 바로 시행한다(법적 판단 최종 확인은 담당자). 시행일 코드는 날짜로 링크를 바꾸므로(시행 전에는 `/privacy` "시행 예정"·하단 시행 안내) 다음 개정에도 쓴다. `VITE_API_URL`로 앱 서버를 부르는 배포(지금 Vercel)는 회원 정보를 앱 서버가 처리하므로 계속 앱 방침을 가리킨다.
 
 ## 1. 원칙
 
@@ -21,34 +21,41 @@
 | 화면 설정 | `user_settings`(theme·seen_tours·disclaimer_ack_at) |
 | 연동 일시·마지막 조회 일시 | `app_links.created_at`·`synced_at`·`checked_at` |
 | 서버 오류 기록의 회원 번호 | `AppLinkService` 경고·오류 로그의 `userId`(이메일·linkId는 남기지 않음) |
+| 웹 서버 접속 기록 | `deploy/vm/nginx.conf` `log_format web_access`: IP(앞단 프록시 주소일 수 있음)·일시·메서드·경로(쿼리 제외)·응답 코드·크기·브라우저 정보 |
+| 기록 보관 최대 50MB | `deploy/vm/docker-compose.yml` 로그 회전 10MB × 5개(컨테이너마다) |
+| 백업 매일·7일 | `deploy/vm/backup.sh`(KEEP_DAYS 7, 파일 권한 600), VM crontab 04:00 |
+| 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인) |
 | 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음 |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
 | 연동 해제·앱 해제 확인 시 파기 | `AppLinkService.unlink`, `sync`의 `LINK_NOT_FOUND` 처리 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(`LoginAttemptLimiter`, 연동 코드 제한) |
 | 비회원 체험은 서버 저장 없음 | 로그인 전 화면은 예시 데이터만 사용(`isSample`) |
 
-## 3. 시행 전 확인 필요(`Privacy.tsx`의 "확인 필요" 표시)
+## 3. 시행 전 확인 항목(10-21 모두 채움)
 
 | 항목 | 누가 | 메모 |
 |---|---|---|
-| 웹 서버 제공 기관(처리 위탁 수탁자)과 위치 | 대표·운영 | 아카데미 폐쇄망 VM. 주최 측이 운영하면 위탁, 우리 팀이 관리하면 위탁 아님 |
-| HTTPS 적용 여부 | 운영 | 폐쇄망·도메인 여부에 따라 다름(HANDOFF "웹 주소 확보"). 적용 못 하면 문구를 사실대로 |
-| DB 외부 접근 차단·접근 권한 | 운영 | VM 받은 뒤 |
-| DB 백업 여부·보관 주기 | 운영 | 04 §10 웹 DB 백업 미정 |
-| 서버 오류 기록 보관 기간 | 운영 | 로그 회전 설정과 맞춘다 |
-| Vercel 위탁 유지 여부 | 운영 | 화면을 VM에서 같은 출처로 서비스하면 Vercel 행을 뺀다 |
+| 웹 서버 제공 기관(처리 위탁 수탁자)과 위치 | 대표·운영 | 아카데미 VM(10-21 수령, `solpa.shinhanacademy.co.kr`). 서버·네트워크를 아카데미가 운영하면 위탁, 우리 팀은 VM 안만 관리 |
+| HTTPS 적용 여부 | 운영 | 적용(앞단에서 HTTPS 종료 후 VM 80번). 앞단~VM 구간은 아카데미 내부망 HTTP |
+| DB 외부 접근 차단·접근 권한 | 운영 | `deploy/vm`은 DB 포트를 열지 않고 웹 백엔드만 내부 네트워크로 접근한다. VM 접속 계정 관리는 운영이 정한다 |
+| DB 백업 여부·보관 주기 | 운영 | 안: `deploy/vm/backup.sh` 매일, 7일 보관(같은 VM 안). cron 등록 뒤 확정 |
+| 서버 오류 기록 보관 기간 | 운영 | `deploy/vm`은 컨테이너마다 10MB × 5개에서 회전(기간이 아니라 용량 기준). 기간으로 적으려면 회전 방식을 바꾼다 |
+| Vercel 위탁 유지 여부 | 운영 | VM이 화면을 같은 출처로 서비스한다. 운영 주소를 VM으로 옮기면 Vercel 행을 뺀다 |
 | 만 14세 미만 | 대표 | 앱과 같이 "가입받지 않음". 가입 화면에 연령 확인이 없는 것은 앱과 같다 |
 | 이용약관 | 대표 | 아직 앱 웹 것을 쓴다(`lib/legal.ts`). 웹 전용 약관을 둘지 결정 |
+
+**11-18 웹 VM 종료**: 대한상공회의소 VM은 11-18 이후 닫힌다. 그 뒤 웹 백엔드·DB를 어디로 옮길지(또는 웹 계정 데이터를 파기할지) 정하고, 수탁자·백업·기록 문구를 고친 방침을 **11-11까지 고지**(7일 전)한다. 화면만 Vercel로 돌아가고 웹 백엔드가 없으면 웹 계정 기능은 쓸 수 없다.
 
 ## 4. 앱 쪽과 맞출 것
 
 - 앱 방침에 "이용자가 웹 연동을 하면 웹(같은 운영자)에서 이용하는 항목·목적, 앱 설정에서 해제 가능"을 넣는다. 앱 담당 협의안(flexable-app `docs/web-seed-entries-handoff.md`)의 문구를 기준으로 하되, 항목 목록은 이 문서 2와 같게 맞춘다.
-- **주기별 반영 기록·시작일(`startedOn`)**: 앱 API는 구현됐고 배포 전이다. 웹이 이를 받아 저장하는 코드가 배포되는 날 웹 방침 1항 "앱 연동"에 "주기별 반영 기록(주기 종료일·방법·금액·반영 후 합계·반영 일시), 시작일"을 더하고 같은 날 시행한다.
+- **주기별 반영 기록·시작일(`startedOn`)**: 10-21 웹 방침 1항 "앱 연동"에 넣고 같은 날 시행했다. 앱 API는 main에 머지됐고 운영 배포는 앱 담당(10-21 요청).
+- **앱 방침**: 이미 시행 중인 앱 방침을 바꾸는 것이므로, 앱은 연동 코드 발급 화면에서 제공 항목을 보여 주고 동의를 받은 뒤 코드를 준다(10-21 앱 담당에 요청). 웹도 코드 입력 화면에 받는 항목을 안내한다.
 - 앱 HANDOFF의 "이후 유동자산 집계"는 04 §5-2 범위 밖이다. 넘기려면 04와 두 방침을 먼저 고친다.
 
 ## 5. 시행 절차
 
-1. 3의 확인 필요 항목을 모두 채운다(`Privacy.tsx`에 "확인 필요"가 남아 있으면 시행하지 않는다).
+1. 3의 확인 항목을 모두 채운다.
 2. 시행일을 정한다. 웹 백엔드로 가입을 받기 **전**이어야 하며, 앱 방침 개정과 같은 날로 맞추는 것을 권한다.
 3. 시행 7일 전: `/privacy` 초안 안내를 "○월 ○일 시행 예정"으로 바꾸고 웹에 알린다.
 4. 시행일: `lib/legal.ts`의 `WEB_PRIVACY_EFFECTIVE`에 날짜를 넣어 가입·로그인·하단 링크를 웹 방침으로 바꾼다. `APP_LINK_BASE_URL`은 이 뒤에 넣는다([HANDOFF](HANDOFF.md)).

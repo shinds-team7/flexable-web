@@ -1,0 +1,78 @@
+# 웹 VM 실행 구성: web(nginx, 호스트 80) → api(웹 백엔드) → db(MySQL). worker는 시세 수집(HTTP 없음).
+# 값은 같은 폴더의 .env(커밋하지 않음, 양식 .env.example)에서 읽는다. 사용법은 README.md.
+name: flexable-web
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+x-backend: &backend
+  build:
+    context: ../../backend
+    dockerfile: deploy/Dockerfile
+  image: flexable-web-backend
+  env_file: .env
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-flexable_web}
+      MYSQL_USER: ${DB_USERNAME:-flexable_web}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 넣으세요}
+      # root는 쓰지 않는다. 임의 값으로 만들고 로그에만 한 번 찍힌다.
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      TZ: Asia/Seoul
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    # 포트를 열지 않는다. api·worker만 내부 네트워크로 접근한다.
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    logging: *logging
+
+  api:
+    <<: *backend
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-flexable_web}?serverTimezone=UTC&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-flexable_web}
+      TZ: Asia/Seoul
+      JAVA_OPTS: -Xms256m -Xmx1g
+
+  # 시세 수집. 키움·KRX 키를 넣은 뒤 `--profile worker`로 켠다(README).
+  worker:
+    <<: *backend
+    profiles: ["worker"]
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-flexable_web}?serverTimezone=UTC&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-flexable_web}
+      TZ: Asia/Seoul
+      SPRING_PROFILES_ACTIVE: worker
+      DB_POOL_SIZE: "3"
+      JAVA_OPTS: -Xms128m -Xmx512m
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/vm/web.Dockerfile
+    image: flexable-web-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  db-data:

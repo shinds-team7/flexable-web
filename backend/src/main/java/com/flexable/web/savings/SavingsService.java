@@ -194,8 +194,14 @@ public class SavingsService {
 		if (req.rateBasis().equals("MAX")) {
 			assumptions.add("최고금리는 우대조건을 모두 채운 경우예요");
 		}
+		long deposit = SavingsCalculator.deposit(req.monthly(), pick.product().getMaxLimit());
+		long[] accrued = SavingsCalculator.accruedByMonth(req.monthly(), pick.product().getMaxLimit(), req.termMonths(), rate, compound);
+		List<SavingsDtos.Point> series = new ArrayList<>();
+		for (int m = 1; m <= req.termMonths(); m++) {
+			series.add(new SavingsDtos.Point(m, deposit * m, accrued[m - 1]));
+		}
 		return new Simulation(r.principal(), r.interestPreTax(), r.tax(), r.interestAfterTax(), r.maturityAmount(),
-				r.excludedAmount(), req.rateBasis(), assumptions, NOTICE, false);
+				r.excludedAmount(), req.rateBasis(), series, assumptions, NOTICE, false);
 	}
 
 	private Pick find(String id, int termMonths, String reserveType) {

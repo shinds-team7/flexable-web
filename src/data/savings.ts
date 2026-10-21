@@ -5,7 +5,7 @@
 // 계약 초안은 docs/product/03-architecture.md §8(엔드포인트·필드), 계산 정의는 C-12. API가 생기면 fetch 함수 안만 바꾼다.
 // 금액은 모두 서버 계산 결과다. 정책 적금 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
 // 정책 적금 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { ApiError, api } from '@/lib/api';
 
 export type SavingsSort = 'BASE_RATE' | 'MAX_RATE' | 'TERM';
@@ -75,7 +75,9 @@ export type SavingsProductList = {
 };
 
 export type SavingsSimulateRequest = { productId: string; monthly: number; termMonths: SavingsTerm; reserveType: ReserveType; rateBasis: RateBasis };
-export type SavingsSimulation = SavingsResult & { assumptions: string[]; notice: string; isSample: boolean };
+// 기간 동안 내 돈: m개월 끝까지 넣은 돈과 그때까지 쌓인 세전 이자(약정 금리 기준). 마지막 점 = 만기 세전 이자
+export type SavingsPoint = { month: number; principal: number; interestPreTax: number };
+export type SavingsSimulation = SavingsResult & { series: SavingsPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
 // 정책 적금(청년미래적금): 조건 직접 입력, 자격 판정·가입 연결 없음
 export type PolicyType = 'GENERAL' | 'PREFERRED';
@@ -229,6 +231,9 @@ export const useSavingsProduct = (id: string | null, termMonths: SavingsTerm, re
   useQuery({ queryKey: ['savings', 'product', id, termMonths, reserveType], queryFn: () => fetchProduct(id!, termMonths, reserveType), enabled: id !== null });
 export const useSavingsSimulation = (q: SavingsSimulateRequest | null) =>
   useQuery({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q!), enabled: q !== null });
+/** 고른 상품마다 기본금리 계산 결과(기간 선 포함). 상품 순서대로 돌려준다. */
+export const useSavingsSimulations = (reqs: SavingsSimulateRequest[]) =>
+  useQueries({ queries: reqs.map((q) => ({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q) })) });
 export const usePolicySavings = (code: string) =>
   useQuery({ queryKey: ['savings', 'policy', code], queryFn: () => fetchPolicy(code), staleTime: 5 * 60_000 });
 export const usePolicySimulation = (q: PolicySimulateRequest | null) =>

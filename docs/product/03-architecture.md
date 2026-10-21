@@ -606,7 +606,7 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 | GET /me/seed-money; PUT·DELETE /me/seed-money/manual | 인증 | PUT {total?, monthlyPace?}; 필드별 수정, 빈 요청 거절, DELETE는 기록 기준 복원 |
 | GET /home/what-if | 인증 | 같은 기본 입력으로 지수 ETF·은행 평균·통장 3칸을 서버 계산. 시드머니 NONE이면 입력 필요 상태 |
 | GET /savings/products; GET /savings/products/{id} | 공개 | monthly, termMonths, rateBasis=BASE/MAX, sort=BASE_RATE/MAX_RATE/TERM, direction; 기본 BASE_RATE 내림차순. 응답 rank 없음 |
-| POST /savings/simulate | 공개 | productId, monthly, termMonths, rateBasis. 세전·세후·한도 초과분·가정 반환 |
+| POST /savings/simulate | 공개 | productId, monthly, termMonths, rateBasis. 세전·세후·한도 초과분·가정·기간 선(series) 반환 |
 | GET /savings/policy/{code}; POST /savings/policy/{code}/simulate | 공개 | 규칙·출처 조회; {monthly, termMonths:36, type:GENERAL/PREFERRED, bankRate}. 조건 직접 입력, 자격 판정·가입 연결 없음 |
 | GET /youth-news | 공개 | date, age, region, category. date(실제 게시일)와 requestedDate를 구분 |
 | POST·DELETE /youth-news/{id}/save; GET /me/saved-news | 인증 | 북마크 무료, 중복 등록은 멱등 |
@@ -638,7 +638,7 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 
 **시드머니:** {total,monthlyPace,basis,cyclesCount,cycles:[{startDate,endDate,income,expense,saved,incomeSource}],current:{startDate,endDate,income,incomeSource,expense,saved,remainingFixed},todaySaved,estimate,manual:{total?,monthlyPace?},effective:{total,monthlyPace},noticeKey,notice}. total·monthlyPace는 기록 계산값, 화면·시뮬레이션은 필드별 직접 수정 우선의 effective 사용. basis=MANUAL이면 '직접 입력'. 수입 거래가 없는 진행 주기는 income=0, incomeSource=NONE으로 미입력임을 표시한다. 주간 아낀 돈 합계는 만들지 않는다(팀장 확정 1, 14장).
 
-**적금:** 목록 각 상품은 {id,company,name,baseRate,maxRate,termMonths,reserveType,interestType,disclosureMonth,maxLimit,joinMember,joinDeny,openToAll,disclosureUrl,dataAsOf}. 상세만 specialConditionText(원문) 추가. 계산 결과 {principal,interestPreTax,tax,interestAfterTax,maturityAmount,excludedAmount,rateBasis}. 최고금리는 '우대조건을 모두 채운 경우' 가정; 개인 조건 판정 없음. 정책 적금은 {principal,govContribution,interestPreTax,tax:0,total,averageSavingsComparison,rulesVersion,verificationStatus} 추가, 기여금 지급 가정과 미확인 표시를 항상 반환.
+**적금:** 목록 각 상품은 {id,company,name,baseRate,maxRate,termMonths,reserveType,interestType,disclosureMonth,maxLimit,joinMember,joinDeny,openToAll,disclosureUrl,dataAsOf}. 상세만 specialConditionText(원문) 추가. 계산 결과 {principal,interestPreTax,tax,interestAfterTax,maturityAmount,excludedAmount,rateBasis}. simulate는 기간 동안 내 돈 선으로 series:[{month,principal,interestPreTax}]를 함께 준다(month = 1..termMonths, 그 달 끝까지 넣은 돈과 쌓인 세전 이자. 회차마다 C-12 이자를 경과 개월로 계산해 내림 후 합산, 마지막 점 = 만기 세전 이자). 최고금리는 '우대조건을 모두 채운 경우' 가정; 개인 조건 판정 없음. 정책 적금은 {principal,govContribution,interestPreTax,tax:0,total,averageSavingsComparison,rulesVersion,verificationStatus} 추가, 기여금 지급 가정과 미확인 표시를 항상 반환.
 
 **소식:** {requestedDate,date,items:[{id,title,summary,benefitText,todayAction,calcTarget,slot,category,ageMin,ageMax,regionName,audienceText,applyStart,applyDeadline,alwaysOpen,sourceUrl,asOf,correctedAt,correctionNote}]}. E2의 action_text/featured는 todayAction/slot으로 통일. calcTarget은 승인된 내부 경로 키+상품 코드만 허용. 개인화 필터를 서버 프로필에 저장하지 않는다.
 

@@ -21,6 +21,14 @@ class SavingsCalculatorTest {
 	}
 
 	@Test
+	void accruedByMonthEndsAtTheMaturityInterest() {
+		long[] a = SavingsCalculator.accruedByMonth(78_000, null, 12, new BigDecimal("3.5"), false);
+		assertThat(a).hasSize(12);
+		assertThat(a[0]).isEqualTo(227);
+		assertThat(a[11]).isEqualTo(17_742);
+	}
+
+	@Test
 	void monthlyLimitExcludesTheRest() {
 		var r = SavingsCalculator.calculate(100_000, 30_000L, 6, new BigDecimal("1.2"), false);
 		assertThat(r.principal()).isEqualTo(180_000);

@@ -12,6 +12,11 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
+
+  /** 서버가 문제 입력을 짚어 줄 때(예: MARKET_UNAVAILABLE이면 시세를 못 받은 종목 코드) */
+  get field(): string | undefined {
+    return typeof this.details.field === 'string' ? this.details.field : undefined;
+  }
 }
 
 export const apiUrl = (path: string) => BASE + path;

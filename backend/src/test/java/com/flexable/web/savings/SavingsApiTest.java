@@ -126,6 +126,9 @@ class SavingsApiTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.rateBasis").value("MAX"))
 			.andExpect(jsonPath("$.principal").value(936_000))
+			.andExpect(jsonPath("$.series", hasSize(12)))
+			.andExpect(jsonPath("$.series[11].month").value(12))
+			.andExpect(jsonPath("$.series[11].principal").value(936_000))
 			.andExpect(jsonPath("$.isSample").value(false));
 
 		mvc.perform(get("/api/v1/savings/products/" + id + "?termMonths=36")).andExpect(status().isNotFound());

@@ -7,6 +7,7 @@ import { useSession } from '@/auth/session';
 import type { AuthResponse } from '@/auth/types';
 import { Icon } from '@/components/Icons';
 import { LEGAL_BASE } from '@/components/Layout';
+import { privacyHref } from '@/lib/legal';
 import { api, errorText } from '@/lib/api';
 
 const LABEL: Record<OAuthProvider, string> = { kakao: '카카오 로그인', google: 'Google 계정으로 로그인' };
@@ -118,7 +119,7 @@ export default function Login() {
             </form>
           )}
           <p className="meta" style={{ textAlign: 'center' }}>
-            로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>과 <a href={`${LEGAL_BASE}/privacy`}>개인정보처리방침</a>에 동의하는 것으로 봐요.
+            로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>과 <a href={privacyHref}>개인정보처리방침</a>에 동의하는 것으로 봐요.
           </p>
           {error && (
             <div className="error-box" style={{ padding: 16 }} role="alert">

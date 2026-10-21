@@ -27,31 +27,43 @@ final class SavingsCalculator {
 	 * @param ratePercent 연 %
 	 */
 	static Result calculate(long monthly, Long maxLimit, int months, BigDecimal ratePercent, boolean compound) {
-		long deposit = maxLimit != null && maxLimit > 0 ? Math.min(monthly, maxLimit) : monthly;
+		long deposit = deposit(monthly, maxLimit);
 		long excluded = (monthly - deposit) * months;
-		BigDecimal depositAmount = BigDecimal.valueOf(deposit);
-		long pre = 0;
-		if (compound) {
-			BigDecimal factor = BigDecimal.ONE.add(ratePercent.divide(BigDecimal.valueOf(1200), MC));
-			BigDecimal power = BigDecimal.ONE;
-			for (int k = 1; k <= months; k++) {
-				power = power.multiply(factor, MC);
-				pre += depositAmount.multiply(power.subtract(BigDecimal.ONE), MC)
-					.setScale(0, RoundingMode.FLOOR)
-					.longValueExact();
-			}
-		}
-		else {
-			BigDecimal perMonth = depositAmount.multiply(ratePercent);
-			for (int k = 1; k <= months; k++) {
-				pre += perMonth.multiply(BigDecimal.valueOf(k))
-					.divide(BigDecimal.valueOf(1200), 0, RoundingMode.FLOOR)
-					.longValueExact();
-			}
-		}
+		long pre = accruedByMonth(monthly, maxLimit, months, ratePercent, compound)[months - 1];
 		long tax = pre * 154 / 1000;
 		long after = pre - tax;
 		long principal = deposit * months;
 		return new Result(principal, pre, tax, after, principal + after, excluded);
+	}
+
+	/** 한도를 넘는 돈을 뺀 실제 매달 납입액. */
+	static long deposit(long monthly, Long maxLimit) {
+		return maxLimit != null && maxLimit > 0 ? Math.min(monthly, maxLimit) : monthly;
+	}
+
+	/**
+	 * m개월(1~months) 끝까지 쌓인 세전 이자. 마지막 값이 만기 세전 이자다.
+	 * 납입분마다 남은 개월 수 k의 이자를 내림하므로 m개월째 값은 k=1..m 이자의 합이다.
+	 */
+	static long[] accruedByMonth(long monthly, Long maxLimit, int months, BigDecimal ratePercent, boolean compound) {
+		BigDecimal depositAmount = BigDecimal.valueOf(deposit(monthly, maxLimit));
+		long[] out = new long[months];
+		long running = 0;
+		BigDecimal factor = BigDecimal.ONE.add(ratePercent.divide(BigDecimal.valueOf(1200), MC));
+		BigDecimal power = BigDecimal.ONE;
+		BigDecimal perMonth = depositAmount.multiply(ratePercent);
+		for (int k = 1; k <= months; k++) {
+			if (compound) {
+				power = power.multiply(factor, MC);
+				running += depositAmount.multiply(power.subtract(BigDecimal.ONE), MC).setScale(0, RoundingMode.FLOOR).longValueExact();
+			}
+			else {
+				running += perMonth.multiply(BigDecimal.valueOf(k))
+					.divide(BigDecimal.valueOf(1200), 0, RoundingMode.FLOOR)
+					.longValueExact();
+			}
+			out[k - 1] = running;
+		}
+		return out;
 	}
 }

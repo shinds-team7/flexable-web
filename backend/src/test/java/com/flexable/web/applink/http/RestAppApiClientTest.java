@@ -71,8 +71,17 @@ class RestAppApiClientTest {
 				Duration.ofMillis(500), Duration.ZERO));
 	}
 
+	/**
+	 * 테스트마다 하나를 만들어 필드로 잡아 둔다. 호출마다 새로 만들면 응답 본문을 읽는 중에 JDK HttpClient가 GC되어
+	 * 본문 스트림이 닫힐 수 있다(운영에서는 빈 하나가 계속 잡고 있어 생기지 않음).
+	 */
+	private RestAppApiClient api;
+
 	private RestAppApiClient client() {
-		return client("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+		if (api == null) {
+			api = client("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+		}
+		return api;
 	}
 
 	private void reply(int status, String body) {
@@ -129,6 +138,21 @@ class RestAppApiClientTest {
 		reply(204, null);
 		client().delete(LINK_ID);
 		assertThat(seen.get(seen.size() - 1)).startsWith("DELETE /internal/v1/web-links/" + LINK_ID + " key=");
+	}
+
+	/** 앱이 주기별 반영 기록(startedOn·entries)을 더해도 지금 웹이 기존 필드를 그대로 읽어야 한다(앱 docs/API.md 예시). */
+	@Test
+	void ignoresFieldsAddedByTheApp() {
+		reply(200, """
+				{"total":1450000,"base":500000,"monthlyGoal":300000,
+				 "lastEntry":{"cycleEnd":"2026-11-25","choice":"MANUAL","amount":0,"createdAt":"2026-11-25T20:10:00+09:00"},
+				 "updatedAt":"2026-11-25T20:10:00+09:00","startedOn":"2026-08-26",
+				 "entries":[{"cycleEnd":"2026-09-25","choice":"ALL","amount":950000,"totalAfter":1450000,"createdAt":"2026-09-26T20:10:00+09:00"},
+				            {"cycleEnd":"2026-11-25","choice":"MANUAL","amount":0,"totalAfter":1450000,"createdAt":"2026-11-25T20:10:00+09:00"}]}""");
+		AppSeedMoney seed = client().seedMoney(LINK_ID);
+		assertThat(seed.total()).isEqualTo(1_450_000);
+		assertThat(seed.lastEntry().choice()).isEqualTo("MANUAL");
+		assertThat(seed.lastEntry().amount()).isZero();
 	}
 
 	@Test

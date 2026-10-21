@@ -14,9 +14,9 @@
 웹 계정·소셜 로그인·화면 연결은 코드로 끝났다(#9·#13·#14). 아래는 아카데미에서 폐쇄망 VM을 받아야 할 수 있는 운영 작업이다. 그 전까지 배포본(Vercel)은 `VITE_API_URL`이 project2를 가리켜 project2 계정으로 로그인된다.
 
 - [ ] **웹 백엔드 배포**: VM에 웹 백엔드(api, 필요하면 worker)와 웹 DB를 띄우고 환경변수를 넣는다. 필수 `WEB_JWT_SECRET`(32바이트 이상, 앱 `JWT_SECRET`과 다른 값)·`DB_URL`·`DB_USERNAME`·`DB_PASSWORD`. 목록은 [`backend/README.md`](../../backend/README.md) "환경 변수".
-- [ ] **앱 연동 설정**: 웹 백엔드에 `APP_LINK_BASE_URL`(앱 서버 주소), `APP_LINK_SERVICE_KEY`(앱 서버 `WEB_LINK_SERVICE_KEYS`에 넣은 값과 같은 키, 32자 이상), `APP_LINK_ENCRYPTION_KEY`(`openssl rand -base64 32`, 한 번 정하면 바꾸지 않음)를 넣는다. 앱 서버 쪽에는 같은 서비스 키를 `WEB_LINK_SERVICE_KEYS`에 더한다. 키 값은 저장소·문서·메신저에 적지 않는다. 앱 서버 프록시에서 VM의 나가는 IP만 허용할지도 정한다(04 §10).
+- [ ] **앱 연동 설정**(웹 서버 10-21 수령 예정): 웹 백엔드에 `APP_LINK_SERVICE_KEY`(앱 서버 `.env`의 `WEB_LINK_SERVICE_KEYS` 값과 같은 키 — 앱 쪽은 10-20 설정·배포 완료, 값은 팀 비공개 공간), `APP_LINK_ENCRYPTION_KEY`(`openssl rand -base64 32`, 한 번 정하면 바꾸지 않음)를 넣는다. `APP_LINK_BASE_URL`(앱 서버 주소)은 웹 개인정보처리방침 시행 뒤 마지막에 넣는다(넣는 순간 연동 화면이 보인다). 키 값은 저장소·문서·메신저에 적지 않는다. 앱 서버 프록시에서 VM의 나가는 IP만 허용할지도 정한다(04 §10).
 - [ ] **앱: 주기별 반영 기록 API**(decisions ④-3, 04 §5-2): `GET /internal/v1/web-links/{linkId}/seed-money`에 `entries`·`startedOn`을 더한다. 앱 담당 요청서는 [app-request-seed-entries.md](app-request-seed-entries.md). 앱이 배포되면 웹은 `applink`에 기록 저장을 더하고 홈 시드머니(`seedmoney`, `GET /api/v1/me/seed-money`)를 연동 값으로 바꾼다.
-- [ ] **개인정보처리방침**: 연동 화면 공개 전에 웹이 앱에서 받는 항목(앱 이메일·로그인 방법·확정 시드머니·주기별 반영 기록)과 삭제 시점을 웹·앱 방침에 넣고 시행일을 정한다.
+- [ ] **웹 개인정보처리방침 시행**: 초안 `/privacy`(`src/pages/Privacy.tsx`)의 "확인 필요" 항목(웹 서버 제공 기관·HTTPS·DB 접근 통제·백업·로그 보관)을 채우고 시행일을 정한다. 웹 백엔드로 가입을 받기 전이어야 한다. 절차는 [privacy-web §5](privacy-web.md#5-시행-절차). 앱 방침에도 웹 연동 항목을 넣는다(앱 담당).
 - [ ] **앱 연동 실기기 확인**(앱 1.3.0 출시·앱 화면 원격 업데이트 뒤): 앱 코드 발급 → 웹 내 정보에서 연동 → 시드머니 표시 → 웹에서 해제 시 앱 연동 목록에서 사라짐 → 다시 연동 후 앱에서 해제 시 웹이 "앱에서 연동을 해제" 표시. 공개 전에 개인정보처리방침 반영 여부·시행일 확인.
 - [ ] **웹 주소 확보**: Google 로그인 콜백은 공개 도메인 + HTTPS여야 한다(IP 주소·사설 주소 불가, localhost만 예외). VM에 도메인을 붙일 수 없으면 Google 로그인은 운영에서 끄고(`GOOGLE_CLIENT_ID` 비움) 카카오·이메일만 쓴다.
 - [ ] **소셜 콘솔 등록**(project2와 같은 카카오·Google 앱을 쓴다, 아래 조건): 콜백 `{OAUTH_CALLBACK_BASE_URL}/api/v1/auth/oauth/kakao/callback`·`…/google/callback`을 Redirect URI에 추가한다. Google은 동의 화면 승인된 도메인에 웹 도메인도 더한다. 웹 백엔드에 `OAUTH_CALLBACK_BASE_URL`, `OAUTH_ALLOWED_REDIRECT_URIS`(웹 화면의 `/oauth/callback`), `KAKAO_CLIENT_ID`·`KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`을 넣는다.
@@ -38,9 +38,11 @@
    - 시연 조건 3가지(출처 표시 / 원본 재제공 없음 / 비상업 시연 고지)는 확정 22에 있다.
 
 7. [ ] **디자인 피드백·재작업(디자인 세션).**
-   - 열린 PR #62(디자인 2차 회의 결정 반영)를 머지할지 닫을지 정한다.
-   - 10-18 기획 결정 중 `docs/product/02-design.md`에 아직 반영하지 않은 것: 기간 칩 [1년 전][3년 전·기본][날짜 지정], 계산 시점(첫 진입 자동 → 이후 [다시 계산]), 과거 적금 가정, 금리 카드, 근거 필드 `sources[]`, 적금 정렬 키, F8 이벤트 4종, F9 상품 카드 3장(`PRODUCT_CARD` 고지).
-   - 행 번호는 PR #63·#65·#68 본문에 있다.
+   - [x] 디자인 2차 회의 결정(앱 저장소 shinds-team7/flexable-app#62)을 `02-design.md`·`docs/reference/wireframes.html`에 옮겼다(10-20). 적금 비교·정책 적금은 더 새 10-20 팀 회의안을 남겼다. 금리 카드의 [이 기간 은행 평균 적금 보기 →]는 과거 시점 비교가 빠져 목적지가 없다. 버튼을 뺄지 정한다.
+   - [ ] 10-18 기획 결정 중 `02-design.md`에 아직 반영하지 않은 것(10-19 디자인 4차 점검, 대표 결정 대기): 날짜 지정 범위(스냅숏 마지막 거래일 기준, 데이터 첫날·상장일 이후. 02는 기간 칩 1·3년만) / 재계산 전 '이전 조건 결과' 표시와 저장·공유 제한 / 과거 적금 가정(납입월 금리 고정·단리·15.4%) / 금리 카드 발표일 / 근거 필드 `sources[]` / 적금 정렬 키 / 사용 지표 이벤트(F8) 4종 / F9 상품 카드 3장(`PRODUCT_CARD` 고지, 타임머신 레일 [사건 | 상품] 전환안). 행 번호는 앱 저장소 PR #63·#65·#68 본문에 있다.
+   - [ ] 기준금리 계단선 띠: 디자인 2차 회의에서 대표가 Should로 승인했으나, 기획 2차 회의는 '해커톤 차트 새 선 0, 기준금리 연속선은 출시 후'로 정했다. 어느 쪽을 따를지 정한다.
+   - [ ] 랜딩 문구가 디자인 2차 회의 전 내용이다(`src/pages/Landing.tsx`: 2020년 예시 차트, 플러스 문구에 리포트·정밀 모드). 색은 10-20 디자인 시스템 개편(#21)으로 `src/styles/tokens.css`가 정본이 됐다.
+   - 범위 밖: 웹 홈 코스피·코스닥 실제 시세 연결은 팀원이 진행한다. 캐릭터 3D 렌더 자산은 대표가 준비되는 대로 준다.
 
 8. [ ] **DATA: 시연 종목 10~15개 선정·3년 일봉 스냅숏 1회 적재.**
    - 기간 중 분할·병합·무상증자가 없는 종목을 우선한다(수정주가 제공 여부가 미확인).

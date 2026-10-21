@@ -4,6 +4,7 @@
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSession } from '@/auth/session';
+import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
 import { useSubscription } from '@/data/plans';
@@ -15,6 +16,7 @@ import {
   useSavingsProduct,
   useSavingsProducts,
   useSavingsSimulation,
+  useSavingsSimulations,
   type PolicySavingsRules,
   type PolicyType,
   type ReserveType,
@@ -36,7 +38,6 @@ const SORTS: { s: SavingsSort; label: string }[] = [
 ];
 // TODO(BE): 비교 개수는 설정값(무료 2 / 플러스 5). GET /billing/plans의 limits로 바꾼다
 const COMPARE_LIMIT = { FREE: 2, PLUS: 5 };
-const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
 const REGIONS = ['서울', '부산', '대구', '인천', '광주·전남', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '경북', '경남', '제주'];
 const ALL_SIZE = 1000; // 쪽 나누기 없이 전체를 한 번에 받는다
 const POLICY_CODE = 'YOUTH_FUTURE';
@@ -180,15 +181,112 @@ function ProductDetail({ id, term, monthly, reserveType }: { id: string; term: S
   );
 }
 
-function CompareCard({ items, monthly, term, limit }: { items: SavingsProduct[]; monthly: number; term: SavingsTerm; limit: number }) {
+type Picked = { p: SavingsProduct; slot: number }; // slot = 비교에 넣을 때 받은 색 칸. 다른 상품을 빼도 바뀌지 않는다
+
+/** 기간 동안 내 돈: 고른 상품마다 넣은 돈 위에 쌓이는 세전 이자 선(기본금리). 표로 보기면 달마다 표. */
+function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; monthly: number; term: SavingsTerm; asTable: boolean }) {
+  const sims = useSavingsSimulations(
+    picked.map(({ p }) => ({ productId: p.id, monthly, termMonths: term, reserveType: p.reserveType, rateBasis: 'BASE' as const })),
+  );
+  const failed = sims.find((q) => q.isError);
+  const head = (
+    <>
+      <h3 className="sec-title sv-h3">기간 동안 내 돈</h3>
+      <p className="meta">넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 중간에 해지하면 이 금리를 다 받지 못해요.</p>
+    </>
+  );
+  if (failed)
+    return (
+      <>
+        {head}
+        <p className="sub">{errorText(failed.error)}</p>
+      </>
+    );
+  if (sims.some((q) => !q.data))
+    return (
+      <>
+        {head}
+        <div className="skel" style={{ height: 260, marginTop: 12 }} />
+      </>
+    );
+  const lines = picked.map(({ p, slot }, i) => ({ id: p.id, name: p.name, colorSlot: slot, data: sims[i].data!.series }));
+  if (lines.some((l) => l.data.length === 0)) return null;
+  const months = lines[0].data;
+  const cash = '이자 없이 모아 둔 경우(0원)';
+  return (
+    <>
+      {head}
+      {asTable ? (
+        <div className="table-wrap">
+          <table>
+            <caption>기간 동안 쌓인 이자(세전)</caption>
+            <thead>
+              <tr>
+                <th>개월</th>
+                <th className="r">넣은 돈</th>
+                {lines.map((l) => (
+                  <th key={l.id} className="r">
+                    {l.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {months.map((m, i) => (
+                <tr key={m.month}>
+                  <td>{m.month}개월</td>
+                  <td className="r">{won(m.principal)}원</td>
+                  {lines.map((l) => (
+                    <td key={l.id} className="r">
+                      {won(l.data[i].interestPreTax)}원
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <>
+          <LineLegend series={lines} baseline={cash} />
+          <MultiLineChart
+            series={lines.map((l) => ({ id: l.id, name: l.name, colorSlot: l.colorSlot, points: l.data.map((d) => ({ x: d.month, y: d.interestPreTax })) }))}
+            baseline={{ name: cash, y: 0 }}
+            xLabel={(x) => `${x}개월`}
+            ariaLabel={`기간 동안 쌓인 이자 꺾은선 그래프, ${term}개월`}
+            tooltip={(x) => (
+              <>
+                <div className="meta">
+                  {x}개월째 · 넣은 돈 {won(months[x - 1].principal)}원
+                </div>
+                {lines.map((l) => (
+                  <div key={l.id} className="t-row">
+                    <span>
+                      <i className="t-key" style={{ borderColor: seriesColor(l.colorSlot) }} />
+                      {l.name}
+                    </span>
+                    <b className="num">+{won(l.data[x - 1].interestPreTax)}원</b>
+                  </div>
+                ))}
+              </>
+            )}
+          />
+          <p className="sr-only">{lines.map((l) => `${l.name}: ${term}개월 끝 세전 이자 ${won(l.data[l.data.length - 1].interestPreTax)}원`).join(', ')}</p>
+        </>
+      )}
+    </>
+  );
+}
+
+function CompareCard({ picked, monthly, term, limit }: { picked: Picked[]; monthly: number; term: SavingsTerm; limit: number }) {
   const [asTable, setAsTable] = useState(false);
   const rows = [
-    ...items.map((p, i) => ({
+    ...picked.map(({ p, slot }) => ({
       key: p.id,
       name: p.name,
       sub: p.company,
       rate: p.baseRate,
-      color: SERIES[i],
+      color: seriesColor(slot),
       r: p.result,
     })),
     // 이자 0% 통장: 넣은 돈 그대로라 이자는 0원(서버 비교선 CASH와 같은 뜻)
@@ -211,14 +309,14 @@ function CompareCard({ items, monthly, term, limit }: { items: SavingsProduct[];
             최대 {limit}개 + 이자 0% · 매달 {won(monthly)}원 · {term}개월
           </p>
         </div>
-        {items.length > 0 && (
+        {picked.length > 0 && (
           <button className="btn btn-line btn-sm" aria-expanded={asTable} aria-controls="svCmpTable" onClick={() => setAsTable((v) => !v)}>
-            {asTable ? '막대로 보기' : '표로 보기'}
+            {asTable ? '그래프로 보기' : '표로 보기'}
           </button>
         )}
       </div>
-      {items.length === 0 ? (
-        <p className="sub">표의 비교 칸을 체크하면 만기 세후 이자를 나란히 볼 수 있어요.</p>
+      {picked.length === 0 ? (
+        <p className="sub">표의 비교 칸을 체크하면 만기 세후 이자와 기간 동안 내 돈을 나란히 볼 수 있어요.</p>
       ) : asTable ? (
         <div className="table-wrap" id="svCmpTable">
           <table>
@@ -272,6 +370,7 @@ function CompareCard({ items, monthly, term, limit }: { items: SavingsProduct[];
           </div>
         </>
       )}
+      {picked.length > 0 && <MoneyOverTime picked={picked} monthly={monthly} term={term} asTable={asTable} />}
     </div>
   );
 }
@@ -455,7 +554,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
   const policyOn = initialPolicy; // 소식 카드 [계산해 보기](?policy=1)로 들어왔을 때만 표 아래에 청년미래적금 계산 카드를 붙인다
   const [sort, setSort] = useState<SavingsSort>('BASE_RATE');
   const [companyNames, setCompanyNames] = useState<string[]>([]); // 비어 있으면 전체
-  const [cmp, setCmp] = useState<SavingsProduct[]>([]);
+  const [cmp, setCmp] = useState<Picked[]>([]);
   const [openId, setOpenId] = useState<string | null | undefined>(undefined); // undefined = 아직 안 눌러서 첫 상품이 펼쳐진 상태, null = 모두 접음
   const [lockMsg, setLockMsg] = useState('');
   const [region, setRegion] = useState(''); // 정책상품 지역. '' = 전체, '전국' = 중앙부처
@@ -492,12 +591,16 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
 
   const toggleCompare = (p: SavingsProduct, on: boolean) => {
     setLockMsg('');
-    if (!on) return setCmp((c) => c.filter((x) => x.id !== p.id));
+    if (!on) return setCmp((c) => c.filter((x) => x.p.id !== p.id));
     if (picked.length >= compareLimit) {
       setLockMsg(`비교는 무료 ${COMPARE_LIMIT.FREE}개 · 플러스 ${COMPARE_LIMIT.PLUS}개까지예요`);
       return;
     }
-    setCmp((c) => [...c, p]);
+    setCmp((c) => {
+      let slot = 0;
+      while (c.some((x) => x.slot === slot)) slot++; // 비어 있는 가장 앞 칸. 남은 상품의 색은 그대로 둔다
+      return [...c, { p, slot }];
+    });
   };
   const toggleOpen = (id: string) => setOpenId(expandedId === id ? null : id);
   const reset = () => {
@@ -678,7 +781,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
                                     type="checkbox"
                                     className="sv-cmp"
                                     aria-label={`${p.name} 비교에 넣기`}
-                                    checked={cmp.some((x) => x.id === p.id)}
+                                    checked={cmp.some((x) => x.p.id === p.id)}
                                     onChange={(e) => toggleCompare(p, e.target.checked)}
                                   />
                                 </td>
@@ -711,7 +814,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
 
             <div className="sv-rail">
               {picked.length >= 2 ? (
-                <CompareCard items={picked} monthly={monthly} term={term} limit={compareLimit} />
+                <CompareCard picked={picked} monthly={monthly} term={term} limit={compareLimit} />
               ) : (
                 <div className="card">
                   <h2>고른 상품 비교</h2>

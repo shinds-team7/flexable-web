@@ -49,7 +49,12 @@ final class SavingsDtos {
 			@NotBlank String reserveType, @NotNull String rateBasis) {
 	}
 
+	/** 기간 동안 내 돈의 한 점: month개월 끝까지 넣은 돈과 그때까지 쌓인 세전 이자. */
+	record Point(int month, long principal, long interestPreTax) {
+	}
+
 	record Simulation(long principal, long interestPreTax, long tax, long interestAfterTax, long maturityAmount,
-			long excludedAmount, String rateBasis, List<String> assumptions, String notice, boolean isSample) {
+			long excludedAmount, String rateBasis, List<Point> series, List<String> assumptions, String notice,
+			boolean isSample) {
 	}
 }

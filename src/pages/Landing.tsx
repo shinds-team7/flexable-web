@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { TimeChart } from '@/charts/TimeChart';
 import { Footer } from '@/components/Layout';
-import { N, simulateSample } from '@/data/sampleMarket';
+import { N, sampleChartData, simulateSample } from '@/data/sampleMarket';
 import { SocialButtons } from './Login';
 
 const HINT_KEY = 'fx.landHint';
@@ -26,7 +26,7 @@ const markSeen = () => {
 export default function Landing() {
   const { status } = useSession();
   const navigate = useNavigate();
-  const sim = useMemo(() => simulateSample({ amount: 470000, how: 'lump', startIdx: 0 }), []);
+  const chart = useMemo(() => sampleChartData(simulateSample({ amount: 470000, how: 'lump', startIdx: 0 })), []);
   if (status === 'member') return <Navigate to="/home" replace />;
 
   const placeHint = (wrap: HTMLDivElement) => {
@@ -46,15 +46,14 @@ export default function Landing() {
     <section>
       <div className="page land">
         <div className="land-hero">
-          <div>
-            <img className="land-char" src="/characters/lv3-3.png" alt="" width={112} height={112} />
+          <div className="land-copy">
             <h1 className="display">아낀 돈, 그때 굴렸다면 얼마였을까?</h1>
-            <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요. 진짜 돈은 움직이지 않아요.</p>
+            <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요.</p>
             <div className="cta-stack">
-              <SocialButtons />
               <Link className="btn-text land-try" to="/home">
                 로그인 없이 체험하기
               </Link>
+              <SocialButtons />
             </div>
           </div>
           <div className="card card-hero">
@@ -67,7 +66,7 @@ export default function Landing() {
             </div>
             <TimeChart
               label="예시 차트: 2020년 1월부터 지금까지 내 자산 변화와 사건 핀"
-              sim={sim}
+              data={chart}
               from={0}
               to={N - 1}
               mode="total"

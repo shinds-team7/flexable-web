@@ -565,7 +565,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .news-card .news-corrected{font-size:12px;font-weight:700;color:var(--warn)}
 .news-card-foot{margin-top:auto;padding-top:8px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
 .news-card-foot .news-src-acts{font-size:13px;margin-right:-6px}
-.dday.urgent{background:var(--danger-soft);color:var(--danger)}
+.dday.urgent{background:var(--danger-soft);color:var(--danger);border-color:var(--danger)}
 .news-rail{max-height:calc(100vh - 96px);overflow:auto}
 .news-rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .news-saved-toggle{display:none}

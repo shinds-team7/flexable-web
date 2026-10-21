@@ -2,6 +2,7 @@
 // 로그인한 사용자와 체험 중인 손님은 로고를 누르면 홈(/home)으로 간다.
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { LEGAL_BASE, privacyHref } from '@/lib/legal';
 import { useSession } from '@/auth/session';
 import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
@@ -111,15 +112,15 @@ export function Layout() {
   );
 }
 
-// 약관·개인정보처리방침·고객지원 원문은 앱 저장소(project2)의 웹 페이지 하나만 둔다(Play 등록 주소, 문서와 E2E로 일치 검사).
-export const LEGAL_BASE = 'https://project2-flex-sh.vercel.app';
+// 약관·개인정보처리방침 주소는 lib/legal. 기존 import 경로(@/components/Layout)를 위해 다시 내보낸다.
+export { LEGAL_BASE };
 export const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.flexable.app';
 
 export function Footer() {
   return (
     <footer className="footer">
       <a href={`${LEGAL_BASE}/terms`}>이용약관</a>
-      <a href={`${LEGAL_BASE}/privacy`}>개인정보처리방침</a>
+      <a href={privacyHref}>개인정보처리방침</a>
       <a href={`${LEGAL_BASE}/support`}>고객지원</a>
       <a href={PLAY_URL} target="_blank" rel="noreferrer">
         앱 받기(Google Play)

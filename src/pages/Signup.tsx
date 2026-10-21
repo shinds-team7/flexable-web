@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import type { AuthResponse } from '@/auth/types';
 import { LEGAL_BASE } from '@/components/Layout';
+import { privacyHref } from '@/lib/legal';
 import { api, errorText } from '@/lib/api';
 
 export default function Signup() {
@@ -79,7 +80,7 @@ export default function Signup() {
               <label className="check">
                 <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} />
                 <span>
-                  <a href={`${LEGAL_BASE}/privacy`}>개인정보 수집·이용</a>에 동의해요(필수)
+                  <a href={privacyHref}>개인정보 수집·이용</a>에 동의해요(필수)
                 </span>
               </label>
             </div>

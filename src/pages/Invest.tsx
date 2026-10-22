@@ -12,7 +12,7 @@ import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
 import { useBoard, useSimulation, type Board, type FundingMode, type Instrument, type SimPoint, type SimulationRequest, type SimulationResult } from '@/data/market';
 import { ApiError, errorText } from '@/lib/api';
-import { fmtDate, krShort, pctTxt, signWon, upDown, won } from '@/lib/format';
+import { arrow, fmtDate, krShort, pctTxt, signWon, upDown, won } from '@/lib/format';
 
 const MAX_LEGS = 3;
 const COLORS = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
@@ -192,9 +192,9 @@ export default function Invest() {
         </div>
         <div className="sim no-rail">
           <aside className={'cond-col col' + (expanded ? ' expanded' : '')} id="tmConditions" aria-label="종목 목록">
-            <div className="card cond-summary" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '16px 20px' }}>
-              <span className="sub" style={{ fontSize: 14 }}>
-                종목 {picked.length}개 고름
+            <div className="card cond-summary tm-cond-summary">
+              <span className="sub">
+                종목 <b className="num">{picked.length}</b>개 고름
               </span>
               <button className="btn btn-line btn-sm" type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
                 {expanded ? '목록 닫기' : '종목 목록'}
@@ -215,7 +215,7 @@ export default function Invest() {
             >
               <div className="tm-filters">
                 <div className="tm-field">
-                  <span className="field-label">언제부터?</span>
+                  <Step n={1}>언제부터?</Step>
                   <div className="seg fill" role="group" aria-label="시작 시점">
                     {([1, 3, 5] as const).map((y) => (
                       <button key={y} type="button" aria-pressed={chip === y} onClick={() => pickChip(y)}>
@@ -243,7 +243,7 @@ export default function Invest() {
                 </div>
 
                 <div className="tm-field tm-how">
-                  <span className="field-label">어떻게 넣을까?</span>
+                  <Step n={2}>어떻게 넣을까?</Step>
                   <div className="seg fill" role="group" aria-label="넣는 방식">
                     {HOW.map((h) => (
                       <button key={h.v} type="button" aria-pressed={how === h.v} onClick={() => setHow(h.v)}>
@@ -256,7 +256,7 @@ export default function Invest() {
                 </div>
 
                 <div className="tm-field">
-                  <span className="field-label">{how === 'LUMP_SUM' ? '얼마를?' : '매달 얼마?'}</span>
+                  <Step n={3}>{how === 'LUMP_SUM' ? '얼마를?' : '매달 얼마?'}</Step>
                   {how === 'LUMP_SUM' && (
                     <>
                       <div className="seg fill" role="group" aria-label="금액">
@@ -300,26 +300,26 @@ export default function Invest() {
                 </div>
 
                 <div className="tm-field wide">
-                  <span className="field-label">
-                    어떤 종목? <span className="muted" style={{ fontWeight: 500 }}>(최대 {MAX_LEGS}개 · 왼쪽 목록에서 골라요)</span>
-                  </span>
+                  <Step n={4}>
+                    어떤 종목? <span className="tm-step-hint">최대 {MAX_LEGS}개 · 왼쪽 목록에서 골라요</span>
+                  </Step>
                   <div className="tm-picked-row">
                     <div className="chips" id="tmPicked">
                       {picked.map((p, j) => (
-                        <span key={p.id} className="chip" style={{ background: 'var(--card)', borderColor: 'var(--line)', height: 36 }}>
+                        <span key={p.id} className="chip tm-chip">
                           <SeriesKey index={j} color={COLORS[j]} />
                           {p.name}
-                          <b className="num" style={{ color: 'var(--text)' }}>{weights[j]}%</b>
-                          <button type="button" className="btn-text" aria-label={`${p.name} 빼기`} style={{ color: 'var(--text-muted)' }} onClick={() => toggle(p)}>
-                            ×
+                          <b className="num">{weights[j]}%</b>
+                          <button type="button" className="tm-chip-x" aria-label={`${p.name} 빼기`} onClick={() => toggle(p)}>
+                            <Icon id="i-close" size={12} />
                           </button>
                         </span>
                       ))}
-                      <button type="button" className="chip" style={{ height: 36 }} disabled={picked.length >= MAX_LEGS} onClick={focusList}>
+                      <button type="button" className="chip tm-chip tm-chip-add" disabled={picked.length >= MAX_LEGS} onClick={focusList}>
                         + 종목 추가
                       </button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div className="tm-picked-acts">
                       <Link className="lock" to="/plus" title="4·5번째 종목 칸">
                         <Icon id="i-lock" size={12} />
                         4·5번째 칸 · 플러스
@@ -333,22 +333,23 @@ export default function Invest() {
                 </div>
 
                 <div className="tm-actions wide">
-                  <details style={{ border: 0, padding: 0 }}>
-                    <summary className="meta" style={{ fontWeight: 700 }}>
-                      고급 설정
-                    </summary>
-                    <p className="meta">기본 결과: 배당 재투자·세금·수수료 미반영</p>
-                    <Link className="lock" to="/plus">
-                      정밀 모드 · 플러스
-                    </Link>
+                  <details className="tm-adv">
+                    <summary className="meta">고급 설정</summary>
+                    <div className="tm-adv-body">
+                      <p className="meta">기본 결과: 배당 재투자·세금·수수료 미반영</p>
+                      <Link className="lock" to="/plus">
+                        <Icon id="i-lock" size={12} />
+                        정밀 모드 · 플러스
+                      </Link>
+                    </div>
                   </details>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="tm-submit">
                     {formError && (
-                      <span className="meta" role="alert" style={{ color: 'var(--danger)' }}>
+                      <span className="form-error" role="alert">
                         {formError}
                       </span>
                     )}
-                    <button type="submit" className="btn btn-primary" style={{ minWidth: 140 }} disabled={picked.length === 0 || sim.isFetching}>
+                    <button type="submit" className="btn btn-primary tm-run" disabled={picked.length === 0 || sim.isFetching}>
                       {sim.isFetching ? '계산하는 중…' : '결과 보기'}
                     </button>
                   </div>
@@ -385,13 +386,21 @@ export default function Invest() {
   );
 }
 
+/** 조건 칸 이름. 번호로 입력 순서를 보여 준다. */
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <span className="field-label tm-step">
+      <i aria-hidden="true">{n}</i>
+      {children}
+    </span>
+  );
+}
+
 function AmountInput({ value, onChange, placeholder, label }: { value: string; onChange: (v: string) => void; placeholder: string; label: string }) {
   return (
-    <div style={{ position: 'relative' }}>
-      <input className="input num" inputMode="numeric" placeholder={placeholder} aria-label={label} value={value} onChange={(e) => onChange(withComma(e.target.value))} style={{ paddingRight: 34, fontWeight: 700, fontSize: 16 }} />
-      <span className="meta" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-        원
-      </span>
+    <div className="tm-amount">
+      <input className="input num" inputMode="numeric" placeholder={placeholder} aria-label={label} value={value} onChange={(e) => onChange(withComma(e.target.value))} />
+      <span className="unit">원</span>
     </div>
   );
 }
@@ -523,14 +532,14 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
       }}
     >
       <form
-        style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}
+        className="tm-dialog"
         onSubmit={(e) => {
           e.preventDefault();
           if (!problem) onSave(nums);
         }}
       >
         <div>
-          <h2 id="weightTitle" style={{ fontSize: 18 }}>
+          <h2 id="weightTitle" className="tm-dialog-title">
             종목 비율 수정
           </h2>
           <p className="meta">넣는 돈을 종목마다 몇 %씩 나눌지 정해요. 합이 100%여야 해요.</p>
@@ -539,33 +548,30 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
           {picked.map((p, j) => (
             <label key={p.id} className="weight-row">
               <SeriesKey index={j} color={COLORS[j]} />
-              <span style={{ fontWeight: 600 }}>{p.name}</span>
-              <span style={{ position: 'relative' }}>
+              <span className="nm">{p.name}</span>
+              <span className="tm-pct">
                 <input
-                  className="input"
+                  className="input num"
                   inputMode="numeric"
                   aria-label={`${p.name} 비율(%)`}
                   value={draft[j]}
                   onChange={(e) => setDraft((d) => d.map((x, k) => (k === j ? e.target.value.replace(/[^\d]/g, '').slice(0, 3) : x)))}
                   onFocus={(e) => e.target.select()}
-                  style={{ height: 40, textAlign: 'right', paddingRight: 28 }}
                 />
-                <span className="meta" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>
-                  %
-                </span>
+                <span className="unit">%</span>
               </span>
             </label>
           ))}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <span className="meta" role="status" style={problem ? { color: 'var(--danger)' } : undefined}>
+        <div className="tm-weight-sum">
+          <span className={problem ? 'form-error' : 'meta'} role="status">
             {problem ?? `합계 ${sum}%`}
           </span>
           <button type="button" className="btn-text meta" onClick={() => setDraft(equalSplit(picked.length).map(String))}>
             같은 비율로
           </button>
         </div>
-        <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
+        <div className="toolbar tm-dialog-acts">
           <button type="button" className="btn btn-line" onClick={onClose}>
             취소
           </button>
@@ -592,7 +598,11 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
 
   if (picked.length === 0 && !req) {
     return (
-      <div className="empty-box">
+      <div className="empty-box tm-empty">
+        <svg className="tm-empty-art" viewBox="0 0 120 56" aria-hidden="true">
+          <path d="M4 48 L28 36 L48 42 L72 22 L92 28 L116 8" />
+          <path className="base" d="M4 48 L116 30" />
+        </svg>
         <h3>종목을 하나 고르면 결과가 나와요</h3>
         <p className="sub">왼쪽 목록에서 고르세요. 처음이라면 ETF에서 대표 지수 상품부터 시작해 보세요.</p>
       </div>
@@ -605,8 +615,9 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
     const name = failed ? (picked.find((p) => p.id === failed)?.name ?? failed) : null;
     const offline = e instanceof TypeError || (e instanceof ApiError && (e.status === 502 || e.status === 504));
     return (
-      <div className="error-box" role="alert">
-        <h3>{name ? `${name}의 주가를 불러오지 못했어요` : offline ? '시세 서버에 연결하지 못했어요' : errorText(e)}</h3>
+      <div className="error-box tm-error" role="alert">
+        <h3>
+          <Icon id="i-info" size={18} />{name ? `${name}의 주가를 불러오지 못했어요` : offline ? '시세 서버에 연결하지 못했어요' : errorText(e)}</h3>
         <p className="sub">
           {name && picked.length > 1
             ? `${e instanceof ApiError ? e.message + '. ' : ''}나머지 종목으로 먼저 계산할 수 있어요.`
@@ -619,7 +630,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         <div className="toolbar">
           {name && picked.length > 1 && (
             <button type="button" className="btn btn-primary" onClick={() => onDropAndRun(failed!)}>
-              빼고 계산
+              빼고 다시 계산
             </button>
           )}
           <button type="button" className="btn btn-line" onClick={() => sim.refetch()}>
@@ -632,8 +643,14 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
 
   if (!r || !chart) {
     return (
-      <div className="card" aria-busy="true">
+      <div className="card tm-result" aria-busy="true">
         <p className="sub">과거 주가를 불러와 계산하는 중이에요…</p>
+        <div className="stats tm-stats" aria-hidden="true">
+          {[0, 1, 2].map((k) => (
+            <div key={k} className="skel tm-skel-stat" />
+          ))}
+        </div>
+        <div className="skel tm-skel-chart" aria-hidden="true" />
       </div>
     );
   }
@@ -661,27 +678,32 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
   const asOf = fmtDate(parseDay(r.dataAsOf));
 
   return (
-    <div className="card" style={{ opacity: sim.isFetching ? 0.6 : 1 }}>
+    <div className={'card tm-result' + (sim.isFetching ? ' refetching' : '')} aria-busy={sim.isFetching}>
+      {sim.isFetching && <span className="calc-pill">다시 계산하는 중이에요…</span>}
       <p className="story">{story}</p>
-      <div className="stats" style={{ marginTop: 16 }}>
+      <div className="stats tm-stats">
         <div className="stat">
           <span className="lbl">넣은 돈</span>
           <p className="val num">{won(r.totalInvested)}원</p>
           <span className="meta">{r.contributionCount}번 넣음</span>
         </div>
-        <div className="stat">
+        <div className="stat tm-stat-main">
           <span className="lbl">{asOf} 평가액</span>
           <p className="val num">{won(r.finalValue)}원</p>
-          <span className={'dl ' + upDown(r.returnRate)}>{pctTxt(r.returnRate)}</span>
+          <span className={'dl num ' + upDown(r.returnRate)}>
+            {arrow(r.returnRate)} {pctTxt(r.returnRate)}
+          </span>
         </div>
         <div className="stat">
           <span className="lbl">차이</span>
-          <p className={'val num ' + upDown(r.profit)}>{signWon(r.profit)}</p>
+          <p className={'val num ' + upDown(r.profit)}>
+            {arrow(r.profit)} {signWon(r.profit)}
+          </p>
           <span className="meta">세금·수수료 빼기 전</span>
         </div>
       </div>
 
-      <div className="toolbar" style={{ margin: '20px 0 8px' }}>
+      <div className="toolbar tm-result-bar">
         <div className="seg" role="group" aria-label="기간">
           {(
             [
@@ -717,14 +739,14 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         </button>
       </div>
 
-      <div className="legend" style={{ marginBottom: 6 }}>
+      <div className="legend tm-legend">
         {mode === 'total' ? (
           <>
             <span>
-              <i style={{ color: 'var(--text)' }} />내 자산
+              <i className="total" />내 자산
             </span>
             <span>
-              <i className="dash" style={{ color: 'var(--baseline)' }} />넣은 돈
+              <i className="dash base" />넣은 돈
             </span>
           </>
         ) : (
@@ -736,7 +758,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
               </span>
             ))}
             <span>
-              <i className="dash" style={{ color: 'var(--baseline)' }} />점선: 종목별 넣은 돈
+              <i className="dash base" />점선: 종목별 넣은 돈
             </span>
           </>
         )}
@@ -759,7 +781,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
           pick(null);
         }}
       />
-      <p className="meta" style={{ marginTop: 6 }}>
+      <p className="meta tm-chart-note">
         {zoom ? (
           <>
             이 기간을 확대했어요.{' '}
@@ -781,31 +803,33 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         )}
       </p>
 
-      <div ref={panelRef} style={{ marginTop: 12 }}>
-        <EventPanel events={shownEvents} names={legNames} selectedId={sel} onSelect={pick} focusIds={focusIds} onClearFocus={() => setFocusIds(null)} />
-      </div>
+      {shownEvents.length > 0 && (
+        <div ref={panelRef} className="tm-ev">
+          <EventPanel events={shownEvents} names={legNames} selectedId={sel} onSelect={pick} focusIds={focusIds} onClearFocus={() => setFocusIds(null)} />
+        </div>
+      )}
 
-      <div className="chart-foot">
-        <p className="meta">
-          주가: {r.sources[0]?.name} · 주 마지막 거래일 종가 · 종목 정보: {r.sources[1]?.name} · 사건 근거: 금융감독원 OpenDART · 기준일 {asOf}
-        </p>
+      {showTable && <ResultTable r={r} from={rangeFrom} to={N - 1} />}
+
+      <div className="chart-foot tm-foot">
         <div className="disclaimer">
           <Icon id="i-info" size={16} />
           <span>{r.notice}</span>
         </div>
-        <ul className="meta" style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="meta tm-assume">
           {r.assumptions.map((a) => (
             <li key={a}>{a}</li>
           ))}
         </ul>
-        <div className="toolbar">
+        <div className="tm-foot-row">
+          <p className="meta">
+            주가: {r.sources[0]?.name} · 주 마지막 거래일 종가 · 종목 정보: {r.sources[1]?.name} · 사건 근거: 금융감독원 OpenDART · 기준일 {asOf}
+          </p>
           <Link className="btn btn-line btn-sm" to="/savings">
             적금이었다면?
           </Link>
         </div>
       </div>
-
-      {showTable && <ResultTable r={r} from={rangeFrom} to={N - 1} />}
     </div>
   );
 }
@@ -827,9 +851,9 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
   const shown = [...rows].reverse();
 
   return (
-    <section id="tmTable" style={{ marginTop: 20 }} aria-label="결과 표">
+    <section id="tmTable" className="tm-table-sec" aria-label="결과 표">
       <div className="toolbar">
-        <h3 style={{ fontSize: 15 }}>기간별 내 돈</h3>
+        <h3 className="tm-table-title">기간별 내 돈</h3>
         <div className="seg" role="group" aria-label="표 단위">
           <button type="button" aria-pressed={unit === 'month'} onClick={() => setUnit('month')}>
             월별
@@ -876,12 +900,12 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
                   </td>
                   <td className={'r' + (added > 0 ? ' paid' : '')}>{added > 0 ? `+${won(added)}원` : '—'}</td>
                   <td className="r">{won(p.invested)}원</td>
-                  <td className="r" style={{ fontWeight: 700 }}>
-                    {won(p.total)}원
-                  </td>
+                  <td className="r strong">{won(p.total)}원</td>
                   <td className={'r ' + upDown(p.profit)}>
                     {signWon(p.profit)}
-                    <span className="sm">{pctTxt(p.returnRate)}</span>
+                    <span className="sm">
+                      {arrow(p.returnRate)} {pctTxt(p.returnRate)}
+                    </span>
                   </td>
                   {p.legs.map((l) => (
                     <td key={l.id} className="r">

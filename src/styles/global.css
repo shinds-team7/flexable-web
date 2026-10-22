@@ -65,12 +65,16 @@ button{cursor:pointer}
 .g84{display:grid;grid-template-columns:minmax(0,2fr) minmax(300px,1fr);gap:var(--density-gap);align-items:start}
 .sim{display:grid;grid-template-columns:300px minmax(0,1fr) 360px;gap:24px;align-items:start}
 .sim.no-rail{grid-template-columns:300px minmax(0,1fr)}
-/* 투자 시뮬레이션: 왼쪽 종목 목록, 오른쪽 위 조건 */
+/* ───────── 투자 시뮬레이션(/invest). 이 화면만 쓰는 tm-* 클래스. 공통 부품은 덮어쓰지 않고 .tm-* 안에서만 바꾼다 ───────── */
 /* 왼쪽 목록 카드는 오른쪽 열 높이에 맞춰 늘고, 목록만 안에서 스크롤한다(데스크톱) */
 .sim.no-rail{align-items:stretch}
 .sim.no-rail > #tmConditions{position:relative;min-height:640px}
 .sim.no-rail > #tmConditions > .cond-full{position:absolute;inset:0;overflow:hidden}
 .sim.no-rail > #tmConditions .tm-list{flex:1 1 auto;min-height:0;max-height:none}
+.card.tm-cond-summary{justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px}
+.tm-cond-summary .sub{font-size:14px}
+
+.tm-list{flex:1 1 auto;min-height:0;max-height:none}
 /* 조건: 칸마다 라벨 → 선택(38px) → 값(44px) → 도움말 같은 순서·높이 */
 .tm-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 24px;align-items:start}
 .tm-filters .wide{grid-column:1 / -1}
@@ -101,14 +105,102 @@ button{cursor:pointer}
 .tm-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tm-list .sub2{display:block;font-size:12px;font-weight:500;color:var(--text-muted)}
 .tm-list .cap{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-.tm-table-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:14px;margin-top:12px}
+
+/* 조건: 칸마다 번호 이름 → 선택 → 값 → 도움말, 같은 높이로 줄을 맞춘다 */
+.tm-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 24px;align-items:start}
+.tm-filters .wide{grid-column:1 / -1}
+.tm-field{display:grid;grid-template-rows:auto var(--density-control-sm) var(--density-control-sm) auto;gap:8px;min-width:0}
+.tm-field.wide{grid-template-rows:auto auto auto;padding-top:20px;border-top:1px solid var(--line)}
+.tm-field .seg{height:var(--density-control-sm)}
+.tm-field .seg button{height:32px;padding:0 4px;font-size:13px}
+.tm-field .input{height:var(--density-control-sm)}
+.tm-field .meta{margin:0}
+.tm-step{display:flex;align-items:center;gap:8px;line-height:22px}
+.tm-step i{flex:none;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--brand-soft);color:var(--brand-text);font-style:normal;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.tm-step-hint{font-size:13px;font-weight:500;color:var(--text-muted)}
+.seg-note{display:flex;align-items:center;gap:6px;height:var(--density-control-sm);font-size:13px;font-weight:600;color:var(--text-sub)}
+.value-box{display:flex;align-items:center;justify-content:space-between;gap:8px;height:var(--density-control-sm);padding:0 14px;border-radius:var(--radius-soft-sm);background:var(--brand-soft);border:1px solid transparent;color:var(--text);font-size:15px;min-width:0}
+.value-box b{font-size:18px;font-weight:800;margin-right:2px}
+.value-box .pre{font-size:13px;font-weight:600;color:var(--text-sub);margin-right:6px}
+.value-box.desc{background:var(--sunken);font-size:13px;color:var(--text-sub);line-height:1.35}
+.tm-amount{position:relative}
+.tm-amount .input{padding-right:36px;font-size:16px;font-weight:700}
+.tm-amount .unit,.tm-pct .unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text-muted);pointer-events:none}
+.tm-picked-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tm-picked-acts{display:flex;align-items:center;gap:8px}
+.chip.tm-chip{height:var(--density-control-sm);padding:0 6px 0 12px;color:var(--text)}
+.tm-chip b{color:var(--text);margin-left:2px}
+.tm-chip-x{display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:var(--radius-soft-sm);background:none;color:var(--text-muted)}
+.tm-chip-x:hover{background:var(--sunken);color:var(--text)}
+.chip.tm-chip-add{padding:0 12px;border-style:dashed;border-color:var(--color-border-strong);color:var(--text-sub)}
+button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--brand-text);background:var(--brand-soft)}
+.tm-chip-add:disabled{opacity:.45;cursor:not-allowed}
+.tm-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--line)}
+.tm-adv{border:0;padding:0}
+.tm-adv summary{font-weight:700;color:var(--text-sub)}
+.tm-adv-body{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tm-adv-body .meta{margin:0}
+.tm-submit{display:flex;align-items:center;gap:12px;margin-left:auto}
+.tm-run{min-width:140px}
+@media (max-width:1180px){
+  .tm-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tm-filters .tm-how{grid-column:1 / -1;order:3}
+  .tm-filters .wide{order:4}
+}
+
+/* 결과: 요약 문장 → 핵심 수치(평가액 강조) → 기간·보기 → 차트 → 사건 → 표 → 고지 */
+.tm-result{position:relative;transition:opacity 140ms var(--ease)}
+.tm-result.refetching > :not(.calc-pill){opacity:.45}
+.tm-result .calc-pill{position:sticky;top:80px;display:table;margin:-8px auto 8px;transform:none}
+.tm-stats{margin-top:16px}
+.stat.tm-stat-main{background:var(--brand-soft);border-color:transparent}
+.tm-stat-main .val{font-size:24px}
+.tm-result-bar{margin:24px 0 8px}
+.tm-legend{margin-bottom:6px}
+.tm-legend i.total{color:var(--text)}
+.tm-legend i.base{color:var(--baseline)}
+.tm-chart-note{margin-top:6px}
+.tm-ev{margin-top:16px;padding:12px 16px;background:var(--sunken);border-radius:var(--radius-soft-sm)}
+.tm-ev .ev-list button:hover{background:var(--card)}
+.chart-foot.tm-foot{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
+.tm-assume{margin:0;padding-left:18px}
+.tm-foot-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tm-skel-stat{height:104px}
+.tm-skel-chart{height:400px;margin-top:24px}
+.tm-result[aria-busy="true"] > .sub{font-size:14px}
+.empty-box.tm-empty{align-items:center;text-align:center;padding:48px 32px;border-style:dashed;background:var(--sunken)}
+.tm-empty-art{width:120px;height:56px;margin-bottom:6px}
+.tm-empty-art path{fill:none;stroke:var(--brand);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.tm-empty-art path.base{stroke:var(--baseline);stroke-width:2;stroke-dasharray:4 4}
+.tm-error h3{display:flex;align-items:center;gap:8px;color:var(--danger)}
+.error-box.tm-error{background:var(--danger-soft)}
+
+/* 표: 머리글 고정, 숫자 오른쪽 정렬, 마우스를 올린 줄 표시 */
+.tm-table-sec{margin-top:24px}
+.tm-table-title{font-size:15px}
+.tm-table-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius-soft-sm);margin-top:12px}
 .tm-table{font-size:13px}
-.tm-table th{position:sticky;top:0;background:var(--card);z-index:1}
+.tm-table th{position:sticky;top:0;background:var(--sunken);border-top:0;z-index:1}
 .tm-table td,.tm-table th{padding:9px 12px}
-.tm-table tbody tr:nth-child(even) td{background:var(--sunken)}
+.tm-table td{height:auto}
+.tm-table tbody tr:nth-child(even) td{background:var(--color-bg-subtle)}
+.tm-table tbody tr:hover td{background:var(--brand-soft)}
+.tm-table tbody tr:last-child td{border-bottom:0}
+.tm-table td.strong{font-weight:700}
 .tm-table td.paid{font-weight:700;color:var(--brand-text)}
 .tm-table .sm{display:block;font-size:11px;color:var(--text-muted);font-weight:500}
-.weight-row{display:grid;grid-template-columns:12px minmax(0,1fr) 88px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.tm-table td.up .sm{color:var(--rise)}
+.tm-table td.down .sm{color:var(--fall)}
+
+/* 비율 수정 대화상자 */
+.tm-dialog{padding:28px;display:flex;flex-direction:column;gap:16px}
+.tm-dialog-title{font-size:18px;line-height:26px}
+.weight-row{display:grid;grid-template-columns:22px minmax(0,1fr) 96px;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.weight-row .nm{font-weight:600}
+.tm-pct{position:relative}
+.tm-pct .input{height:var(--density-control-sm);text-align:right;padding-right:30px;font-weight:700}
+.tm-weight-sum{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tm-dialog-acts{justify-content:flex-end}
 .col{display:flex;flex-direction:column;gap:var(--density-gap);min-width:0}
 
 /* ───────── 면 ───────── */

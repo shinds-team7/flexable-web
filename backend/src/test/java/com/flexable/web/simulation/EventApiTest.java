@@ -136,8 +136,9 @@ class EventApiTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.name", is("삼성전자")))
 			.andExpect(jsonPath("$.headline", is("삼성전자 하루 급등")))
-			.andExpect(jsonPath("$.marketReaction.returnRate", closeTo(0.2, 0.03)))
-			.andExpect(jsonPath("$.marketReaction.weekReturn", greaterThan(0.1)))
+			// 자릿수가 긴 소수는 BigDecimal로 읽혀 Double 비교가 깨진다(데이터가 실행 날짜에 따라 바뀜). Double로 맞춰 비교한다
+			.andExpect(jsonPath("$.marketReaction.returnRate", closeTo(0.2, 0.03), Double.class))
+			.andExpect(jsonPath("$.marketReaction.weekReturn", greaterThan(0.1), Double.class))
 			.andExpect(jsonPath("$.afterwards.d30").isNumber())
 			.andExpect(jsonPath("$.afterwards.d365", nullValue()))
 			.andExpect(jsonPath("$.sources", hasSize(1)))

@@ -2,15 +2,20 @@
 // 왼쪽(#tmConditions)은 코스피·코스닥·ETF 시가총액 상위 종목 목록, 오른쪽(#tmMain) 위는 조건, 아래는 결과.
 // 종목 목록·금액·주별 평가액은 모두 서버(backend/, POST /simulations/run)가 계산한다. 화면은 그리기만 한다(ADR-3).
 // 한 주의 값 = 그 주 마지막 거래일 종가로 평가한 금액. 사건 핀·사건 목록은 사건 API가 생기면 붙인다.
+// 첫 방문(F5)이면 안내 모달 1장을 먼저 띄우고 [첫 결과 보기]를 누른 뒤 기본 조건으로 계산한다. 결과의 첫 핀 옆에 메모 1개.
+// 4단계 둘러보기는 [사용법 보기](또는 /invest?tour=1, 내 정보의 사용법 다시 보기)로만 연다.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import type { ChartData } from '@/charts/drawTimeChart';
+import { placePinNote, removePinNote } from '@/charts/pinNote';
 import { SeriesKey } from '@/charts/SeriesKey';
 import { TimeChart } from '@/charts/TimeChart';
+import { CoachTour, type CoachStep } from '@/components/CoachTour';
 import { EventPanel, eventPeriod } from '@/components/EventPanel';
 import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
 import { useBoard, useSimulation, type Board, type FundingMode, type Instrument, type SimPoint, type SimulationRequest, type SimulationResult } from '@/data/market';
+import { useFirstVisit } from '@/data/tour';
 import { ApiError, errorText } from '@/lib/api';
 import { arrow, fmtDate, krShort, pctTxt, signWon, upDown, won } from '@/lib/format';
 
@@ -27,6 +32,32 @@ const HOW: { v: FundingMode; label: string; desc: string }[] = [
   { v: 'PACE', label: '지금 저축 속도로', desc: '정산 주기마다 평균 남긴 돈을 매달 넣어요' },
 ];
 type StartChip = 1 | 3 | 5 | 'custom';
+/** 첫 방문 안내의 고지(03 §8-3 SIM_PAST). 결과 아래 고지는 서버가 내려 주고, 결과 전 모달에만 같은 문장을 둔다(SimulationService.NOTICE와 같게) */
+const SIM_PAST = '과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요.';
+/** 저축 속도가 없을 때 첫 결과에 쓰는 예시 월 금액(시연 페르소나 '지수') */
+const INTRO_SAMPLE_MONTHLY = 78_000;
+const TOUR: CoachStep[] = [
+  {
+    target: () => document.querySelector<HTMLElement>('.tm-cond-bar') ?? document.getElementById('tmFilters'),
+    title: '조건은 여기서 바꿔요',
+    body: '지금 결과를 만든 조건이에요. [조건 바꾸기]를 누르면 기간·넣는 방식·금액·종목을 바꿔 다시 계산해요.',
+  },
+  {
+    target: () => document.querySelector<HTMLElement>('.tm-result .chart-wrap'),
+    title: '진한 선이 내 돈이에요',
+    body: '점선은 넣은 돈(원금)이에요. 진한 선이 점선보다 위에 있으면 늘어난 거예요.',
+  },
+  {
+    target: () => document.querySelector<HTMLElement>('.tm-result .pin'),
+    title: '▲▼ 핀에 마우스를 올려 보세요',
+    body: '크게 오르거나 내린 때예요. 무슨 일이 있었는지 짧게 보여 줘요. 숫자 핀은 가까운 사건 여러 개를 묶은 거예요.',
+  },
+  {
+    target: () => document.querySelector<HTMLElement>('.tm-ev'),
+    title: '누르면 여기서 근거를 읽어요',
+    body: '그때 무슨 일이 있었는지 공시 근거와 함께 정리해 보여 줘요.',
+  },
+];
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const ymOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
@@ -128,6 +159,10 @@ export default function Invest() {
   const [isDefault, setIsDefault] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const condBtnRef = useRef<HTMLButtonElement>(null);
+  const firstVisit = useFirstVisit('invest');
+  const [pinHint, setPinHint] = useState(false);
+  const [tourOn, setTourOn] = useState(false);
+  const [sp, setSp] = useSearchParams();
 
   const seedTotal = seed.data?.manual ?? seed.data?.confirmed ?? 0;
   const seedPace = seed.data?.avgPerCycle ?? 0;
@@ -178,10 +213,10 @@ export default function Invest() {
     requestAnimationFrame(() => formRef.current?.querySelector<HTMLButtonElement>('button')?.focus());
   };
 
-  // 처음 열면 코스피 1위 + ETF 1위로 바로 계산해 보여 준다(와이어프레임 기본 상태).
+  // 처음 열면 코스피 1위 + ETF 1위로 바로 계산해 보여 준다(와이어프레임 기본 상태). 첫 방문이면 안내를 닫은 뒤에 계산한다.
   const booted = useRef(false);
   useEffect(() => {
-    if (booted.current || !seed.data || !kospi.data || etf.isPending) return;
+    if (booted.current || firstVisit.state !== 'seen' || !seed.data || !kospi.data || etf.isPending) return;
     booted.current = true;
     const first = [kospi.data.items[0], etf.data?.items[0]].filter((x): x is Instrument => !!x);
     setLegs(first);
@@ -191,7 +226,24 @@ export default function Invest() {
       setIsDefault(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seed.data, kospi.data, etf.isPending]);
+  }, [firstVisit.state, seed.data, kospi.data, etf.isPending]);
+
+  /** 첫 방문 안내를 닫았다. 저축 속도가 없어 월 금액을 받았으면 매달 나눠서로 계산한다. */
+  const startFirst = (typedMonthly: number | null, ack: boolean) => {
+    if (typedMonthly != null) {
+      setHow('SPLIT');
+      setMonthly(typedMonthly.toLocaleString('ko-KR'));
+    }
+    setPinHint(true);
+    firstVisit.done(ack);
+  };
+
+  // 내 정보의 [사용법 다시 보기](/invest?tour=1): 결과가 나오면 둘러보기를 연다
+  useEffect(() => {
+    if (sp.get('tour') !== '1' || !sim.data || sim.isFetching) return;
+    setTourOn(true);
+    setSp({}, { replace: true });
+  }, [sp, setSp, sim.data, sim.isFetching]);
 
   const pickChip = (c: StartChip) => {
     setChip(c);
@@ -210,6 +262,9 @@ export default function Invest() {
             <h1 className="page-title">주식 타임머신</h1>
             <p className="page-desc">내 시드머니를 지난 날짜로 보내 봐요. 과거 주가로 해보는 계산이에요.</p>
           </div>
+          <button type="button" className="btn btn-line btn-sm" onClick={() => setTourOn(true)} disabled={!sim.data}>
+            사용법 보기
+          </button>
         </div>
         <div className="sim no-rail">
           <aside className={'cond-col col' + (expanded ? ' expanded' : '')} id="tmConditions" aria-label="종목 목록">
@@ -431,6 +486,8 @@ export default function Invest() {
               req={req}
               sim={sim}
               picked={picked}
+              pinHint={pinHint}
+              onPinSeen={() => setPinHint(false)}
               onDropAndRun={(id) => {
                 const next = picked.filter((p) => p.id !== id);
                 setLegs(next);
@@ -452,6 +509,8 @@ export default function Invest() {
           }}
         />
       )}
+      {firstVisit.state === 'show' && seed.data && <IntroDialog pace={seedPace} sample={seed.data.isSample} onStart={startFirst} />}
+      {tourOn && <CoachTour steps={TOUR} onClose={() => setTourOn(false)} />}
     </section>
   );
 }
@@ -721,7 +780,91 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
   );
 }
 
-function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | null; sim: ReturnType<typeof useSimulation>; picked: Instrument[]; onDropAndRun: (id: string) => void }) {
+/** 첫 방문 안내(F5): 모달 1장. [첫 결과 보기]가 SIM_PAST 고지 확인을 겸하고, 누르면 기본 조건으로 계산한다. */
+function IntroDialog({ pace, sample, onStart }: { pace: number; sample: boolean; onStart: (typedMonthly: number | null, ack: boolean) => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [value, setValue] = useState('');
+  // WeightDialog와 같은 이유로 close 이벤트에서 상태를 바꾸지 않는다(StrictMode)
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+    return () => {
+      if (d?.open) d.close();
+    };
+  }, []);
+  const hasPace = pace > 0;
+  const typed = digits(value);
+  const problem = !hasPace && value !== '' && (typed < 1_000 || typed > 10_000_000) ? '매달 1천 원 ~ 1천만 원으로 넣어 주세요' : null;
+
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby="introTitle"
+      onCancel={(e) => {
+        e.preventDefault(); // Esc: 고지 확인 없이 닫고 기본 결과를 보여 준다(결과 아래에도 같은 고지가 있다)
+        onStart(hasPace ? null : INTRO_SAMPLE_MONTHLY, false);
+      }}
+    >
+      <form
+        className="tm-dialog"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!problem) onStart(hasPace ? null : typed || INTRO_SAMPLE_MONTHLY, true);
+        }}
+      >
+        <div>
+          <h2 id="introTitle" className="tm-dialog-title">
+            {hasPace ? '남긴 돈으로 지난 3년을 돌려 볼게요' : '월 얼마 남기세요?'}
+          </h2>
+          <p className="meta">앱에서 남긴 돈으로 지난 시간을 실험해 보는 곳이에요. 매달 남긴 돈을 3년 전부터 넣었다면 지금 얼마일지 봐요.</p>
+        </div>
+        {hasPace ? (
+          <div className="tm-field">
+            <span className="field-label">지금 저축 속도 · 앱 기록 기준</span>
+            <SeedValue amount={pace} loading={false} sample={sample} prefix="매달" />
+          </div>
+        ) : (
+          <div className="tm-field">
+            <span className="field-label">매달 남기는 돈</span>
+            <AmountInput value={value} onChange={setValue} placeholder="78,000" label="매달 남기는 돈(원)" />
+            <p className="meta">비워 두면 예시 78,000원으로 계산해요</p>
+          </div>
+        )}
+        <div className="disclaimer">
+          <Icon id="i-info" size={16} />
+          <span>{SIM_PAST}</span>
+        </div>
+        {problem && (
+          <span className="form-error" role="alert">
+            {problem}
+          </span>
+        )}
+        <div className="toolbar tm-dialog-acts">
+          <button type="submit" className="btn btn-primary">
+            첫 결과 보기
+          </button>
+        </div>
+      </form>
+    </dialog>
+  );
+}
+
+function Result({
+  req,
+  sim,
+  picked,
+  pinHint,
+  onPinSeen,
+  onDropAndRun,
+}: {
+  req: SimulationRequest | null;
+  sim: ReturnType<typeof useSimulation>;
+  picked: Instrument[];
+  /** 첫 방문 직후: 첫 핀 옆에 메모 1개 */
+  pinHint: boolean;
+  onPinSeen: () => void;
+  onDropAndRun: (id: string) => void;
+}) {
   const r = sim.data;
   const chart = useMemo(() => (r ? toChart(r) : null), [r]);
   const [range, setRange] = useState<0 | 52 | 156>(0);
@@ -939,7 +1082,20 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         mode={mode}
         height={400}
         selectedId={sel == null ? null : String(sel)}
+        afterDraw={pinHint ? (wrap) => placePinNote(wrap) : undefined}
+        onHover={
+          pinHint
+            ? () => {
+                removePinNote();
+                onPinSeen();
+              }
+            : undefined
+        }
         onSelect={(id) => {
+          if (pinHint) {
+            removePinNote();
+            onPinSeen();
+          }
           setFocusIds(null);
           pick(Number(id));
         }}

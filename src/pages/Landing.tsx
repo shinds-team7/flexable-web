@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
+import { placePinNote, removePinNote } from '@/charts/pinNote';
 import { TimeChart } from '@/charts/TimeChart';
 import { Footer } from '@/components/Layout';
 import { N, sampleChartData, simulateSample } from '@/data/sampleMarket';
@@ -30,15 +31,7 @@ export default function Landing() {
   if (status === 'member') return <Navigate to="/home" replace />;
 
   const placeHint = (wrap: HTMLDivElement) => {
-    if (seen()) return;
-    const pin = wrap.querySelector<HTMLElement>('.pin.rise:not(.cluster)') || wrap.querySelector<HTMLElement>('.pin');
-    if (!pin) return;
-    const note = document.createElement('div');
-    note.className = 'handnote';
-    note.textContent = '핀에 마우스를 올려 보세요';
-    wrap.append(note);
-    note.style.left = Math.max(0, parseFloat(pin.style.left) - note.offsetWidth - 14) + 'px';
-    note.style.top = parseFloat(pin.style.top) - note.offsetHeight - 6 + 'px';
+    if (!seen()) placePinNote(wrap);
   };
   const demo = '/invest?demo=1';
 
@@ -74,7 +67,7 @@ export default function Landing() {
               compact
               afterDraw={placeHint}
               onHover={() => {
-                document.querySelector('.handnote')?.remove();
+                removePinNote();
                 markSeen();
               }}
               onSelect={(id) => navigate(`${demo}&event=${id}`)}

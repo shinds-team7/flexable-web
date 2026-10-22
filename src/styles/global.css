@@ -253,6 +253,7 @@ button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--br
 /* 비율 수정 대화상자 */
 .tm-dialog{padding:28px;display:flex;flex-direction:column;gap:16px}
 .tm-dialog-title{font-size:18px;line-height:26px}
+.tm-dialog .tm-field{grid-template-rows:none}
 .weight-row{display:grid;grid-template-columns:22px minmax(0,1fr) 96px;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .weight-row .nm{font-weight:600}
 .tm-pct{position:relative}
@@ -402,6 +403,9 @@ caption{text-align:left;font-size:13px;color:var(--text-muted);padding-bottom:8p
 .coach-note .row{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:8px}
 .coach-note button{border:1.5px solid var(--note-ink);background:transparent;color:var(--note-ink);border-radius:999px;height:32px;padding:0 12px;font-weight:700;font-size:13px}
 .coach-note button.go{background:var(--note-ink);color:var(--note)}
+.coach-note button:disabled{opacity:.4}
+.coach-note .coach-step{font-size:12px;font-weight:800}
+.coach-note .coach-nav{display:flex;gap:6px}
 dialog{text-align:left;border:1px solid var(--line);border-radius:var(--radius-soft);padding:0;background:var(--raised);color:var(--text);box-shadow:var(--shadow-float);width:min(520px,calc(100vw - 32px))}
 dialog::backdrop{background:var(--scrim)}
 .dlg{padding:24px}
@@ -643,6 +647,23 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 @media (max-width:767px){
   .plan-cards{grid-template-columns:minmax(0,1fr)}
   .plus-title{font-size:24px;line-height:32px}
+}
+
+/* 모의 결제 결과: 가운데 카드 한 장. 모든 단계 위에 "실제 청구 없음" 표시 */
+.bill-page{max-width:560px}
+.bill-card{display:flex;flex-direction:column;gap:16px}
+.bill-badge{align-self:flex-start;display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:6px;border:1px dashed var(--text-muted);color:var(--text-sub);font-size:12px;font-weight:700}
+.bill-head{display:flex;align-items:center;gap:10px}
+.bill-title{font-size:22px;line-height:30px;font-weight:800;outline:none}
+.bill-icon{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:999px;background:var(--brand-soft);color:var(--brand-text)}
+.bill-head.bad .bill-icon{background:var(--danger-soft);color:var(--danger)}
+.bill-main{font-size:16px;line-height:24px;color:var(--text)}
+.bill-rows .set-row{padding:12px 0}
+.bill-rows .set-row .v{color:var(--text);font-weight:600}
+.bill-acts{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+.bill-back{align-self:center;font-size:14px}
+@media (max-width:767px){
+  .bill-acts{grid-auto-flow:row}
 }
 
 /* 적금 비교: 표·비교 막대·정책 적금 카드(누적 막대) */

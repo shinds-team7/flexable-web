@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { Icon } from '@/components/Icons';
+import { startCheckout } from '@/data/billing';
 import { usePlans, useSubscription, type Period, type PlanFeature, type Plans } from '@/data/plans';
 import { fmtMonthDay, won } from '@/lib/format';
 
@@ -33,9 +34,7 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
   const isPlus = sub.data?.plan === 'PLUS';
   const isFree = status === 'member' && sub.data?.plan === 'FREE';
 
-  const start = () => {
-    navigate(`/billing/result?period=${period}`);
-  };
+  const start = () => startCheckout(period, navigate);
 
   return (
     <div className="plan-cards">
@@ -177,7 +176,7 @@ export default function Plus() {
               </details>
               <details>
                 <summary>지금 결제하면 돈이 나가나요?</summary>
-                <p>아니요. 지금은 시연용 모의 결제라 실제로 청구되지 않아요. 실제 결제 수단과 환불 정책은 출시 전에 정해서 알려 드려요.</p>
+                <p>아니요. 지금은 시연용 모의 결제라 실제로 청구되지 않고, 결과 화면만 보여 줄 뿐 요금제도 바뀌지 않아요. 실제 결제 수단과 환불 정책은 출시 전에 정해서 알려 드려요.</p>
               </details>
               <details>
                 <summary>무료로는 어디까지 볼 수 있어요?</summary>

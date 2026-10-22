@@ -39,7 +39,7 @@
 | F4 청년 금융 소식 실제 데이터(온통청년 수집·`GET /youth-news`) | #34 열림, 브랜치 없음 | seon00 |
 | F2 적금 비교 실제 공시(finlife)·정책 적금(온통청년) 연동 | `SXXNHU/feat-savings-real-data`(작성 kowonyeong, PR 없음) | kowonyeong(확인 필요) |
 | F3 섞어보기 `/mix`(배분·프리셋 저장·비교) | 자리만 | 미정 |
-| F6 모의 결제 결과 `/billing/result`·F5 첫 방문 안내 | 미구현 | SXXNHU(10-22 착수) |
+| F6 모의 결제 결과 `/billing/result`·F5 첫 방문 안내 | 화면 완료(저장 없는 모의 결제, decisions 10-22 ①). 토스 정기결제 전환은 출시 뒤 | SXXNHU |
 | 홈 코스피·코스닥 지수 | 예시 | 팀원 진행(10-19) |
 
 - [ ] **적금 실데이터 브랜치 정리**: 마이그레이션이 `V4__savings`·`V5__savings_policies`·`V6__savings_policy_region`이라 main의 V4~V7과 번호가 겹친다. V8 이후로 다시 매겨야 머지할 수 있다. 온통청년 수집(`YouthCenterClient`)이 #34와 겹치므로 수집·원문 표는 한 곳에 두도록 seon00·kowonyeong이 먼저 정한다

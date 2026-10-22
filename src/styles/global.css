@@ -156,6 +156,26 @@ button{cursor:pointer}
 .chip.tm-chip-add{padding:0 12px;border-style:dashed;border-color:var(--color-border-strong);color:var(--text-sub)}
 button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--brand-text);background:var(--brand-soft)}
 .tm-chip-add:disabled{opacity:.45;cursor:not-allowed}
+/* 접힌 조건: 한 줄 요약 + [조건 바꾸기] */
+.card.tm-cond-bar{display:flex;align-items:center;justify-content:space-between;gap:12px 16px;flex-wrap:wrap;padding:16px 20px;cursor:pointer;transition:border-color 140ms var(--ease),background-color 140ms var(--ease)}
+.card.tm-cond-bar:hover{border-color:var(--brand)}
+/* 처음 열었을 때(기본값 결과)는 옅은 브랜드 바탕으로 "바꿀 수 있다"를 먼저 보이게 */
+.card.tm-cond-bar.default{background:var(--brand-soft);border-color:var(--color-notice-line)}
+.tm-cond-eyebrow{font-size:13px;line-height:20px;font-weight:700;color:var(--brand-text)}
+.tm-cond-bar:not(.default) .tm-cond-eyebrow{color:var(--text-muted);font-weight:600}
+.btn.tm-cond-edit{background:var(--brand);color:var(--on-brand);flex:none}
+.btn.tm-cond-edit:hover{background:var(--brand-strong)}
+.tm-cond-bar:not(.default) .btn.tm-cond-edit{background:var(--brand-soft);color:var(--brand-text)}
+.tm-cond-bar:not(.default) .btn.tm-cond-edit:hover{background:var(--brand);color:var(--on-brand)}
+@media (max-width:767px){.btn.tm-cond-edit{width:100%}}
+.tm-cond-bar-text{display:flex;flex-direction:column;gap:6px;min-width:0}
+.tm-cond-line{font-size:15px;line-height:24px;color:var(--text-sub)}
+.tm-cond-line b{font-weight:700;color:var(--text)}
+.tm-cond-line .sep{margin:0 .4em;color:var(--text-muted)}
+.tm-cond-line .nw{white-space:nowrap}
+.tm-cond-legs{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:14px;line-height:22px;font-weight:600;color:var(--text)}
+.tm-cond-legs li{display:inline-flex;align-items:center}
+.tm-cond-legs b{margin-left:6px}
 .tm-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--line)}
 .tm-adv{border:0;padding:0}
 .tm-adv summary{font-weight:700;color:var(--text-sub)}

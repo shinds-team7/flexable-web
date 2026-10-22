@@ -12,7 +12,7 @@ import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
 import { useBoard, useSimulation, type Board, type FundingMode, type Instrument, type SimPoint, type SimulationRequest, type SimulationResult } from '@/data/market';
 import { ApiError, errorText } from '@/lib/api';
-import { fmtDate, krShort, pctTxt, signWon, upDown, won } from '@/lib/format';
+import { arrow, fmtDate, krShort, pctTxt, signWon, upDown, won } from '@/lib/format';
 
 const MAX_LEGS = 3;
 const COLORS = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
@@ -122,6 +122,12 @@ export default function Invest() {
   const [formError, setFormError] = useState<string | null>(null);
   const sim = useSimulation(req);
   const searchRef = useRef<HTMLInputElement>(null);
+  // 결과가 나오면 조건 카드를 한 줄 요약으로 접어 차트가 첫 화면에 들어오게 한다. 고치는 중에는 펼친 채로 둔다
+  const [condOpen, setCondOpen] = useState(true);
+  // 처음 열 때 기본값으로 계산한 결과인지. 직접 계산하면 안내를 내린다
+  const [isDefault, setIsDefault] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const condBtnRef = useRef<HTMLButtonElement>(null);
 
   const seedTotal = seed.data?.manual ?? seed.data?.confirmed ?? 0;
   const seedPace = seed.data?.avgPerCycle ?? 0;
@@ -133,6 +139,7 @@ export default function Invest() {
     setWeights(equalSplit(list.length));
   };
   const toggle = (i: Instrument) => {
+    setCondOpen(true);
     if (picked.some((p) => p.id === i.id)) setLegs(picked.filter((p) => p.id !== i.id));
     else if (picked.length < MAX_LEGS) setLegs([...picked, i]);
   };
@@ -159,6 +166,16 @@ export default function Invest() {
     }
     setFormError(null);
     setReq(buildReq(legs, w));
+    // 조건 카드 안(결과 보기·비율 수정)에서 계산했으면 접은 뒤 [조건 바꾸기]로 포커스를 옮긴다
+    const a = document.activeElement;
+    const fromForm = !a || a === document.body || !!formRef.current?.contains(a) || !!a.closest('dialog');
+    setCondOpen(false);
+    setIsDefault(false);
+    if (fromForm) requestAnimationFrame(() => condBtnRef.current?.focus());
+  };
+  const openCond = () => {
+    setCondOpen(true);
+    requestAnimationFrame(() => formRef.current?.querySelector<HTMLButtonElement>('button')?.focus());
   };
 
   // 처음 열면 코스피 1위 + ETF 1위로 바로 계산해 보여 준다(와이어프레임 기본 상태).
@@ -168,7 +185,11 @@ export default function Invest() {
     booted.current = true;
     const first = [kospi.data.items[0], etf.data?.items[0]].filter((x): x is Instrument => !!x);
     setLegs(first);
-    if (first.length) setReq(buildReq(first, equalSplit(first.length)));
+    if (first.length) {
+      setReq(buildReq(first, equalSplit(first.length)));
+      setCondOpen(false);
+      setIsDefault(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed.data, kospi.data, etf.isPending]);
 
@@ -192,9 +213,9 @@ export default function Invest() {
         </div>
         <div className="sim no-rail">
           <aside className={'cond-col col' + (expanded ? ' expanded' : '')} id="tmConditions" aria-label="종목 목록">
-            <div className="card cond-summary" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '16px 20px' }}>
-              <span className="sub" style={{ fontSize: 14 }}>
-                종목 {picked.length}개 고름
+            <div className="card cond-summary tm-cond-summary">
+              <span className="sub">
+                종목 <b className="num">{picked.length}</b>개 고름
               </span>
               <button className="btn btn-line btn-sm" type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
                 {expanded ? '목록 닫기' : '종목 목록'}
@@ -204,157 +225,207 @@ export default function Invest() {
           </aside>
 
           <div className="col" id="tmMain">
-            <form
-              className="card"
-              id="tmFilters"
-              aria-label="타임머신 조건"
-              onSubmit={(e) => {
-                e.preventDefault();
-                run();
-              }}
-            >
-              <div className="tm-filters">
-                <div className="tm-field">
-                  <span className="field-label">언제부터?</span>
-                  <div className="seg fill" role="group" aria-label="시작 시점">
-                    {([1, 3, 5] as const).map((y) => (
-                      <button key={y} type="button" aria-pressed={chip === y} onClick={() => pickChip(y)}>
-                        {y}년 전
-                      </button>
-                    ))}
-                    <button type="button" aria-pressed={chip === 'custom'} onClick={() => pickChip('custom')}>
-                      직접
-                    </button>
-                  </div>
-                  <input
-                    className="input"
-                    type="month"
-                    value={start}
-                    min={yearsAgo(10)}
-                    max={ymOf(new Date())}
-                    aria-label="시작 월"
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      setStart(e.target.value);
-                      setChip('custom');
-                    }}
-                  />
-                  <p className="meta">{ymText(start)} 첫 거래일부터 계산해요</p>
-                </div>
-
-                <div className="tm-field tm-how">
-                  <span className="field-label">어떻게 넣을까?</span>
-                  <div className="seg fill" role="group" aria-label="넣는 방식">
-                    {HOW.map((h) => (
-                      <button key={h.v} type="button" aria-pressed={how === h.v} onClick={() => setHow(h.v)}>
-                        {h.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="value-box desc">{HOW.find((h) => h.v === how)!.desc}</div>
-                  <p className="meta">시세는 그 주 마지막 거래일 종가로 평가해요</p>
-                </div>
-
-                <div className="tm-field">
-                  <span className="field-label">{how === 'LUMP_SUM' ? '얼마를?' : '매달 얼마?'}</span>
-                  {how === 'LUMP_SUM' && (
-                    <>
-                      <div className="seg fill" role="group" aria-label="금액">
-                        <button type="button" aria-pressed={lumpSrc === 'seed'} onClick={() => setLumpSrc('seed')}>
-                          내 시드머니
-                        </button>
-                        <button type="button" aria-pressed={lumpSrc === 'manual'} onClick={() => setLumpSrc('manual')}>
-                          직접 입력
-                        </button>
-                      </div>
-                      {lumpSrc === 'seed' ? (
-                        <SeedValue amount={seedTotal} loading={!seed.data} sample={!!seed.data?.isSample} />
+            {!condOpen && req && picked.length > 0 ? (
+              // 요약 아무 곳이나 눌러도 펼친다(마우스 편의). 키보드는 [조건 바꾸기] 버튼으로
+              <section
+                className={'card tm-cond-bar' + (isDefault ? ' default' : '')}
+                aria-label="타임머신 조건"
+                onClick={(e) => {
+                  if (!(e.target as HTMLElement).closest('button')) openCond();
+                }}
+              >
+                <div className="tm-cond-bar-text">
+                  <p className="tm-cond-eyebrow">{isDefault ? '기본 조건으로 먼저 계산했어요 · 원하는 조건으로 바꿔 보세요' : '이 조건으로 계산했어요'}</p>
+                  <p className="tm-cond-line">
+                    <span className="nw">{chip === 'custom' ? `${ymText(start)}부터` : `${chip}년 전(${ymText(start)})부터`}</span>
+                    <span className="sep">·</span>
+                    <span className="nw">
+                      {how === 'LUMP_SUM' ? (
+                        <>
+                          {lumpSrc === 'seed' ? '내 시드머니 ' : ''}
+                          <b className="num">{won(amount)}원</b>을 한 번에
+                        </>
+                      ) : how === 'SPLIT' ? (
+                        <>
+                          매달 <b className="num">{won(amount)}원</b>씩 나눠서
+                        </>
                       ) : (
-                        <AmountInput value={lumpManual} onChange={setLumpManual} placeholder="470,000" label="넣을 금액(원)" />
+                        <>
+                          지금 저축 속도로 매달 <b className="num">{won(amount)}원</b>
+                        </>
                       )}
-                      <p className="meta">{lumpSrc === 'seed' ? '앱에 입력한 기록으로 모은 돈이에요' : '1만 원 ~ 1억 원'}</p>
-                    </>
-                  )}
-                  {how === 'SPLIT' && (
-                    <>
-                      <div className="seg fill" role="group" aria-label="자주 쓰는 금액">
-                        {[100_000, 300_000, 500_000, 1_000_000].map((v) => (
-                          <button key={v} type="button" aria-pressed={digits(monthly) === v} onClick={() => setMonthly(v.toLocaleString('ko-KR'))}>
-                            {v / 10_000}만
-                          </button>
-                        ))}
-                      </div>
-                      <AmountInput value={monthly} onChange={setMonthly} placeholder="100,000" label="매달 넣을 금액(원)" />
-                      <p className="meta">매달 1천 원 ~ 1천만 원</p>
-                    </>
-                  )}
-                  {how === 'PACE' && (
-                    <>
-                      <div className="seg-note">
-                        앱 기록 기준 {seed.data?.isSample && <span className="tag-ex">예시</span>}
-                      </div>
-                      <SeedValue amount={seedPace} loading={!seed.data} sample={false} prefix="매달" />
-                      <p className="meta">정산 주기마다 평균 남긴 돈을 그대로 넣어요</p>
-                    </>
-                  )}
+                    </span>
+                  </p>
+                  <ul className="tm-cond-legs" aria-label="고른 종목">
+                    {picked.map((p, j) => (
+                      <li key={p.id}>
+                        <SeriesKey index={j} color={COLORS[j]} />
+                        {p.name}
+                        <b className="num">{weights[j]}%</b>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-
-                <div className="tm-field wide">
-                  <span className="field-label">
-                    어떤 종목? <span className="muted" style={{ fontWeight: 500 }}>(최대 {MAX_LEGS}개 · 왼쪽 목록에서 골라요)</span>
-                  </span>
-                  <div className="tm-picked-row">
-                    <div className="chips" id="tmPicked">
-                      {picked.map((p, j) => (
-                        <span key={p.id} className="chip" style={{ background: 'var(--card)', borderColor: 'var(--line)', height: 36 }}>
-                          <SeriesKey index={j} color={COLORS[j]} />
-                          {p.name}
-                          <b className="num" style={{ color: 'var(--text)' }}>{weights[j]}%</b>
-                          <button type="button" className="btn-text" aria-label={`${p.name} 빼기`} style={{ color: 'var(--text-muted)' }} onClick={() => toggle(p)}>
-                            ×
-                          </button>
-                        </span>
+                <button ref={condBtnRef} type="button" className="btn btn-sm tm-cond-edit" aria-expanded={false} aria-controls="tmFilters" onClick={openCond}>
+                  <Icon id="i-edit" size={16} />
+                  조건 바꾸기
+                </button>
+              </section>
+            ) : (
+              <form
+                ref={formRef}
+                className="card"
+                id="tmFilters"
+                aria-label="타임머신 조건"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  run();
+                }}
+              >
+                <div className="tm-filters">
+                  <div className="tm-field">
+                    <Step n={1}>언제부터?</Step>
+                    <div className="seg fill" role="group" aria-label="시작 시점">
+                      {([1, 3, 5] as const).map((y) => (
+                        <button key={y} type="button" aria-pressed={chip === y} onClick={() => pickChip(y)}>
+                          {y}년 전
+                        </button>
                       ))}
-                      <button type="button" className="chip" style={{ height: 36 }} disabled={picked.length >= MAX_LEGS} onClick={focusList}>
-                        + 종목 추가
+                      <button type="button" aria-pressed={chip === 'custom'} onClick={() => pickChip('custom')}>
+                        직접
                       </button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Link className="lock" to="/plus" title="4·5번째 종목 칸">
-                        <Icon id="i-lock" size={12} />
-                        4·5번째 칸 · 플러스
-                      </Link>
-                      <button type="button" className="btn btn-line btn-sm" disabled={picked.length < 2} onClick={() => setWeightOpen(true)}>
-                        비율 수정
-                      </button>
-                    </div>
+                    <input
+                      className="input"
+                      type="month"
+                      value={start}
+                      min={yearsAgo(10)}
+                      max={ymOf(new Date())}
+                      aria-label="시작 월"
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        setStart(e.target.value);
+                        setChip('custom');
+                      }}
+                    />
+                    <p className="meta">{ymText(start)} 첫 거래일부터 계산해요</p>
                   </div>
-                  <p className="meta">고르면 비율은 1/{Math.max(1, picked.length)}로 나눠요. 비율 수정에서 바꿀 수 있어요.</p>
-                </div>
 
-                <div className="tm-actions wide">
-                  <details style={{ border: 0, padding: 0 }}>
-                    <summary className="meta" style={{ fontWeight: 700 }}>
-                      고급 설정
-                    </summary>
-                    <p className="meta">기본 결과: 배당 재투자·세금·수수료 미반영</p>
-                    <Link className="lock" to="/plus">
-                      정밀 모드 · 플러스
-                    </Link>
-                  </details>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {formError && (
-                      <span className="meta" role="alert" style={{ color: 'var(--danger)' }}>
-                        {formError}
-                      </span>
+                  <div className="tm-field tm-how">
+                    <Step n={2}>어떻게 넣을까?</Step>
+                    <div className="seg fill" role="group" aria-label="넣는 방식">
+                      {HOW.map((h) => (
+                        <button key={h.v} type="button" aria-pressed={how === h.v} onClick={() => setHow(h.v)}>
+                          {h.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="value-box desc">{HOW.find((h) => h.v === how)!.desc}</div>
+                    <p className="meta">시세는 그 주 마지막 거래일 종가로 평가해요</p>
+                  </div>
+
+                  <div className="tm-field">
+                    <Step n={3}>{how === 'LUMP_SUM' ? '얼마를?' : '매달 얼마?'}</Step>
+                    {how === 'LUMP_SUM' && (
+                      <>
+                        <div className="seg fill" role="group" aria-label="금액">
+                          <button type="button" aria-pressed={lumpSrc === 'seed'} onClick={() => setLumpSrc('seed')}>
+                            내 시드머니
+                          </button>
+                          <button type="button" aria-pressed={lumpSrc === 'manual'} onClick={() => setLumpSrc('manual')}>
+                            직접 입력
+                          </button>
+                        </div>
+                        {lumpSrc === 'seed' ? (
+                          <SeedValue amount={seedTotal} loading={!seed.data} sample={!!seed.data?.isSample} />
+                        ) : (
+                          <AmountInput value={lumpManual} onChange={setLumpManual} placeholder="470,000" label="넣을 금액(원)" />
+                        )}
+                        <p className="meta">{lumpSrc === 'seed' ? '앱에 입력한 기록으로 모은 돈이에요' : '1만 원 ~ 1억 원'}</p>
+                      </>
                     )}
-                    <button type="submit" className="btn btn-primary" style={{ minWidth: 140 }} disabled={picked.length === 0 || sim.isFetching}>
-                      {sim.isFetching ? '계산하는 중…' : '결과 보기'}
-                    </button>
+                    {how === 'SPLIT' && (
+                      <>
+                        <div className="seg fill" role="group" aria-label="자주 쓰는 금액">
+                          {[100_000, 300_000, 500_000, 1_000_000].map((v) => (
+                            <button key={v} type="button" aria-pressed={digits(monthly) === v} onClick={() => setMonthly(v.toLocaleString('ko-KR'))}>
+                              {v / 10_000}만
+                            </button>
+                          ))}
+                        </div>
+                        <AmountInput value={monthly} onChange={setMonthly} placeholder="100,000" label="매달 넣을 금액(원)" />
+                        <p className="meta">매달 1천 원 ~ 1천만 원</p>
+                      </>
+                    )}
+                    {how === 'PACE' && (
+                      <>
+                        <div className="seg-note">
+                          앱 기록 기준 {seed.data?.isSample && <span className="tag-ex">예시</span>}
+                        </div>
+                        <SeedValue amount={seedPace} loading={!seed.data} sample={false} prefix="매달" />
+                        <p className="meta">정산 주기마다 평균 남긴 돈을 그대로 넣어요</p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="tm-field wide">
+                    <Step n={4}>
+                      어떤 종목? <span className="tm-step-hint">최대 {MAX_LEGS}개 · 왼쪽 목록에서 골라요</span>
+                    </Step>
+                    <div className="tm-picked-row">
+                      <div className="chips" id="tmPicked">
+                        {picked.map((p, j) => (
+                          <span key={p.id} className="chip tm-chip">
+                            <SeriesKey index={j} color={COLORS[j]} />
+                            {p.name}
+                            <b className="num">{weights[j]}%</b>
+                            <button type="button" className="tm-chip-x" aria-label={`${p.name} 빼기`} onClick={() => toggle(p)}>
+                              <Icon id="i-close" size={12} />
+                            </button>
+                          </span>
+                        ))}
+                        <button type="button" className="chip tm-chip tm-chip-add" disabled={picked.length >= MAX_LEGS} onClick={focusList}>
+                          + 종목 추가
+                        </button>
+                      </div>
+                      <div className="tm-picked-acts">
+                        <Link className="lock" to="/plus" title="4·5번째 종목 칸">
+                          <Icon id="i-lock" size={12} />
+                          4·5번째 칸 · 플러스
+                        </Link>
+                        <button type="button" className="btn btn-line btn-sm" disabled={picked.length < 2} onClick={() => setWeightOpen(true)}>
+                          비율 수정
+                        </button>
+                      </div>
+                    </div>
+                    <p className="meta">고르면 비율은 1/{Math.max(1, picked.length)}로 나눠요. 비율 수정에서 바꿀 수 있어요.</p>
+                  </div>
+
+                  <div className="tm-actions wide">
+                    <details className="tm-adv">
+                      <summary className="meta">고급 설정</summary>
+                      <div className="tm-adv-body">
+                        <p className="meta">기본 결과: 배당 재투자·세금·수수료 미반영</p>
+                        <Link className="lock" to="/plus">
+                          <Icon id="i-lock" size={12} />
+                          정밀 모드 · 플러스
+                        </Link>
+                      </div>
+                    </details>
+                    <div className="tm-submit">
+                      {formError && (
+                        <span className="form-error" role="alert">
+                          {formError}
+                        </span>
+                      )}
+                      <button type="submit" className="btn btn-primary tm-run" disabled={picked.length === 0 || sim.isFetching}>
+                        {sim.isFetching ? '계산하는 중…' : '결과 보기'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            )}
 
             <Result
               req={req}
@@ -385,13 +456,21 @@ export default function Invest() {
   );
 }
 
+/** 조건 칸 이름. 번호로 입력 순서를 보여 준다. */
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <span className="field-label tm-step">
+      <i aria-hidden="true">{n}</i>
+      {children}
+    </span>
+  );
+}
+
 function AmountInput({ value, onChange, placeholder, label }: { value: string; onChange: (v: string) => void; placeholder: string; label: string }) {
   return (
-    <div style={{ position: 'relative' }}>
-      <input className="input num" inputMode="numeric" placeholder={placeholder} aria-label={label} value={value} onChange={(e) => onChange(withComma(e.target.value))} style={{ paddingRight: 34, fontWeight: 700, fontSize: 16 }} />
-      <span className="meta" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }}>
-        원
-      </span>
+    <div className="tm-amount">
+      <input className="input num" inputMode="numeric" placeholder={placeholder} aria-label={label} value={value} onChange={(e) => onChange(withComma(e.target.value))} />
+      <span className="unit">원</span>
     </div>
   );
 }
@@ -435,58 +514,125 @@ function StockList({
   const term = q.trim().toLowerCase();
   const shown = term ? items.filter((i) => i.name.toLowerCase().includes(term) || i.id.toLowerCase().includes(term)) : items;
   const full = picked.length >= MAX_LEGS;
+  // 시장이나 검색어가 바뀌면 목록을 맨 위(1위)부터 다시 보여 준다
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [board, term]);
+
+  const clear = () => {
+    setQ('');
+    searchRef.current?.focus();
+  };
 
   return (
-    <form className="card cond-full col" style={{ gap: 12 }} aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
-      <div>
-        <h2 style={{ fontSize: 16 }}>종목 고르기</h2>
-        <p className="meta">
-          시가총액 상위 {items.length || 100}개 · 최대 {MAX_LEGS}개
-        </p>
-      </div>
-      <div className="seg fill" role="group" aria-label="시장">
-        {BOARDS.map((b) => (
-          <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
-            {b.label}
-          </button>
-        ))}
-      </div>
-      <input ref={searchRef} className="input" type="search" placeholder="종목 이름·코드 찾기" aria-label="종목 찾기" value={q} onChange={(e) => setQ(e.target.value)} />
-      {full && <p className="meta">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
-      {listing.isPending && <p className="meta">종목을 불러오는 중이에요</p>}
-      {listing.isError && (
-        <div className="col" style={{ gap: 8 }}>
-          <p className="meta">{errorText(listing.error)}</p>
-          <button type="button" className="btn btn-line btn-sm" onClick={() => listing.refetch()}>
-            다시 시도
-          </button>
+    <form className="card cond-full tm-stocks" aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
+      <div className="tm-stocks-head">
+        <div>
+          <h2 className="tm-stocks-title">종목 고르기</h2>
+          <p className="meta">
+            시가총액 상위 {items.length || 100}개 · 최대 {MAX_LEGS}개
+          </p>
         </div>
-      )}
-      {listing.data && items.length === 0 && <p className="meta">아직 종목 목록을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
-      {listing.data && items.length > 0 && shown.length === 0 && <p className="meta">찾는 종목이 없어요</p>}
-      {shown.length > 0 && (
-        <ol className="tm-list" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
-          {shown.map((i) => {
-            const on = picked.some((p) => p.id === i.id);
-            return (
-              <li key={i.id}>
-                <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(i)} title={on ? '빼기' : '고르기'}>
-                  <span className="rk">{i.rank}</span>
-                  <span className="nm">
-                    {i.name}
-                    <span className="sub2">{i.id}</span>
-                  </span>
-                  <span className="cap">{on ? '✓ 고름' : capText(i.marketCap)}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+        <div className="seg fill" role="group" aria-label="시장">
+          {BOARDS.map((b) => (
+            <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <div className="tm-search">
+          <Icon id="i-search" size={16} />
+          <input
+            ref={searchRef}
+            className="input"
+            type="search"
+            placeholder="종목 이름이나 코드로 찾기"
+            aria-label="종목 찾기"
+            aria-describedby="tmSearchCount"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && q) {
+                e.preventDefault();
+                setQ('');
+              }
+            }}
+          />
+          {q && (
+            <button type="button" className="tm-search-clear" aria-label="검색어 지우기" onClick={clear}>
+              <Icon id="i-close" size={14} />
+            </button>
+          )}
+        </div>
+        <p id="tmSearchCount" className="tm-search-count" role="status">
+          {term && shown.length > 0 && (
+            <>
+              <b className="num">{shown.length}</b>개 찾음
+            </>
+          )}
+        </p>
+        {full && <p className="tm-note">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
+      </div>
+
+      <div className="tm-stocks-body">
+        {listing.isPending && (
+          <ul className="tm-list" aria-hidden="true">
+            {Array.from({ length: 8 }, (_, k) => (
+              <li key={k} className="skel tm-skel-row" />
+            ))}
+          </ul>
+        )}
+        {listing.isError && (
+          <div className="tm-list-state">
+            <p className="meta">{errorText(listing.error)}</p>
+            <button type="button" className="btn btn-line btn-sm" onClick={() => listing.refetch()}>
+              다시 시도
+            </button>
+          </div>
+        )}
+        {listing.data && items.length === 0 && <p className="tm-list-state meta">아직 종목 목록을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
+        {listing.data && items.length > 0 && shown.length === 0 && (
+          <div className="tm-list-state">
+            <p className="sub">‘{q.trim()}’에 맞는 종목이 없어요</p>
+            <p className="meta">이름이나 6자리 코드로 다시 찾거나, 다른 시장을 골라 보세요.</p>
+            <button type="button" className="btn btn-line btn-sm" onClick={clear}>
+              검색어 지우기
+            </button>
+          </div>
+        )}
+        {shown.length > 0 && (
+          <ol ref={listRef} className="tm-list" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
+            {shown.map((i) => {
+              const on = picked.some((p) => p.id === i.id);
+              return (
+                <li key={i.id}>
+                  <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(i)} title={on ? '빼기' : '고르기'}>
+                    <span className="rk">{i.rank}</span>
+                    <span className="nm">
+                      {i.name}
+                      <span className="sub2">{i.id}</span>
+                    </span>
+                    {on ? (
+                      <span className="cap on">
+                        <Icon id="i-check" size={14} />
+                        고름
+                      </span>
+                    ) : (
+                      <span className="cap">{capText(i.marketCap)}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+
       {listing.data?.source && (
-        <p className="meta">
+        <p className="meta tm-stocks-foot">
           {listing.data.source} · {listing.data.dataAsOf && `${listing.data.dataAsOf.replaceAll('-', '.')} 기준 `}시가총액{listing.data.note ? '(상장주식수 × 종가 어림값)' : ''} 순
-          {listing.data.note && <span style={{ display: 'block' }}>{listing.data.note}</span>}
+          {listing.data.note && <span className="tm-block">{listing.data.note}</span>}
         </p>
       )}
     </form>
@@ -523,14 +669,14 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
       }}
     >
       <form
-        style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}
+        className="tm-dialog"
         onSubmit={(e) => {
           e.preventDefault();
           if (!problem) onSave(nums);
         }}
       >
         <div>
-          <h2 id="weightTitle" style={{ fontSize: 18 }}>
+          <h2 id="weightTitle" className="tm-dialog-title">
             종목 비율 수정
           </h2>
           <p className="meta">넣는 돈을 종목마다 몇 %씩 나눌지 정해요. 합이 100%여야 해요.</p>
@@ -539,33 +685,30 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
           {picked.map((p, j) => (
             <label key={p.id} className="weight-row">
               <SeriesKey index={j} color={COLORS[j]} />
-              <span style={{ fontWeight: 600 }}>{p.name}</span>
-              <span style={{ position: 'relative' }}>
+              <span className="nm">{p.name}</span>
+              <span className="tm-pct">
                 <input
-                  className="input"
+                  className="input num"
                   inputMode="numeric"
                   aria-label={`${p.name} 비율(%)`}
                   value={draft[j]}
                   onChange={(e) => setDraft((d) => d.map((x, k) => (k === j ? e.target.value.replace(/[^\d]/g, '').slice(0, 3) : x)))}
                   onFocus={(e) => e.target.select()}
-                  style={{ height: 40, textAlign: 'right', paddingRight: 28 }}
                 />
-                <span className="meta" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>
-                  %
-                </span>
+                <span className="unit">%</span>
               </span>
             </label>
           ))}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <span className="meta" role="status" style={problem ? { color: 'var(--danger)' } : undefined}>
+        <div className="tm-weight-sum">
+          <span className={problem ? 'form-error' : 'meta'} role="status">
             {problem ?? `합계 ${sum}%`}
           </span>
           <button type="button" className="btn-text meta" onClick={() => setDraft(equalSplit(picked.length).map(String))}>
             같은 비율로
           </button>
         </div>
-        <div className="toolbar" style={{ justifyContent: 'flex-end' }}>
+        <div className="toolbar tm-dialog-acts">
           <button type="button" className="btn btn-line" onClick={onClose}>
             취소
           </button>
@@ -592,7 +735,11 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
 
   if (picked.length === 0 && !req) {
     return (
-      <div className="empty-box">
+      <div className="empty-box tm-empty">
+        <svg className="tm-empty-art" viewBox="0 0 120 56" aria-hidden="true">
+          <path d="M4 48 L28 36 L48 42 L72 22 L92 28 L116 8" />
+          <path className="base" d="M4 48 L116 30" />
+        </svg>
         <h3>종목을 하나 고르면 결과가 나와요</h3>
         <p className="sub">왼쪽 목록에서 고르세요. 처음이라면 ETF에서 대표 지수 상품부터 시작해 보세요.</p>
       </div>
@@ -605,8 +752,9 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
     const name = failed ? (picked.find((p) => p.id === failed)?.name ?? failed) : null;
     const offline = e instanceof TypeError || (e instanceof ApiError && (e.status === 502 || e.status === 504));
     return (
-      <div className="error-box" role="alert">
-        <h3>{name ? `${name}의 주가를 불러오지 못했어요` : offline ? '시세 서버에 연결하지 못했어요' : errorText(e)}</h3>
+      <div className="error-box tm-error" role="alert">
+        <h3>
+          <Icon id="i-info" size={18} />{name ? `${name}의 주가를 불러오지 못했어요` : offline ? '시세 서버에 연결하지 못했어요' : errorText(e)}</h3>
         <p className="sub">
           {name && picked.length > 1
             ? `${e instanceof ApiError ? e.message + '. ' : ''}나머지 종목으로 먼저 계산할 수 있어요.`
@@ -619,7 +767,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         <div className="toolbar">
           {name && picked.length > 1 && (
             <button type="button" className="btn btn-primary" onClick={() => onDropAndRun(failed!)}>
-              빼고 계산
+              빼고 다시 계산
             </button>
           )}
           <button type="button" className="btn btn-line" onClick={() => sim.refetch()}>
@@ -632,8 +780,14 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
 
   if (!r || !chart) {
     return (
-      <div className="card" aria-busy="true">
+      <div className="card tm-result" aria-busy="true">
         <p className="sub">과거 주가를 불러와 계산하는 중이에요…</p>
+        <div className="stats tm-stats" aria-hidden="true">
+          {[0, 1, 2].map((k) => (
+            <div key={k} className="skel tm-skel-stat" />
+          ))}
+        </div>
+        <div className="skel tm-skel-chart" aria-hidden="true" />
       </div>
     );
   }
@@ -653,35 +807,71 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
     requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
   const when = ymText(r.resolvedInput.startDate.slice(0, 7));
-  const names = r.legs.map((l) => l.name).join('·');
-  const story =
-    r.resolvedInput.mode === 'LUMP_SUM'
-      ? `${when}에 ${won(r.totalInvested)}원을 ${names}에 한 번에 넣었다면`
-      : `${when}부터 매달 ${won(r.monthlyAmount)}원씩(모두 ${won(r.totalInvested)}원) ${names}에 넣었다면`;
+  // 요약 문장: 위 줄은 언제·얼마를, 아래 줄은 어디에 넣었는지
+  const storyLead =
+    r.resolvedInput.mode === 'LUMP_SUM' ? (
+      <>
+        {when}에 <span className="nw"><b className="num">{won(r.totalInvested)}원</b>을</span> 한 번에
+      </>
+    ) : (
+      <>
+        {when}부터 <span className="nw">매달 <b className="num">{won(r.monthlyAmount)}원</b>씩</span>
+        <span className="sep">·</span>
+        <span className="nw">
+          모두 <b className="num">{won(r.totalInvested)}원</b>
+        </span>
+      </>
+    );
+  const storyMain = (
+    <>
+      {r.legs.map((l, j) => (
+        <span key={l.id}>
+          {j > 0 && <span className="sep">·</span>}
+          <span className="nw">{l.name}</span>
+        </span>
+      ))}
+      에 넣었다면
+    </>
+  );
   const asOf = fmtDate(parseDay(r.dataAsOf));
 
   return (
-    <div className="card" style={{ opacity: sim.isFetching ? 0.6 : 1 }}>
-      <p className="story">{story}</p>
-      <div className="stats" style={{ marginTop: 16 }}>
+    <div className={'card tm-result' + (sim.isFetching ? ' refetching' : '')} aria-busy={sim.isFetching}>
+      {sim.isFetching && <span className="calc-pill">다시 계산하는 중이에요…</span>}
+      <p className="story tm-story">
+        <span className="tm-story-lead">{storyLead}</span>
+        <span className="tm-story-main">{storyMain}</span>
+      </p>
+      {/* 숫자 칸: 위 줄에 이름과 보조 정보, 아래 줄에 금액(한 칸 약 80px) */}
+      <div className="stats tm-stats">
         <div className="stat">
-          <span className="lbl">넣은 돈</span>
+          <div className="tm-stat-top">
+            <span className="lbl">넣은 돈</span>
+            <span className="meta">{r.contributionCount}번 넣음</span>
+          </div>
           <p className="val num">{won(r.totalInvested)}원</p>
-          <span className="meta">{r.contributionCount}번 넣음</span>
         </div>
-        <div className="stat">
-          <span className="lbl">{asOf} 평가액</span>
+        <div className="stat tm-stat-main">
+          <div className="tm-stat-top">
+            <span className="lbl">{asOf} 평가액</span>
+            <span className={'dl num ' + upDown(r.returnRate)}>
+              {arrow(r.returnRate)} {pctTxt(r.returnRate)}
+            </span>
+          </div>
           <p className="val num">{won(r.finalValue)}원</p>
-          <span className={'dl ' + upDown(r.returnRate)}>{pctTxt(r.returnRate)}</span>
         </div>
         <div className="stat">
-          <span className="lbl">차이</span>
-          <p className={'val num ' + upDown(r.profit)}>{signWon(r.profit)}</p>
-          <span className="meta">세금·수수료 빼기 전</span>
+          <div className="tm-stat-top">
+            <span className="lbl">차이</span>
+            <span className="meta">세금·수수료 빼기 전</span>
+          </div>
+          <p className={'val num ' + upDown(r.profit)}>
+            {arrow(r.profit)} {signWon(r.profit)}
+          </p>
         </div>
       </div>
 
-      <div className="toolbar" style={{ margin: '20px 0 8px' }}>
+      <div className="toolbar tm-result-bar">
         <div className="seg" role="group" aria-label="기간">
           {(
             [
@@ -717,14 +907,14 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
         </button>
       </div>
 
-      <div className="legend" style={{ marginBottom: 6 }}>
+      <div className="legend tm-legend">
         {mode === 'total' ? (
           <>
             <span>
-              <i style={{ color: 'var(--text)' }} />내 자산
+              <i className="total" />내 자산
             </span>
             <span>
-              <i className="dash" style={{ color: 'var(--baseline)' }} />넣은 돈
+              <i className="dash base" />넣은 돈
             </span>
           </>
         ) : (
@@ -736,7 +926,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
               </span>
             ))}
             <span>
-              <i className="dash" style={{ color: 'var(--baseline)' }} />점선: 종목별 넣은 돈
+              <i className="dash base" />점선: 종목별 넣은 돈
             </span>
           </>
         )}
@@ -759,7 +949,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
           pick(null);
         }}
       />
-      <p className="meta" style={{ marginTop: 6 }}>
+      <p className="meta tm-chart-note">
         {zoom ? (
           <>
             이 기간을 확대했어요.{' '}
@@ -775,37 +965,39 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
             </button>
           </>
         ) : shownEvents.length > 0 ? (
-          '▲▼ 핀은 크게 오르내린 때예요. 가까운 사건은 숫자 핀으로 묶었고, 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
+          '빨간 ▲ 핀은 크게 오른 때, 파란 ▼ 핀은 크게 내린 때예요. 가까운 사건 여러 개는 숫자 핀 하나로 묶었어요(누르면 그 기간을 확대). 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
         ) : (
           '이 기간에는 크게 오르내린 때가 없어요.'
         )}
       </p>
 
-      <div ref={panelRef} style={{ marginTop: 12 }}>
-        <EventPanel events={shownEvents} names={legNames} selectedId={sel} onSelect={pick} focusIds={focusIds} onClearFocus={() => setFocusIds(null)} />
-      </div>
+      {shownEvents.length > 0 && (
+        <div ref={panelRef} className="tm-ev">
+          <EventPanel events={shownEvents} names={legNames} selectedId={sel} onSelect={pick} focusIds={focusIds} onClearFocus={() => setFocusIds(null)} />
+        </div>
+      )}
 
-      <div className="chart-foot">
-        <p className="meta">
-          주가: {r.sources[0]?.name} · 주 마지막 거래일 종가 · 종목 정보: {r.sources[1]?.name} · 사건 근거: 금융감독원 OpenDART · 기준일 {asOf}
-        </p>
+      {showTable && <ResultTable r={r} from={rangeFrom} to={N - 1} />}
+
+      <div className="chart-foot tm-foot">
         <div className="disclaimer">
           <Icon id="i-info" size={16} />
           <span>{r.notice}</span>
         </div>
-        <ul className="meta" style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="meta tm-assume">
           {r.assumptions.map((a) => (
             <li key={a}>{a}</li>
           ))}
         </ul>
-        <div className="toolbar">
+        <div className="tm-foot-row">
+          <p className="meta">
+            주가: {r.sources[0]?.name} · 주 마지막 거래일 종가 · 종목 정보: {r.sources[1]?.name} · 사건 근거: 금융감독원 OpenDART · 기준일 {asOf}
+          </p>
           <Link className="btn btn-line btn-sm" to="/savings">
             적금이었다면?
           </Link>
         </div>
       </div>
-
-      {showTable && <ResultTable r={r} from={rangeFrom} to={N - 1} />}
     </div>
   );
 }
@@ -827,9 +1019,9 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
   const shown = [...rows].reverse();
 
   return (
-    <section id="tmTable" style={{ marginTop: 20 }} aria-label="결과 표">
+    <section id="tmTable" className="tm-table-sec" aria-label="결과 표">
       <div className="toolbar">
-        <h3 style={{ fontSize: 15 }}>기간별 내 돈</h3>
+        <h3 className="tm-table-title">기간별 내 돈</h3>
         <div className="seg" role="group" aria-label="표 단위">
           <button type="button" aria-pressed={unit === 'month'} onClick={() => setUnit('month')}>
             월별
@@ -876,12 +1068,12 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
                   </td>
                   <td className={'r' + (added > 0 ? ' paid' : '')}>{added > 0 ? `+${won(added)}원` : '—'}</td>
                   <td className="r">{won(p.invested)}원</td>
-                  <td className="r" style={{ fontWeight: 700 }}>
-                    {won(p.total)}원
-                  </td>
+                  <td className="r strong">{won(p.total)}원</td>
                   <td className={'r ' + upDown(p.profit)}>
                     {signWon(p.profit)}
-                    <span className="sm">{pctTxt(p.returnRate)}</span>
+                    <span className="sm">
+                      {arrow(p.returnRate)} {pctTxt(p.returnRate)}
+                    </span>
                   </td>
                   {p.legs.map((l) => (
                     <td key={l.id} className="r">

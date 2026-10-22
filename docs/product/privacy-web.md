@@ -52,7 +52,7 @@
 | 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인). 정확한 기관명·스냅숏은 확인 전(0) |
 | 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음 |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
-| 연동 해제·앱 해제 확인 시 파기 | `AppLinkService.unlink`, `sync`의 `LINK_NOT_FOUND` 처리 |
+| 연동 해제·앱 해제·앱 탈퇴 확인 시 파기 | `AppLinkService.unlink`, `sync`·`AppLinkRecheckJob`의 `LINK_NOT_FOUND` 처리. 앱 탈퇴 시 앱이 연동을 함께 지우므로 같은 경로 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |
 | 비회원 체험은 서버 저장 없음 | 로그인 전 화면은 예시 데이터만 사용(`isSample`) |
 
@@ -76,6 +76,7 @@
 - 앱 방침에 "이용자가 웹 연동을 하면 웹(같은 운영자)에서 이용하는 항목·목적, 앱 설정에서 해제 가능"을 넣는다. 앱 담당 협의안(flexable-app `docs/web-seed-entries-handoff.md`)의 문구를 기준으로 하되, 항목 목록은 이 문서 2와 같게 맞춘다.
 - **주기별 반영 기록·시작일(`startedOn`)**: 10-21 웹 방침 1항 "앱 연동"에 넣고 같은 날 시행했다. 앱 API는 main에 머지됐고 운영 배포는 앱 담당(10-21 요청).
 - **앱 방침**: 이미 시행 중인 앱 방침을 바꾸는 것이므로, 앱은 연동 코드 발급 화면에서 제공 항목을 보여 주고 동의를 받은 뒤 코드를 준다(10-21 앱 담당에 요청). 웹도 코드 입력 화면에 받는 항목을 안내한다.
+  - **반영됨(2026-10-21):** 앱 1.4.0 production 원격 업데이트를 10-21 17:51 KST에 게시했다(업데이트 그룹 `5822362e-5688-4c1e-a22b-ced4e06e0bf0`, 앱 커밋 `7097b55`, 실기기 반영 확인). 앱 방침 개정(10-28 시행)과 연동 코드 발급 전 선택 동의가 들어 있다. 앱 방침의 웹 연동 보유 기간에 "앱 회원 탈퇴"가 들어가(앱 탈퇴 시 연동도 함께 삭제) 웹 방침 제4조 보유 기간도 같게 맞췄다(제3조제4항은 이미 앱 탈퇴를 안내).
 - 앱 HANDOFF의 "이후 유동자산 집계"는 04 §5-2 범위 밖이다. 넘기려면 04와 두 방침을 먼저 고친다.
 
 ## 5. 시행 절차

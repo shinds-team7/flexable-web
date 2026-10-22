@@ -736,7 +736,7 @@
 - 밀도(comfortable): 버튼·입력 `--density-control` 48px(작은 버튼 40), 카드 안쪽 `--density-pad` 28px, 카드 사이 `--density-gap` 24px, 표 한 줄 `--density-row` 56px.
 - 모서리: 카드·모달 `--radius-soft` 12 > 버튼·입력·칩·안쪽 타일 `--radius-soft-sm` 8 > 막대·코드 `--radius-xs` 4. 알약(999) 모양은 쓰지 않는다. 로그인 버튼 세 개(카카오·Google·이메일)는 `--radius-login` 12로 같이 맞춘다(카카오 규정 "radius 12px"). 높이 48, 1px 테두리, 이메일 버튼은 흰 면 + `--color-border-strong`.
 - 깊이: 카드는 1px 테두리 + `--shadow-subtle`(`0 1px 2px rgba(17,24,39,.05)`). 떠 있는 것(툴팁·팝오버·서랍·모달)만 `--shadow-overlay`(`0 8px 28px rgba(17,24,39,.14)`, 다크 `rgba(0,0,0,.5)`).
-- 상단 바: 메뉴 링크·시드머니 칩·아바타·[로그인] 높이를 `--density-control-sm` 40으로 맞춘다. 지금 있는 메뉴는 `--color-brand-subtle` 바탕 + 브랜드 글자(밑줄 없음), hover는 `--color-bg-subtle`. 아바타도 원 대신 `--radius-soft-sm`.
+- 상단 바: 메뉴 링크·시드머니 칩·아바타·[로그인] 높이를 `--density-control-sm` 40으로 맞춘다. 지금 있는 메뉴는 바탕 없이 브랜드 글자만(밑줄 없음), hover는 `--color-bg-subtle`. 아바타도 원 대신 `--radius-soft-sm`.
 - 확인 창: 되돌릴 수 없는 동작 전에 `ConfirmDialog`로 묻는다. 제목은 질문, 본문은 결과, 버튼은 [취소] [동작 이름] 같은 폭.
 - 움직임: `cubic-bezier(0.23, 1, 0.32, 1)`, 눌림 140ms, 나타남 280ms, 사라짐 200ms. 사용자가 누른 것에만 반응. `prefers-reduced-motion`이면 이동·크기 변화 없이 투명도만.
 

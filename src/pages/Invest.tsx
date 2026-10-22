@@ -444,58 +444,125 @@ function StockList({
   const term = q.trim().toLowerCase();
   const shown = term ? items.filter((i) => i.name.toLowerCase().includes(term) || i.id.toLowerCase().includes(term)) : items;
   const full = picked.length >= MAX_LEGS;
+  // 시장이나 검색어가 바뀌면 목록을 맨 위(1위)부터 다시 보여 준다
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
+  }, [board, term]);
+
+  const clear = () => {
+    setQ('');
+    searchRef.current?.focus();
+  };
 
   return (
-    <form className="card cond-full col" style={{ gap: 12 }} aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
-      <div>
-        <h2 style={{ fontSize: 16 }}>종목 고르기</h2>
-        <p className="meta">
-          시가총액 상위 {items.length || 100}개 · 최대 {MAX_LEGS}개
-        </p>
-      </div>
-      <div className="seg fill" role="group" aria-label="시장">
-        {BOARDS.map((b) => (
-          <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
-            {b.label}
-          </button>
-        ))}
-      </div>
-      <input ref={searchRef} className="input" type="search" placeholder="종목 이름·코드 찾기" aria-label="종목 찾기" value={q} onChange={(e) => setQ(e.target.value)} />
-      {full && <p className="meta">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
-      {listing.isPending && <p className="meta">종목을 불러오는 중이에요</p>}
-      {listing.isError && (
-        <div className="col" style={{ gap: 8 }}>
-          <p className="meta">{errorText(listing.error)}</p>
-          <button type="button" className="btn btn-line btn-sm" onClick={() => listing.refetch()}>
-            다시 시도
-          </button>
+    <form className="card cond-full tm-stocks" aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
+      <div className="tm-stocks-head">
+        <div>
+          <h2 className="tm-stocks-title">종목 고르기</h2>
+          <p className="meta">
+            시가총액 상위 {items.length || 100}개 · 최대 {MAX_LEGS}개
+          </p>
         </div>
-      )}
-      {listing.data && items.length === 0 && <p className="meta">아직 종목 목록을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
-      {listing.data && items.length > 0 && shown.length === 0 && <p className="meta">찾는 종목이 없어요</p>}
-      {shown.length > 0 && (
-        <ol className="tm-list" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
-          {shown.map((i) => {
-            const on = picked.some((p) => p.id === i.id);
-            return (
-              <li key={i.id}>
-                <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(i)} title={on ? '빼기' : '고르기'}>
-                  <span className="rk">{i.rank}</span>
-                  <span className="nm">
-                    {i.name}
-                    <span className="sub2">{i.id}</span>
-                  </span>
-                  <span className="cap">{on ? '✓ 고름' : capText(i.marketCap)}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+        <div className="seg fill" role="group" aria-label="시장">
+          {BOARDS.map((b) => (
+            <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
+              {b.label}
+            </button>
+          ))}
+        </div>
+        <div className="tm-search">
+          <Icon id="i-search" size={16} />
+          <input
+            ref={searchRef}
+            className="input"
+            type="search"
+            placeholder="종목 이름이나 코드로 찾기"
+            aria-label="종목 찾기"
+            aria-describedby="tmSearchCount"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && q) {
+                e.preventDefault();
+                setQ('');
+              }
+            }}
+          />
+          {q && (
+            <button type="button" className="tm-search-clear" aria-label="검색어 지우기" onClick={clear}>
+              <Icon id="i-close" size={14} />
+            </button>
+          )}
+        </div>
+        <p id="tmSearchCount" className="tm-search-count" role="status">
+          {term && shown.length > 0 && (
+            <>
+              <b className="num">{shown.length}</b>개 찾음
+            </>
+          )}
+        </p>
+        {full && <p className="tm-note">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
+      </div>
+
+      <div className="tm-stocks-body">
+        {listing.isPending && (
+          <ul className="tm-list" aria-hidden="true">
+            {Array.from({ length: 8 }, (_, k) => (
+              <li key={k} className="skel tm-skel-row" />
+            ))}
+          </ul>
+        )}
+        {listing.isError && (
+          <div className="tm-list-state">
+            <p className="meta">{errorText(listing.error)}</p>
+            <button type="button" className="btn btn-line btn-sm" onClick={() => listing.refetch()}>
+              다시 시도
+            </button>
+          </div>
+        )}
+        {listing.data && items.length === 0 && <p className="tm-list-state meta">아직 종목 목록을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
+        {listing.data && items.length > 0 && shown.length === 0 && (
+          <div className="tm-list-state">
+            <p className="sub">‘{q.trim()}’에 맞는 종목이 없어요</p>
+            <p className="meta">이름이나 6자리 코드로 다시 찾거나, 다른 시장을 골라 보세요.</p>
+            <button type="button" className="btn btn-line btn-sm" onClick={clear}>
+              검색어 지우기
+            </button>
+          </div>
+        )}
+        {shown.length > 0 && (
+          <ol ref={listRef} className="tm-list" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
+            {shown.map((i) => {
+              const on = picked.some((p) => p.id === i.id);
+              return (
+                <li key={i.id}>
+                  <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(i)} title={on ? '빼기' : '고르기'}>
+                    <span className="rk">{i.rank}</span>
+                    <span className="nm">
+                      {i.name}
+                      <span className="sub2">{i.id}</span>
+                    </span>
+                    {on ? (
+                      <span className="cap on">
+                        <Icon id="i-check" size={14} />
+                        고름
+                      </span>
+                    ) : (
+                      <span className="cap">{capText(i.marketCap)}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+
       {listing.data?.source && (
-        <p className="meta">
+        <p className="meta tm-stocks-foot">
           {listing.data.source} · {listing.data.dataAsOf && `${listing.data.dataAsOf.replaceAll('-', '.')} 기준 `}시가총액{listing.data.note ? '(상장주식수 × 종가 어림값)' : ''} 순
-          {listing.data.note && <span style={{ display: 'block' }}>{listing.data.note}</span>}
+          {listing.data.note && <span className="tm-block">{listing.data.note}</span>}
         </p>
       )}
     </form>

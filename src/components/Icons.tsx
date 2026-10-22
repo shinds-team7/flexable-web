@@ -13,6 +13,10 @@ export function IconSprite() {
         <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
         <path d="M8 7v4.5M8 4.6v.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </symbol>
+      <symbol id="i-search" viewBox="0 0 16 16">
+        <circle cx="7" cy="7" r="4.8" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M10.6 10.6L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </symbol>
       <symbol id="i-close" viewBox="0 0 16 16">
         <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </symbol>

@@ -73,38 +73,59 @@ button{cursor:pointer}
 .sim.no-rail > #tmConditions .tm-list{flex:1 1 auto;min-height:0;max-height:none}
 .card.tm-cond-summary{justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px}
 .tm-cond-summary .sub{font-size:14px}
+.tm-block{display:block}
 
-.tm-list{flex:1 1 auto;min-height:0;max-height:none}
-/* 조건: 칸마다 라벨 → 선택(38px) → 값(44px) → 도움말 같은 순서·높이 */
-.tm-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 24px;align-items:start}
-.tm-filters .wide{grid-column:1 / -1}
-.tm-field{display:grid;grid-template-rows:auto 38px 44px auto;gap:8px;min-width:0}
-.tm-field.wide{grid-template-rows:auto auto auto;padding-top:20px;border-top:1px solid var(--line)}
-.tm-field .seg{height:38px}
-.tm-field .seg button{height:32px;padding:0 4px;font-size:13px}
-.tm-field .input{height:44px}
-.tm-field .meta{margin:0}
-.seg-note{display:flex;align-items:center;gap:6px;height:38px;font-size:13px;font-weight:600;color:var(--text-sub)}
-.value-box{display:flex;align-items:center;justify-content:space-between;gap:8px;height:44px;padding:0 14px;border-radius:14px;background:var(--brand-softer);border:1px solid var(--brand-soft);color:var(--text);font-size:15px;min-width:0}
-.value-box b{font-size:18px;font-weight:800;margin-right:2px}
-.value-box .pre{font-size:13px;font-weight:600;color:var(--text-sub);margin-right:6px}
-.value-box.desc{background:var(--sunken);border-color:transparent;font-size:13px;color:var(--text-sub);line-height:1.35}
-.tm-picked-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.tm-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--line)}
-@media (max-width:1180px){
-  .tm-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .tm-filters .tm-how{grid-column:1 / -1;order:3}
-  .tm-filters .wide{order:4}
-}
-.tm-list{list-style:none;margin:0;padding:0;max-height:620px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-.tm-list button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;padding:9px 8px;border:1px solid transparent;border-radius:12px;background:none;text-align:left;color:var(--text);font-size:14px}
+/* 종목 목록: 머리(제목·시장·검색) / 목록(안에서 스크롤) / 출처 */
+.card.tm-stocks{display:flex;flex-direction:column;padding:0}
+.tm-stocks-head{display:flex;flex-direction:column;gap:12px;padding:20px 20px 12px;border-bottom:1px solid var(--line)}
+.tm-stocks-title{font-size:16px;line-height:24px}
+.tm-stocks-body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:8px 12px}
+.tm-stocks-foot{padding:12px 20px 16px;border-top:1px solid var(--line)}
+.tm-note{font-size:13px;line-height:20px;color:var(--color-notice-ink);background:var(--color-notice-bg);border:1px solid var(--color-notice-line);border-radius:var(--radius-soft-sm);padding:8px 12px}
+.tm-list-state{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px 8px}
+.tm-list-state .sub{font-size:14px;font-weight:600}
+
+/* 종목 검색창: 돋보기 + 회색 바탕, 글자가 있으면 카드색 + 지우기 버튼 */
+.tm-search{position:relative}
+.tm-search > svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;transition:color 140ms var(--ease)}
+.tm-search .input{height:var(--density-control-sm);padding:0 40px;font-size:14px;background:var(--sunken);border-color:transparent;transition:background-color 140ms var(--ease),border-color 140ms var(--ease)}
+.tm-search .input::placeholder{color:var(--text-muted);opacity:1}
+.tm-search .input:hover{border-color:var(--color-border-strong)}
+.tm-search .input:not(:placeholder-shown){background:var(--card);border-color:var(--color-border-strong)}
+.tm-search .input:focus{background:var(--card);border-color:var(--brand)}
+.tm-search .input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.tm-search:focus-within > svg{color:var(--brand-text)}
+.tm-search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:var(--radius-soft-sm);background:none;color:var(--text-muted)}
+.tm-search-clear:hover{background:var(--sunken);color:var(--text)}
+.tm-search-count{font-size:12px;line-height:16px;color:var(--text-muted);margin-top:-6px}
+.tm-search-count:empty{display:none}
+.tm-search-count b{color:var(--brand-text)}
+
+.tm-list{list-style:none;margin:0;padding:0;max-height:620px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;scroll-padding-block:8px;
+  /* 위·아래에 더 있으면 끝에 옅은 그림자. 끝까지 내리면 덮개(local)가 그림자(scroll)를 가린다 */
+  background:
+    linear-gradient(var(--card) 40%,transparent) center top / 100% 32px no-repeat local,
+    linear-gradient(transparent,var(--card) 60%) center bottom / 100% 32px no-repeat local,
+    linear-gradient(color-mix(in srgb,var(--text) 10%,transparent),transparent) center top / 100% 12px no-repeat scroll,
+    linear-gradient(transparent,color-mix(in srgb,var(--text) 10%,transparent)) center bottom / 100% 12px no-repeat scroll}
+/* 안에서 스크롤하는 곳(종목 목록·표·사건 목록): 얇은 스크롤바, 끝에 닿아도 페이지가 따라 움직이지 않게 */
+.tm-list,.tm-table-wrap,.tm-ev .ev-list-scroll{scrollbar-width:thin;scrollbar-color:var(--color-border-strong) transparent;overscroll-behavior:contain}
+.tm-list{scrollbar-gutter:stable}
+.tm-list::-webkit-scrollbar,.tm-table-wrap::-webkit-scrollbar,.tm-ev .ev-list-scroll::-webkit-scrollbar{width:8px;height:8px}
+.tm-list::-webkit-scrollbar-thumb,.tm-table-wrap::-webkit-scrollbar-thumb,.tm-ev .ev-list-scroll::-webkit-scrollbar-thumb{background:var(--color-border-strong);border-radius:var(--radius-soft-sm);border:2px solid transparent;background-clip:padding-box}
+.tm-list::-webkit-scrollbar-thumb:hover,.tm-table-wrap::-webkit-scrollbar-thumb:hover,.tm-ev .ev-list-scroll::-webkit-scrollbar-thumb:hover{background-color:var(--text-muted)}
+.tm-list::-webkit-scrollbar-track,.tm-table-wrap::-webkit-scrollbar-track,.tm-ev .ev-list-scroll::-webkit-scrollbar-track{background:transparent}
+.tm-list button{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:8px 10px;border:1px solid transparent;border-radius:var(--radius-soft-sm);background:none;text-align:left;color:var(--text);font-size:14px;line-height:20px;transition:background-color 140ms var(--ease)}
 .tm-list button:hover:not(:disabled){background:var(--sunken)}
-.tm-list button[aria-pressed="true"]{background:var(--brand-softer);border-color:var(--brand)}
+.tm-list button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand)}
 .tm-list button:disabled{opacity:.45;cursor:not-allowed}
-.tm-list .rk{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:right}
+.tm-list .rk{font-size:12px;font-weight:600;color:var(--text-muted);font-variant-numeric:tabular-nums;text-align:center}
+.tm-list button[aria-pressed="true"] .rk{color:var(--brand-text)}
 .tm-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tm-list .sub2{display:block;font-size:12px;font-weight:500;color:var(--text-muted)}
+.tm-list .sub2{display:block;font-size:12px;line-height:16px;font-weight:500;color:var(--text-muted);font-variant-numeric:tabular-nums}
 .tm-list .cap{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tm-list .cap.on{display:inline-flex;align-items:center;gap:4px;color:var(--brand-text);font-weight:700}
+.tm-skel-row{height:52px;margin:2px 0}
 
 /* 조건: 칸마다 번호 이름 → 선택 → 값 → 도움말, 같은 높이로 줄을 맞춘다 */
 .tm-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 24px;align-items:start}
@@ -181,6 +202,10 @@ button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--br
 .tm-table-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius-soft-sm);margin-top:12px}
 .tm-table{font-size:13px}
 .tm-table th{position:sticky;top:0;background:var(--sunken);border-top:0;z-index:1}
+/* 옆으로 스크롤할 때 날짜 칸은 왼쪽에 고정 */
+.tm-table th:first-child,.tm-table td:first-child{position:sticky;left:0;z-index:1;box-shadow:inset -1px 0 0 var(--line)}
+.tm-table td:first-child{background:var(--card)}
+.tm-table th:first-child{z-index:2}
 .tm-table td,.tm-table th{padding:9px 12px}
 .tm-table td{height:auto}
 .tm-table tbody tr:nth-child(even) td{background:var(--color-bg-subtle)}

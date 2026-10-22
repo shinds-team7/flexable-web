@@ -173,7 +173,18 @@ button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--br
 .tm-result{position:relative;transition:opacity 140ms var(--ease)}
 .tm-result.refetching > :not(.calc-pill){opacity:.45}
 .tm-result .calc-pill{position:sticky;top:80px;display:table;margin:-8px auto 8px;transform:none}
+/* 요약 문장: 위 줄(기간·금액)은 작게, 아래 줄(종목)은 크게. 금액은 굵게, 종목 사이 · 는 띄워서 */
+.story.tm-story{display:flex;flex-direction:column;gap:4px;letter-spacing:0}
+.tm-story-lead{font-size:15px;line-height:24px;font-weight:500;color:var(--text-sub)}
+.tm-story-lead b{font-weight:700;color:var(--text)}
+.tm-story-main{font-size:22px;line-height:32px;font-weight:700;color:var(--text)}
+.tm-story .sep{margin:0 .4em;color:var(--text-muted);font-weight:400}
+.tm-story .nw{white-space:nowrap}
 .tm-stats{margin-top:16px}
+.tm-stats .stat{padding:12px 16px}
+.tm-stat-top{display:flex;justify-content:space-between;align-items:baseline;gap:4px 8px;flex-wrap:wrap}
+.tm-stat-top .meta{font-size:12px;line-height:18px}
+.tm-stats .stat .val{margin-top:4px}
 .stat.tm-stat-main{background:var(--brand-soft);border-color:transparent}
 .tm-stat-main .val{font-size:24px}
 .tm-result-bar{margin:24px 0 8px}
@@ -181,12 +192,14 @@ button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--br
 .tm-legend i.total{color:var(--text)}
 .tm-legend i.base{color:var(--baseline)}
 .tm-chart-note{margin-top:6px}
+/* 묶음 핀(숫자)은 오르내림과 관계없이 한 모양. 빨강·파랑은 사건 하나(▲▼)에만 쓴다. 등락은 툴팁·사건 목록에서 본다 */
+.tm-result .pin.cluster .dot,.tm-result .pin.cluster.rise .dot,.tm-result .pin.cluster.fall .dot{background:var(--text);color:var(--card)}
 .tm-ev{margin-top:16px;padding:12px 16px;background:var(--sunken);border-radius:var(--radius-soft-sm)}
 .tm-ev .ev-list button:hover{background:var(--card)}
 .chart-foot.tm-foot{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
 .tm-assume{margin:0;padding-left:18px}
 .tm-foot-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.tm-skel-stat{height:104px}
+.tm-skel-stat{height:82px}
 .tm-skel-chart{height:400px;margin-top:24px}
 .tm-result[aria-busy="true"] > .sub{font-size:14px}
 .empty-box.tm-empty{align-items:center;text-align:center;padding:48px 32px;border-style:dashed;background:var(--sunken)}

@@ -737,36 +737,67 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
     requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
   const when = ymText(r.resolvedInput.startDate.slice(0, 7));
-  const names = r.legs.map((l) => l.name).join('·');
-  const story =
-    r.resolvedInput.mode === 'LUMP_SUM'
-      ? `${when}에 ${won(r.totalInvested)}원을 ${names}에 한 번에 넣었다면`
-      : `${when}부터 매달 ${won(r.monthlyAmount)}원씩(모두 ${won(r.totalInvested)}원) ${names}에 넣었다면`;
+  // 요약 문장: 위 줄은 언제·얼마를, 아래 줄은 어디에 넣었는지
+  const storyLead =
+    r.resolvedInput.mode === 'LUMP_SUM' ? (
+      <>
+        {when}에 <span className="nw"><b className="num">{won(r.totalInvested)}원</b>을</span> 한 번에
+      </>
+    ) : (
+      <>
+        {when}부터 <span className="nw">매달 <b className="num">{won(r.monthlyAmount)}원</b>씩</span>
+        <span className="sep">·</span>
+        <span className="nw">
+          모두 <b className="num">{won(r.totalInvested)}원</b>
+        </span>
+      </>
+    );
+  const storyMain = (
+    <>
+      {r.legs.map((l, j) => (
+        <span key={l.id}>
+          {j > 0 && <span className="sep">·</span>}
+          <span className="nw">{l.name}</span>
+        </span>
+      ))}
+      에 넣었다면
+    </>
+  );
   const asOf = fmtDate(parseDay(r.dataAsOf));
 
   return (
     <div className={'card tm-result' + (sim.isFetching ? ' refetching' : '')} aria-busy={sim.isFetching}>
       {sim.isFetching && <span className="calc-pill">다시 계산하는 중이에요…</span>}
-      <p className="story">{story}</p>
+      <p className="story tm-story">
+        <span className="tm-story-lead">{storyLead}</span>
+        <span className="tm-story-main">{storyMain}</span>
+      </p>
+      {/* 숫자 칸: 위 줄에 이름과 보조 정보, 아래 줄에 금액(한 칸 약 80px) */}
       <div className="stats tm-stats">
         <div className="stat">
-          <span className="lbl">넣은 돈</span>
+          <div className="tm-stat-top">
+            <span className="lbl">넣은 돈</span>
+            <span className="meta">{r.contributionCount}번 넣음</span>
+          </div>
           <p className="val num">{won(r.totalInvested)}원</p>
-          <span className="meta">{r.contributionCount}번 넣음</span>
         </div>
         <div className="stat tm-stat-main">
-          <span className="lbl">{asOf} 평가액</span>
+          <div className="tm-stat-top">
+            <span className="lbl">{asOf} 평가액</span>
+            <span className={'dl num ' + upDown(r.returnRate)}>
+              {arrow(r.returnRate)} {pctTxt(r.returnRate)}
+            </span>
+          </div>
           <p className="val num">{won(r.finalValue)}원</p>
-          <span className={'dl num ' + upDown(r.returnRate)}>
-            {arrow(r.returnRate)} {pctTxt(r.returnRate)}
-          </span>
         </div>
         <div className="stat">
-          <span className="lbl">차이</span>
+          <div className="tm-stat-top">
+            <span className="lbl">차이</span>
+            <span className="meta">세금·수수료 빼기 전</span>
+          </div>
           <p className={'val num ' + upDown(r.profit)}>
             {arrow(r.profit)} {signWon(r.profit)}
           </p>
-          <span className="meta">세금·수수료 빼기 전</span>
         </div>
       </div>
 
@@ -864,7 +895,7 @@ function Result({ req, sim, picked, onDropAndRun }: { req: SimulationRequest | n
             </button>
           </>
         ) : shownEvents.length > 0 ? (
-          '▲▼ 핀은 크게 오르내린 때예요. 가까운 사건은 숫자 핀으로 묶었고, 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
+          '빨간 ▲ 핀은 크게 오른 때, 파란 ▼ 핀은 크게 내린 때예요. 가까운 사건 여러 개는 숫자 핀 하나로 묶었어요(누르면 그 기간을 확대). 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
         ) : (
           '이 기간에는 크게 오르내린 때가 없어요.'
         )}

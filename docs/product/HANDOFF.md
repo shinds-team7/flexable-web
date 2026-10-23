@@ -39,6 +39,29 @@
 - [ ] **방향 정하기**: 설명을 바탕으로 무엇을 유지하고 무엇을 바꿀지 정해 [decisions](decisions.md)에 남긴다. 그 전까지 `/goal` 화면·API·방침 문구는 고치지 않는다
 - [ ] 바꾸는 범위가 정해지면 goal-ai.md 계약부터 고치고, 개인정보 처리(저장 항목·OpenAI 전송)가 바뀌면 같은 PR에서 방침 제2·4·6조와 privacy-web을 고친다
 
+## 2026-10-26(월) 할 일: 홈 히어로 카드 배경 영상
+
+홈 시드머니 카드(`.home-hero`, [Home.tsx](../../src/pages/Home.tsx) `SeedHero`)를 고양이 채굴 영상으로 **가득 채우고 반복 재생**, 숫자·버튼 같은 글자는 영상의 빈 곳으로 옮긴다(사용자 결정). 10-23에는 영상 변환까지만 했고 화면 코드는 아직 손대지 않았다.
+
+끝난 것(10-23):
+- [x] 원본(`cat-mine.mp4`, 1280×720·2초·HEVC·소리 있음·790KB)을 H.264·소리 없음·faststart로 다시 만들어 `public/videos/cat-mine.mp4`(199KB)에 두고, 첫 프레임 poster `public/videos/cat-mine.jpg`를 뽑았다. HEVC는 Firefox·일부 Windows Chrome에서 재생되지 않아 바꿨다
+
+알아 둔 것:
+- 영상 배경은 거의 단색 연하늘 `#E8F0FB`(가장자리 4곳 실측 `232,240,251`). 카드는 라이트 `#FFF`·다크 `#141922`라 다르다
+- 고양이·코인은 화면 가운데 약 x 240~1120, y 170~650(원본 기준). 왼쪽 약 19%·위 약 22%·오른쪽 약 12%만 비어 있다
+- 지금 카드는 데스크톱(창 1456px)에서 837×297(약 2.8:1)이다. 영상(16:9)을 `object-fit:cover`로 깔면 위아래 174px가 잘려 **고양이 머리나 코인 아래가 잘린다**
+- 첫·마지막 프레임 차이가 있어(PSNR 28dB) 2초마다 살짝 튀어 보일 수 있다
+
+남은 것:
+- [ ] **배치 정하기(먼저)**: 다음 중 하나. ① 카드 배경을 영상 배경색으로 칠하고 영상은 `object-fit:contain; object-position:right`로 오른쪽에 붙이고 글자는 왼쪽 정렬(경계가 안 보여 카드 전체가 영상처럼 보임, 높이 거의 그대로) ② 카드에 `aspect-ratio:16/9` 정도를 줘 높이를 늘리고 `cover`로 깔기(데스크톱 약 470px로 커짐) ③ 영상 좌우를 배경색으로 늘려(패딩) 카드 비율에 맞춘 파일을 다시 만들기. 오른쪽 위 캐릭터(`.profile`)를 둘지도 같이 정한다
+- [ ] 영상 배경색을 `tokens.css`에 토큰으로 추가(예: `--color-hero-scene:#E8F0FB`). 색은 토큰으로만 쓴다
+- [ ] **다크 모드**: 영상은 밝은 그대로라 카드 안 글자색(`--text`·`--text-sub`·`--text-muted`·`.btn-line` 등)을 라이트 값으로 고정해야 읽힌다. `.home-hero` 안에서 변수를 라이트 값으로 다시 정의하는 방식이 가장 간단하다. `.hero-foot`의 위 선(`--line`)도 영상 위에서 보이는지 본다
+- [ ] 태그: `<video src="/videos/cat-mine.mp4" poster="/videos/cat-mine.jpg" autoPlay muted loop playsInline preload="auto" aria-hidden="true">`(모바일 Safari 자동 재생에 `muted`·`playsInline` 필요). `position:absolute; inset:0`, 글자는 `position:relative; z-index:1`
+- [ ] 움직임 줄이기: `@media (prefers-reduced-motion: reduce)`이면 영상을 숨기거나 멈추고 poster만 보여 준다
+- [ ] 모바일(767px 이하): 카드가 세로로 길어지므로 글자 위·장면 아래로 쌓는 배치를 따로 본다
+- [ ] 반복 이음새가 거슬리면 앞뒤를 잘라 맞추거나 크로스페이드로 이어 붙여 다시 만든다(원본은 사용자 PC 다운로드 폴더)
+- [ ] 확인: 라이트·다크·모바일 폭에서 화면을 보고, `npm run typecheck`·`npm run build`
+
 ## 2026-10-23 남은 개발 작업
 
 10-23 `main`(#43까지) 기준이다. 화면 상태는 [README 경로 표](../../README.md#경로)를 따른다. 11/1(일) 기능 동결까지 9일 남았고, Must 중 남은 것과 담당은 아래와 같다. 10-22 #43 머지 뒤 `main`·열린 PR·작업 브랜치에 새 커밋은 없다.

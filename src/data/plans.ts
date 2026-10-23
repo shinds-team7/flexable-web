@@ -27,7 +27,7 @@ async function fetchPlans(): Promise<Plans> {
       YEARLY: { period: 'YEARLY', amount: 9900, unit: '년' },
       MONTHLY: { period: 'MONTHLY', amount: 990, unit: '월' },
     },
-    defaultPeriod: 'YEARLY',
+    defaultPeriod: 'MONTHLY',
     yearlySaving: 1980,
     plusFeatures: [
       { title: '정책 마감 리마인더', desc: '챙긴 정책 소식의 마감 3일 전·당일에 이메일로 알려 주고, 내 마감 목록을 모아 보여 줘요' },

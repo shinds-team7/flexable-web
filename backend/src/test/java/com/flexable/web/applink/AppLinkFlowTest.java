@@ -56,7 +56,7 @@ import com.jayway.jsonpath.JsonPath;
 @ExtendWith(OutputCaptureExtension.class)
 class AppLinkFlowTest {
 
-	private static final String CODE = "K7M2-Q9XB";
+	private static final String CODE = "K7M2Q9";
 	private static final AppProfile PROFILE = new AppProfile(null, "kakao");
 	private static final AppSeedMoney SEED = new AppSeedMoney(1_450_000, 500_000, 300_000,
 			new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 950_000, OffsetDateTime.parse("2026-09-25T20:10:00+09:00")),
@@ -159,7 +159,7 @@ class AppLinkFlowTest {
 		String token = signup();
 		when(app.create(anyString())).thenThrow(new AppApiException(Kind.CODE_INVALID));
 		for (int i = 0; i < AppLinkService.MAX_CODE_FAILURES; i++) {
-			link(token, "AAAA-AAAA").andExpect(status().isBadRequest())
+			link(token, "AAAAAA").andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("LINK_CODE_INVALID"));
 		}
 		link(token, CODE).andExpect(status().isTooManyRequests())
@@ -169,7 +169,7 @@ class AppLinkFlowTest {
 		assertThat(rows(userId(token))).isZero();
 
 		// 다른 웹 회원은 영향받지 않는다.
-		link(signup(), "AAAA-AAAA").andExpect(status().isBadRequest());
+		link(signup(), "AAAAAA").andExpect(status().isBadRequest());
 	}
 
 	@Test

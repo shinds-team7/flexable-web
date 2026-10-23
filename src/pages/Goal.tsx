@@ -496,7 +496,7 @@ function Scenarios({ goal }: { goal: Goal }) {
         ))}
       </div>
       <p className="meta" style={{ marginTop: 12 }}>
-        이자·물가는 넣지 않고 모은 돈만으로 계산했어요. 금리를 보려면 <Link to="/savings">적금 비교</Link>에서 확인해 보세요.
+        이자·물가는 넣지 않고 모은 돈만으로 계산했어요. 금리를 보려면 <Link to="/savings">적금 모아보기</Link>에서 확인해 보세요.
       </p>
     </div>
   );

@@ -12,9 +12,8 @@ import { Logo } from './Icons';
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
 const NAV = [
   { to: '/invest', label: '투자 시뮬레이션' },
-  { to: '/savings', label: '적금 비교' },
-  { to: '/mix', label: '섞어보기' },
-  { to: '/goal', label: 'AI 목표 달성' },
+  { to: '/savings', label: '적금 모아보기' },
+  { to: '/goal', label: 'AI 계획 수립' },
   { to: '/news', label: '청년 금융 소식' },
   { to: '/plus', label: '플러스' },
 ];
@@ -67,9 +66,8 @@ export function Layout() {
     <>
       <header className="topnav">
         <div className="wrap">
-          <Link className="logo" to={member || exploring ? '/home' : '/'} aria-label="텅장관리 처음으로">
+          <Link className="logo" to={member || exploring ? '/home' : '/'} aria-label="텅장관리 홈으로">
             <Logo />
-            텅장관리
           </Link>
           <nav className={'mainnav' + (menu ? ' open' : '')} id="mainnav" aria-label="주 메뉴">
             {NAV.map((n) => (

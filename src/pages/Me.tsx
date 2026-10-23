@@ -27,19 +27,18 @@ export default function Me() {
   return (
     <section>
       <div className="page" style={{ maxWidth: 760 }}>
-        <div className="page-head">
-          <h1 className="page-title">내 정보</h1>
-        </div>
         <div className="col">
           <div className="card">
             <h2>계정</h2>
             <div className="set-row">
-              <span className="k">로그인 방법</span>
-              <span className="v">{guest ? '로그인 없이 체험 중' : user ? PROVIDER[user.provider] : '확인 중'}</span>
-            </div>
-            <div className="set-row">
-              <span className="k">이메일</span>
-              <span className="v">{guest ? '체험 내용은 계정에 저장되지 않아요' : user?.email ?? '이메일 없음'}</span>
+              <span>
+                <span className="k">로그인 방법</span>{' '}
+                <span className="v">{guest ? '로그인 없이 체험 중' : user ? PROVIDER[user.provider] : '확인 중'}</span>
+              </span>
+              <span>
+                <span className="k">이메일</span>{' '}
+                <span className="v">{guest ? '체험 내용은 계정에 저장되지 않아요' : user?.email ?? '이메일 없음'}</span>
+              </span>
             </div>
           </div>
           <AppLinkCard member={status === 'member'} />

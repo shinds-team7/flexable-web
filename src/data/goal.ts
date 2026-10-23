@@ -95,7 +95,7 @@ export function useGoal(enabled: boolean) {
   const { user } = useSession();
   return useQuery({
     queryKey: goalKey(user?.id),
-    queryFn: () => api<GoalState>('/me/goal'),
+    queryFn: ({ signal }) => api<GoalState>('/me/goal', { signal }),
     enabled: enabled && user != null,
     retry: false,
   });

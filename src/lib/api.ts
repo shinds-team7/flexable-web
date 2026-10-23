@@ -58,7 +58,8 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
-  if (res.status === 401 && token) onUnauthorized?.();
+  // 요청 뒤 다른 계정으로 바뀌었으면(늦게 온 이전 회원의 401) 지금 세션은 그대로 둔다
+  if (res.status === 401 && token && token === tokenStore.get()) onUnauthorized?.();
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const { code, message, ...details } = body && typeof body === 'object' ? body : ({} as Record<string, unknown>);

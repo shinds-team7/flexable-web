@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`), 시세·투자 시뮬레이션(`market`·`simulation`·`ingest`의 시세 수집), 급변동 사건 탐지·DART 공시 근거 수집과 사건 API(`market`·`ingest`·`simulation`)까지 구현됐다(2026-10-21).** 나머지 패키지는 README로 책임만 정해 둔 상태다. 웹 화면(`src/`)은 아직 project2 API에 붙어 있고, 이 서버로 옮기는 작업은 따로 한다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`·`seedmoney`), 시세·투자 시뮬레이션·사건 API(`market`·`simulation`·`ingest`), 목표·AI 안내(`engagement`·`ai`)까지 구현됐다(2026-10-23).** 목표·AI 계약은 [`docs/product/goal-ai.md`](../docs/product/goal-ai.md). 나머지 패키지는 README로 책임만 정해 둔 상태다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -40,7 +40,8 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `simulation` | 투자·적금 계산 엔진, 프리셋 | `market`, `savings`, `seedmoney` |
 | `news` | 청년 금융 소식 | `common` |
 | `billing` | 요금제·구독·결제 | `user` |
-| `engagement` | 목표·공유·지표 이벤트 | `simulation`, `user` |
+| `engagement` | 목표·AI 안내·사용량, 공유·지표 이벤트(미구현) | `simulation`, `user`, `seedmoney`, `ai` |
+| `ai` | OpenAI 목표 안내 클라이언트(식별자·자유 입력 이름 미전송) | `common` |
 | `ingest` | 외부 데이터 수집 작업 공통(worker 프로필에서만 동작) | 각 도메인의 저장 인터페이스 |
 
 규칙: 표에 없는 방향의 import는 금지하고 `src/test/.../architecture/PackageDependencyTest`로 막는다. `common`은 아무 데도 의존하지 않으므로 모든 패키지가 쓸 수 있다. 다른 패키지의 Repository·엔티티를 직접 쓰지 않고 그 패키지의 공개 서비스·DTO만 쓴다(같은 테스트가 검사). 의존 방향을 거슬러 불러야 할 때(예: 탈퇴 시 각 패키지 데이터 삭제)는 아래 패키지가 인터페이스를 두고 위 패키지가 구현한다(`user.UserWithdrawalListener`). 표를 고치면 테스트의 `ALLOWED`도 함께 고친다. 회원 패키지·테이블 이름은 앱(project2 `user`·`users`)과 같게 `user`로 둔다(2026-10-20 사용자 결정, 이전 표기 `member`).
@@ -62,6 +63,10 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /auth/oauth/exchange` | 없음 | `{code, codeVerifier}` → `{accessToken, expiresAt, user}`. 틀리거나 만료되면 401 `OAUTH_CODE_INVALID` |
 | `GET /me/settings` | Bearer | `{theme: "light"\|"dark", seenTours: [], disclaimerAckAt: null}` |
 | `PATCH /me/settings` | Bearer | 보낸 필드만 바꾼다. `theme`, `seenTours`(이미 본 목록에 병합, 키 `[a-z0-9-]` 40자·최대 24개), `disclaimerAck: true`(서버 시각으로 기록) |
+| `GET /me/goal` | Bearer | `{goal: Goal 또는 null, ai:{available,plan:"FREE",limitPerDay,remainingToday}}`. 진행·시나리오·점검표는 서버 계산, 저장한 코치는 현재 facts와 다르면 `stale=true`. 앱 시드머니 available이면 앱 값, 아니면 직접 입력 값 |
+| `PUT /me/goal` | Bearer | `{category,name,amount,dueMonth,currentAmount?,monthlyPace?}` → GET과 같은 응답. 회원당 하나 생성·수정, version 증가. 종류 6개·이름 1~20자·금액 1만~10억원·기한 다음 달~120개월, 입력 오류 400 `VALIDATION_FAILED`+`fields`. 이름만 변경하면 코치 stale은 그대로 |
+| `DELETE /me/goal` | Bearer | 204, 없어도 204. 목표·코치 삭제, 사용 횟수 유지 |
+| `POST /me/goal/coach` | Bearer | `{coach,ai}`. 같은 facts의 AI 결과는 캐시(차감 없음), 키 없음·전체 상한·호출/검사 실패는 기본 안내. 무료 일일 3회 초과 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`+`plan:"FREE"`+`limitPerDay`, 호출 중 목표 변경·삭제·탈퇴는 409 `GOAL_CHANGED`, 목표 없음 404 `NOT_FOUND` |
 | `GET /market/instruments?board=KOSPI\|KOSDAQ\|ETF` | 없음 | 시가총액 상위 종목(기본 100) `{board, items:[{id,name,market,kind,board,rank,marketCap}], source, note, dataAsOf}`. worker가 아직 모으지 않았으면 `items: []` |
 | `GET /market/events/{id}` | 없음 | 사건 상세 `{id, code, name, scope, startDate, endDate, windowDays, direction, headline, marketReaction:{returnRate, marketReturn, volumeRatio, weekReturn}, afterwards:{d30, d365}, sources:[{type, externalId, title, publisher, date, url, weight}], newsSearchUrl, whatHappened, whyItMoved, aiGenerated, confidence, noticeKey=EVENT_EXPLAIN, notice}`(03 C-10). 수익률은 비율, 30·365일 뒤가 아직 안 왔으면 `null`. 설명(LLM) 전이라 `whatHappened`는 수치로 만든 사실 문장(기간·등락률·같은 기간 시장·공시 수, 원인 단정 없음)이고 `aiGenerated=false`, `confidence`는 근거가 없으면 `LOW`. 없으면 404 `NOT_FOUND` |
 | `GET /market/status` | 없음 | `{pricesAsOf, instrumentsAsOf, instruments, empty}` |
@@ -79,6 +84,8 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 소셜 로그인 규칙은 project2와 같다. 공급자가 **확인한** 이메일이 같은 웹 계정이 있으면 그 계정에 로그인 수단을 붙이고 기존 웹 세션을 끊는다. 그 뒤로는 비밀번호 로그인이 401 `SOCIAL_ACCOUNT`(+`provider`)로 안내된다. 같은 공급자의 다른 계정은 붙이지 않는다(`email_in_use`). 확인되지 않은 이메일은 저장하지도 연결에 쓰지도 않는다. **앱 계정은 보지 않는다**(04 §4).
 
 토큰: HS256, 30일, 클레임 `sub`(웹 회원 id)·`tv`(토큰 버전)·`iss=flexable-web`. 서명 키는 웹 전용(`WEB_JWT_SECRET`)이고 `iss`도 검사하므로 앱 토큰은 통과하지 못한다. 요청마다 `user_credentials.token_version`과 `tv`를 비교해 로그아웃·탈퇴된 토큰을 거절한다.
+
+목표 안내 사용량 보관: api(`!worker`)의 `engagement.GoalCoachUsageCleanupJob`이 매일 03:40(Asia/Seoul)에 `goal_coach_usage`의 `usage_date <= 오늘 − 7일` 행을 삭제한다(방침 제4조). 키가 없어도 정리하고 회원 정보 없는 `ai_daily_usage`는 남긴다. `app.goal.coach.cleanup-cron`으로 시각을 바꿀 수 있다.
 
 ## 로컬 실행
 
@@ -123,6 +130,11 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `KAKAO_CLIENT_SECRET`, `GOOGLE_CLIENT_SECRET`, `KAKAO_ADMIN_KEY`, `KAKAO_SCOPE` | 공급자 비밀 값(admin key는 탈퇴 시 카카오 연결 끊기용) | 없음 |
 | `CORS_ORIGINS` | 다른 출처에서 부를 때만(쉼표 구분). 운영은 프록시로 같은 출처 | `http://localhost:5173` |
 | `PORT` | 서버 포트 | `8080` |
+| `OPENAI_API_KEY` | 목표 안내(api의 요청 중 외부 호출). 없으면 기본 안내로 동작 | 없음 |
+| `OPENAI_MODEL` | strict JSON schema를 지원하는 목표 안내 모델 | `gpt-4o-mini` |
+| `OPENAI_BASE_URL` | Chat Completions 경로 앞 주소 | `https://api.openai.com/v1` |
+| `GOAL_COACH_FREE_DAILY_LIMIT` | 회원당 Asia/Seoul 하루 AI 호출 횟수. 모의 결제로 한도를 바꾸지 않는다 | `3` |
+| `GOAL_COACH_DAILY_CAP` | 회원 정보 없는 DB 날짜별 전체 상한(탈퇴해도 유지) | `300` |
 | `MARKET_TOP_LIMIT` | 시장마다 시가총액 상위 몇 종목을 보여 주고 계산·수집할지 | `100` |
 | `MARKET_PRICE_SOURCE`, `MARKET_INSTRUMENT_SOURCE`, `MARKET_INSTRUMENT_FALLBACK` | worker 수집 소스(위 표) | `kiwoom`, `krx`, `kiwoom` |
 | `MARKET_BACKFILL_YEARS`, `MARKET_SYNC_ON_START`, `MARKET_SYNC_CRON` | 처음 받을 기간, 켜질 때 한 번 돌지, 정기 실행 시각(Asia/Seoul) | `5`, `true`, `0 30 18 * * MON-FRI` |

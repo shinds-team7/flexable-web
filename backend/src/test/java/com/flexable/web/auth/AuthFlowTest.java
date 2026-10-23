@@ -3,6 +3,7 @@ package com.flexable.web.auth;
 import static org.hamcrest.Matchers.endsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -69,6 +70,19 @@ class AuthFlowTest {
 			.andExpect(jsonPath("$.user.email").value(email))
 			.andExpect(jsonPath("$.user.createdAt", endsWith("+09:00")));
 		login(email, PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("$.user.email").value(email));
+	}
+
+	/** 가입 정보는 계약 이행으로 처리하고 방침은 안내만 한다. 개인정보 동의 없이 가입되고 동의 시각은 남기지 않는다(V7). */
+	@Test
+	void signupNeedsOnlyTermsConsent() throws Exception {
+		String email = email();
+		json("/api/v1/auth/signup", """
+				{"email":"%s","password":"%s","agreeTerms":true}""".formatted(email, PASSWORD))
+			.andExpect(status().isCreated());
+		assertThat(jdbc.queryForObject("SELECT privacy_agreed_at FROM users WHERE email = ?", java.sql.Timestamp.class, email))
+			.isNull();
+		assertThat(jdbc.queryForObject("SELECT terms_agreed_at FROM users WHERE email = ?", java.sql.Timestamp.class, email))
+			.isNotNull();
 	}
 
 	@Test

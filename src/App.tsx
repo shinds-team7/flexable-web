@@ -1,5 +1,7 @@
 import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
+import BillingResult from '@/pages/BillingResult';
+import GoalPage from '@/pages/Goal';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
 import Landing from '@/pages/Landing';
@@ -32,10 +34,10 @@ export const router = createBrowserRouter([
       { path: '/news', element: <News /> },
       { path: '/news/:id', element: <Placeholder title="소식 상세" desc="소식 한 건의 자세한 내용" wireframe="청년 돈 소식" /> },
       { path: '/plus', element: <Plus /> },
-      { path: '/billing/result', element: <Placeholder title="모의 결제 결과" desc="모의 완료 · 실패 · 해지 확인" wireframe="모의 결제 결과" /> },
+      { path: '/billing/result', element: <BillingResult /> },
       { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
       { path: '/home', element: <Home /> },
-      { path: '/goal', element: <Placeholder title="AI 목표 달성" desc="목표 설정 · 진행 확인" wireframe="웹 목표" /> },
+      { path: '/goal', element: <GoalPage /> },
       { path: '/me', element: <Me /> },
       { path: '/privacy', element: <Privacy /> },
       {

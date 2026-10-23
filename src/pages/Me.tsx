@@ -1,8 +1,9 @@
-// 내 정보: 계정·앱 연동·화면 설정(라이트/다크)·로그아웃·탈퇴. 구독은 팀원이 채운다.
+// 내 정보: 계정·앱 연동·구독(모의 결제, 저장 없음)·화면 설정(라이트/다크·사용법 다시 보기)·로그아웃·탈퇴.
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { saveSettings } from '@/auth/settings';
 import { AppLinkCard } from '@/components/AppLinkCard';
+import { billingPath } from '@/data/billing';
 import { useSession } from '@/auth/session';
 import { api, errorText } from '@/lib/api';
 import { useTheme, type Theme } from '@/lib/theme';
@@ -26,22 +27,42 @@ export default function Me() {
   return (
     <section>
       <div className="page" style={{ maxWidth: 760 }}>
-        <div className="page-head">
-          <h1 className="page-title">내 정보</h1>
-        </div>
         <div className="col">
           <div className="card">
             <h2>계정</h2>
             <div className="set-row">
-              <span className="k">로그인 방법</span>
-              <span className="v">{guest ? '로그인 없이 체험 중' : user ? PROVIDER[user.provider] : '확인 중'}</span>
-            </div>
-            <div className="set-row">
-              <span className="k">이메일</span>
-              <span className="v">{guest ? '체험 내용은 계정에 저장되지 않아요' : user?.email ?? '이메일 없음'}</span>
+              <span>
+                <span className="k">로그인 방법</span>{' '}
+                <span className="v">{guest ? '로그인 없이 체험 중' : user ? PROVIDER[user.provider] : '확인 중'}</span>
+              </span>
+              <span>
+                <span className="k">이메일</span>{' '}
+                <span className="v">{guest ? '체험 내용은 계정에 저장되지 않아요' : user?.email ?? '이메일 없음'}</span>
+              </span>
             </div>
           </div>
           <AppLinkCard member={status === 'member'} />
+          <div className="card">
+            <h2>구독</h2>
+            <div className="set-row">
+              <div>
+                <p className="k">무료</p>
+                <p className="v">플러스는 지금 시연용 모의 결제라 결제해도 요금제가 바뀌지 않아요.</p>
+              </div>
+              <Link className="btn btn-line btn-sm" to="/plus">
+                플러스 알아보기
+              </Link>
+            </div>
+            <div className="set-row">
+              <div>
+                <p className="k">해지</p>
+                <p className="v">해지 확인 화면을 미리 볼 수 있어요. 실제로 바뀌거나 청구되는 것은 없어요.</p>
+              </div>
+              <Link className="btn btn-line btn-sm" to={billingPath('revoke')}>
+                해지 화면 보기
+              </Link>
+            </div>
+          </div>
           <div className="card">
             <h2>화면 설정</h2>
             <div className="set-row">
@@ -56,6 +77,15 @@ export default function Me() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="set-row">
+              <div>
+                <p className="k">사용법 다시 보기</p>
+                <p className="v">주식 타임머신에서 조건·차트·핀·근거를 차례로 짚어 줘요.</p>
+              </div>
+              <Link className="btn btn-line btn-sm" to="/invest?tour=1">
+                사용법 보기
+              </Link>
             </div>
           </div>
           {guest ? (
@@ -121,7 +151,9 @@ function Withdraw({ social, onDone }: { social: boolean; onDone: () => void }) {
       <div className="set-row">
         <div>
           <p className="k">웹 탈퇴</p>
-          <p className="v">웹 계정과 웹에 저장한 정보를 지우고 앱 연동도 해제해요. 앱 계정과 앱 기록은 그대로예요.</p>
+          <p className="v">
+            웹 계정과 웹에 저장한 앱 연동 정보를 지워요. 앱 계정은 탈퇴되지 않아요. 백업·기록의 삭제 시점은 <Link to="/privacy">개인정보처리방침</Link>에 있어요.
+          </p>
         </div>
         {!open && (
           <button className="btn btn-line btn-sm" onClick={() => setOpen(true)}>

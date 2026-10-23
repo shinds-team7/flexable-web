@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.flexable.web.applink.AppLinkService;
@@ -99,6 +100,7 @@ public class UserService {
 	 */
 	@Transactional
 	public void withdraw(long userId) {
+		lockForUpdate(userId);
 		appLinks.removeForWithdrawal(userId);
 		withdrawalListeners.orderedStream().forEach(l -> l.onWithdraw(userId));
 		settings.deleteById(userId);
@@ -107,5 +109,11 @@ public class UserService {
 
 	private User find(long userId) {
 		return users.findById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
+	}
+
+	/** 다른 기능의 짧은 저장 트랜잭션과 탈퇴를 직렬화한다. 외부 호출 중에는 잡지 않는다. */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public void lockForUpdate(long userId) {
+		users.findWithLockById(userId).orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED));
 	}
 }

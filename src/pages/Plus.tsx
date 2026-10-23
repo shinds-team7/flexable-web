@@ -1,11 +1,12 @@
-// 플러스: 가운데 제목 → 연간/월간 전환 → 지금 요금제 → 플러스·무료 카드 2장 → 전체 비교 → 자주 묻는 질문.
-// 연 9,900원이 기본 선택. 모의 결제라 실제 청구가 없다는 말을 결제 전에 보여 준다(01-product F6, 02-design §5-8).
+// 플러스: 제목(플랜 업그레이드) → 월간/연간 전환 → 무료·플러스 카드 2장 → 전체 비교 → 자주 묻는 질문.
+// 월간이 기본 선택. 모의 결제라 실제 청구가 없다는 말을 결제 전에 보여 준다(01-product F6, 02-design §5-8).
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { Icon } from '@/components/Icons';
+import { startCheckout } from '@/data/billing';
 import { usePlans, useSubscription, type Period, type PlanFeature, type Plans } from '@/data/plans';
-import { fmtMonthDay, won } from '@/lib/format';
+import { won } from '@/lib/format';
 
 function FeatureList({ items }: { items: PlanFeature[] }) {
   return (
@@ -33,31 +34,10 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
   const isPlus = sub.data?.plan === 'PLUS';
   const isFree = status === 'member' && sub.data?.plan === 'FREE';
 
-  const start = () => {
-    navigate(`/billing/result?period=${period}`);
-  };
+  const start = () => startCheckout(period, navigate);
 
   return (
     <div className="plan-cards">
-      <article className="card plan-card plan-pick" aria-labelledby="planPlus">
-        <div className="plan-top">
-          <p className="plan-eyebrow">대표 가치 · 정책 마감 리마인더</p>
-          {period === 'YEARLY' && <span className="plan-badge">연간 {won(plans.yearlySaving)}원 아껴요</span>}
-        </div>
-        <h2 id="planPlus" className="plan-name">플러스</h2>
-        <p className="plan-price num">
-          <b>{won(price.amount)}원</b>
-          <span>/{price.unit}</span>
-        </p>
-        <p className="meta">{period === 'YEARLY' ? '1년에 한 번 결제 · 언제든 해지' : '매달 결제 · 언제든 해지'}</p>
-        <button className="btn btn-primary btn-block plan-cta" onClick={start} disabled={isPlus || status === 'loading'}>
-          {isPlus ? '지금 쓰는 요금제' : status === 'member' ? `${price.unit === '년' ? '연' : '월'} ${won(price.amount)}원으로 시작` : '로그인 없이 플러스 체험하기'}
-        </button>
-        <FeatureList items={plans.plusFeatures} />
-        <hr className="hair" />
-        <p className="meta">무료 기능도 모두 그대로 쓸 수 있어요.</p>
-      </article>
-
       <article className="card plan-card" aria-labelledby="planFree">
         <div className="plan-top">
           <p className="plan-eyebrow muted">기본</p>
@@ -78,16 +58,33 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
         )}
         <FeatureList items={plans.freeFeatures} />
       </article>
+
+      <article className="card plan-card plan-pick" aria-labelledby="planPlus">
+        <div className="plan-top">
+          <p className="plan-eyebrow">대표 가치 · 정책 마감 리마인더</p>
+          {period === 'YEARLY' && <span className="plan-badge">연간 {won(plans.yearlySaving)}원 아껴요</span>}
+        </div>
+        <h2 id="planPlus" className="plan-name">플러스</h2>
+        <p className="plan-price num">
+          <b>{won(price.amount)}원</b>
+          <span>/{price.unit}</span>
+        </p>
+        <p className="meta">{period === 'YEARLY' ? '1년에 한 번 결제 · 언제든 해지' : '매달 결제 · 언제든 해지'}</p>
+        <button className="btn btn-primary btn-block plan-cta" onClick={start} disabled={isPlus || status === 'loading'}>
+          {isPlus ? '지금 쓰는 요금제' : status === 'member' ? `${price.unit === '년' ? '연' : '월'} ${won(price.amount)}원으로 시작` : '로그인 없이 플러스 체험하기'}
+        </button>
+        <FeatureList items={plans.plusFeatures} />
+        <hr className="hair" />
+        <p className="meta">무료 기능도 모두 그대로 쓸 수 있어요.</p>
+      </article>
     </div>
   );
 }
 
 export default function Plus() {
-  const { status } = useSession();
   const plans = usePlans();
-  const sub = useSubscription(status === 'member');
   const [period, setPeriod] = useState<Period | null>(null);
-  const cur = period ?? plans.data?.defaultPeriod ?? 'YEARLY';
+  const cur = period ?? plans.data?.defaultPeriod ?? 'MONTHLY';
   const periods: { v: Period; label: string }[] = [
     { v: 'MONTHLY', label: '월간' },
     { v: 'YEARLY', label: '연간' },
@@ -97,13 +94,7 @@ export default function Plus() {
     <section>
       <div className="page plus-page">
         <header className="plus-head">
-          <h1 className="plus-title">
-            무료로 충분히,
-            <br />
-            더 깊게는 플러스
-          </h1>
-          <p className="sub">정책 마감 리마인더와 월간 내 돈 리포트. 결과는 무료로도 끝까지 볼 수 있어요.</p>
-          <p className="meta">시연용 모의 결제예요. 실제로 돈이 나가지 않아요. 언제든 내 정보에서 해지할 수 있어요.</p>
+          <h1 className="plus-title">플랜 업그레이드</h1>
         </header>
 
         <div className="period-switch">
@@ -114,20 +105,7 @@ export default function Plus() {
               </button>
             ))}
           </div>
-          {plans.data && <p className="period-note">연간으로 내면 {won(plans.data.yearlySaving)}원 아껴요</p>}
         </div>
-
-        {status === 'member' && sub.data && (
-          <div className="card current-plan">
-            <div>
-              <p className="meta">지금 요금제</p>
-              <p className="k">{sub.data.plan === 'PLUS' ? '플러스' : '무료'}</p>
-            </div>
-            <p className="num">
-              {sub.data.plan === 'PLUS' && sub.data.planUntil ? `${fmtMonthDay(sub.data.planUntil)}까지` : '0원'}
-            </p>
-          </div>
-        )}
 
         {plans.isPending && <div className="plan-cards" aria-busy="true" />}
         {plans.isError && (
@@ -177,7 +155,7 @@ export default function Plus() {
               </details>
               <details>
                 <summary>지금 결제하면 돈이 나가나요?</summary>
-                <p>아니요. 지금은 시연용 모의 결제라 실제로 청구되지 않아요. 실제 결제 수단과 환불 정책은 출시 전에 정해서 알려 드려요.</p>
+                <p>아니요. 지금은 시연용 모의 결제라 실제로 청구되지 않고, 결과 화면만 보여 줄 뿐 요금제도 바뀌지 않아요. 실제 결제 수단과 환불 정책은 출시 전에 정해서 알려 드려요.</p>
               </details>
               <details>
                 <summary>무료로는 어디까지 볼 수 있어요?</summary>

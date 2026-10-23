@@ -36,6 +36,16 @@ management:
         enabled: true
 
 app:
+  ai:
+    openai:
+      # 키가 없으면 기본 안내를 반환한다. api의 외부 호출 예외(04 §8).
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      model: ${OPENAI_MODEL:gpt-4o-mini}
+  goal:
+    coach:
+      free-daily-limit: ${GOAL_COACH_FREE_DAILY_LIMIT:3}
+      daily-cap: ${GOAL_COACH_DAILY_CAP:300}
   auth:
     jwt:
       # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).

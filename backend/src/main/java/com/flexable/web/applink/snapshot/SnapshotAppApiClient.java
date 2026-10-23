@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,17 +18,23 @@ import com.flexable.web.applink.AppApiException.Kind;
 
 /**
  * 앱 서버 없이 쓰는 고정 연동(APP_LINK_MODE=snapshot). 로컬 화면 확인·인터넷 없는 시연용이며 실제 사용자 데이터는 없다.
- * 앱 코드 규칙(8자리, 0·1·I·L·O 제외)에 맞으면 연동되고, 연동은 서버를 다시 띄우면 사라진다(다음 조회에서 해제로 보인다).
+ * 앱 코드 규칙(6자리, 0·1·I·L·O 제외)에 맞으면 연동되고, 연동은 서버를 다시 띄우면 사라진다(다음 조회에서 해제로 보인다).
  */
 @Component
 @ConditionalOnProperty(prefix = "app.applink", name = "mode", havingValue = "snapshot")
 public class SnapshotAppApiClient implements AppApiClient {
 
-	private static final String CODE_PATTERN = "[A-HJKMNP-Z2-9]{8}";
+	private static final String CODE_PATTERN = "[A-HJKMNP-Z2-9]{6}";
 	private static final AppProfile PROFILE = new AppProfile("demo@example.com", "email");
 	private static final AppSeedMoney SEED = new AppSeedMoney(1_450_000, 500_000, 300_000,
-			new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 950_000, OffsetDateTime.parse("2026-09-25T20:10:00+09:00")),
-			OffsetDateTime.parse("2026-09-25T20:10:00+09:00"));
+			new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 650_000, OffsetDateTime.parse("2026-09-25T20:10:00+09:00")),
+			OffsetDateTime.parse("2026-09-25T20:10:00+09:00"), LocalDate.parse("2026-06-26"), List.of(
+					new Entry(LocalDate.parse("2026-07-25"), "GOAL", 300_000, 800_000,
+							OffsetDateTime.parse("2026-07-24T20:05:00+09:00")),
+					new Entry(LocalDate.parse("2026-08-25"), "MANUAL", 0, 800_000,
+							OffsetDateTime.parse("2026-08-24T21:00:00+09:00")),
+					new Entry(LocalDate.parse("2026-09-25"), "ALL", 650_000, 1_450_000,
+							OffsetDateTime.parse("2026-09-25T20:10:00+09:00"))));
 
 	private final SecureRandom random = new SecureRandom();
 	private final Set<String> links = ConcurrentHashMap.newKeySet();

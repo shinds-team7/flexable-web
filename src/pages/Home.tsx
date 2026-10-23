@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DDay } from '@/components/Icons';
 import { PLAY_URL } from '@/components/Layout';
 import { useAppLink } from '@/data/appLink';
+import { fmtMonth, useGoal } from '@/data/goal';
 import { useHomeNews, useIndices, useSeedMoney, type MarketIndices, type SeedMoney } from '@/data/home';
 import { fmtMonthDay, upDown, won } from '@/lib/format';
 
@@ -294,6 +295,49 @@ function HomeNews() {
   );
 }
 
+/** 로그인한 회원에게만 웹 목표 요약을 보여 준다(goal-ai.md §6). 숫자는 서버 값 그대로 */
+function GoalMini() {
+  const { status } = useSession();
+  const q = useGoal(status === 'member');
+  if (status !== 'member' || !q.data) return null;
+  const g = q.data.goal;
+  if (!g) {
+    return (
+      <div className="card">
+        <h2>목표</h2>
+        <p className="sub" style={{ marginTop: 4 }}>
+          목표 금액과 기한을 정하면 매달 얼마씩 남기면 되는지 알려 드려요.
+        </p>
+        <Link className="btn btn-line btn-sm" to="/goal" style={{ marginTop: 12 }}>
+          목표 세우기
+        </Link>
+      </div>
+    );
+  }
+  const p = g.progress;
+  return (
+    <Link className="card goal-mini" to="/goal" style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+      <div className="card-head" style={{ marginBottom: 4 }}>
+        <h2>{g.name}</h2>
+        <span className="meta">{fmtMonth(g.dueMonth)}까지</span>
+      </div>
+      <p className="num" style={{ fontWeight: 700 }}>
+        {won(p.current)}원 <span className="meta">/ {won(g.amount)}원</span>
+      </p>
+      <div className="goal-track" aria-hidden="true">
+        <span style={{ width: `${p.ratioBp / 100}%` }} />
+      </div>
+      <p className="meta" style={{ marginTop: 8 }}>
+        {p.status === 'REACHED'
+          ? '목표에 닿았어요'
+          : p.status === 'OVERDUE'
+            ? '기한이 지났어요 · 기한을 새로 정해 보세요'
+            : `매달 ${won(p.requiredMonthly ?? 0)}원 남기면 돼요`}
+      </p>
+    </Link>
+  );
+}
+
 const APP_LINK_INTRO = 'app-link-intro';
 
 /**
@@ -386,7 +430,8 @@ export default function Home() {
               </>
             )}
           </div>
-          <aside className="col rail" aria-label="오늘의 시장과 소식">
+          <aside className="col rail" aria-label="목표와 오늘의 시장·소식">
+            <GoalMini />
             <MarketCard m={indices.data} />
             <HomeNews />
           </aside>

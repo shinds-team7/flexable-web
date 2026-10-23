@@ -41,6 +41,7 @@ async function fetchPlans(): Promise<Plans> {
       { title: '투자 시뮬레이션', desc: '넣는 방식 3종, 기간 칩·날짜 지정, 사건 설명 전부' },
       { title: '적금 비교·정책 적금', desc: '지금 상품, 과거 평균, 정책 적금 조건 입력' },
       { title: '섞어보기·공유', desc: '종목·상품 3개, 프리셋 3개, 비교 2개, 공유 링크' },
+      { title: 'AI 목표 달성', desc: '목표 1개, AI 목표 안내 하루 3회' },
     ],
     compare: [
       { feature: '정책 마감 리마인더', free: '—', plus: '제공' },
@@ -49,6 +50,8 @@ async function fetchPlans(): Promise<Plans> {
       { feature: '투자 시뮬레이션·기간 칩·날짜 지정·사건 설명', free: '전부', plus: '전부' },
       { feature: '적금 비교·정책 적금·공유', free: '전부', plus: '전부' },
       { feature: '종목 / 비교 / 프리셋', free: '3 / 2 / 3', plus: '5 / 5 / 50' },
+      // 플러스 쪽 AI 안내 한도는 실결제(billing)가 붙을 때 정한다(goal-ai.md §1). 숫자를 약속하지 않는다
+      { feature: 'AI 목표 안내', free: '하루 3회', plus: '더 많이(준비 중)' },
       { feature: '정밀 모드(배당 재투자·수수료·세금)', free: '—', plus: '제공' },
       { feature: '광고 없음', free: '—', plus: '제공' },
     ],

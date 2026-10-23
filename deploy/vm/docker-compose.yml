@@ -49,6 +49,11 @@ services:
       DB_USERNAME: ${DB_USERNAME:-flexable_web}
       TZ: Asia/Seoul
       JAVA_OPTS: -Xms256m -Xmx1g
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GOAL_COACH_FREE_DAILY_LIMIT: ${GOAL_COACH_FREE_DAILY_LIMIT:-3}
+      GOAL_COACH_DAILY_CAP: ${GOAL_COACH_DAILY_CAP:-300}
 
   # 시세 수집. 키움·KRX 키를 넣은 뒤 `--profile worker`로 켠다(README).
   worker:

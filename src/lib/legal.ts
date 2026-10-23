@@ -33,3 +33,4 @@ export function fmtEffective(): string {
   const [, m, d] = WEB_PRIVACY_EFFECTIVE.split('-').map(Number);
   return `${m}월 ${d}일`;
 }
+

@@ -11,7 +11,7 @@
 
 ## 2026-10-21 웹 운영 현황(solpa VM)
 
-웹 백엔드·화면·DB가 `https://solpa.shinhanacademy.co.kr`(대한상공회의소 VM, Ubuntu 22.04·1코어·8GB)에서 돈다. 구성·명령은 [`deploy/vm/README.md`](../../deploy/vm/README.md). Vercel 배포본은 그대로 `VITE_API_URL`이 앱 서버를 가리켜 앱 계정·앱 방침을 쓴다. **main 머지는 Vercel만 자동 배포**하고, solpa는 VM에서 `./backup.sh` → `git pull` → `docker compose up -d --build`로 반영한다(10-23 `main` #44까지 반영, Flyway V7). **VM 저장소는 `main`만 둔다.** 브랜치 시험은 로컬에서 하고, 운영 DB 마이그레이션이 바뀌는 반영은 먼저 팀에 알린다.
+웹 백엔드·화면·DB가 `https://solpa.shinhanacademy.co.kr`(대한상공회의소 VM, Ubuntu 22.04·1코어·8GB)에서 돈다. 구성·명령은 [`deploy/vm/README.md`](../../deploy/vm/README.md). Vercel 배포본은 그대로 `VITE_API_URL`이 앱 서버를 가리켜 앱 계정·앱 방침을 쓴다. **main 머지는 Vercel만 자동 배포**하고, solpa는 VM에서 `./backup.sh` → `git pull` → `docker compose up -d --build`로 반영한다(10-23 `main` #50까지 반영, Flyway V8, `OPENAI_API_KEY` 입력). **VM 저장소는 `main`만 둔다.** 브랜치 시험은 로컬에서 하고, 운영 DB 마이그레이션이 바뀌는 반영은 먼저 팀에 알린다.
 
 끝난 것(10-21):
 - [x] VM 배포(#29): api·web·db 실행, 백업 cron(매일 04:00, 만든 때부터 최대 7일), 접속·오류 기록 삭제 root cron(`purge-logs.sh`, 매주 일 04:00), 키움 키 `.env` 입력(시세 수집은 `docker compose --profile worker up -d`)
@@ -30,6 +30,14 @@
 - [ ] **11-18 VM 종료 → AWS 이전**: 웹 백엔드·DB를 AWS로 옮긴다. 수탁자(대한상공회의소 → AWS)·처리 위치·로그·백업이 바뀌므로 **개정 방침을 11-11까지 고지**하고, AWS 구성에 기록 7일 삭제·백업 7일·관리자 접근 기록 1년을 처음부터 넣는다. 종료 전 VM의 `/var/log/auth.log*`를 운영자 PC로 옮기고(1년 보관), VM의 DB·백업은 이전 뒤 지운다. 화면 주소가 바뀌면 소셜 콘솔 콜백·`OAUTH_*`·`APP_LINK_*`를 새 주소로 다시 넣는다
 - [ ] **운영자 확인**(privacy-web §0): 대한상공회의소 정확한 기관명·VM 스냅숏 여부, 문의 메일은 처리 후 30일 이내 삭제, 10-21 시행 전에 만든 시험 계정 정리
 - [ ] 앱 서버에서 웹 VM의 나가는 IP만 허용할지(04 §10). AWS 이전 뒤 주소가 정해지면 정한다
+
+## 2026-10-26(월) 할 일: F7 AI 목표 달성 기획 다시 맞추기
+
+10-23 #50으로 `/goal`(목표 1개, 서버 계산 진행률·시나리오·점검표, OpenAI 안내 하루 3회)을 solpa에 반영하고 키까지 넣었다. 실제 화면을 본 사용자(기획) 판단으로 **기획 의도와 많이 다르다.** 어디가 어떻게 다른지는 아직 정리되지 않았다.
+
+- [ ] **기획 설명 받기(먼저)**: 이 기능으로 사용자가 무엇을 얻어야 하는지, 화면 흐름, AI가 맡을 역할을 구체적으로 설명받는다. 현재 구현([goal-ai.md](goal-ai.md))과 나란히 놓고 다른 점을 적는다
+- [ ] **방향 정하기**: 설명을 바탕으로 무엇을 유지하고 무엇을 바꿀지 정해 [decisions](decisions.md)에 남긴다. 그 전까지 `/goal` 화면·API·방침 문구는 고치지 않는다
+- [ ] 바꾸는 범위가 정해지면 goal-ai.md 계약부터 고치고, 개인정보 처리(저장 항목·OpenAI 전송)가 바뀌면 같은 PR에서 방침 제2·4·6조와 privacy-web을 고친다
 
 ## 2026-10-23 남은 개발 작업
 

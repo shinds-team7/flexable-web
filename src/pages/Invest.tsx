@@ -155,7 +155,7 @@ export default function Invest() {
   const [formError, setFormError] = useState<string | null>(null);
   const sim = useSimulation(req);
   const searchRef = useRef<HTMLInputElement>(null);
-  // 결과가 나오면 조건 카드를 한 줄 요약으로 접어 차트가 첫 화면에 들어오게 한다. 고치는 중에는 펼친 채로 둔다
+  // 입력 검사를 통과해 계산 요청을 보내면(시세 오류로 끝나도) 조건 카드를 한 줄 요약으로 접어 차트가 첫 화면에 들어오게 한다. 고치는 중에는 펼친 채로 둔다
   const [condOpen, setCondOpen] = useState(true);
   // 처음 열 때 기본값으로 계산한 결과인지. 직접 계산하면 안내를 내린다
   const [isDefault, setIsDefault] = useState(false);
@@ -203,7 +203,7 @@ export default function Invest() {
     }
     setFormError(null);
     setReq(buildReq(legs, w));
-    // 조건 카드 안(결과 보기·비율 수정)에서 계산했으면 접은 뒤 [조건 바꾸기]로 포커스를 옮긴다
+    // 요청을 보냈으면 결과와 관계없이 접는다. 조건 카드 안(결과 보기·비율 수정)에서 보냈으면 [조건 바꾸기]로 포커스를 옮긴다
     const a = document.activeElement;
     const fromForm = !a || a === document.body || !!formRef.current?.contains(a) || !!a.closest('dialog');
     setCondOpen(false);

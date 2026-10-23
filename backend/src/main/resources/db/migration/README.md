@@ -10,5 +10,6 @@
 | `V5__market_events.sql` | `instruments.corp_code`(OpenDART 고유번호), `market_events`(market: 급변동 사건), `event_sources`(market: 사건 근거 공시) |
 | `V6__app_link_entries.sql` | `app_links.seed_started_on`, `app_link_entries`(applink: 앱에서 받은 주기별 반영 기록, 연동과 함께 삭제) |
 | `V7__privacy_notice_basis.sql` | `users.privacy_agreed_at` NULL 허용(10-21부터 가입 정보는 계약 이행 근거로 처리, 이전 동의 시각은 유지) |
+| `V8__youth_news.sql` | `youth_news_raw`(news: 청년 정책 수집 원문), `youth_news`(news: 소식 카드, 검수 상태) |
 
 MySQL과 H2(MySQL 모드, 로컬·테스트) 양쪽에서 돌아야 한다. 테스트(`./gradlew test`)가 매번 처음부터 적용하고 `ddl-auto=validate`로 엔티티와 맞는지 본다.

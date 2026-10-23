@@ -1,4 +1,4 @@
-// 회색 박스: 분야 칩 · 검색 · 지역 · 나이대. 박스 아래 줄: 진행중(지금 신청 가능) · 정렬. 모든 조건은 서로 독립이고 동시에 적용된다.
+// 회색 박스: 분야 칩 · 검색 · 지역 · 나이대. 박스 아래 줄: 정렬. 모든 조건은 서로 독립이고 동시에 적용된다.
 import { AGE_BANDS, NEWS_CATEGORIES, REGIONS } from '@/data/news';
 import type { NewsFilter } from '@/lib/newsList';
 
@@ -58,15 +58,10 @@ export function NewsFilters({ value: f, onChange }: Props) {
   );
 }
 
-/** 필터 박스 아래 줄 오른쪽: 진행중 · 정렬. 왼쪽 개수 표시는 화면(News)이 둔다. */
+/** 필터 박스 아래 줄 오른쪽: 정렬. 왼쪽 개수 표시는 화면(News)이 둔다. */
 export function NewsSortBar({ value: f, onChange }: Props) {
   return (
     <div className="news-sortbar">
-      <label className="check">
-        <input type="checkbox" checked={f.openOnly} onChange={(e) => onChange({ openOnly: e.target.checked })} />
-        진행중
-      </label>
-      <span className="news-sortbar-div" aria-hidden="true" />
       <div className="news-sort" role="group" aria-label="정렬">
         {SORTS.map((s) => (
           <button key={s.id} type="button" aria-pressed={f.sort === s.id} onClick={() => onChange({ sort: s.id })}>

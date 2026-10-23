@@ -86,6 +86,16 @@ app:
       # 한 번 실행에서 공시를 찾을 사건 수 상한(OpenDART 하루 20,000건 한도). 남은 사건은 다음 실행에 이어서
       max-calls: ${DART_MAX_CALLS:5000}
       call-delay: 100ms
+    # 청년 정책(소식 초안) 수집: youthcenter(온통청년 오픈API) | fake. 키가 비어 있으면 수집을 건너뛴다.
+    # 받은 정책은 초안(DRAFT)으로 저장하고, 화면에는 사람이 승인한 소식만 나간다(01 §F4)
+    youth:
+      source: ${YOUTH_POLICY_SOURCE:youthcenter}
+      base-url: ${YOUTHCENTER_BASE_URL:https://www.youthcenter.go.kr}
+      api-key: ${YOUTHCENTER_API_KEY:}
+      run-on-start: ${YOUTH_SYNC_ON_START:true}
+      cron: ${YOUTH_SYNC_CRON:0 0 6 * * *}
+      page-size: 100
+      call-delay: 200ms
   applink:
     # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
     mode: ${APP_LINK_MODE:http}

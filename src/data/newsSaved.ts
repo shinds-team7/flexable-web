@@ -88,7 +88,6 @@ export function readNewsFilter(): NewsFilter {
       category: oneOf(v.category, ['ALL', ...NEWS_CATEGORIES.map((c) => c.id)], DEFAULT_FILTER.category),
       region: oneOf(v.region, ['ALL', ...REGIONS], DEFAULT_FILTER.region),
       age: oneOf(v.age, ['ALL', ...AGE_BANDS.map((b) => b.id)], DEFAULT_FILTER.age),
-      openOnly: v.openOnly === true,
       sort: oneOf(v.sort, ['deadline', 'new'] as const, DEFAULT_FILTER.sort),
       query: '',
     };

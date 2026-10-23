@@ -36,6 +36,8 @@ type StartChip = 1 | 3 | 5 | 'custom';
 const SIM_PAST = '과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요.';
 /** 저축 속도가 없을 때 첫 결과에 쓰는 예시 월 금액(시연 페르소나 '지수') */
 const INTRO_SAMPLE_MONTHLY = 78_000;
+/** 등락 숫자 앞 ▲▼. 정확히 0이면 무채색(flat)이라 기호를 붙이지 않는다. 공통 arrow는 0을 ▲로 두는 차트와 맞춰야 해서 이 화면에서만 감싼다 */
+const withArrow = (x: number, text: string) => (x === 0 ? text : `${arrow(x)} ${text}`);
 const TOUR: CoachStep[] = [
   {
     target: () => document.querySelector<HTMLElement>('.tm-cond-bar') ?? document.getElementById('tmFilters'),
@@ -998,7 +1000,7 @@ function Result({
           <div className="tm-stat-top">
             <span className="lbl">{asOf} 평가액</span>
             <span className={'dl num ' + upDown(r.returnRate)}>
-              {arrow(r.returnRate)} {pctTxt(r.returnRate)}
+              {withArrow(r.returnRate, pctTxt(r.returnRate))}
             </span>
           </div>
           <p className="val num">{won(r.finalValue)}원</p>
@@ -1009,7 +1011,7 @@ function Result({
             <span className="meta">세금·수수료 빼기 전</span>
           </div>
           <p className={'val num ' + upDown(r.profit)}>
-            {arrow(r.profit)} {signWon(r.profit)}
+            {withArrow(r.profit, signWon(r.profit))}
           </p>
         </div>
       </div>
@@ -1228,7 +1230,7 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
                   <td className={'r ' + upDown(p.profit)}>
                     {signWon(p.profit)}
                     <span className="sm">
-                      {arrow(p.returnRate)} {pctTxt(p.returnRate)}
+                      {withArrow(p.returnRate, pctTxt(p.returnRate))}
                     </span>
                   </td>
                   {p.legs.map((l) => (

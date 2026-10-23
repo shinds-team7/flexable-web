@@ -323,7 +323,7 @@ export default function Invest() {
                     ))}
                   </ul>
                 </div>
-                <button ref={condBtnRef} type="button" className="btn btn-sm tm-cond-edit" aria-expanded={false} aria-controls="tmFilters" onClick={openCond}>
+                <button ref={condBtnRef} type="button" className="btn btn-sm tm-cond-edit" aria-expanded={false} onClick={openCond}>
                   <Icon id="i-edit" size={16} />
                   조건 바꾸기
                 </button>

@@ -75,6 +75,11 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /app-link` | Bearer | `{code}`(앱에서 받은 6자리, `K7M2Q9`처럼 소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
 | `GET /me/seed-money` | Bearer | 웹 시드머니 `{source: "app"\|"none", status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync}`. 앱 연동 값(`GET /app-link`와 같은 조회·갱신 규칙)이고 연동이 없으면 `source: "none"`에 나머지 `null`. 그래프는 (`startedOn`, `base`) 다음에 (`cycleEnd`, `totalAfter`)를 잇는다. 직접 입력 저장은 아직 없다 |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
+| `GET /savings/products` | 없음 | `?monthly=&termMonths=&sort=BASE_RATE\|MAX_RATE\|TERM&direction=&reserveType=FIXED\|FREE&sectors=BANK,SAVINGS_BANK&companies=은행이름,…&page=&size=` → `{items[], total, page, size, minInterestAfterTax, maxInterestAfterTax, noRateCount, disclosureMonth, dataAsOf, notice, isSample: false}`. 로컬 DB(finlife 공시 복사본)에서 읽고 `items[].result`(기본금리 기준 만기 계산)는 서버가 계산한다. 월 한도를 넘는 돈은 `excludedAmount` |
+| `GET /savings/companies` | 없음 | 공시가 있는 금융회사 `[{name, sector}]`(가나다순). 화면의 은행 선택지 |
+| `GET /savings/policies` | 없음 | `?ids=정책번호,…` → 청년정책(적금·저축·통장 계열, 온통청년) `[{id, name, summary, support, agency, applyPeriod, minAge, maxAge, applyMethod, documents, applyUrl, …}]`. 금리가 없어 계산하지 않는다 |
+| `GET /savings/products/{id}` | 없음 | `?termMonths=&reserveType=` → 상품 상세(우대조건 원문 `specialConditionText` 포함) |
+| `POST /savings/simulate` | 없음 | `{productId, monthly, termMonths, reserveType, rateBasis: BASE\|MAX}` → 만기 계산 + `assumptions` |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
 투자 시뮬레이션 계산(`simulation.SimulationEngine`): 한 주(월~일)의 값 = 그 주 마지막 거래일 종가로 평가(휴장 주는 직전 종가). 납입은 시작 월부터 매달 그 달 첫 거래일 종가로 산다. 한 번에(`LUMP_SUM`) = 첫 달에 `totalAmount`, 매달 나눠서(`SPLIT`)·지금 저축 속도로(`PACE`) = 매달 `monthlyAmount`. 원 단위 정수·내림, 종목 배분 나머지는 첫 종목, 수량은 소수 8자리 내림(소수점 매수 가정). 배당·세금·수수료 미반영.

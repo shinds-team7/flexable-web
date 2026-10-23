@@ -1,22 +1,21 @@
 // 소식 목록 거르기·정렬·오늘의 한 장 고르기. 화면과 분리한 순수 함수라 서버 쿼리로 옮기기 쉽다.
 // '추천' 정렬은 두지 않는다(01-product.md §7). 정렬은 사용자가 고른 기준(마감 임박순·새로운 순)만.
-import { AGE_BANDS, type AgeBandId, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
-import { canApplyNow, daysBetween, deadlineState, type ApplyPeriod } from './deadline';
+import { AGE_BANDS, newsCategories, type AgeBandId, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
+import { daysBetween, deadlineState, type ApplyPeriod } from './deadline';
 
 export type NewsSort = 'deadline' | 'new';
 export type NewsFilter = {
   category: NewsCategory | 'ALL';
   region: RegionName | 'ALL';
   age: AgeBandId | 'ALL';
-  openOnly: boolean;
   sort: NewsSort;
   query: string;
 };
 
-export const DEFAULT_FILTER: NewsFilter = { category: 'ALL', region: 'ALL', age: 'ALL', openOnly: false, sort: 'deadline', query: '' };
+export const DEFAULT_FILTER: NewsFilter = { category: 'ALL', region: 'ALL', age: 'ALL', sort: 'deadline', query: '' };
 
 export const isDefaultFilter = (f: NewsFilter) =>
-  f.category === 'ALL' && f.region === 'ALL' && f.age === 'ALL' && !f.openOnly && f.query.trim() === '';
+  f.category === 'ALL' && f.region === 'ALL' && f.age === 'ALL' && f.query.trim() === '';
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 
@@ -54,12 +53,26 @@ export function selectNews(items: YouthNews[], f: NewsFilter, today: string): Yo
   const list = items.filter((n) => {
     const s = deadlineState(n, today);
     if (s.kind === 'closed') return false;
-    if (f.openOnly && !canApplyNow(s)) return false;
-    if (f.category !== 'ALL' && n.category !== f.category) return false;
+    if (f.category !== 'ALL' && !newsCategories(n).includes(f.category)) return false;
     return matchesRegion(n, f.region) && matchesAge(n, f.age) && matchesQuery(n, f.query);
   });
   const byPosted = (a: YouthNews, b: YouthNews) => postedKey(b, today) - postedKey(a, today);
   return list.sort(f.sort === 'deadline' ? (a, b) => deadlineKey(a, today) - deadlineKey(b, today) || byPosted(a, b) : byPosted);
+}
+
+/** 목록 한 페이지에 보여 줄 소식 수 */
+export const NEWS_PAGE_SIZE = 12;
+
+export const pageCount = (total: number) => Math.max(1, Math.ceil(total / NEWS_PAGE_SIZE));
+
+/** 페이지 번호 줄: 첫·끝 페이지와 지금 페이지 앞뒤 2개. 건너뛴 자리는 null(…) */
+export function pageWindow(current: number, total: number): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (let p = 1; p <= total; p++) {
+    if (p === 1 || p === total || Math.abs(p - current) <= 2) out.push(p);
+    else if (out[out.length - 1] !== null) out.push(null);
+  }
+  return out;
 }
 
 /** 오늘의 한 장(편집자 지정 MAIN 1개). 화면에서 점수로 고르지 않는다. 마감됐으면 보여 주지 않는다. */

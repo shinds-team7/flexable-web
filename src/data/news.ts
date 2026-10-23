@@ -1,6 +1,7 @@
 // 청년 금융 소식(/news) 데이터. 필드 이름은 01-product.md F4 "카드 필수 항목 = API 필드"를 따른다.
-// 지금은 서버 API가 없어 예시 소식을 돌려준다. API가 생기면 fetchNews 안만 바꾼다. isSample=true면 화면이 "예시" 표시를 붙인다.
+// 웹 백엔드의 승인된 소식을 받는다. 승인된 소식이 없으면 예시 소식을 돌려주고, isSample=true면 화면이 "예시" 표시를 붙인다.
 import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { addDays, todayKst } from '@/lib/deadline';
 
 export const NEWS_CATEGORIES = [
@@ -8,8 +9,10 @@ export const NEWS_CATEGORIES = [
   { id: 'HOUSING', label: '주거' },
   { id: 'FINANCE', label: '금융' },
   { id: 'JOB', label: '일자리' },
+  { id: 'EDUCATION', label: '교육' },
   { id: 'CULTURE', label: '생활·문화' },
   { id: 'TAX', label: '세금' },
+  { id: 'ETC', label: '기타' }, // 어느 분야에도 맞지 않는 소식(참여·권리 등)
 ] as const;
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number]['id'];
 export const categoryLabel = (c: NewsCategory) => NEWS_CATEGORIES.find((x) => x.id === c)?.label ?? c;
@@ -28,7 +31,8 @@ export type AgeBandId = (typeof AGE_BANDS)[number]['id'];
 
 export type YouthNews = {
   id: string;
-  category: NewsCategory;
+  category: NewsCategory; // 대표 분야(배지)
+  categories?: NewsCategory[]; // 이 소식이 드는 분야 전부(탭은 이것으로 거른다). 없으면 [category]
   title: string; // 쉬운 말 2줄 이내
   benefit: string; // 나에게 얼마. 원문 수치 그대로(생성 금지)
   audience: {
@@ -50,7 +54,11 @@ export type YouthNews = {
   slot?: 'MAIN' | 'SUB' | null; // 편집자가 지정한 오늘의 한 장(MAIN 1) · 보조(SUB 3)
 };
 
-export type NewsFeed = { items: YouthNews[]; isSample: boolean };
+/** isPreview: 서버가 검수 전 초안까지 보낸 로컬 미리보기(backend local 프로필). 운영에서는 늘 false */
+export type NewsFeed = { items: YouthNews[]; isSample: boolean; isPreview?: boolean };
+
+export const newsCategories = (n: Pick<YouthNews, 'category' | 'categories'>) =>
+  n.categories && n.categories.length > 0 ? n.categories : [n.category];
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 
@@ -182,8 +190,15 @@ function sampleNews(): YouthNews[] {
   ];
 }
 
-// TODO(BE·콘텐츠): 승인된 청년 금융 소식 API(03-architecture.md §5-7). 필터는 서버 쿼리 ?age=&region=&category=로 옮길 수 있다.
+// 승인된 소식(GET /youth-news, backend/README "API"). 서버도 ?age=&region=&category= 필터를 받지만 화면은 전부 받아 브라우저에서 거른다.
+// 아직 승인된 소식이 없거나 서버에 닿지 못하면 예시 소식을 "예시" 표시와 함께 보여 준다.
 async function fetchNews(): Promise<NewsFeed> {
+  try {
+    const { items, preview } = await api<{ items: YouthNews[]; preview?: boolean }>('/youth-news');
+    if (items.length > 0) return { items, isSample: false, isPreview: preview === true };
+  } catch {
+    /* 아래 예시로 대신한다 */
+  }
   return delay({ items: sampleNews(), isSample: true });
 }
 

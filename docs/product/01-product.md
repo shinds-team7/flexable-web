@@ -375,7 +375,10 @@
 **카드 필수 항목 = API 필드**
 
 ```text
-분야 category      교통 / 주거 / 일자리 / 저축·금융 / 생활·문화 / 세금 (enum: TRANSPORT, HOUSING, JOB, FINANCE, CULTURE, TAX)
+분야 category      교통 / 주거 / 일자리 / 교육 / 저축·금융 / 생활·문화 / 세금 / 기타 (enum: TRANSPORT, HOUSING, JOB, EDUCATION, FINANCE, CULTURE, TAX, ETC)
+  categories       한 소식이 여러 분야에 들 수 있다(2026-10-21 사용자 결정). category = 대표(배지), 탭·필터는 categories로 거른다.
+                   온통청년 '금융･복지･문화'는 생활·문화로 두고, 저축·금융은 정책명에 금융 낱말(저축·통장·대출·이자 등)이 있을 때만 붙인다(2026-10-23).
+                   예) '청년내일저축계좌' → 생활·문화 + 저축·금융, '천원의 아침밥' → 생활·문화. 어느 분야에도 맞지 않으면 기타
 제목 title          쉬운 말 2줄 이내
 나에게 얼마 benefit  금액으로. 원문 수치 그대로(생성 금지)
 대상 audience       나이·지역·소득 요약

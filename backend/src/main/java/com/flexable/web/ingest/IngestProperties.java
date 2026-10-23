@@ -9,10 +9,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * - priceSource: kiwoom | fake, instrumentSource: krx | kiwoom | fake, instrumentFallback: kiwoom | krx | fake | none
  * - backfillYears: 처음 받을 때 몇 년 전부터, recheckDays: 이후에는 마지막 거래일 며칠 전부터 다시 받아 정정을 반영
  * - disclosureSource: dart | fake | none (사건 근거 공시)
+ * - youth: 청년 정책(소식) 수집. source: youthcenter | fake
  */
 @ConfigurationProperties("app.ingest")
 public record IngestProperties(String priceSource, String instrumentSource, String instrumentFallback, Integer backfillYears,
-		Integer recheckDays, Boolean runOnStart, Kiwoom kiwoom, Krx krx, String disclosureSource, Dart dart) {
+		Integer recheckDays, Boolean runOnStart, Kiwoom kiwoom, Krx krx, String disclosureSource, Dart dart, Youth youth) {
 
 	public IngestProperties {
 		priceSource = priceSource == null ? "kiwoom" : priceSource;
@@ -25,6 +26,7 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 		krx = krx == null ? new Krx(null, null) : krx;
 		disclosureSource = disclosureSource == null ? "dart" : disclosureSource;
 		dart = dart == null ? new Dart(null, null, null, null) : dart;
+		youth = youth == null ? new Youth(null, null, null, null, null, null, null) : youth;
 	}
 
 	public record Kiwoom(String baseUrl, String appKey, String secretKey, Duration pageDelay) {
@@ -46,6 +48,22 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 			baseUrl = baseUrl == null || baseUrl.isBlank() ? "https://opendart.fss.or.kr" : baseUrl;
 			maxCalls = maxCalls == null ? 5000 : maxCalls;
 			callDelay = callDelay == null ? Duration.ofMillis(100) : callDelay;
+		}
+	}
+
+	/**
+	 * 온통청년 청년정책 오픈API(youthcenter.go.kr). apiKey가 비어 있으면 수집을 건너뛴다.
+	 * pageSize: 한 번에 받을 정책 수, maxPages: 한 번 실행의 페이지 상한, runOnStart: worker가 켜질 때 한 번 돌지, callDelay: 페이지 사이 쉬는 시간.
+	 */
+	public record Youth(String source, String baseUrl, String apiKey, Integer pageSize, Integer maxPages, Boolean runOnStart,
+			Duration callDelay) {
+		public Youth {
+			source = source == null || source.isBlank() ? "youthcenter" : source;
+			baseUrl = baseUrl == null || baseUrl.isBlank() ? "https://www.youthcenter.go.kr" : baseUrl;
+			pageSize = pageSize == null ? 100 : pageSize;
+			maxPages = maxPages == null ? 100 : maxPages;
+			runOnStart = runOnStart == null || runOnStart;
+			callDelay = callDelay == null ? Duration.ofMillis(200) : callDelay;
 		}
 	}
 }

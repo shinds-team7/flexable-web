@@ -44,7 +44,7 @@
 
 끝난 것(10-22): F6 모의 결제 결과 `/billing/result`·F5 첫 방문 안내(#43, 저장 없는 모의 결제, decisions 10-22 ①). 토스 정기결제 전환은 출시 뒤다. 투자 화면 디자인 개선(#38)·사건 상세 테스트 날짜 의존 수정(#40).
 
-- [ ] **적금 실데이터 브랜치 정리**: 마이그레이션이 `V6__savings`·`V7__savings_policies`·`V8__savings_policy_region`이라 main의 V6·V7(앱 연동 기록·방침 근거)과 번호가 겹친다. #34도 V8을 계획하므로 먼저 머지하는 쪽이 V8부터 쓰고 다른 쪽은 그다음 번호로 다시 매긴다. solpa DB에서는 10-23에 적금 V6~V8 이력을 지웠으므로 다시 매긴 번호로 새로 적용된다. 온통청년 `getPlcy`를 적금 브랜치(`YouthCenterClient`, `YOUTHCENTER_API_KEY`, 매일 10:00, 이름 키워드 검색 → `savings_policies`)와 #34(`YOUTH_CENTER_API_KEY`, 매일 06:00 계획, 전체 → `youth_news_raw`)가 따로 부르게 되므로, 수집·원문 표·환경 변수 이름을 한 곳으로 모을지 seon00·kowonyeong이 먼저 정한다
+- [ ] **적금 실데이터 브랜치 정리**: 마이그레이션이 `V6__savings`·`V7__savings_policies`·`V8__savings_policy_region`이라 main의 V6·V7(앱 연동 기록·방침 근거)과 번호가 겹친다. #34도 V8을 계획하므로 먼저 머지하는 쪽이 V8부터 쓰고 다른 쪽은 그다음 번호로 다시 매긴다. solpa DB에서는 10-23에 적금 V6~V8 이력을 지웠으므로 다시 매긴 번호로 새로 적용된다. 온통청년 인증키는 같은 키를 `YOUTHCENTER_API_KEY` 하나로 함께 쓴다(10-23 결정). `getPlcy`는 적금 브랜치(`YouthCenterClient`, 매일 10:00, 이름 키워드 검색 → `savings_policies`)와 #34(매일 06:00, 전체 → `youth_news_raw`)가 따로 부르므로, 수집·원문 표를 한 곳으로 모을지 seon00·kowonyeong이 정한다
 - [ ] **섞어보기 담당 정하기**: 프리셋 저장(서버 표·API)과 화면이 모두 필요한 Must다. 담당이 정해지지 않으면 11/1 동결 전에 끝내기 어렵다
 
 ## 이전 업무 체크리스트

@@ -72,7 +72,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `GET /market/status` | 없음 | `{pricesAsOf, instrumentsAsOf, instruments, empty}` |
 | `POST /simulations/run` | 없음 | `{startDate:"YYYY-MM-01", funding:{mode:LUMP_SUM\|SPLIT\|PACE, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`(03 §8-2의 부분집합). 응답: 요약·주별 `series[{weekStart,date,tradingDays,total,invested,contributed,profit,returnRate,legs[…]}]`·`assumptions`·`noticeKey=SIM_PAST`·`sources`. 상위 목록 밖 종목·금액 범위·종목 1~3개·비율 합 1은 400, 시세를 아직 모으지 않은 종목은 503 `MARKET_UNAVAILABLE`(+`field`=종목 코드). `events[]`: 기간 안에 시작한 고른 종목의 사건 + 시장 사건 `{id, code(시장 사건은 null), scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline, hasExplanation, sourceName, sourceCount, topSource, score, valueBefore, valueAfter, contributionInWindow, valueChange, noticeKey}`. 이때 내 돈(03 C-9)은 종목 사건이면 그 종목, 시장 사건이면 전체 평가액으로 사건 시작 전날·마지막 날 종가 기준이고, `valueChange = after − before − 그 사이 넣은 돈`, 아직 넣기 전이면 금액 필드가 `null`. 핀 8개 선택·묶음은 화면이 한다 |
 | `GET /app-link` | Bearer | 연동 상태 `AppLink`(아래). 연동돼 있고 마지막 조회에서 1분이 지났으면 앱 서버에서 회원 정보·시드머니를 다시 받는다. 앱 서버 장애면 저장한 마지막 값과 `sync.state: "stale"`. 앱에서 해제·앱 탈퇴(`LINK_NOT_FOUND`)면 웹 연동을 지우고 `{linked: false, reason: "app_unlinked"}` |
-| `POST /app-link` | Bearer | `{code}`(앱에서 받은 8자리, `K7M2-Q9XB`처럼 하이픈·소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
+| `POST /app-link` | Bearer | `{code}`(앱에서 받은 6자리, `K7M2Q9`처럼 소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
 | `GET /me/seed-money` | Bearer | 웹 시드머니 `{source: "app"\|"none", status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync}`. 앱 연동 값(`GET /app-link`와 같은 조회·갱신 규칙)이고 연동이 없으면 `source: "none"`에 나머지 `null`. 그래프는 (`startedOn`, `base`) 다음에 (`cycleEnd`, `totalAfter`)를 잇는다. 직접 입력 저장은 아직 없다 |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
 | `GET /health` | 없음 | `{status: "UP"}` |
@@ -111,7 +111,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 새 소스는 `ingest.PriceSource`/`InstrumentSource`/`DisclosureSource`를 구현하고 `ingest.IngestConfig`의 `switch`에 이름을 추가한 뒤 환경 변수를 바꾼다. `market`·`simulation`·화면은 바꾸지 않는다. 키움 HTTP 클라이언트는 JDK `HttpClient`를 쓴다(`HttpURLConnection`은 연속조회 두 번째 요청에서 Read timed out).
 
-`local` 프로필은 `WEB_JWT_SECRET`이 없으면 실행할 때마다 임의 키를 만든다(재시작하면 다시 로그인). 앱 연동은 `APP_LINK_MODE=snapshot`(앱 서버 없이 고정 데이터, 앱 코드 규칙에 맞는 아무 8자리, 예: `K7M2-Q9XB`)이 기본이다. 재시작하면 연동을 읽을 수 없으므로 [해제] 후 다시 연동한다. 웹 화면(`npm run dev`)의 `/api` 프록시는 기본 `http://localhost:8080`을 본다. worker 실행은 `--spring.profiles.active=worker`(HTTP 없음).
+`local` 프로필은 `WEB_JWT_SECRET`이 없으면 실행할 때마다 임의 키를 만든다(재시작하면 다시 로그인). 앱 연동은 `APP_LINK_MODE=snapshot`(앱 서버 없이 고정 데이터, 앱 코드 규칙에 맞는 아무 6자리, 예: `K7M2Q9`)이 기본이다. 재시작하면 연동을 읽을 수 없으므로 [해제] 후 다시 연동한다. 웹 화면(`npm run dev`)의 `/api` 프록시는 기본 `http://localhost:8080`을 본다. worker 실행은 `--spring.profiles.active=worker`(HTTP 없음).
 
 ## 환경 변수
 

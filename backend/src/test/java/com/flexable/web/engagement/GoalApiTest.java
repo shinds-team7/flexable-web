@@ -207,7 +207,7 @@ class GoalApiTest {
 		when(app.profile(anyString())).thenReturn(new AppApiClient.AppProfile(null, "kakao"));
 		when(app.seedMoney(anyString())).thenReturn(new AppApiClient.AppSeedMoney(600000, 0, 100000, null, OffsetDateTime.now()));
 		mvc.perform(post("/api/v1/app-link").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
-			.content("{\"code\":\"K7M2-Q9XB\"}")).andExpect(status().isCreated());
+			.content("{\"code\":\"K7M2Q9\"}")).andExpect(status().isCreated());
 		save(1000000, "목표").andExpect(status().isOk()).andExpect(jsonPath("$.goal.seed.source").value("app"))
 			.andExpect(jsonPath("$.goal.seed.current").value(600000)).andExpect(jsonPath("$.goal.seed.pace").value(100000));
 		when(app.seedMoney(anyString())).thenThrow(new com.flexable.web.applink.AppApiException(com.flexable.web.applink.AppApiException.Kind.BUDGET_NOT_SET));

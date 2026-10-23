@@ -18,10 +18,10 @@ public final class AppLinkDtos {
 	private AppLinkDtos() {
 	}
 
-	/** 앱 화면의 코드(K7M2-Q9XB). 대소문자·공백·하이픈 정규화는 앱 서버가 한다. */
+	/** 앱 화면의 코드(K7M2Q9). 대소문자·공백·하이픈 정규화는 앱 서버가 한다. */
 	public record LinkRequest(
 			@NotBlank(message = "앱에서 받은 코드를 입력해 주세요")
-			@Size(max = 20, message = "코드는 8자리예요")
+			@Size(max = 20, message = "코드는 6자리예요")
 			@Pattern(regexp = "[A-Za-z0-9 -]*", message = "코드는 영문과 숫자로 되어 있어요") String code) {
 	}
 

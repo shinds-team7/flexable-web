@@ -793,11 +793,13 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appearance:none;padding-right:40px;background-image:linear-gradient(45deg,transparent 50%,var(--text-sub) 50%),linear-gradient(135deg,var(--text-sub) 50%,transparent 50%);background-position:right 19px center,right 14px center;background-size:5px 5px;background-repeat:no-repeat}
 /* 필터 박스 아래 한 줄: 왼쪽 개수 · 필터 지우기 / 오른쪽 진행중 | 정렬(글자 버튼, 고른 것은 밑줄) */
 .news-count{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 12px;min-height:32px}
+/* 소식 목록 페이지 번호(12개씩). 숫자 버튼은 .chip의 aria-pressed 모양을 그대로 쓴다 */
+.news-pager{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.news-pager .chip{min-width:34px;justify-content:center;padding:0 8px;cursor:pointer}
+.news-pager-gap{color:var(--text-muted);padding:0 2px}
 .news-count-l{display:flex;align-items:center;gap:12px}
 .news-count-l .btn-text{font-size:13px}
 .news-sortbar{display:flex;align-items:center;gap:12px}
-.news-sortbar .check{font-size:13px}
-.news-sortbar-div{width:1px;height:14px;background:var(--line)}
 .news-sort{display:flex;gap:2px}
 .news-sort button{background:none;border:0;padding:4px 6px;border-radius:var(--radius-soft-sm);font-size:13px;font-weight:600;color:var(--text-muted)}
 .news-sort button:hover{color:var(--text)}

@@ -39,6 +39,10 @@ app:
     disclosure-source: fake
     dart:
       call-delay: 0s
+    youth:
+      source: fake
+      run-on-start: false
+      call-delay: 0s
   applink:
     # 테스트는 AppApiClient를 바꿔 끼운다. 암호화 키는 실행마다 임의 값.
     mode: http

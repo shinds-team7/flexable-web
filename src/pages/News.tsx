@@ -1,6 +1,6 @@
 // 청년 금융 소식(/news). 설계: 02-design.md §5-7, 와이어프레임 「청년 돈 소식」.
 // 제목 · 배너 → [왼쪽] 오늘의 한 장 · 필터 · 소식 목록(3열) / [오른쪽] 저장한 소식. 오늘의 한 장과 저장함은 윗선을 맞춘다.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FeaturedNews } from '@/components/news/FeaturedNews';
 import { NewsBanner } from '@/components/news/NewsBanner';
 import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
@@ -9,7 +9,7 @@ import { SavedNews } from '@/components/news/SavedNews';
 import { useNews, type YouthNews } from '@/data/news';
 import { readNewsFilter, useSavedNews, writeNewsFilter } from '@/data/newsSaved';
 import { todayKst } from '@/lib/deadline';
-import { DEFAULT_FILTER, isDefaultFilter, pickMain, selectNews, type NewsFilter } from '@/lib/newsList';
+import { DEFAULT_FILTER, isDefaultFilter, NEWS_PAGE_SIZE, pageCount, pageWindow, pickMain, selectNews, type NewsFilter } from '@/lib/newsList';
 
 export default function News() {
   const news = useNews();
@@ -27,8 +27,20 @@ export default function News() {
 
   const items = useMemo(() => news.data?.items ?? [], [news.data]);
   const isSample = news.data?.isSample ?? false;
+  const isPreview = news.data?.isPreview ?? false;
   const list = useMemo(() => selectNews(items, filter, today), [items, filter, today]);
   const main = useMemo(() => pickMain(items, today), [items, today]);
+  // 목록은 한 페이지에 NEWS_PAGE_SIZE개. 필터·정렬을 바꾸면 1페이지로 돌아간다
+  const [page, setPage] = useState(1);
+  const pages = pageCount(list.length);
+  const current = Math.min(page, pages);
+  const shown = list.slice((current - 1) * NEWS_PAGE_SIZE, current * NEWS_PAGE_SIZE);
+  const listTop = useRef<HTMLHeadingElement>(null);
+  useEffect(() => setPage(1), [filter]);
+  const goPage = (p: number) => {
+    setPage(p);
+    listTop.current?.scrollIntoView({ block: 'start' });
+  };
 
   const onToggleSave = (n: YouthNews) => setToast(toggle(n) ? '저장했어요' : '저장을 뺐어요');
   const change = (patch: Partial<NewsFilter>) => setFilter((f) => ({ ...f, ...patch }));
@@ -43,13 +55,14 @@ export default function News() {
             <p className="page-desc">청년에게 필요한 정책과 지원 소식을 한곳에서. 신청 전엔 꼭 공고문을 확인하세요.</p>
           </div>
           {isSample && <span className="tag-ex">아래 소식은 모두 화면 설명용 예시</span>}
+          {isPreview && <span className="tag-ex">검수 전 초안 미리보기(로컬 전용)</span>}
         </div>
         <NewsBanner />
         <div className="g84">
           <div className="col">
             {main && <FeaturedNews main={main} today={today} isSample={isSample} saved={isSaved(main.id)} onToggleSave={() => onToggleSave(main)} />}
             <section aria-labelledby="news-all-title" className="col" style={{ gap: 16 }}>
-              <h2 id="news-all-title" className="sec-title">
+              <h2 id="news-all-title" className="sec-title" ref={listTop}>
                 전체 소식
               </h2>
               <NewsFilters value={filter} onChange={change} />
@@ -90,11 +103,42 @@ export default function News() {
                   </button>
                 </div>
               ) : (
-                <div className="news-grid news-list">
-                  {list.map((n) => (
-                    <NewsCard key={n.id} n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} onToast={setToast} />
-                  ))}
-                </div>
+                <>
+                  <div className="news-grid news-list">
+                    {shown.map((n) => (
+                      <NewsCard key={n.id} n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} onToast={setToast} />
+                    ))}
+                  </div>
+                  {pages > 1 && (
+                    <nav className="news-pager" aria-label="소식 페이지">
+                      <button type="button" className="btn btn-line btn-sm" disabled={current === 1} onClick={() => goPage(current - 1)}>
+                        이전
+                      </button>
+                      {pageWindow(current, pages).map((p, i) =>
+                        p === null ? (
+                          <span key={`gap-${i}`} className="news-pager-gap" aria-hidden="true">
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={p}
+                            type="button"
+                            className="chip num"
+                            aria-current={p === current ? 'page' : undefined}
+                            aria-pressed={p === current}
+                            aria-label={`${p}페이지`}
+                            onClick={() => goPage(p)}
+                          >
+                            {p}
+                          </button>
+                        ),
+                      )}
+                      <button type="button" className="btn btn-line btn-sm" disabled={current === pages} onClick={() => goPage(current + 1)}>
+                        다음
+                      </button>
+                    </nav>
+                  )}
+                </>
               )}
             </section>
           </div>

@@ -16,14 +16,16 @@ import com.flexable.web.ingest.dart.DartDisclosureSource;
 import com.flexable.web.ingest.fake.FakeDisclosureSource;
 import com.flexable.web.ingest.fake.FakeInstrumentSource;
 import com.flexable.web.ingest.fake.FakePriceSource;
+import com.flexable.web.ingest.fake.FakeYouthPolicySource;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
 import com.flexable.web.ingest.kiwoom.KiwoomPriceSource;
 import com.flexable.web.ingest.kiwoom.KiwoomTokenClient;
 import com.flexable.web.ingest.krx.KrxInstrumentSource;
+import com.flexable.web.ingest.youthcenter.YouthCenterPolicySource;
 
 /**
  * 수집 소스 선택. worker 프로필에서만 만든다(04 §8: 외부 호출은 worker만).
- * 새 소스는 PriceSource/InstrumentSource/DisclosureSource를 구현하고 아래 switch에 이름을 하나 추가한다.
+ * 새 소스는 PriceSource/InstrumentSource/DisclosureSource/YouthPolicySource를 구현하고 아래 switch에 이름을 하나 추가한다.
  */
 @Configuration
 @Profile("worker")
@@ -82,6 +84,16 @@ public class IngestConfig {
 			case "fake" -> new FakeDisclosureSource();
 			case "none" -> new DartDisclosureSource(http, d.baseUrl(), null, d.callDelay()); // 키 없음 = 꺼짐
 			default -> throw new IllegalArgumentException("알 수 없는 MARKET_DISCLOSURE_SOURCE: " + props.disclosureSource());
+		};
+	}
+
+	@Bean
+	YouthPolicySource youthPolicySource(IngestProperties props, Clock clock) {
+		IngestProperties.Youth y = props.youth();
+		return switch (y.source()) {
+			case "youthcenter" -> new YouthCenterPolicySource(http, y.baseUrl(), y.apiKey(), y.pageSize(), y.maxPages(), y.callDelay(), clock, SEOUL);
+			case "fake" -> new FakeYouthPolicySource();
+			default -> throw new IllegalArgumentException("알 수 없는 YOUTH_POLICY_SOURCE: " + y.source());
 		};
 	}
 

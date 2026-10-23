@@ -27,7 +27,7 @@
 
 F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI 국외 처리가 생긴다. 제2조(목표 설정·AI 목표 안내)·제4조(보유 기간)·제6조(OpenAI 위탁·국외 이전)를 추가했다. 제13조는 시행 7일 전 고지가 원칙이지만, 웹 회원이 아직 없어 불이익을 받을 기존 이용자가 없으므로 기능과 같은 날(2026-10-23) 시행했다(사용자 결정, decisions 2026-10-23 ②). 회원이 생긴 뒤의 변경은 7일 전에 예고한다.
 
-**남은 확인(운영자)**: ① OpenAI 계약 주체(한국 이용자 API 계약은 OpenAI, L.L.C.로 적음)와 개인정보 요청 창구 주소 ② OpenAI 조직 설정의 데이터 보관(악용 모니터링 30일, 무보관 승인 여부) ③ OpenAI에 보내는 숫자가 다른 정보와 결합하지 않으면 개인을 알아볼 수 없는 정보인지(현재는 보수적으로 국외 이전으로 적음).
+**남은 확인(운영자)**: ① OpenAI 계약 주체는 [서비스 계약](https://openai.com/policies/services-agreement/)의 비EEA·스위스 고객 기준인 OpenAI OpCo, LLC로 적었다. 실제 가입한 조직의 계약이 다르면 방침 제6조 두 곳을 함께 고친다. 개인정보 요청 창구 `privacy.openai.com`은 [OpenAI 개인정보 안내(한국)](https://openai.com/policies/kr-privacy-policy/)에서 확인했다 ② OpenAI 조직 설정의 데이터 보관(악용 모니터링 30일, 무보관 승인 여부) ③ OpenAI에 보내는 숫자가 다른 정보와 결합하지 않으면 개인을 알아볼 수 없는 정보인지(현재는 보수적으로 국외 이전으로 적음).
 
 ## 1. 원칙
 
@@ -61,7 +61,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 연동 해제·앱 해제·앱 탈퇴 확인 시 파기 | `AppLinkService.unlink`, `sync`·`AppLinkRecheckJob`의 `LINK_NOT_FOUND` 처리. 앱 탈퇴 시 앱이 연동을 함께 지우므로 같은 경로 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |
 | 목표·AI 목표 안내(10-23 시행) | `goals`·`goal_coaches`·`goal_coach_usage`(engagement, V8). 탈퇴 시 `UserWithdrawalListener`로 삭제, `goal_coach_usage`는 날짜로부터 7일 지나면 매일 정리 작업이 삭제. 서버 전체 횟수 `ai_daily_usage`는 회원 정보 없음 |
-| OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
+| OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. 수탁·이전받는 자는 OpenAI OpCo, LLC([서비스 계약](https://openai.com/policies/services-agreement/), 비EEA·스위스 고객), 요청 창구 privacy.openai.com([개인정보 안내](https://openai.com/policies/kr-privacy-policy/)). OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
 | 비회원 체험은 서버 저장 없음 | 로그인 전 화면은 예시 데이터만 사용(`isSample`) |
 
 ## 3. 시행 전 확인 항목(10-21 모두 채움)

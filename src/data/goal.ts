@@ -1,6 +1,7 @@
 // AI 목표 달성(웹 백엔드 GET·PUT·DELETE /api/v1/me/goal, POST /me/goal/coach). 계약 정본은 docs/product/goal-ai.md.
 // 진행률·필요 금액·시나리오·점검표·AI 문장의 숫자는 모두 서버가 계산한다(ADR-3). 화면은 받은 값을 그리기만 한다.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSession } from '@/auth/session';
 import { api, ApiError } from '@/lib/api';
 import { todayKst } from '@/lib/deadline';
 
@@ -87,36 +88,57 @@ export type GoalInput = {
   monthlyPace: number | null;
 };
 
-const KEY = ['me', 'goal'];
+// 회원마다 캐시를 나눈다. 계정을 바꾸면 이전 회원의 목표가 잠깐이라도 보이지 않게(로그아웃 때 정리는 auth/session).
+const goalKey = (userId: number | undefined) => ['me', 'goal', userId ?? 0];
 
-export const useGoal = (enabled: boolean) =>
-  useQuery({ queryKey: KEY, queryFn: () => api<GoalState>('/me/goal'), enabled, retry: false });
+export function useGoal(enabled: boolean) {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: goalKey(user?.id),
+    queryFn: () => api<GoalState>('/me/goal'),
+    enabled: enabled && user != null,
+    retry: false,
+  });
+}
 
 export function useSaveGoal() {
   const qc = useQueryClient();
+  const { user } = useSession();
+  const key = goalKey(user?.id);
   return useMutation({
     mutationFn: (input: GoalInput) => api<GoalState>('/me/goal', { method: 'PUT', json: input }),
-    onSuccess: (data) => qc.setQueryData(KEY, data),
+    onSuccess: (data) => qc.setQueryData(key, data),
   });
 }
 
 export function useDeleteGoal() {
   const qc = useQueryClient();
+  const { user } = useSession();
+  const key = goalKey(user?.id);
   return useMutation({
     mutationFn: () => api<void>('/me/goal', { method: 'DELETE' }),
-    onSuccess: () => qc.setQueryData<GoalState>(KEY, (prev) => (prev ? { ...prev, goal: null } : prev)),
+    onSuccess: () => qc.setQueryData<GoalState>(key, (prev) => (prev ? { ...prev, goal: null } : prev)),
   });
 }
 
+/** mutate에 요청 당시 목표(id·version)를 넘긴다. 응답이 늦게 와서 그새 목표가 바뀌었으면 붙이지 않고 다시 읽는다. */
 export function useMakeCoach() {
   const qc = useQueryClient();
+  const { user } = useSession();
+  const key = goalKey(user?.id);
   return useMutation({
-    mutationFn: () => api<{ coach: Coach; ai: GoalAi }>('/me/goal/coach', { method: 'POST' }),
-    onSuccess: ({ coach, ai }) =>
-      qc.setQueryData<GoalState>(KEY, (prev) => (prev?.goal ? { goal: { ...prev.goal, coach }, ai } : prev)),
+    mutationFn: (_at: { id: number; version: number }) => api<{ coach: Coach; ai: GoalAi }>('/me/goal/coach', { method: 'POST' }),
+    onSuccess: ({ coach, ai }, at) => {
+      const prev = qc.getQueryData<GoalState>(key);
+      if (prev?.goal?.id === at.id && prev.goal.version === at.version) {
+        qc.setQueryData<GoalState>(key, { goal: { ...prev.goal, coach }, ai });
+      } else {
+        void qc.invalidateQueries({ queryKey: key });
+      }
+    },
     onError: (e) => {
       // 409 GOAL_CHANGED(호출 중 목표가 바뀜)·404(지워짐)·429(횟수 소진)는 남은 횟수·목표를 다시 읽는다
-      if (e instanceof ApiError && [404, 409, 429].includes(e.status)) void qc.invalidateQueries({ queryKey: KEY });
+      if (e instanceof ApiError && [404, 409, 429].includes(e.status)) void qc.invalidateQueries({ queryKey: key });
     },
   });
 }

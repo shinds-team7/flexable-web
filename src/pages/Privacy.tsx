@@ -256,7 +256,7 @@ export default function Privacy() {
               <td>미국 등 Google이 운영하는 국가(아래 2)</td>
             </tr>
             <tr>
-              <td>OpenAI, L.L.C.</td>
+              <td>OpenAI OpCo, LLC</td>
               <td>이용자가 요청한 AI 목표 안내 문장 생성</td>
               <td>미국(아래 2)</td>
             </tr>
@@ -320,7 +320,7 @@ export default function Privacy() {
             <tr>
               <th>이전받는 자와 연락처</th>
               <td>
-                OpenAI, L.L.C.,{' '}
+                OpenAI OpCo, LLC,{' '}
                 <a href="https://privacy.openai.com" target="_blank" rel="noreferrer">
                   OpenAI 개인정보 요청
                 </a>

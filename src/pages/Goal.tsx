@@ -553,7 +553,7 @@ function CoachCard({ goal, ai }: { goal: Goal; ai: GoalAi }) {
           </p>
         </div>
         {!outOfFree && !upToDate && (
-          <button className="btn btn-primary btn-sm" onClick={() => make.mutate()} disabled={make.isPending}>
+          <button className="btn btn-primary btn-sm" onClick={() => make.mutate({ id: goal.id, version: goal.version })} disabled={make.isPending}>
             {label}
           </button>
         )}

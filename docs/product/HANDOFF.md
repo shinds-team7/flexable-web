@@ -11,7 +11,7 @@
 
 ## 2026-10-21 웹 운영 현황(solpa VM)
 
-웹 백엔드·화면·DB가 `https://solpa.shinhanacademy.co.kr`(대한상공회의소 VM, Ubuntu 22.04·1코어·8GB)에서 돈다. 구성·명령은 [`deploy/vm/README.md`](../../deploy/vm/README.md). Vercel 배포본은 그대로 `VITE_API_URL`이 앱 서버를 가리켜 앱 계정·앱 방침을 쓴다. **main 머지는 Vercel만 자동 배포**하고, solpa는 VM에서 `./backup.sh` → `git pull` → `docker compose up -d --build`로 반영한다(#33까지 반영, Flyway V7).
+웹 백엔드·화면·DB가 `https://solpa.shinhanacademy.co.kr`(대한상공회의소 VM, Ubuntu 22.04·1코어·8GB)에서 돈다. 구성·명령은 [`deploy/vm/README.md`](../../deploy/vm/README.md). Vercel 배포본은 그대로 `VITE_API_URL`이 앱 서버를 가리켜 앱 계정·앱 방침을 쓴다. **main 머지는 Vercel만 자동 배포**하고, solpa는 VM에서 `./backup.sh` → `git pull` → `docker compose up -d --build`로 반영한다(10-23 `main` #44까지 반영, Flyway V7). **VM 저장소는 `main`만 둔다.** 브랜치 시험은 로컬에서 하고, 운영 DB 마이그레이션이 바뀌는 반영은 먼저 팀에 알린다.
 
 끝난 것(10-21):
 - [x] VM 배포(#29): api·web·db 실행, 백업 cron(매일 04:00, 만든 때부터 최대 7일), 접속·오류 기록 삭제 root cron(`purge-logs.sh`, 매주 일 04:00), 키움 키 `.env` 입력(시세 수집은 `docker compose --profile worker up -d`)
@@ -24,8 +24,8 @@
 - [x] 웹 방침 제4조 앱 연동 보유 기간에 앱 회원 탈퇴 명시, 변경 이력 추가(#36, 처리 방식 변화 없음). 상단 바 현재 메뉴는 바탕 없이 브랜드 글자만(#36)
 
 남은 것:
-- [ ] **solpa에 #36·#38·#40·#43 반영**: VM에서 `./backup.sh` → `git pull` → `docker compose up -d --build`(DB 변경 없음, Flyway V7 그대로. #43의 본 안내·고지 확인은 기존 `/me/settings`를 쓴다). 10-23 오전 solpa 화면 파일을 확인한 결과 아직 #33 시점이다: `/privacy`에 제4조 앱 회원 탈퇴 문구가 없고, `/invest`는 #38 전 디자인, `/billing/result`는 준비 중 화면이다
-- [ ] **solpa 자동 배포(CI/CD)**: 위 수동 반영을 마친 뒤, `main` 머지 시 VM에도 자동 반영되게 한다. 지금 `ci.yml`은 빌드·테스트만 하고 Vercel만 자동 배포된다. CI 통과 뒤 VM에서 수동 반영과 같은 순서(`./backup.sh` → `git pull` → `docker compose up -d --build`)를 돌리고, 끝나면 `/api/v1/health`(`{"status":"UP"}`)로 확인한다. Flyway 마이그레이션이 머지만으로 운영 DB에 적용되므로 백업이 실패하면 배포를 멈춘다. 1코어 VM이라 빌드가 오래 걸리니 배포는 한 번에 하나만 돌게 한다. SSH 키 같은 접속 정보는 GitHub Secrets에만 넣는다(저장소 공개). 11-18 VM 종료 뒤에는 AWS 배포로 바꿔야 하므로, 이전 계획과 함께 정한다
+- [x] **solpa를 `main`(#44)으로 바로잡음(10-23)**: 10-21 17:07부터 VM 저장소가 머지 전 적금 브랜치(`SXXNHU/feat-savings-real-data`)에 체크아웃돼, solpa가 그 브랜치 코드로 돌았다. #33은 반영된 적이 없었고, 운영 DB의 Flyway V6~V8 자리에 적금 마이그레이션(`savings_products`·`savings_rate_options`·`savings_policies`)이 들어가 `main`의 V6·V7과 번호가 겹쳤다. 백업 뒤 적금 표 3개와 Flyway 이력 6~8을 지우고 `main`으로 바꿔 다시 띄웠다(V6 앱 연동 기록·V7 방침 근거 적용, 회원·연동 정보는 그대로). #33·#36·#38·#40·#43이 이제 solpa에 있다. 적금 공시·정책 데이터는 적금 브랜치가 머지되고 수집이 다시 돌면 채워진다
+- [ ] **solpa 자동 배포(CI/CD)**: `main` 머지 시 VM에도 자동 반영되게 한다. 지금 `ci.yml`은 빌드·테스트만 하고 Vercel만 자동 배포된다. CI 통과 뒤 VM에서 수동 반영과 같은 순서(`./backup.sh` → `git pull` → `docker compose up -d --build`)를 돌리고, 끝나면 `/api/v1/health`(`{"status":"UP"}`)로 확인한다. Flyway 마이그레이션이 머지만으로 운영 DB에 적용되므로 백업이 실패하면 배포를 멈춘다. 1코어 VM이라 빌드가 오래 걸리니 배포는 한 번에 하나만 돌게 한다. SSH 키 같은 접속 정보는 GitHub Secrets에만 넣는다(저장소 공개). 11-18 VM 종료 뒤에는 AWS 배포로 바꿔야 하므로, 이전 계획과 함께 정한다
 - [ ] **앱 연동 실기기 통합 확인**(앱 1.4.0 게시됨, 이제 진행 가능): 앱 코드 발급 → solpa 내 정보에서 동의하고 연동 → 홈 시드머니·꺾은선(앱 API 배포 전이면 합계만) → 웹에서 해제 시 앱 목록에서 사라짐 → 다시 연동 후 앱에서 해제 시 웹이 "앱에서 연동을 해제" 표시(늦어도 다음 날 새벽)
 - [ ] **11-18 VM 종료 → AWS 이전**: 웹 백엔드·DB를 AWS로 옮긴다. 수탁자(대한상공회의소 → AWS)·처리 위치·로그·백업이 바뀌므로 **개정 방침을 11-11까지 고지**하고, AWS 구성에 기록 7일 삭제·백업 7일·관리자 접근 기록 1년을 처음부터 넣는다. 종료 전 VM의 `/var/log/auth.log*`를 운영자 PC로 옮기고(1년 보관), VM의 DB·백업은 이전 뒤 지운다. 화면 주소가 바뀌면 소셜 콘솔 콜백·`OAUTH_*`·`APP_LINK_*`를 새 주소로 다시 넣는다
 - [ ] **운영자 확인**(privacy-web §0): 대한상공회의소 정확한 기관명·VM 스냅숏 여부, 문의 메일은 처리 후 30일 이내 삭제, 10-21 시행 전에 만든 시험 계정 정리
@@ -44,7 +44,7 @@
 
 끝난 것(10-22): F6 모의 결제 결과 `/billing/result`·F5 첫 방문 안내(#43, 저장 없는 모의 결제, decisions 10-22 ①). 토스 정기결제 전환은 출시 뒤다. 투자 화면 디자인 개선(#38)·사건 상세 테스트 날짜 의존 수정(#40).
 
-- [ ] **적금 실데이터 브랜치 정리**: 마이그레이션이 `V6__savings`·`V7__savings_policies`·`V8__savings_policy_region`이라 main의 V6·V7(앱 연동 기록·방침 근거)과 번호가 겹친다. #34도 V8을 계획하므로 먼저 머지하는 쪽이 V8부터 쓰고 다른 쪽은 그다음 번호로 다시 매긴다. 온통청년 `getPlcy`를 적금 브랜치(`YouthCenterClient`, `YOUTHCENTER_API_KEY`, 매일 10:00, 이름 키워드 검색 → `savings_policies`)와 #34(`YOUTH_CENTER_API_KEY`, 매일 06:00 계획, 전체 → `youth_news_raw`)가 따로 부르게 되므로, 수집·원문 표·환경 변수 이름을 한 곳으로 모을지 seon00·kowonyeong이 먼저 정한다
+- [ ] **적금 실데이터 브랜치 정리**: 마이그레이션이 `V6__savings`·`V7__savings_policies`·`V8__savings_policy_region`이라 main의 V6·V7(앱 연동 기록·방침 근거)과 번호가 겹친다. #34도 V8을 계획하므로 먼저 머지하는 쪽이 V8부터 쓰고 다른 쪽은 그다음 번호로 다시 매긴다. solpa DB에서는 10-23에 적금 V6~V8 이력을 지웠으므로 다시 매긴 번호로 새로 적용된다. 온통청년 `getPlcy`를 적금 브랜치(`YouthCenterClient`, `YOUTHCENTER_API_KEY`, 매일 10:00, 이름 키워드 검색 → `savings_policies`)와 #34(`YOUTH_CENTER_API_KEY`, 매일 06:00 계획, 전체 → `youth_news_raw`)가 따로 부르게 되므로, 수집·원문 표·환경 변수 이름을 한 곳으로 모을지 seon00·kowonyeong이 먼저 정한다
 - [ ] **섞어보기 담당 정하기**: 프리셋 저장(서버 표·API)과 화면이 모두 필요한 Must다. 담당이 정해지지 않으면 11/1 동결 전에 끝내기 어렵다
 
 ## 이전 업무 체크리스트

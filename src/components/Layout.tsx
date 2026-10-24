@@ -19,7 +19,8 @@ const NAV: (NavLeaf | NavGroup)[] = [
     hint: '골라서 투자',
     items: [
       { to: '/active', label: '액티브 투자란?', desc: '종목을 직접 고르는 방식' },
-      { to: '/invest', label: '투자 시뮬레이션', desc: '고른 종목에 넣었다면' },
+      { to: '/invest', label: '투자 시뮬레이션', desc: '지난 기록으로 배우기' },
+      { to: '/active/diversify', label: '분산 투자', desc: '지금 가진 종목 점검' },
     ],
   },
   {

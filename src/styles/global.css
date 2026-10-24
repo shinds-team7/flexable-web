@@ -919,3 +919,32 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
   .flow{grid-template-columns:1fr}
   .flow-arrow{transform:rotate(90deg);justify-self:center}
 }
+
+/* 분산 투자 시안: 원 위의 칸(이웃 = 같이 많이 움직임, 반대편 = 덜 움직임) */
+.dv-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,1fr);gap:var(--density-gap);align-items:start}
+.dv-search{position:relative;flex:1;min-width:220px;max-width:360px}
+.dv-search .input{height:var(--density-control-sm)}
+.dv-suggest{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:20;list-style:none;margin:0;padding:6px;background:var(--raised);border:1px solid var(--line);border-radius:var(--radius-soft-sm);box-shadow:var(--shadow-float)}
+.dv-suggest button{display:flex;justify-content:space-between;align-items:center;width:100%;border:0;background:none;padding:8px 10px;border-radius:6px;font-weight:600;text-align:left}
+.dv-suggest button:hover{background:var(--sunken)}
+.dv-wheel{position:relative;width:100%;max-width:460px;aspect-ratio:1;margin:12px auto 0}
+.dv-wheel svg{position:absolute;inset:0;width:100%;height:100%}
+.dv-ring{fill:none;stroke:var(--line);stroke-width:.4}
+.dv-axis{stroke:var(--brand);stroke-width:.5;stroke-dasharray:1.6 1.2}
+.dv-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:8px 12px;border-radius:var(--radius-soft-sm);background:var(--card);box-shadow:0 0 0 1px var(--line);display:flex;flex-direction:column;align-items:center;text-align:center;font-size:12px;color:var(--text-muted);pointer-events:none}
+.dv-center b{font-size:13px;color:var(--text-sub)}
+.dv-node{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:72px;max-width:92px;min-height:40px;padding:4px 8px;border-radius:var(--radius-soft-sm);border:1px solid var(--line);background:var(--card);color:var(--text-sub);font-size:12px;font-weight:600;line-height:1.25;word-break:keep-all;transition:border-color 140ms var(--ease),background-color 140ms var(--ease)}
+.dv-node:hover{border-color:var(--color-border-strong);color:var(--text)}
+.dv-node small{font-size:10px;font-weight:600;opacity:.85}
+.dv-node.held{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.dv-node.far{border:2px dashed var(--brand);color:var(--brand-text);background:var(--card)}
+.dv-node.sel{box-shadow:0 0 0 3px var(--brand-soft);border-style:solid;border-color:var(--brand);color:var(--brand-text);background:var(--brand-soft)}
+.dv-node.held.sel{background:var(--brand);color:var(--on-brand)}
+.dv-legend{justify-content:center;margin-top:12px}
+.legend i.dv-key{width:14px;height:14px;border:0;border-radius:4px;vertical-align:-2px}
+.legend i.dv-key.held{background:var(--brand)}
+.legend i.dv-key.far{border:2px dashed var(--brand)}
+.legend i.dv-key.axis{height:0;border-top:2px dashed var(--brand);border-radius:0;vertical-align:middle}
+.dv-close.l0{background:var(--brand-soft);color:var(--brand-text)}
+@media (max-width:1023px){.dv-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.dv-node{min-width:56px;font-size:11px;padding:2px 4px}}

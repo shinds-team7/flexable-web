@@ -39,7 +39,8 @@ export default function Active() {
         <h2 className="sec-title">액티브 투자에서 해 볼 수 있는 것</h2>
         <LinkCards
           items={[
-            { to: '/invest', title: '투자 시뮬레이션', desc: '고른 종목에 넣었다면 어땠는지, 그때 무슨 일이 있었는지 사건 핀으로 봐요.' },
+            { to: '/invest', title: '투자 시뮬레이션', desc: '배우는 곳. 지난 기록에서 고른 종목에 넣었다면 어땠는지, 그때 무슨 일이 있었는지 사건 핀으로 봐요.' },
+            { to: '/active/diversify', title: '분산 투자', desc: '지금 주식을 가진 사람을 위한 점검. 가진 종목과 같이 덜 움직인 업종·자산을 찾아봐요.' },
           ]}
         />
         <WaysTable side="active" />

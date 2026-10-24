@@ -2,6 +2,7 @@ import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import Active from '@/pages/Active';
 import BillingResult from '@/pages/BillingResult';
+import Diversify from '@/pages/Diversify';
 import GoalPage from '@/pages/Goal';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       // 액티브·패시브 구분 시안(docs/product/proposal-active-passive.md). 팀 동의 전 화면이다.
       { path: '/active', element: <Active /> },
       { path: '/invest', element: <Invest /> },
+      { path: '/active/diversify', element: <Diversify /> },
       { path: '/passive', element: <Passive /> },
       { path: '/passive/index', element: <PassiveIndex /> },
       { path: '/passive/plan', element: <PassivePlan /> },

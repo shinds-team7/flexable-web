@@ -1014,3 +1014,27 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .dv-close.l0{background:var(--brand-soft);color:var(--brand-text)}
 @media (max-width:1023px){.dv-grid{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:480px){.dv-node{min-width:56px;font-size:11px;padding:2px 4px}}
+/* ───────── 움직임(src/lib/motion.ts). 움직임 줄이기를 켜면 맨 위 reduce 규칙이 모두 끈다 ───────── */
+/* 슬롯 숫자: 자리마다 0~9 띠가 돌다가 앞자리부터 멈춘다 */
+.roll{--roll-h:1.15em;display:inline-flex;align-items:baseline}
+.roll-reels{display:inline-flex;height:var(--roll-h);line-height:var(--roll-h);overflow:hidden;vertical-align:bottom}
+.roll-reel{display:inline-block;height:var(--roll-h);overflow:hidden}
+.roll-strip{display:flex;flex-direction:column;will-change:transform}
+.roll-strip>span,.roll-sep{display:block;height:var(--roll-h);line-height:var(--roll-h);text-align:center}
+.roll-sep{display:inline-block}
+/* 카드가 위에서부터 차례로 떠오른다(끝나면 transform을 남기지 않게 backwards) */
+.stagger>*{animation:rise-in 480ms var(--ease) backwards}
+.stagger>:nth-child(2){animation-delay:70ms}
+.stagger>:nth-child(3){animation-delay:140ms}
+.stagger>:nth-child(4){animation-delay:210ms}
+.stagger>:nth-child(n+5){animation-delay:280ms}
+@keyframes rise-in{from{opacity:0;transform:translateY(10px)}}
+/* 선 그래프가 왼쪽부터 그려진다 */
+.reveal-rect{transform-box:fill-box;transform-origin:left center;animation:reveal 900ms var(--ease) backwards}
+@keyframes reveal{from{transform:scaleX(0)}}
+/* 진행 막대가 0에서 자란다 */
+.goal-track span{transform-origin:left center;animation:bar-grow 900ms var(--ease) backwards 200ms}
+@keyframes bar-grow{from{transform:scaleX(0)}}
+/* 누를 수 있는 숫자 칸·카드는 살짝 떠오른다 */
+a.stat,a.card{transition:transform 160ms var(--ease),box-shadow 160ms var(--ease),border-color 160ms var(--ease)}
+a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-float);text-decoration:none}

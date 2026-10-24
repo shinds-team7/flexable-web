@@ -2,6 +2,7 @@
 // 첫 점은 시작일의 모아둔 돈(saved=null)일 수 있다. 누적액은 앱이 준 값이고 여기서 계산하지 않는다.
 import { useEffect, useRef, useState } from 'react';
 import { krShort, niceTicks, won } from '@/lib/format';
+import { RevealClip } from './RevealClip';
 
 export type SeedPoint = { date: string; saved: number | null; cum: number }; // date: "2026-04-25", saved=null이면 시작점
 
@@ -69,7 +70,9 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
           ) : null,
         )}
         {hover != null && <line x1={X(hover)} x2={X(hover)} y1={M.t} y2={H - M.b} style={{ stroke: 'var(--text-muted)' }} />}
-        <path d={line} style={{ fill: 'none', stroke: 'var(--brand)', strokeWidth: 2.5, strokeLinejoin: 'round', strokeLinecap: 'round' }} />
+        <RevealClip width={W} height={H} replayKey={`${data.length}-${data[0]?.date}`}>
+          <path d={line} style={{ fill: 'none', stroke: 'var(--brand)', strokeWidth: 2.5, strokeLinejoin: 'round', strokeLinecap: 'round' }} />
+        </RevealClip>
         {data.map((d, i) => (
           <circle
             key={i}

@@ -6,7 +6,9 @@ import { useSession } from '@/auth/session';
 import { loadSettings, saveSettings } from '@/auth/settings';
 import { SeedLineChart } from '@/charts/SeedLineChart';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { CountUp } from '@/components/CountUp';
 import { DDay } from '@/components/Icons';
+import { RollingNumber } from '@/components/RollingNumber';
 import { useAppLink } from '@/data/appLink';
 import { fmtMonth, useGoal } from '@/data/goal';
 import { useHomeNews, useIndices, useSeedMoney, useSetSeedManual, type MarketIndices, type SeedMoney } from '@/data/home';
@@ -95,7 +97,7 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         {manual != null && <span className="tag">직접 입력</span>}
       </p>
       <p className="hero-num num">
-        {won(amount)}
+        <RollingNumber value={amount} />
         <small>원</small>
       </p>
       {seed.current != null && (
@@ -239,7 +241,9 @@ function WhatIf({ seed }: { seed: SeedMoney }) {
         {rows.map((r) => (
           <Link key={r.to} className="stat" to={r.to} style={{ color: 'inherit' }}>
             <span className="lbl">{r.lbl}</span>
-            <p className="val num">{won(r.val)}원</p>
+            <p className="val num">
+              <CountUp value={r.val} format={(n) => `${won(n)}원`} />
+            </p>
             <span className={'dl ' + (r.val > base ? 'up' : 'flat')}>{r.dl}</span>
             <p className="meta">{r.more}</p>
           </Link>
@@ -272,7 +276,9 @@ function MarketCard({ m }: { m: MarketIndices | undefined }) {
               return (
                 <div key={i.code} className="idx">
                   <p className="nm">{i.name}</p>
-                  <p className="val num">{i.value.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  <p className="val num">
+                    <CountUp value={i.value} decimals={2} format={(n) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
+                  </p>
                   <p className={'chg num ' + ud}>
                     {ud === 'up' ? '▲' : ud === 'down' ? '▼' : ''} {Math.abs(i.change).toFixed(2)} ({(Math.abs(i.changeRate) * 100).toFixed(2)}%)
                   </p>
@@ -342,7 +348,7 @@ function GoalMini() {
         <span className="meta">{fmtMonth(g.dueMonth)}까지</span>
       </div>
       <p className="num" style={{ fontWeight: 700 }}>
-        {won(p.current)}원 <span className="meta">/ {won(g.amount)}원</span>
+        <CountUp value={p.current} format={(n) => `${won(n)}원`} /> <span className="meta">/ {won(g.amount)}원</span>
       </p>
       <div className="goal-track" aria-hidden="true">
         <span style={{ width: `${p.ratioBp / 100}%` }} />
@@ -402,7 +408,7 @@ export default function Home() {
     <section>
       <div className="page">
         <div className="g84">
-          <div className="col">
+          <div className="col stagger">
             <AppLinkIntro />
             {seed.isPending ? (
               <>
@@ -437,7 +443,7 @@ export default function Home() {
               </>
             )}
           </div>
-          <aside className="col rail" aria-label="목표와 오늘의 시장·소식">
+          <aside className="col rail stagger" aria-label="목표와 오늘의 시장·소식">
             <GoalMini />
             <MarketCard m={indices.data} />
             <HomeNews />

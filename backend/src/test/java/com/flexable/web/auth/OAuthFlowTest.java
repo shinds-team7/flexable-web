@@ -9,7 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -47,11 +49,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.jayway.jsonpath.JsonPath;
 import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
+import com.flexable.web.user.UserWithdrawalListener;
 
 @SpringBootTest(properties = { "app.auth.oauth.kakao.client-id=test-kakao", "app.auth.oauth.google.client-id=test-google",
 		"app.auth.oauth.kakao.admin-key=test-admin" })
 @AutoConfigureMockMvc
-@Import(OAuthFlowTest.TestTimeConfig.class)
+@Import({ OAuthFlowTest.TestTimeConfig.class, OAuthFlowTest.FailingWithdrawalConfig.class })
 class OAuthFlowTest {
 	private static final String REDIRECT = "http://localhost:5173/oauth/callback";
 	private static final String VERIFIER = "test-verifier-with-32-random-bytes-equivalent";
@@ -105,6 +108,20 @@ class OAuthFlowTest {
 		@Bean
 		@Primary
 		MutableClock testClock() { return new MutableClock(); }
+	}
+	/** 탈퇴 도중 실패(롤백)를 만들려고, 지정한 회원의 탈퇴에서 예외를 던지는 리스너. */
+	@TestConfiguration
+	static class FailingWithdrawalConfig {
+		static volatile long failFor = -1;
+
+		@Bean
+		UserWithdrawalListener failingWithdrawal() {
+			return userId -> {
+				if (userId == failFor) {
+					throw new IllegalStateException("fake withdrawal failure");
+				}
+			};
+		}
 	}
 	static class MutableClock extends Clock {
 		Instant now = Instant.now();
@@ -302,6 +319,44 @@ class OAuthFlowTest {
 		assertEquals(0, jdbc.queryForObject("select count(*) from user_identities where user_id=?", Integer.class, id));
 		assertEquals(0, jdbc.queryForObject("select count(*) from users where id=?", Integer.class, id));
 		mvc.perform(get("/api/v1/me").header("Authorization", "Bearer " + token)).andExpect(status().isUnauthorized());
+	}
+
+	/** 카카오 연결 끊기는 탈퇴가 커밋된 뒤에 보낸다(웹 회원 행이 이미 지워진 상태). */
+	@Test
+	void kakaoUnlinkRunsAfterWithdrawalIsCommitted() throws Exception {
+		String auth = body(exchange(loginCode("kakao", UUID.randomUUID() + "@example.com", true), VERIFIER).andExpect(status().isOk()));
+		String token = JsonPath.read(auth, "$.accessToken");
+		Number id = JsonPath.read(auth, "$.user.id");
+		int[] usersAtUnlink = { -1 };
+		doAnswer(inv -> {
+			usersAtUnlink[0] = jdbc.queryForObject("select count(*) from users where id=?", Integer.class, id);
+			return null;
+		}).when(provider).unlinkKakao(anyString());
+		mvc.perform(delete("/api/v1/me").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"confirm\":\"탈퇴\"}"))
+			.andExpect(status().isNoContent());
+		verify(provider).unlinkKakao(anyString());
+		assertEquals(0, usersAtUnlink[0]);
+	}
+
+	/** 탈퇴가 롤백되면 카카오 연결도 끊지 않는다. */
+	@Test
+	void failedWithdrawalDoesNotUnlinkKakao() throws Exception {
+		String auth = body(exchange(loginCode("kakao", UUID.randomUUID() + "@example.com", true), VERIFIER).andExpect(status().isOk()));
+		String token = JsonPath.read(auth, "$.accessToken");
+		Number id = JsonPath.read(auth, "$.user.id");
+		FailingWithdrawalConfig.failFor = id.longValue();
+		try {
+			mvc.perform(delete("/api/v1/me").header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+				.content("{\"confirm\":\"탈퇴\"}"))
+				.andExpect(status().isInternalServerError());
+		}
+		finally {
+			FailingWithdrawalConfig.failFor = -1;
+		}
+		verify(provider, never()).unlinkKakao(anyString());
+		assertEquals(1, jdbc.queryForObject("select count(*) from users where id=?", Integer.class, id));
+		assertEquals(1, jdbc.queryForObject("select count(*) from user_identities where user_id=?", Integer.class, id));
 	}
 
 	@Test

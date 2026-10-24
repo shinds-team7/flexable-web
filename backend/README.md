@@ -62,7 +62,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /auth/login` | 없음 | `{email, password}` → `{accessToken, expiresAt, user}`. 틀리면 401 `INVALID_CREDENTIALS`(없는 이메일과 구분하지 않음), 이메일별 10분에 5회 실패하면 429 `TOO_MANY_ATTEMPTS` + `retryAfterSeconds` |
 | `POST /auth/logout` | Bearer | 204. 이 회원의 **웹** 토큰을 모든 기기에서 폐기(`tokenVersion` 증가). 앱 세션·연동은 그대로 |
 | `GET /me` | Bearer | `{id, email, createdAt, provider, hasPassword}`. `provider`는 `email`·`kakao`·`google`, 소셜로 가입했고 이메일을 받지 못했으면 `email`은 `null` |
-| `DELETE /me` | Bearer | 이메일 계정 `{password}`, 소셜이 붙은 계정 `{confirm: "탈퇴"}` → 204. 웹 회원·설정·로그인 수단·앱 연동 삭제, 카카오는 `KAKAO_ADMIN_KEY`가 있으면 연결 끊기. 앱 서버 연동 해제는 커밋 뒤 한 번 요청하고, 실패해도 탈퇴는 끝난다 |
+| `DELETE /me` | Bearer | 이메일 계정 `{password}`, 소셜이 붙은 계정 `{confirm: "탈퇴"}` → 204. 웹 회원·설정·로그인 수단·앱 연동 삭제. 앱 서버 연동 해제와 카카오 연결 끊기(`KAKAO_ADMIN_KEY`가 있을 때)는 커밋 뒤 한 번씩 요청하고, 실패해도 탈퇴는 끝난다(탈퇴가 롤백되면 요청하지 않음) |
 | `GET /auth/oauth/providers` | 없음 | `{providers: ["kakao", "google"]}` — client-id가 설정된 공급자만 |
 | `GET /auth/oauth/{provider}/start` | 없음 | `?redirectUri=&codeChallenge=`(PKCE S256) → 공급자 로그인으로 302. `redirectUri`는 `OAUTH_ALLOWED_REDIRECT_URIS`와 정확히 같아야 한다 |
 | `GET /auth/oauth/{provider}/callback` | 없음 | 공급자가 부른다 → `redirectUri?code=`(2분, 한 번) 또는 `?error=cancelled\|provider_unavailable\|email_in_use\|failed` |

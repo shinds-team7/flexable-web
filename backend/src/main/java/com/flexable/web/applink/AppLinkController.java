@@ -26,9 +26,16 @@ public class AppLinkController {
 		this.appLinks = appLinks;
 	}
 
+	/** 저장한 값만 읽는다(앱 서버 호출·DB 쓰기 없음). 다시 받을 때가 되면 sync.due=true. */
 	@GetMapping
 	AppLinkResponse status(@AuthenticationPrincipal Jwt jwt) {
 		return appLinks.status(userId(jwt));
+	}
+
+	/** 앱 서버에서 회원 정보·시드머니를 다시 받는다. 다시 받을 때가 아니면 저장한 값을 준다. */
+	@PostMapping("/refresh")
+	AppLinkResponse refresh(@AuthenticationPrincipal Jwt jwt) {
+		return appLinks.refresh(userId(jwt));
 	}
 
 	@PostMapping

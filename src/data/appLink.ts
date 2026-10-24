@@ -1,4 +1,4 @@
-// 앱 연동(웹 백엔드 GET·POST·DELETE /api/v1/app-link, backend/README.md "API"). 금액은 앱 서버가 확정한 값을 그대로 보여 준다.
+// 앱 연동(웹 백엔드 GET·POST·DELETE /api/v1/app-link, POST /api/v1/app-link/refresh, backend/README.md "API"). 금액은 앱 서버가 확정한 값을 그대로 보여 준다.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
@@ -51,14 +51,31 @@ export type AppLink =
       linkedAt: string;
       account: { email: string | null; provider: AppProvider };
       seedMoney: AppSeedMoney;
-      /** fresh = 방금 앱 서버에서 받음, stale = 앱 서버 조회 실패라 syncedAt 기준 값 */
-      sync: { status: 'fresh' | 'stale'; syncedAt: string };
+      /** fresh = 마지막 확인에서 앱 서버 값을 받음, stale = 마지막 확인 실패라 syncedAt 기준 값. due = 다시 받을 때가 됨 */
+      sync: { status: 'fresh' | 'stale'; syncedAt: string; due: boolean };
     };
 
 const KEY = ['app-link'];
 
-export const useAppLink = (enabled: boolean) =>
-  useQuery({ queryKey: KEY, queryFn: () => api<AppLink>('/app-link'), enabled, retry: false });
+/**
+ * 앱 서버에서 다시 받기(POST /app-link/refresh). GET은 저장한 값만 주므로 sync.due일 때 화면이 부른다.
+ * 다시 받기가 실패하면(연결 오류 등) null을 돌려주고 부른 쪽은 GET 값을 그대로 쓴다.
+ */
+export async function refreshAppLink(): Promise<AppLink | null> {
+  try {
+    return await api<AppLink>('/app-link/refresh', { method: 'POST' });
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAppLink(): Promise<AppLink> {
+  const stored = await api<AppLink>('/app-link');
+  if (!stored.linked || !stored.sync.due) return stored;
+  return (await refreshAppLink()) ?? stored;
+}
+
+export const useAppLink = (enabled: boolean) => useQuery({ queryKey: KEY, queryFn: fetchAppLink, enabled, retry: false });
 
 export function useLinkApp() {
   const qc = useQueryClient();

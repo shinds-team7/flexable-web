@@ -1,5 +1,5 @@
-// 홈 화면 데이터. 시드머니는 웹 백엔드(GET /api/v1/me/seed-money)의 앱 연동 값을 쓰고, 연동 전·체험·앱 서버를 부르는 배포(Vercel)는
-// 예시 값(시연 페르소나 '지수')을 돌려준다. 지수·소식은 아직 예시다. isSample=true면 화면이 "예시" 표시를 붙인다.
+// 홈 화면 데이터. 시드머니는 웹 백엔드(GET /api/v1/me/seed-money)의 앱 연동 값과 직접 고친 값(manual)을 쓴다. 비로그인 체험은 예시 값이다.
+// 지수·소식은 아직 예시다. isSample=true면 화면이 "예시" 표시를 붙인다.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/auth/session';
 import type { SeedPoint } from '@/charts/SeedLineChart';
@@ -10,7 +10,7 @@ export type SeedMoney = {
   confirmed: number; // 확정 시드머니(앱: 모아둔 돈 + 반영한 돈)
   current: number | null; // 이번 주기 남기는 중(확정 전). 앱이 보내지 않아 연동 값에서는 null
   todaySaved: number | null; // 오늘 아낀 돈(표시 전용). 연동 값에서는 null
-  manual: number | null; // 직접 입력한 값(있으면 우선)
+  manual: number | null; // 직접 고친 값(있으면 앱 값보다 우선). 회원은 서버에 저장, 비로그인 체험은 이 탭에서만
   asOf: string; // 기준 시각(앱이 마지막으로 확정한 시각)
   avgPerCycle: number; // 저축 속도. 연동 값은 앱의 매달 저축할 돈(03 §3-4)
   history: SeedPoint[];
@@ -30,6 +30,7 @@ type SeedMoneyResponse = {
   updatedAt: string | null;
   entries: SeedEntry[] | null;
   sync: { status: 'fresh' | 'stale'; syncedAt: string } | null;
+  manual: { total: number; updatedAt: string } | null;
 };
 
 export type MarketIndex = { code: 'KOSPI' | 'KOSDAQ'; name: string; value: number; change: number; changeRate: number };
@@ -39,7 +40,7 @@ export type NewsItem = { id: string; cat: string; title: string; save: string; d
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 
-// 연동 전·체험 기본값은 0원이다. 앱을 연동하면 앱 값을 불러오고, 직접 수정한 금액이 있으면 그 값이 우선한다.
+// 연동 전 기본값은 0원이다. 앱을 연동하면 앱 값을 불러오고, 직접 고친 금액이 있으면 그 값이 우선한다.
 const EMPTY: SeedMoney = {
   confirmed: 0,
   current: null,
@@ -55,21 +56,23 @@ const EMPTY: SeedMoney = {
 // 게스트(로그인 없이 체험) 기본 시드머니. 예시 값이라 화면에 "예시" 표시가 붙는다.
 const GUEST: SeedMoney = { ...EMPTY, confirmed: 4_270_000, isSample: true };
 
-// 직접 수정한 금액(게스트 포함). 서버 저장(PUT·DELETE /me/seed-money/manual)은 아직 없어 이 탭의 메모리에만 두고 새로고침하면 사라진다.
+// 서버에 저장하지 않는 직접 고친 금액: 비로그인 체험과 웹 백엔드가 없는 배포(Vercel)만. 이 탭의 메모리에 두고 새로고침하면 사라진다.
 let localManual: number | null = null;
 
 /** 웹 백엔드(같은 출처 /api)를 쓰는 배포인지. 앱 서버를 부르는 배포(Vercel)에는 이 API가 없다. */
 const usesWebBackend = !import.meta.env.VITE_API_URL;
 
+/** 직접 고친 값을 서버에 저장하는지(로그인 회원 + 웹 백엔드). */
+const savesOnServer = (member: boolean) => member && usesWebBackend;
+
 async function fetchSeedMoney(member: boolean): Promise<SeedMoney> {
-  const base = await fetchLinkedSeedMoney(member);
-  return { ...base, manual: localManual };
+  if (!member) return delay({ ...GUEST, manual: localManual });
+  if (!usesWebBackend) return delay({ ...EMPTY, manual: localManual });
+  const r = await api<SeedMoneyResponse>('/me/seed-money');
+  return { ...fromApp(r), manual: r.manual?.total ?? null };
 }
 
-async function fetchLinkedSeedMoney(member: boolean): Promise<SeedMoney> {
-  if (!member) return delay(GUEST);
-  if (!usesWebBackend) return delay(EMPTY);
-  const r = await api<SeedMoneyResponse>('/me/seed-money');
+function fromApp(r: SeedMoneyResponse): SeedMoney {
   if (r.source !== 'app' || r.status !== 'available' || r.total == null) return EMPTY;
   // 그래프: (시작일, 모아둔 돈) 다음에 (주기 종료일, 반영 후 합계). 누적은 앱이 준 값 그대로 쓴다.
   const points: SeedPoint[] = (r.entries ?? []).map((e) => ({ date: e.cycleEnd, saved: e.amount, cum: e.totalAfter }));
@@ -117,12 +120,24 @@ export function useSeedMoney() {
   return useQuery({ queryKey: ['seed-money', member], queryFn: () => fetchSeedMoney(member) });
 }
 
-/** 시드머니 직접 수정(null이면 앱 기록 기준으로 되돌림). 게스트도 쓸 수 있다. */
+/**
+ * 시드머니 직접 고치기(null이면 앱 기록 기준으로 되돌림). 로그인 회원은 PUT·DELETE /api/v1/me/seed-money/manual로 저장하고,
+ * 비로그인 체험은 이 탭에서만 바꾼다. 저장이 끝나면 상단 칩·홈·투자 화면이 같은 값을 쓴다. saved: 서버에 저장했는지.
+ */
 export function useSetSeedManual() {
   const qc = useQueryClient();
-  return (n: number | null) => {
-    localManual = n;
-    qc.setQueriesData<SeedMoney>({ queryKey: ['seed-money'] }, (old) => (old ? { ...old, manual: n } : old));
+  const member = useSession().status === 'member';
+  return async (n: number | null): Promise<{ saved: boolean }> => {
+    const saved = savesOnServer(member);
+    if (saved) {
+      if (n == null) await api<void>('/me/seed-money/manual', { method: 'DELETE' });
+      else await api<SeedMoneyResponse>('/me/seed-money/manual', { method: 'PUT', json: { total: n } });
+    } else {
+      localManual = n;
+    }
+    qc.setQueriesData<SeedMoney>({ queryKey: ['seed-money', member] }, (old) => (old ? { ...old, manual: n } : old));
+    if (saved) void qc.invalidateQueries({ queryKey: ['seed-money', member] });
+    return { saved };
   };
 }
 export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: fetchIndices, staleTime: 5 * 60_000 });

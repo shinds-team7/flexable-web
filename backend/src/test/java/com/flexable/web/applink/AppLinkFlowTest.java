@@ -107,6 +107,10 @@ class AppLinkFlowTest {
 		return mvc.perform(get("/api/v1/app-link").header("Authorization", "Bearer " + token));
 	}
 
+	private ResultActions refresh(String token) throws Exception {
+		return mvc.perform(post("/api/v1/app-link/refresh").header("Authorization", "Bearer " + token));
+	}
+
 	private ResultActions unlink(String token) throws Exception {
 		return mvc.perform(delete("/api/v1/app-link").header("Authorization", "Bearer " + token));
 	}
@@ -143,6 +147,9 @@ class AppLinkFlowTest {
 				userId(token));
 		assertThat(stored).startsWith("v1:").doesNotContain(linkId);
 
+		refresh(token).andExpect(status().isOk()).andExpect(jsonPath("$.linked").value(true))
+			.andExpect(jsonPath("$.seedMoney.total").value(1_450_000));
+		verify(app, times(2)).profile(linkId);
 		lookup(token).andExpect(jsonPath("$.linked").value(true)).andExpect(jsonPath("$.seedMoney.total").value(1_450_000));
 		verify(app, times(2)).profile(linkId);
 
@@ -229,12 +236,48 @@ class AppLinkFlowTest {
 		mvc.perform(get("/api/v1/app-link")).andExpect(status().isUnauthorized());
 	}
 
+	/** 조회(GET)는 저장한 값만 읽는다. 앱 서버를 부르지 않고, 확인 시각도 바꾸지 않는다. */
 	@Test
-	void unlinkedInAppIsCleanedUpOnNextLookup() throws Exception {
+	void lookupOnlyReadsStoredValues() throws Exception {
+		String token = signup();
+		long userId = userId(token);
+		link(token, CODE).andExpect(status().isCreated());
+		when(app.profile(anyString())).thenThrow(new AppApiException(Kind.UNAVAILABLE));
+		when(app.seedMoney(anyString())).thenThrow(new AppApiException(Kind.UNAVAILABLE));
+		var checkedAt = jdbc.queryForObject("SELECT checked_at FROM app_links WHERE user_id = ?", java.sql.Timestamp.class, userId);
+
+		// 테스트 설정은 refresh-interval 0s라 늘 다시 받을 때다(due).
+		lookup(token).andExpect(status().isOk())
+			.andExpect(jsonPath("$.linked").value(true))
+			.andExpect(jsonPath("$.seedMoney.total").value(1_450_000))
+			.andExpect(jsonPath("$.sync.status").value("fresh"))
+			.andExpect(jsonPath("$.sync.due").value(true));
+		mvc.perform(get("/api/v1/me/seed-money").header("Authorization", "Bearer " + token))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.total").value(1_450_000))
+			.andExpect(jsonPath("$.sync.due").value(true));
+
+		verify(app, times(1)).profile(anyString());
+		verify(app, times(1)).seedMoney(anyString());
+		assertThat(jdbc.queryForObject("SELECT checked_at FROM app_links WHERE user_id = ?", java.sql.Timestamp.class, userId))
+			.isEqualTo(checkedAt);
+		assertThat(jdbc.queryForObject("SELECT sync_failed FROM app_links WHERE user_id = ?", Boolean.class, userId)).isFalse();
+	}
+
+	@Test
+	void refreshWithoutLinkDoesNotCallApp() throws Exception {
+		refresh(signup()).andExpect(status().isOk()).andExpect(jsonPath("$.linked").value(false));
+		verify(app, never()).profile(anyString());
+		mvc.perform(post("/api/v1/app-link/refresh")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void unlinkedInAppIsCleanedUpOnNextRefresh() throws Exception {
 		String token = signup();
 		link(token, CODE).andExpect(status().isCreated());
 		when(app.profile(anyString())).thenThrow(new AppApiException(Kind.LINK_NOT_FOUND));
-		lookup(token).andExpect(jsonPath("$.linked").value(false)).andExpect(jsonPath("$.reason").value("app_unlinked"));
+		lookup(token).andExpect(jsonPath("$.linked").value(true));
+		refresh(token).andExpect(jsonPath("$.linked").value(false)).andExpect(jsonPath("$.reason").value("app_unlinked"));
 		assertThat(rows(userId(token))).isZero();
 		lookup(token).andExpect(jsonPath("$.linked").value(false)).andExpect(jsonPath("$.reason").isEmpty());
 	}
@@ -274,14 +317,14 @@ class AppLinkFlowTest {
 		when(app.seedMoney(anyString())).thenReturn(new AppSeedMoney(1_550_000, 600_000, 300_000,
 				new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 650_000, at), at, LocalDate.parse("2026-06-26"),
 				List.of(new Entry(LocalDate.parse("2026-09-25"), "ALL", 950_000, 1_550_000, at))));
-		lookup(token).andExpect(jsonPath("$.seedMoney.entries.length()").value(1))
+		refresh(token).andExpect(jsonPath("$.seedMoney.entries.length()").value(1))
 			.andExpect(jsonPath("$.seedMoney.entries[0].totalAfter").value(1_550_000));
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
 			.isEqualTo(1);
 
 		// 예산 설정 전으로 바뀌면 기록도 지운다
 		when(app.seedMoney(anyString())).thenThrow(new AppApiException(Kind.BUDGET_NOT_SET));
-		lookup(token).andExpect(jsonPath("$.seedMoney.status").value("budget_not_set"))
+		refresh(token).andExpect(jsonPath("$.seedMoney.status").value("budget_not_set"))
 			.andExpect(jsonPath("$.seedMoney.entries").isEmpty());
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
 			.isZero();
@@ -291,7 +334,7 @@ class AppLinkFlowTest {
 		when(app.profile(anyString())).thenReturn(PROFILE);
 		when(app.seedMoney(anyString())).thenReturn(new AppSeedMoney(1_450_000, 500_000, 300_000, null, at,
 				LocalDate.parse("2026-06-26"), List.of(new Entry(LocalDate.parse("2026-07-25"), "GOAL", 300_000, 800_000, at))));
-		lookup(token).andExpect(jsonPath("$.seedMoney.entries.length()").value(1));
+		refresh(token).andExpect(jsonPath("$.seedMoney.entries.length()").value(1));
 		unlink(token).andExpect(status().isNoContent());
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
 			.isZero();
@@ -331,7 +374,7 @@ class AppLinkFlowTest {
 		String token = signup();
 		link(token, CODE).andExpect(status().isCreated());
 		when(app.profile(anyString())).thenThrow(new AppApiException(Kind.UNAVAILABLE));
-		lookup(token).andExpect(status().isOk())
+		refresh(token).andExpect(status().isOk())
 			.andExpect(jsonPath("$.linked").value(true))
 			.andExpect(jsonPath("$.seedMoney.total").value(1_450_000))
 			.andExpect(jsonPath("$.sync.status").value("stale"))
@@ -339,7 +382,7 @@ class AppLinkFlowTest {
 		assertThat(rows(userId(token))).isEqualTo(1);
 
 		doReturn(PROFILE).when(app).profile(anyString());
-		lookup(token).andExpect(jsonPath("$.sync.status").value("fresh"));
+		refresh(token).andExpect(jsonPath("$.sync.status").value("fresh"));
 		assertThat(output.getAll()).doesNotContain(linkId);
 	}
 
@@ -372,7 +415,7 @@ class AppLinkFlowTest {
 		link(token, CODE).andExpect(status().isCreated());
 		// 암호화 키가 바뀐 상황: 저장된 값을 읽을 수 없다.
 		jdbc.update("UPDATE app_links SET link_id_cipher = 'v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' WHERE user_id = ?", userId);
-		lookup(token).andExpect(jsonPath("$.linked").value(true)).andExpect(jsonPath("$.sync.status").value("stale"));
+		refresh(token).andExpect(jsonPath("$.linked").value(true)).andExpect(jsonPath("$.sync.status").value("stale"));
 		unlink(token).andExpect(status().isNoContent());
 		verify(app, never()).delete(anyString());
 		assertThat(rows(userId)).isZero();

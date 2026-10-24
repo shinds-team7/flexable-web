@@ -45,7 +45,10 @@ public class AppLinkService {
 	private final Clock clock;
 	private final Duration refreshInterval;
 	private final AttemptLimiter codeLimiter;
-	/** 연동 만들기·해제를 처리 중인 회원. 이중 클릭·동시 요청은 기다리지 않고 APP_LINK_IN_PROGRESS로 돌려보낸다(api 한 대 기준, DB 고유 키가 최종 방어). */
+	/**
+	 * 연동 만들기·해제·다시 받기를 처리 중인 회원. 이중 클릭·동시 요청은 기다리지 않고 APP_LINK_IN_PROGRESS로 돌려보낸다
+	 * (다시 받기는 저장한 값을 준다. api 한 대 기준, DB 고유 키가 최종 방어).
+	 */
 	private final Set<Long> busy = ConcurrentHashMap.newKeySet();
 
 	public AppLinkService(AppLinkRepository links, AppApiClient app, LinkIdCipher cipher,
@@ -92,16 +95,33 @@ public class AppLinkService {
 		}
 	}
 
-	/** 연동 상태. refreshInterval이 지났으면 앱 서버에서 다시 받고, 실패하면 저장한 마지막 값을 stale로 준다. */
+	/**
+	 * 연동 상태(GET). 저장한 마지막 값만 읽고 앱 서버를 부르지 않으며 DB에 쓰지 않는다.
+	 * 마지막 확인에서 refreshInterval이 지났으면 sync.due가 true이고, 화면이 refresh로 다시 받는다.
+	 */
+	@Transactional(readOnly = true)
 	public AppLinkResponse status(long userId) {
-		AppLink link = links.findByUserId(userId).orElse(null);
-		if (link == null) {
-			return AppLinkResponse.none(app.enabled(), null);
+		return links.findByUserId(userId).map(this::respond).orElseGet(() -> AppLinkResponse.none(app.enabled(), null));
+	}
+
+	/**
+	 * 앱 서버에서 다시 받는다(POST /app-link/refresh). 다시 받을 때가 아니거나 같은 회원의 연동·해제·다시 받기가 처리 중이면
+	 * 앱 서버를 부르지 않고 저장한 값을 준다. 실패하면 마지막 값을 stale로, 앱에서 해제됐으면 웹 연동을 지우고 app_unlinked로 준다.
+	 */
+	public AppLinkResponse refresh(long userId) {
+		if (!busy.add(userId)) {
+			return status(userId);
 		}
-		if (refreshInterval.isPositive() && link.getCheckedAt().plus(refreshInterval).isAfter(clock.instant())) {
-			return AppLinkResponse.of(app.enabled(), link);
+		try {
+			AppLink link = links.findByUserId(userId).orElse(null);
+			if (link == null) {
+				return AppLinkResponse.none(app.enabled(), null);
+			}
+			return due(link) ? sync(link) : respond(link);
 		}
-		return sync(link);
+		finally {
+			busy.remove(userId);
+		}
 	}
 
 	/**
@@ -241,7 +261,7 @@ public class AppLinkService {
 				l.synced(profile, received, now);
 				return l;
 			}).orElse(null));
-			return updated == null ? AppLinkResponse.none(app.enabled(), null) : AppLinkResponse.of(app.enabled(), updated);
+			return updated == null ? AppLinkResponse.none(app.enabled(), null) : respond(updated);
 		}
 		catch (AppApiException e) {
 			if (e.kind() == Kind.LINK_NOT_FOUND) {
@@ -258,7 +278,16 @@ public class AppLinkService {
 			l.checkFailed(now);
 			return l;
 		}).orElse(null));
-		return checked == null ? AppLinkResponse.none(app.enabled(), null) : AppLinkResponse.of(app.enabled(), checked);
+		return checked == null ? AppLinkResponse.none(app.enabled(), null) : respond(checked);
+	}
+
+	/** 마지막 확인(성공·실패)에서 refreshInterval이 지났는지. 0이면 늘 다시 받는다. */
+	private boolean due(AppLink link) {
+		return !(refreshInterval.isPositive() && link.getCheckedAt().plus(refreshInterval).isAfter(clock.instant()));
+	}
+
+	private AppLinkResponse respond(AppLink link) {
+		return AppLinkResponse.of(app.enabled(), link, due(link));
 	}
 
 	private void releaseQuietly(String linkId, String why) {

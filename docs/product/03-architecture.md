@@ -1,6 +1,8 @@
 > 2026-10-20: 웹 제품 문서의 정본을 flexable-web으로 이전했다. 서버·계정·DB 경계는 [앱·웹 서비스 경계](04-service-boundaries.md)(2026-10-20 분리 결정)가 우선한다. 구현 현황은 [저장소 README](../../README.md), 아래 기획·회의 기록은 완료 보고가 아니다.
 
-> 2026-10-20 데이터 후속 합의: 적금·시세·종목 뉴스·AI 해석의 저장·갱신은 [웹 데이터 저장·자동 갱신 계획](05-data-refresh.md)을 따른다. 웹 DB 구성과 자동 갱신의 해커톤 포함 여부는 미정이다. 기존 MySQL·RDS·VM 내 DB 표기와 작업 시각은 이전 가정이다.
+> 2026-10-20 데이터 후속 합의: 적금·시세·종목 뉴스·AI 해석의 저장·갱신은 [웹 데이터 저장·자동 갱신 계획](05-data-refresh.md)을 따른다. 기존 RDS·작업 시각 표기는 이전 가정이다.
+
+> **2026-10-24 문서 현행화:** 이 문서 본문(0~15장)은 2026-10-17 작성한 **계획**이다. 지금 코드가 어떻게 동작하는지는 아래 [현재 구현 요약](#현재-구현-요약2026-10-24-코드-기준)과 [`backend/README.md`](../../backend/README.md)(API·계산·수집·DB 정본)를 먼저 본다. 각 장 앞의 "현재 구현" 상자가 그 장의 계획과 실제 코드의 차이를 적는다. 계획 내용은 미구현 기능의 설계 참고로 남겨 둔다.
 
 # 03. 데스크톱 웹사이트 아키텍처·데이터·인프라 계획 (개발 리드, 3라운드 반영본 v2)
 
@@ -15,7 +17,8 @@
 > **v2 변경(3라운드):** 팀장 확정 12개(`decisions.md`), 기획·디자인 교차 리뷰의 03 항목(교차 리뷰 기록, 저장소에 없음), 내 리뷰 메모(E2)를 반영했다. 바뀐 곳: 시드머니 `current`·`todaySaved`·직접 수정(3-4), 계산 정의 12개 확정본(6장), 소수점 매수, 사건 상세를 기획 템플릿 필드로(5-5·8장), 핀 툴팁 필드, 원금·비교선 시계열, 목표·공유·이벤트 로깅·온보딩 플래그·잠금 메타데이터 API, 무료/유료 표(10장), 해커톤 범위 축소 WBS(12장), 폐쇄망 시연 대본(13장), 남은 이견(14장), 대표 질문 7개(15장). 로그인 문구·콜백 만료 문구는 소셜 로그인 PR #59 기준.
 
 ## 목차
-0. 한 장 요약 (먼저 읽기)
+- 현재 구현 요약(2026-10-24 코드 기준, 먼저 읽기)
+0. 한 장 요약 (10-17 계획)
 1. 결정 요약 (ADR 8개)
 2. 전체 아키텍처
 3. 앱↔웹 연동 (계정·OAuth·시드머니·CORS·토큰 저장)
@@ -35,7 +38,36 @@
 
 ---
 
+## 현재 구현 요약(2026-10-24 코드 기준)
+
+`main` `86aaaf9` 기준이다. 운영 반영 여부는 [HANDOFF](HANDOFF.md)를 본다.
+
+| 주제 | 지금 코드 | 이 문서의 계획(다른 점) |
+|---|---|---|
+| 서버·계정 | 웹 전용 Spring 서버(`backend/`)·웹 DB·웹 계정. 앱 정보는 `applink`가 앱 서버 `/internal/v1/web-links/*`를 서비스 키로 불러 받는다 | 앱 Spring 서버에 패키지 추가, 같은 `users`·JWT 공유(ADR-1, §3-1) |
+| 로그인·로그아웃 | 웹 자체 JWT(`WEB_JWT_SECRET`, `iss=flexable-web`). 로그아웃은 이 회원의 **웹** 토큰만 무효화하고 앱 세션은 그대로 | 앱과 같은 토큰, 로그아웃이 앱까지 끊음(§3-3) |
+| 프론트 → API | 기본은 같은 출처 `/api/v1`(solpa nginx 프록시, 로컬 vite 프록시). `VITE_API_URL`을 넣으면 그 주소를 부른다(Vercel은 앱 서버를 가리키는 임시 구성) | Vercel 웹 → Caddy → 공용 API |
+| API 접두어 | `/api/v1`(웹 서버 자체라 `/web` 없음) | `/api/v1/web`(§8-1) |
+| DB | VM은 MySQL 8.4 컨테이너, 로컬은 H2 파일 DB(`local`), 테스트는 H2 메모리. Flyway V1~V8, 테이블 15개(`users`·`user_settings`·`user_credentials`·`user_identities`·`app_links`·`app_link_entries`·`instruments`·`daily_prices`·`ingest_runs`·`market_events`·`event_sources`·`goals`·`goal_coaches`·`goal_coach_usage`·`ai_daily_usage`) | RDS MySQL, 앱 테이블 재사용, V6~V13 초안(§7) |
+| 프로세스 | 같은 jar를 api·worker로 띄운다. worker: 시세 수집·사건 탐지·공시 근거(평일 18:30, 켜질 때 1회). api: 앱 연동 일일 확인(03:20)·목표 안내 사용량 정리(03:40) 정기 작업이 있다 | api는 스케줄러 전부 끔, worker만 정기 작업(§2) |
+| 외부 호출 | worker: 키움·KRX·OpenDART. api(요청 중·정기): 카카오·Google 로그인, 앱 서버(앱 연동), OpenAI(목표 안내) | worker만, OAuth·PG만 api(§2) |
+| 시세(decisions 2026-10-24 ①: 코드 기준) | 키움 REST 일봉(수정주가 종가 저장), 종목 목록은 KRX Open API(실패 시 키움 대체), 시장별 시가총액 상위 100개, 처음 5년 백필 후 마지막 거래일 10일 전부터 재수집 | 금융위 공공 시세, KRX Open API·증권사 API 사용 안 함, 시연 10~15종목 3년 1회 적재, 원가격+누적 수정계수(§4·§5·ADR-5) |
+| 사건 | `EventDetector`(C-8 v1 일부): 종목 사건·시장 사건(대용 ETF 하루 ±3%). 근거는 DART 공시 키워드 점수. 사건 상세의 `whatHappened`는 수치로 만든 사실 문장, `whyItMoved`는 빈 목록, `aiGenerated=false` | 기준금리 결정일·참고 사건, LLM 초안 → 사람 승인(§5-3~5-5, ADR-6) |
+| 투자 계산 | 시작일은 그 달 1일로 맞추고 10년 전~오늘만 허용(그 밖·시세 부족은 400 안내, 자동 보정 없음). 매달 첫 거래일 종가로 매수. `LUMP_SUM` 첫 달 `totalAmount`, `SPLIT`·`PACE` 매달 같은 `monthlyAmount`. 종목 배분 나머지는 첫 종목. 시계열은 기간과 관계없이 **주별**. 종목 1~3개 | `SPLIT` = 총액 ÷ 횟수(나머지 첫 회), 납입일 = 수입일 다음 영업일, 일별 시계열, 나머지는 현금 다리, `worst`·`drawdown`·`wobble`·비교선·연환산(§6) |
+| 시드머니 | `GET /me/seed-money`는 앱이 확정한 `total`·`base`·`monthlyGoal`·`startedOn`·주기별 기록(`entries`)을 그대로 준다. 연동이 없으면 `source: "none"`. 직접 수정 API·저장 컬럼은 없다 | 웹이 주기별 수입−지출·`current`·`todaySaved`·직접 수정 저장(§3-4, C-1) |
+| 목표·AI | `GET·PUT·DELETE /me/goal`, `POST /me/goal/coach`(OpenAI, 무료 하루 3회). [goal-ai.md](goal-ai.md)가 계약 정본 | `{amount, dueDate}`만, 실시간 AI 없음 |
+| 적금·소식·프리셋·공유·결제·지표 | 서버 코드·테이블 없음. 적금·소식 화면은 프론트 예시, 소식 저장은 브라우저 `localStorage`, 모의 결제는 저장 없는 화면 흐름, 요금·한도는 프론트 고정값(`src/data/plans.ts`) | 각 API·테이블(§7·§8·§10) |
+| 캐시 | 서버 HTTP 캐시·ETag·Caffeine 없음. 프론트 TanStack Query 캐시와 nginx 정적 파일 캐시(`/assets/` 1년, 그 밖 `no-cache`)만 | 공개 GET 5분 캐시·ETag, 시뮬레이션 Caffeine 10분(ADR-3) |
+| 차트·상태 | 자체 차트 코드(`src/charts/`: `drawTimeChart`·`TimeChart`·`MultiLineChart`·`SeedLineChart`), React 상태 + TanStack Query. 의존성은 React·React Router·TanStack Query뿐 | visx·Recharts·Zustand·Zod(ADR-2·4) |
+| 보안 설정 | CSP 헤더·관리자 ID 검사·`demo-login`은 없다 | CSP, `APP_ADMIN_USER_IDS`, 오프라인 `demo-login`(ADR-7, §3-8, §5-5) |
+| CI | `.github/workflows/ci.yml`: `npm ci` → 타입 검사 → 시연 lint → 빌드, 백엔드 `./gradlew build`(테스트 포함) | E2E·한도·demo-login·수집 복구 검증(§9-3) |
+| 배포 | solpa VM 한 대에 Docker Compose(nginx·api·worker·MySQL). api·worker가 같은 `.env`(`env_file`)를 읽고, 메모리는 `JAVA_OPTS`(api 1GB·worker 512MB)로만 정한다. VM 반영은 사람이 한다 | EC2+RDS, 비밀 값 api/worker 분리, 컨테이너 `mem_limit`(§2·§9) |
+
+---
+
 ## 0. 한 장 요약
+
+> 현재 구현: 위 [현재 구현 요약](#현재-구현-요약2026-10-24-코드-기준). 아래는 10-17 계획이다.
 
 **구조:** 새 웹은 별도 저장소 [`shinds-team7/flexable-web`](https://github.com/shinds-team7/flexable-web)(Vite + React + TypeScript, Vercel)로 만들고, 서버는 **기존 Spring 백엔드에 패키지를 추가하는 모듈러 모놀리스**로 간다. 같은 jar를 `api` 프로세스와 `worker`(수집·사건 탐지·LLM 사전 생성) 프로세스 두 개로 띄운다. DB는 지금 RDS MySQL. 계정·JWT·소셜 로그인(PR #59)은 앱과 **완전히 같은 것**을 쓰고, 웹 주소만 redirectUri·CORS 허용 목록에 추가한다.
 
@@ -87,36 +119,55 @@
 - **결정:** 별도 저장소 `flexable-web`에 Vite + React + TS. 라우팅 React Router, 서버 상태 TanStack Query, 작은 클라이언트 상태(시뮬레이션 조합 편집 중인 값) Zustand, 폼 검증 Zod. 디자인 토큰은 `project2/frontend/src/theme/index.ts`의 값을 CSS 변수로 옮겨 같은 색(신한 블루 `#0046FF`·네이비 잉크)을 쓴다. 공유 링크 미리보기(카카오톡 OG 태그)는 공유 주소 `https://<웹>/s/:id`를 Vercel `rewrites`로 API의 `GET /share/{id}/og`(OG 메타 + 화면 이동만 담은 HTML)에 넘기고, 사람은 SPA의 `/p/:id` 화면으로 이동하는 방식으로 해결한다(SPA는 미리보기 봇이 JS를 실행하지 않아 OG를 못 준다). 랜딩 예시 차트는 **웹 빌드에 정적 JSON으로 포함**해 API가 죽어도 뜨게 한다.
 - **버린 대안:** Next.js(SSR/ISR로 SEO·OG가 쉽다) — Node 서버가 하나 더 생기고 폐쇄망 반입·운영이 복잡해진다. 청년 소식 페이지 SEO가 BM상 중요해지면 그때 소식 페이지만 사전 렌더링(빌드 시 정적 HTML 생성)을 붙인다.
 - **결과:** `project2/docs/API.md`가 앱·웹 공통 계약이다. 웹 저장소는 자체 CI와 `AGENTS.md`를 둔다. 앱 시연도 그 저장소의 `/m`(`mobile-demo/`, Expo 웹)으로 옮겼다.
-- **변경(2026-10-19, 팀장 결정):** 처음에는 project2의 `web/`를 계획했으나 웹 UI와 시연을 flexable-web으로 분리했다. 2026-10-20부터 웹 제품 기획 정본도 이 저장소에서 관리한다. 웹 기능의 서버 구현은 공유 API인 project2/backend에서 진행하며, 계약 변경 기능은 두 저장소의 연계 PR로 검증한다. 계약 정본은 `project2/docs/API.md`다.
+- **변경(2026-10-19, 팀장 결정):** 처음에는 project2의 `web/`를 계획했으나 웹 UI와 시연을 flexable-web으로 분리했다. 2026-10-20부터 웹 제품 기획 정본도 이 저장소에서 관리한다. 웹 기능의 서버 구현은 공유 API인 project2/backend에서 진행하며, 계약 변경 기능은 두 저장소의 연계 PR로 검증한다. 계약 정본은 `project2/docs/API.md`다. **(2026-10-20 서버 분리 뒤 현재: 웹 서버는 이 저장소 `backend/`이고 웹 API 계약 정본은 [`backend/README.md`](../../backend/README.md) "API"다. 앱 저장소 `docs/API.md`에는 앱 연동 API(`/internal/v1`)만 있다. Zustand·Zod는 쓰지 않는다.)**
 
 ### ADR-3. 데이터 패칭: 서버 계산 + TanStack Query 캐시, 공개 GET은 HTTP 캐시
+> 현재 구현: 서버 계산·`noticeKey`는 투자 시뮬레이션·사건·목표에 적용돼 있다. 공개 GET HTTP 캐시·ETag·Caffeine 계산 캐시는 없고, `GET /billing/plans`도 없다(요금·한도는 프론트 고정값). 예외로 홈 '굴렸다면'은 프론트에서 고정 예시 수익률을 곱하고, 적금 화면은 고정 예시 결과다(서버 계산으로 바꿀 대상).
 - **결정:** 시뮬레이션 결과·적금 이자·세금·사건 전후 내 돈·원금 시계열·비교선은 **모두 서버가 계산**한다(클라이언트 재계산 금지, AGENTS.md 원칙 유지). 웹은 결과를 그리기만 한다. 고지 문장도 서버 상수 한 곳에서 `noticeKey`와 함께 내려 준다(8-3). 무료/유료 한도도 서버 설정값 한 곳(`GET /billing/plans`)에서 내려 준다. 시세·사건·소식 같은 공개 GET은 `Cache-Control: public, max-age=300` + ETag. 시뮬레이션 POST는 입력 해시로 서버 메모리 캐시(Caffeine, 10분).
 - **결과:** 슬라이더를 움직일 때마다 서버를 부르므로 웹에서 300ms 디바운스, 서버는 1회 계산 50ms 이내 목표(10년 일봉 × 5종목은 데이터 1.3만 점 정도라 충분).
 
 ### ADR-4. 차트: visx(타임머신) + Recharts(단순 차트) — 디자인 문서 추천 반영
+> 현재 구현: visx·Recharts를 쓰지 않는다. `src/charts/`의 자체 코드(`drawTimeChart`·`TimeChart`·`MultiLineChart`·`SeedLineChart`)로 그리고, 서버가 기간과 관계없이 주별 시계열을 준다.
 - **맥락:** 타임머신 그래프는 10년치 일별 선 위에 사건 핀을 찍고, 마우스오버 툴팁·클릭 상세·**키보드 탐색(←/→ 핀 이동, Enter 상세)** 이 필요하다(02-design.md 1-8·6-5).
 - **결정:** 타임머신은 **visx**(저수준 SVG, 스케일을 그대로 써서 사건 핀을 HTML `<button>`으로 차트 위에 정확히 올림). 적금 막대·조합 비중 같은 단순 차트는 **Recharts**. 공통 축·툴팁 컴포넌트를 먼저 만들어 두 라이브러리의 모양을 맞춘다.
 - **성능 조건:** SVG 점 수를 줄이기 위해 서버가 3년 초과 기간은 주 단위로 줄여 보내고(6-4), 사건 핀은 원래 날짜를 유지한다. 선 1개 약 2,500점 × 다리 5개 이하에서 문제없을 것으로 본다 — W2에 실측.
 - **버린 대안:** TradingView Lightweight Charts(캔버스·금융 시계열 기능은 좋지만 **TradingView 표기·링크 의무**[2차: https://unpkg.com/lightweight-charts@5.0.7/README.md], 캔버스라 핀 접근성을 따로 만들어야 하고 트레이딩 앱 느낌), ECharts(번들 큼), D3 직접 구현(기간 부족).
 
 ### ADR-5. 시장 데이터 저장: RDS MySQL 일봉 테이블 + 일 1회 증분 수집
+> 현재 구현: VM의 MySQL 8.4 컨테이너(로컬 H2)에 일봉만 저장한다. `daily_prices` PK `(instrument_id, trade_date)`는 같고, 값은 제공처(키움)가 준 **수정주가 종가**다. 원가격·누적 수정계수(`adjustment_factor`) 컬럼은 없다. 수집은 처음 5년 백필 후 평일 18:30에 마지막 거래일 10일 전부터 다시 받는다.
 - **결정:** 시세는 **일봉만** 저장한다(분봉·실시간 없음). `daily_prices`의 PK를 `(instrument_id, trade_date)`로 잡아 종목별 기간 조회가 클러스터드 인덱스 범위 스캔이 되게 한다. 수정주가는 원가격과 **누적 수정계수**를 함께 저장하고 조회 시 곱한다. 파티셔닝·별도 시계열 DB는 쓰지 않는다(용량 추정 5장: 최대 약 1.5GB).
 - **버린 대안:** 요청 때마다 외부 API 호출(한도·약관·폐쇄망 모두 불리), TimescaleDB·ClickHouse(운영 대상 증가).
 
 ### ADR-6. LLM 사용 범위: "사전 생성 + 사람 검수 + 캐시"만, 실시간 호출 기본 0건
+> 현재 구현: 사건 설명·소식 요약의 LLM 생성·검수 저장은 없다(사건 상세는 수치 사실 문장만). 2026-10-23 결정으로 목표 안내만 api가 요청 중 OpenAI를 부른다(무료 하루 3회, [goal-ai.md](goal-ai.md)).
 - **결정:** 사건 인과 설명과 청년 소식 요약은 `worker`가 **Message Batches API(50% 할인)** 로 미리 만들어 DB에 넣고, 화면은 DB만 읽는다. 생성물에는 `review_status`(DRAFT/APPROVED/REJECTED)를 두고, **화면에는 APPROVED만** 나간다(설명이 없는 사건은 "설명 없는 핀"으로 날짜·등락률만). 모든 설명에 고정 고지(`EVENT_EXPLAIN`)를 붙인다. 기본 모델은 `claude-opus-5-5`(입력 $4 / 출력 $20 per MTok). 해커톤 생성량이 수백 건이라 비용은 몇 달러 수준(11-3). 사용자별 실시간 생성(리포트 AI 요약 등)은 해커톤 제외(팀장 확정 8).
 - **이유:** ① 비용 예측 가능 ② 폐쇄망에서도 같은 화면 ③ 투자자문업 리스크(양방향 유료 상담) 회피 ④ 근거 없는 문장 검수 가능.
 - **결과:** "AI에게 물어보기" 같은 실시간 대화 기능은 만들지 않는다(필요하면 예적금·생활비·청년정책 범위로 한정하고 별도 검토).
 
 ### ADR-7. 인증: 앱과 같은 JWT(Bearer), 웹 1단계는 localStorage, 도메인 구매 후 httpOnly 쿠키
+> 현재 구현: 웹 자체 JWT(HS256, 30일, `WEB_JWT_SECRET`, `iss=flexable-web`)를 Bearer로 보내고 localStorage(`fx.token`)에 둔다. 앱 토큰은 통과하지 못한다. CSP 헤더는 아직 설정하지 않았다(nginx·`index.html` 모두 없음).
 - **결정:** 웹도 `POST /auth/oauth/exchange` → `accessToken`(30일)을 받아 `Authorization: Bearer`로 보낸다. 1단계(해커톤)는 기존 Expo 웹과 같이 localStorage에 저장하고 XSS 완화책(CSP, 서드파티 스크립트 금지)을 둔다. 도메인을 사서 웹·API가 같은 사이트(`www.<도메인>`·`api.<도메인>`)가 되면 2단계로 **짧은 access token(메모리) + httpOnly refresh 쿠키**로 바꾼다. 상세는 3장.
 
 ### ADR-8. 외부 데이터 소스: 해커톤은 공공 API, 유료화 전 라이선스 교체
+> 현재 구현: 시세는 키움 REST API 일봉, 종목 목록은 KRX 정보데이터시스템 Open API(시장별 실패 시 키움), 사건 근거는 OpenDART다. 2026-10-24 결정으로 이 코드 기준이 정본이다(decisions 2026-10-24 ①). finlife·ECOS·온통청년은 아직 연결되지 않았다(적금·소식 PR 진행 중). 각 제공처 약관의 화면 표시·상업 이용 조건은 유료화 전에 확인한다.
 - **결정:** 해커톤까지는 공공데이터포털(금융위 시세)·DART·finlife·ECOS·온통청년·공공서비스(혜택)로 만들고 화면에 출처를 표시한다. **990원 결제를 실제로 받기 전에** 시세 데이터 라이선스(KRX Data Marketplace 유료 또는 신한 계열 제휴)를 확보한다. 해외 주식은 무료 API가 대부분 비상업·비표시 조건이라 빼고, **국내 상장 해외지수 ETF**(미국 S&P500·나스닥100 추종 등)로 대신 보여 준다. 아직 없는 해외 기능은 탭·버튼·"이후" 표시로도 노출하지 않는다(팀장 확정 4). 근거는 4장.
 
 ---
 
 ## 2. 전체 아키텍처
+
+> 현재 구현(아래 그림은 10-17 계획):
+>
+> ```text
+> 브라우저 ──▶ nginx(웹 정적 파일 + /api 프록시, solpa VM) ──▶ 웹 api(Spring) ──▶ 웹 DB(MySQL 8.4 컨테이너)
+>                                                             ├─▶ 앱 서버 /internal/v1/web-links (앱 연동, 일일 확인 03:20)
+>                                                             ├─▶ 카카오·Google(소셜 로그인)
+>                                                             └─▶ OpenAI(목표 안내)
+> 웹 worker(같은 jar, HTTP 없음) ──▶ 키움·KRX·OpenDART ──▶ 같은 웹 DB
+> 앱(Expo) ──▶ 앱 서버(project2, Caddy) ──▶ 앱 DB        ※ 웹과 서버·DB·계정 분리
+> ```
+>
+> 실제 요청 경로(투자 시뮬레이션): `src/pages/Invest.tsx` → `src/data/market.ts` → `POST /api/v1/simulations/run` → `simulation.SimulationController` → `SimulationService`(입력 검증, `market.MarketService`로 시세 조회) → `SimulationEngine`(순수 함수) → 응답(요약·주별 `series`·`events[]`·`assumptions`·`noticeKey`·`sources`). 적금 저장소·비교선(`comparisons`)은 없다. 실제 의존 방향은 `simulation → market`이고, ArchUnit(`PackageDependencyTest`)이 허용하는 방향 표는 `backend/README.md`에 있다. api 프로필에도 정기 작업(앱 연동 확인·사용량 정리)이 있고, 메모리는 컨테이너 제한이 아니라 `JAVA_OPTS`로만 정한다.
 
 ```mermaid
 flowchart LR
@@ -178,7 +229,7 @@ ASCII 요약(머메이드가 안 보일 때):
 ```
 
 **요청 하나가 지나가는 길(예: 타임머신 실행):**
-`flexable-web/src/pages/TimeMachine.tsx(구현 예정)` → `flexable-web/src/lib/api.ts` → `POST /api/v1/web/simulations/run` → `simulation/SimulationController` → `SimulationService`(조합 검증·자금 출처 결정) → `market/PriceRepository`(수정주가 시계열) + `savings/RateRepository` → `simulation/SimulationEngine`(순수 함수, 금액 원 단위 내림, 수량 소수 8자리) → 응답에 원금 시계열(`invested`)·비교선(`comparisons`)·기간 안 사건 후보 전체(`events[]`, 툴팁 필드와 사건 전후 내 돈 포함)·`assumptions`·`noticeKey` 동봉. 화면 핀 8개 선택·묶음은 웹이 한다.
+(계획) `flexable-web/src/pages/TimeMachine.tsx(구현 예정)` → `flexable-web/src/lib/api.ts` → `POST /api/v1/web/simulations/run` → `simulation/SimulationController` → `SimulationService`(조합 검증·자금 출처 결정) → `market/PriceRepository`(수정주가 시계열) + `savings/RateRepository` → `simulation/SimulationEngine`(순수 함수, 금액 원 단위 내림, 수량 소수 8자리) → 응답에 원금 시계열(`invested`)·비교선(`comparisons`)·기간 안 사건 후보 전체(`events[]`, 툴팁 필드와 사건 전후 내 돈 포함)·`assumptions`·`noticeKey` 동봉. 화면 핀 8개 선택·묶음은 웹이 한다.
 
 **의존 방향(서버):** `simulation → market, savings, budget(시드머니 읽기)` / `insight → market` / `engagement → simulation(공유 결과 스냅숏)` / `api 계층 → 도메인` / `ingest → 각 도메인의 저장 포트`. 도메인끼리 반대 방향 import 금지.
 
@@ -197,6 +248,7 @@ ASCII 요약(머메이드가 안 보일 때):
 ## 3. 앱↔웹 연동
 
 ### 3-1. 계정과 "SSO"의 뜻
+> 현재 구현: 같은 소셜 계정이라도 웹과 앱은 **다른 계정**이다(웹 DB `users`, 웹 토큰). 앱 정보는 사용자가 앱에서 받은 6자리 코드로 [앱 연동하기]를 했을 때만 받는다([04 §4·§5](04-service-boundaries.md)). 아래는 계획 기록이다.
 앱과 웹은 기기가 다르므로(폰 ↔ PC) 브라우저 쿠키 공유식 SSO는 없다. 여기서 SSO는 **같은 카카오·Google 계정으로 로그인하면 같은 `users.id`가 되고, 같은 JWT 형식·같은 API를 쓴다**는 뜻이다.
 - 같은 사용자 DB(`users`, `user_identities`), 같은 `TokenService`(HS256, `sub`=userId, `tv`=tokenVersion, 30일). 웹 전용 토큰을 따로 만들지 않는다.
 - 웹에서 처음 소셜 로그인한 사람(앱 미사용)도 계정이 바로 생긴다(`OAuthUserService.findOrCreate`, `onboarded=false`, 기본 카테고리 생성). **웹은 `onboarded=false`여도 예산 설정을 강제하지 않는다** — 시드머니가 없으면 직접 입력으로 모든 기능을 쓴다(3-4).
@@ -236,13 +288,14 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 | 프로세스 수 | state·loginCode가 **api 프로세스 메모리**에 있다 → api를 2개 이상 띄우면 로그인이 랜덤 실패. 확장 시 `OAuthStore`를 DB 구현으로 교체(인터페이스 분리돼 있음) | 백엔드(나중) |
 
 ### 3-3. 로그아웃이 앱까지 끊는 문제
+> 현재 구현: 해당 없음. `POST /api/v1/auth/logout`은 이 회원의 **웹** 토큰만 모든 기기에서 무효화하고(`tokenVersion`), 앱 세션·연동은 그대로다. 내 정보의 로그아웃 버튼은 하나다.
 `POST /auth/logout`은 `tokenVersion`을 올려 **모든 기기**의 토큰을 무효화한다(`AuthService.logout`). 그래서 웹 내 정보 화면에 버튼을 둘로 나눈다(디자인 동의 A15).
 - **"로그아웃(이 브라우저)"**: 브라우저의 토큰만 지운다(서버 호출 없음). 기본.
 - **"모든 기기에서 로그아웃"**: `POST /auth/logout`. 폰 앱도 로그인 화면으로 간다고 안내.
 
 ### 3-4. 시드머니 — 웹이 읽는 API (팀장 확정 1)
 
-> **2026-10-20 변경(사용자 결정, [decisions](decisions.md) 2026-10-20 ②): 시드머니는 앱에서 사용자가 확정한 값이다.** 시드머니 = 가입 때 입력한 **모아둔 돈** + 수입일 전날마다 사용자가 반영한 금액(매달 저축할 돈 / 실제로 모은 돈 전부 / 직접 입력). 웹은 [앱 연동하기]로 `{ total, base, monthlyGoal, lastEntry, updatedAt }`만 받는다([04 §5-2](04-service-boundaries.md)). `monthlyPace`(저축 속도)는 앱의 **매달 저축할 돈**(`monthlyGoal`)으로 바꿔 읽는다. `current`·`todaySaved`·`cycles[]`·`estimate`·`savingsTransferEstimate`는 앱이 보내지 않으므로 쓰지 않는다. 웹의 직접 수정(수정값 우선)은 웹 DB에 그대로 둘 수 있다. 아래는 이전 정의 기록이다.
+> **2026-10-20 변경(사용자 결정, [decisions](decisions.md) 2026-10-20 ②): 시드머니는 앱에서 사용자가 확정한 값이다.** 시드머니 = 가입 때 입력한 **모아둔 돈** + 수입일 전날마다 사용자가 반영한 금액(매달 저축할 돈 / 실제로 모은 돈 전부 / 직접 입력). 웹은 [앱 연동하기]로 `{ total, base, monthlyGoal, lastEntry, updatedAt, startedOn, entries }`만 받는다([04 §5-2](04-service-boundaries.md)). `monthlyPace`(저축 속도)는 앱의 **매달 저축할 돈**(`monthlyGoal`)으로 바꿔 읽는다. `current`·`todaySaved`·`cycles[]`·`estimate`·`savingsTransferEstimate`는 앱이 보내지 않으므로 쓰지 않는다. 웹의 직접 수정 저장(`PUT·DELETE /me/seed-money/manual`)은 **구현되지 않았다**. 지금 홈 [수정하기]는 브라우저 탭 메모리에만 두고(상단 칩·투자 화면에는 같이 보임) 새로고침하면 사라진다. 연동이 없으면 서버는 `source: "none"`에 나머지 `null`을 주고, 화면은 로그인 회원 0원·비로그인 체험 예시 금액을 보여 준다. 연동 값은 사용자가 화면을 열 때(1분 지나면) 다시 받고, 따로 매일 03:20에 전체 연동을 확인한다. 아래는 이전 정의 기록이다.
 정의는 6장 C-1에 계산식으로 확정했다. 여기는 화면과 API의 연결만 적는다.
 
 | 값 | 뜻 | 바뀌는 때 | 화면 |
@@ -260,10 +313,11 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 ### 3-5. 앱 → 웹, 웹 → 앱 동선
 - 앱 마이 화면에 **"PC에서 내 돈 굴려 보기"** 링크(웹 주소 안내만, 원격 업데이트로 가능. 기획 리뷰 A16 반영 — "불려 보기"는 수익 약속처럼 읽힘). 앱에는 가격·결제 링크를 넣지 않는다(10-4).
 - 웹 시드머니 카드 아래 "앱에서 매일 기록하면 이 숫자가 자라요" + Play 스토어 링크.
-- **목표:** 해커톤은 웹에서 설정·표시만(`GET/PUT /me/goal`). 앱 홈 진행 표시는 해커톤 제외(팀장 확정 8) — API는 앱이 나중에 그대로 쓸 수 있게 만든다.
+- **목표:** 해커톤은 웹에서 설정·표시만(`GET/PUT /me/goal`). (현재 구현: `GET·PUT·DELETE /me/goal`·`POST /me/goal/coach`, [goal-ai.md](goal-ai.md)) 앱 홈 진행 표시는 해커톤 제외(팀장 확정 8) — API는 앱이 나중에 그대로 쓸 수 있게 만든다.
 - (이후) 웹 로그인 코드: 앱에서 1회용 8자리 코드(2분) 발급 → PC에서 입력해 로그인. 네이티브 모듈 불필요.
 
 ### 3-6. CORS·도메인 구성
+> 현재 구현: solpa VM은 nginx가 웹과 `/api`를 같은 주소로 제공해 CORS가 필요 없다(`CORS_ORIGINS` 기본값은 로컬 개발 서버만). Vercel 배포본은 앱 서버를 부르는 임시 구성이다.
 | 단계 | 웹 | API | CORS | 비고 |
 |---|---|---|---|---|
 | 해커톤 | `flexable-web.vercel.app`(가칭) | `flex-able-sh.duckdns.org` | 필요(`CORS_ORIGINS` 추가) | 서로 다른 사이트 → httpOnly 쿠키 인증은 브라우저 서드파티 쿠키 정책 때문에 불안정 |
@@ -278,6 +332,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 | 메모리 access(15분) + httpOnly refresh 쿠키 | 탈취 피해 15분, 공용 PC에 안전 | `/auth/refresh`·refresh 토큰 테이블·CSRF 대책, 같은 사이트 도메인 필요 | **2단계(도메인 구매 후).** 앱은 지금처럼 SecureStore + Bearer |
 
 ### 3-8. 폐쇄망·시연 로그인 상태
+> 현재 구현: `POST /auth/demo-login`·[시연 계정으로 보기]는 없다. 소셜 버튼은 늘 보이고, 서버에 설정되지 않은 공급자를 누르면 "지금은 이 로그인 방법을 쓸 수 없어요"를 보여 준다.
 - `/auth/oauth/providers`가 빈 목록이거나 응답이 없으면, 로그인 화면은 소셜 버튼을 지우는 대신 **이메일 폼을 펼친 상태 + [시연 계정으로 보기]** 버튼을 보여 준다(디자인 리뷰 A11).
 - [시연 계정으로 보기]는 서버 설정 `app.demo-login.enabled=true`인 **오프라인 프로필에서만** 켜지는 `POST /auth/demo-login`(고정 시연 사용자 '지수'의 토큰 발급)을 부른다. 운영 프로필에서는 빈 설정이면 404로 존재 자체가 없게 하고, 테스트로 "운영 프로필에서 404"를 고정한다.
 
@@ -288,6 +343,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 조사일 2026-10-17, ECOS·주식/ETF 시세 추가 확인 2026-10-18. "재표시"는 우리 웹 화면에 그 데이터(또는 가공값)를 보여 줘도 되는지.
 
 ### 4-1. 주가
+> 현재 구현: 아래 판단과 달리 **키움 REST API**(ka10081 주식일봉, 수정주가)로 일봉을, **KRX 정보데이터시스템 Open API**로 시장별 종목 목록(시가총액)을 받는다(`backend/README.md` 소스 표). 2026-10-24 결정으로 시세 제공처는 이 코드 기준이다(decisions 2026-10-24 ①). 화면 출처는 서버 응답 `sources`의 제공처 이름(예: "키움증권 REST API 주식일봉(수정주가)")을 그대로 쓴다. 아래 표는 10-17 조사 기록이며, 키움·KRX 약관의 화면 표시·상업 이용 조건은 유료화 전에 확인한다.
 
 | 소스 | 지금 쓸 수 있나 | 인증·한도 | 비용 | 재표시·상업 이용 | 판단 |
 |---|---|---|---|---|---|
@@ -354,6 +410,8 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 ## 5. 데이터 파이프라인
 
 > 아래 작업표·수집 방식은 이전 초안이다. [05-data-refresh.md](05-data-refresh.md)의 최초 적재·부분 실패·정정 수집·뉴스 공개 규칙이 우선한다. 기존 성공 기록만으로 정정 실행을 막지 않는다.
+>
+> 현재 구현: worker 작업은 `market-sync`(종목 목록·일봉, 켜질 때 1회 + 평일 18:30 KST)와 이어서 도는 `market-events`(사건 탐지·DART 근거) 두 개다. 적금·소식·LLM·heartbeat·`--job=backfill-*` 실행 옵션·`corporate-actions`는 없다. 중복 실행은 프로세스 안 `synchronized`로만 막는다(DB 잠금 없음). 실패한 시장·종목은 건너뛰고 `ingest_runs`에 `PARTIAL`로 남기며, 다음 실행의 10일 재조회와 다음 공시 실행이 빠진 부분을 채운다. 품질 검사·`stale` 표시는 없다(`GET /market/status`는 `{pricesAsOf, instrumentsAsOf, instruments, empty}`).
 
 ### 5-1. 작업 목록과 일정 (worker, 모두 KST)
 
@@ -393,6 +451,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 **품질 검사(수집 직후):** 전일 대비 종목 수 ±5%, 가격 > 0, 고가 ≥ 종가 ≥ 저가, 조정 비율 0.01~100, 영업일 누락 없음. 실패 → `ingest_runs.status=FAILED` → `/api/v1/web/market/status`가 `stale=true` → 9-5 모니터링에서 담당자가 확인한다.
 
 ### 5-3. 사건 탐지 (detector v1 — 세 문서 기준 통합, 계산 정의 C-8)
+> 현재 구현: 종목 사건과 시장 사건(시장 대용 ETF 하루 ±3%)만 탐지한다. 기준금리 결정일 시장 사건·참고 사건(최대 하락 구간·권리 조정일)은 없다. 사람이 쓴 사건 카드도 없다. 세부는 C-8 구현 메모와 `backend/README.md`.
 6장 C-8에 식을 확정했다. 요약:
 - **종목 사건**: 시장 영향을 뺀 초과수익률의 60영업일 z ≥ 3.0 이고 하루 등락 ±4%(ETF 3%) 이상, 또는 ±15% 이상. 1일 사건이 없으면 5영업일 누적 z ≥ 3.5.
 - **시장 사건**: 코스피(또는 대용 ETF) 하루 ±3% 이상인 날, 한국은행 기준금리를 **바꾼** 결정일(기획 01 규칙 3).
@@ -416,6 +475,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 근거가 하나도 없으면 LLM을 부르지 않고 고정 문장 **"이날 확인된 공시·발표가 없어요. 원인을 단정하기 어려워요."**(기획 리뷰 A10)를 쓴다.
 
 ### 5-5. 사건 설명 생성(LLM 사전 생성) — 기획 템플릿 그대로
+> 현재 구현: 구현되지 않았다(`insight` 패키지·`event_explanations` 표·관리자 검수 화면 없음). 사건 상세 응답은 `headline`(이름·기간·방향만), `whatHappened`(기간·등락률·같은 기간 시장·공시 수로 만든 사실 문장), `marketReaction`·`afterwards`(서버 계산), `sources`(DART), `whyItMoved: []`, `aiGenerated: false`, `confidence`(근거 없으면 `LOW`)다.
 **출력 필드 = 화면 순서(팀장 확정 5, 디자인 리뷰 A3):**
 | 필드 | 누가 만드나 | 규칙 |
 |---|---|---|
@@ -455,6 +515,15 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 
 ## 6. 계산 정의 확정본 12개
 
+> 현재 구현(`simulation.SimulationEngine`·`SimulationService`, 정본은 `backend/README.md`):
+> - **시작일**: 요청 `startDate`를 그 달 1일로 맞춘다. 오늘 이후·10년 넘게 전이면 400. 고른 종목 중 시작 무렵 시세가 없는 종목이 있으면 시작일을 옮기지 않고 400("○○부터 시세가 있어요. 시작 시점을 늦춰 주세요"). 아직 수집하지 않은 종목은 503 `MARKET_UNAVAILABLE`.
+> - **납입**: 시작 월부터 고른 종목들의 마지막 시세일이 있는 달까지, **매달 첫 거래일 종가**로 산다(모든 종목에 거래일이 있는 달만). 수입일 기준 납입일은 없다.
+> - **방식**: `LUMP_SUM` = 첫 달에 `totalAmount`(1만~1억 원). `SPLIT`·`PACE` = 매달 같은 `monthlyAmount`(1천~1천만 원). 둘은 화면에서 금액 출처만 다르다(`PACE`는 시드머니의 매달 저축할 돈). C-2의 "총액 ÷ 횟수, 나머지 첫 회"는 구현되지 않았다.
+> - **배분**: 종목 1~3개, 비율을 모두 비우면 같은 비율(4자리 내림, 나머지 첫 종목). 회차별 금액 배분 나머지 원은 **첫 종목**에 붙인다(현금 다리 없음). 수량은 소수 8자리 내림.
+> - **시계열**: 기간과 관계없이 **주(월~일)별**, 그 주 마지막 거래일 종가로 평가한다.
+> - **응답에 없는 것**: 연환산 수익률, `worst`·`drawdown`·`wobble`, 비교선(`comparisons`, 평균 적금·통장), 정밀 모드. 사건 전후 내 돈(C-9)과 시장 반응·그 뒤에는(C-10)은 구현돼 있다.
+> - 시드머니(C-1)·적금(C-12)·조합(6-13) 계산은 웹 서버에 없다.
+
 ### 6-0. 공통 원칙
 - **서버가 최종값**(`budget/SeedMoneyCalculator`, `simulation/SimulationEngine`, `savings/SavingsCalculator`, `savings/PolicySavingsCalculator`). `BudgetCalculator`처럼 DB·시계를 모르는 **순수 함수**로 만들고 손계산 예시로 단위 테스트한다. 클라이언트 재계산 금지.
 - **금액**은 원 단위 정수(long)이고 돈이 생기는 순간마다 **내림**. **수량**(소수점 주식 수)은 소수 8자리(`BigDecimal`, 내림), **비율**은 소수 4자리로 응답(기존 `ratio`와 같은 방식). 중간 이율·수량 연산은 BigDecimal로 하고 명시한 금액·수량 생성 단계에서만 내림한다.
@@ -481,6 +550,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 예: 지수가 오늘 점심 8,500원을 입력하면 `current.expense`가 8,500원 늘고 `current.saved`가 8,500원 줄며, `todaySaved`도 0을 하한으로 최대 8,500원 준다. `total`(470,000원)은 수입일이 지나야 바뀐다.
 
 ### C-2. 넣는 방식 3종 (`funding.mode`)
+> 현재 구현과 다름: `SPLIT`도 매달 같은 `monthlyAmount`를 넣고, 납입일은 매달 첫 거래일이다(이 장 앞 상자).
 | 방식 | 키 | 계산 |
 |---|---|---|
 | 지금 저축 속도로 | `PACE` | 시작월부터 이번 달까지 N회, 매회 `monthlyPace`(또는 수정값·직접 입력). 넣은 돈 총액 = 월 금액 × N(결과 문장에 표시) |
@@ -490,6 +560,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 - 매일·매주 적립은 해커톤에 없음(화면에도 노출 안 함).
 
 ### C-3. 기본값
+> 현재 화면(`src/pages/Invest.tsx`): 시작 시점 칩은 [1년 전] [3년 전] [5년 전] [직접](직접은 10년 전까지 월 단위), 종목은 시장(코스피·코스닥·ETF)별 시가총액 상위 100개 목록에서 최대 3개를 고른다.
 - 방식 `PACE`, 시작 **3년 전 같은 달**(팀장 확정 2). 시연 종목의 데이터가 더 짧으면 가능한 가장 이른 달 + 안내.
 - 금액: 로그인 + 시드머니 있음 → `monthlyPace`(지수 78,000원 → 36회 = **2,808,000원**). 로그인 + 예산 미설정(`NONE`) → 직접 입력 월 100,000원. **비로그인 체험** → 지수와 같은 월 78,000원(수정 가능).
 - 기간 칩은 **[1년 전] [3년 전·기본] [날짜 지정]**, 모두 무료(확정 2 변경). 기준일은 스냅숏 마지막 거래일이며 날짜 지정은 데이터 첫날·종목 상장일 이후부터 기준일까지다.
@@ -506,6 +577,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 - 연평균 수익률은 **한 번에(LUMP_SUM)이고 1년 이상**일 때만 준다(적립식은 돈이 나눠 들어가 단순 연환산이 오해를 부름).
 
 ### C-6. 가장 많이 줄어 있던 때 (`worst`) + 낙폭 (`drawdown`)
+> 미구현(C-5의 연평균 수익률, C-7 `wobble`도 같음).
 - **`worst`(화면 기본 지표, 이름 "가장 많이 줄어 있던 때"):** min over t of (평가액_t − 넣은 돈_t) ÷ 넣은 돈_t 와 그 날짜. 적립식이어도 납입 때문에 왜곡되지 않고 "가장 많이 잃고 있던 때 −18%"로 바로 읽힌다. 손실이 한 번도 없으면 null("넣은 돈보다 줄어든 적이 없어요").
 - **`drawdown`(디자인이 차트 표시에 쓸 때):** 납입 효과를 뺀 **수익률 지수**(시작 1.0, 날짜별 다리 수익률을 금액 가중으로 이어 붙임)의 고점 대비 최대 하락 `{rate, peakDate, troughDate, recoveredDate | null}`.
 
@@ -544,11 +616,13 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 - `afterwards`: 사건 마지막 날 종가 대비 30일·365일 뒤 수익률(`d30`, `d365`). 아직 그 날이 안 왔으면 null.
 
 ### C-11. 비교선
+> 미구현. 평균 적금(ECOS) 데이터가 없다.
 - **은행 평균 적금(`AVERAGE_SAVINGS`):** 각 납입분이 **납입한 달의 한국은행 평균 적금 금리**(신규취급액 기준, 월별)로 오늘까지 **단리** 이자를 받는다고 가정(만기·재가입 무시). 세전 선을 그리고 마지막 값에 세후(15.4%)를 함께 준다. 라벨 "은행 평균 적금 금리로 계속 모았다고 가정".
 - **그냥 통장(`CASH`):** 이자 **0%**("이자 없이 모아 둔 경우") → 값은 `invested`와 같다. 근거 없는 1.0%는 쓰지 않는다.
 - 응답 `comparisons[]`에 `{key, name, series[{date, value}]}`로 준다(디자인 A1).
 
 ### C-12. 적금·정책 적금
+> 미구현(서버). `/savings` 화면은 프론트 고정 예시 결과다.
 - **정액적립식 단리**(n개월, 월 P, 연이율 r): k회차(1..n) 이자 I_k = floor(P × r × (n−k+1) ÷ 12), 세전 = Σ I_k.
 - **정액적립식 월복리:** I_k = floor(P × ((1 + r/12)^(n−k+1) − 1)).
 - **자유적립식:** 납입 일정(직접 입력 또는 지금 저축 속도)을 회차별로 위 공식에.
@@ -558,6 +632,7 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 - **정책 적금(청년미래적금, 조건 직접 입력):** 입력 = 월 납입액(최대 50만원), 기간(36개월), 유형(일반형 6% / 우대형 12%), 은행 금리(기본값은 `policy_savings`에 사람이 넣은 값, 사용자가 고칠 수 있음). 계산 = 본인 납입분 이자(위 공식, **비과세**) + 정부기여금(납입액 × 6% 또는 12%). 기여금 적립 시점·기여금 이자 여부는 [미확인] → 공식 안내 확인 전에는 "기여금은 만기에 한 번에 받는다고 가정, 기여금 이자 없음" + "기여금 적립 방식 확인 중 · 추정" 표시. 규칙 근거: 01 F2-c(이투데이 2026-06-21, 금융위 설명 인용). 자격(소득·나이) 판정은 하지 않고 체크리스트만.
 
 ### 6-13. 조합(여러 상품)
+> 미구현. 현재 투자 시뮬레이션은 주식·ETF 1~3종목만이고 시계열은 기간과 관계없이 주별, 배분 나머지는 첫 종목이다.
 - 조합 = 다리 목록 `{kind: STOCK|ETF|SAVINGS|CASH, 대상, 비중}`, 비중 합 100%(5% 단위). 다리 한도는 요금제 설정값(무료 3 / 유료 5).
 - 각 다리를 따로 계산 → 날짜 축을 맞춰 합산. 적금 다리는 월 단위 계단(원금 + 경과 이자, 세전). 리밸런싱 없음. 다리 금액 = floor(납입액 × 비중), 남는 원은 현금 다리에.
 - 3년 초과 기간의 응답 시계열은 주 단위로 줄인다(사건은 원래 날짜).
@@ -569,6 +644,8 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 ---
 
 ## 7. DB 스키마 초안 (Flyway V6~)
+
+> 현재 구현: 웹 DB는 앱 테이블을 재사용하지 않는 별도 DB이고, 실제 마이그레이션은 V1~V8이다([migration README](../../backend/src/main/resources/db/migration/README.md)). 아래 표의 V6~V13 번호는 실제 V6(`app_link_entries`)·V7(방침 근거)·V8(`goals` 등)과 **겹치므로 쓰지 않는다**. 실제로 있는 시장 표는 계획과 다르다: `instruments`(code·name·board·market·kind·market_cap·cap_rank·featured_reason·source·source_note·data_as_of·corp_code, `listed_at`·`delisted_at`·`featured` 없음), `daily_prices`(close·volume·source·collected_at, `adjustment_factor` 없음), `market_events`(+`market_return`·`z_score`·`volume_ratio`·`evidence_checked_at`, `instrument_id` NOT NULL, 시장 사건은 대용 ETF에 붙임), `event_sources`(+`external_id`·`weight`). `user_settings`는 V1에 있고 `manual_total`·`manual_monthly_pace`는 없다. `goals`는 [goal-ai.md](goal-ai.md) 구조다. 나머지(사건 설명·적금·프리셋·공유·소식·구독·결제·리마인더·지표·`corporate_actions`)는 아직 없는 계획이다.
 
 마이그레이션 번호는 제안이다. 실제 저장소 최신 버전은 구현 직전 확인해 충돌 없는 다음 번호로 바꾼다. 기존 users·거래·예산 테이블은 재사용하고 여기에는 추가 테이블만 적는다. 금액 BIGINT, 수량 DECIMAL(28,8), 비율 DECIMAL, 날짜 DATE, 시각 UTC DATETIME(6), 정산·화면 날짜는 Asia/Seoul 기준.
 
@@ -592,6 +669,10 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 ---
 
 ## 8. API 계약 초안
+
+> 현재 구현: 실제 경로·요청·응답은 [`backend/README.md`](../../backend/README.md) "API"가 정본이다. 접두어는 모두 `/api/v1`(`/web` 없음). 구현된 것: 인증·소셜 로그인, `GET /me`·`DELETE /me`, `GET·PATCH /me/settings`, `GET·POST·DELETE /app-link`, `GET /me/seed-money`, `GET·PUT·DELETE /me/goal`·`POST /me/goal/coach`, `GET /market/instruments`·`/market/status`·`/market/events/{id}`, `POST /simulations/run`, `GET /health`. 아래 표의 나머지(시드머니 직접 수정, `/home/what-if`, 적금, 소식, 프리셋, 공유, 리마인더, 지표, 요금제·결제, 리포트, 관리자)는 미구현 계획이다.
+>
+> 실제 시뮬레이션 요청은 `{startDate, funding:{mode, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`뿐이다(`endDate`·`funding.source`·`kind`·`productId`·`comparisons`·`precision` 없음). 응답은 `resolvedInput, contributionCount, monthlyAmount, totalInvested, finalValue, profit, returnRate, engineVersion, dataAsOf, seriesBasis, legs[{id,name,kind,weight,invested,finalValue}], series[주별], events[], assumptions, noticeKey, notice, sources`다(`annualizedReturn`·`worst`·`drawdown`·`wobble`·`comparisons` 없음). `events[]`의 점수 필드 이름은 `rank`가 아니라 `score`이고 `sourceCount`·`topSource`·`marketReturn`이 더 있다. 사건 상세 필드는 `{id, code, name, scope, startDate, endDate, windowDays, direction, headline, marketReaction, afterwards:{d30,d365}, sources[{type,externalId,title,publisher,date,url,weight}], newsSearchUrl, whatHappened, whyItMoved, aiGenerated, confidence, noticeKey, notice}`(`generatedBy`·`reviewed`·`reviewedAt` 없음). 시드머니 응답은 [04 §5-2](04-service-boundaries.md)와 `backend/README.md` 형식이다(`current`·`todaySaved`·`manual`·`effective` 없음).
 
 ### 8-1. 공통·엔드포인트
 - 아래 웹 전용 경로 앞에는 `/api/v1/web`를 붙인다. 단, 앱 소유 공통 시드머니(`/me/seed-money`, `/me/seed-money/manual`)는 `/api/v1`를 붙인다. 기존 인증·앱 API는 변경하지 않는다. 공개 API는 비로그인도 호출 가능하며 로그인 여부와 관계없이 사건 설명은 전부 무료. 개인 API는 Bearer 인증. 관리자 API는 서버의 APP_ADMIN_USER_IDS 검사.
@@ -669,6 +750,8 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 
 ## 9. 배포·인프라
 
+> 현재 구현: solpa VM(Ubuntu 22.04, 1코어·8GB) 한 대에서 Docker Compose로 nginx·api·worker·MySQL 8.4를 돌린다([deploy/vm/README.md](../../deploy/vm/README.md)). `main` 머지는 Vercel만 자동 배포하고 VM은 사람이 `./backup.sh` → `git pull` → `docker compose up -d --build`로 반영한다. CI(`.github/workflows/ci.yml`)는 웹 `npm ci`·타입 검사·시연 lint·빌드와 백엔드 `./gradlew build`(테스트 포함)만 한다(E2E·demo-login 검사 없음). api·worker는 같은 `.env`를 `env_file`로 읽어 비밀 값이 나뉘어 있지 않고, 메모리는 `JAVA_OPTS`(api `-Xmx1g`, worker `-Xmx512m`, worker DB 풀 3)로만 정한다. CSP는 설정하지 않았다. 백업은 매일 DB 덤프(7일 보관), 컨테이너 로그는 매주 비운다. 11-18 VM 종료 전 AWS 이전 예정([HANDOFF](HANDOFF.md)). 아래는 10-17 계획이다.
+
 ### 9-1. 환경과 배포 단위
 - 운영 후보: Vercel(flexable-web/dist) + EC2(Caddy·api·worker) + RDS MySQL. 개발·시연 데이터는 운영 사용자 데이터와 분리한다. 배포 전 DB 백업, Flyway 적용, API 헬스 확인, 웹 배포 순서. 실패하면 이전 이미지로 되돌리고 파괴적 DB 변경은 같은 배포에 넣지 않는다.
 - api 1개를 유지한다(OAuth state 메모리). worker는 같은 날짜 작업 중복 실행을 ingest_runs 키·잠금으로 막는다. 외부 API 장애가 읽기 API를 막지 않게 마지막 성공 스냅숏과 기준일을 제공한다.
@@ -701,6 +784,8 @@ flexable-web/dist(글꼴·아이콘·랜딩 예시 JSON·정적 OG 포함), api/
 ---
 
 ## 10. 결제와 무료/유료 경계
+
+> 현재 구현: `GET /billing/plans`·구독·결제 API와 표는 없다. 요금(월 990원·연 9,900원, 화면 기본 선택은 10-23 `e6afe16`부터 월간)과 무료·플러스 비교는 프론트 고정값(`src/data/plans.ts`)이다. 실제로 서버·화면이 막는 한도는 투자 시뮬레이션 종목 3개와 목표 안내 하루 3회뿐이다. 모의 결제는 저장 없는 화면 흐름이고 요금제는 늘 무료로 보인다(decisions 2026-10-22 ①). 10-3의 "mock 주문·권한은 시연 DB에 저장"은 이 결정으로 뺐다.
 
 ### 10-1. 단일 설정값
 GET /billing/plans 응답은 {plans,limits,features,defaultPeriod:YEARLY}. plans는 월 990원·연 9,900원, limits는 아래 표, features는 {key,free,plus,teaser} 목록. FE 잠금·가격표·BE 검증은 이 설정을 함께 쓴다.
@@ -793,6 +878,8 @@ analytics_events 원시 데이터는 **30일 보존 후 삭제, 개인 식별 �
 ---
 
 ## 13. 시연 대본 (인터넷 / 폐쇄망)
+
+> 현재 구현과 다름: 앱 거래 입력으로 웹 숫자가 바뀌는 장면(점심 8,500원 → `current` 감소)은 **재현되지 않는다**. 웹은 `current`·`todaySaved`를 받지 않고, 앱이 수입일 전날 확정한 시드머니만 받는다(decisions 2026-10-20 ②). 대체 장면은 아직 정하지 않았다(04 §10). 시세 제공처는 코드 기준(키움 일봉·KRX 종목 목록, decisions 2026-10-24 ①)이라 13-2 끝의 금융위 출처 문구는 쓰지 않는다. 대본은 나중에 다시 짠다. 사건 카드 승인·적금 실데이터·조합·공유·소식 API도 미구현이다.
 
 ### 13-1. 고정 시연 데이터·준비물
 

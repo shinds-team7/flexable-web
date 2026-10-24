@@ -1,9 +1,9 @@
 # user
-웹 회원 정보·웹 설정·동의 기록. 웹 탈퇴 시 각 패키지의 웹 데이터 삭제와 `applink` 연동 해제를 조정한다.
+웹 회원 정보·웹 설정·약관 동의 기록. 웹 탈퇴 시 각 패키지의 웹 데이터 삭제와 `applink` 연동 해제를 조정한다.
 
 | 파일 | 내용 |
 |---|---|
-| `UserService` | 이 패키지의 공개 입구. `register`(이메일 정규화·중복 확인, 약관·개인정보 동의 시각 기록, 기본 설정 생성), `findIdByEmail`, `profile`, `settings`·`updateSettings`, `withdraw`(앱 연동 삭제 → 각 패키지 데이터 → 회원 행) |
+| `UserService` | 이 패키지의 공개 입구. `register`(이메일 정규화·중복 확인, 약관 동의 시각 기록, 기본 설정 생성. 개인정보는 동의가 아니라 계약 이행 근거로 처리해 새 가입은 `privacy_agreed_at`을 비워 둔다(V7). 10-21 이전 가입자의 동의 시각은 그대로 둔다), `findIdByEmail`, `profile`, `settings`·`updateSettings`, `withdraw`(앱 연동 삭제 → 각 패키지 데이터 → 회원 행) |
 | `UserController` | `GET`·`PATCH /api/v1/me/settings`. `GET /me`는 로그인 방법을 함께 내보내야 해서 `auth`가 `UserService.profile`로 만든다 |
 | `User`·`UserSettings`(+Repository) | `users`, `user_settings`. 이 패키지 밖에서 쓰지 않는다 |
 | `UserWithdrawalListener` | 탈퇴 때 자기 데이터를 지울 패키지가 구현한다. `withdraw`가 회원 행을 지우기 전에 같은 트랜잭션에서 부른다 |

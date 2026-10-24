@@ -10,7 +10,11 @@ import { DDay } from '@/components/Icons';
 import { useAppLink } from '@/data/appLink';
 import { fmtMonth, useGoal } from '@/data/goal';
 import { useHomeNews, useIndices, useSeedMoney, useSetSeedManual, type MarketIndices, type SeedMoney } from '@/data/home';
+import { errorText } from '@/lib/api';
 import { fmtMonthDay, upDown, won } from '@/lib/format';
+
+/** 서버 SeedMoneyDtos.MAX_MANUAL_TOTAL과 같다(10억 원) */
+const MAX_MANUAL = 1_000_000_000;
 
 const RANGES = [
   { r: 6, label: '6개월' },
@@ -20,8 +24,9 @@ const RANGES = [
 
 function SeedHero({ seed }: { seed: SeedMoney }) {
   const [editing, setEditing] = useState(false);
-  // TODO(BE): 저장·되돌리기는 PUT·DELETE /api/v1/me/seed-money/manual(확정 15). 지금은 이 탭의 메모리에만 남는다.
+  // 저장·되돌리기: 로그인 회원은 PUT·DELETE /api/v1/me/seed-money/manual(확정 15), 비로그인 체험은 이 탭에서만.
   const setManual = useSetSeedManual();
+  const [busy, setBusy] = useState(false);
   const manual = seed.manual;
   const [draft, setDraft] = useState(String(seed.manual ?? seed.confirmed));
   const [error, setError] = useState('');
@@ -45,24 +50,42 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
     setDraft(raw === '' ? '' : String(Number(raw)));
   };
 
-  const save = (e: FormEvent) => {
+  const save = async (e: FormEvent) => {
     e.preventDefault();
     if (draft === '') {
       setError('금액을 입력해 주세요.');
       return;
     }
     const n = Math.floor(Number(draft));
-    setManual(n);
-    setEditing(false);
-    setToast(`저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.`);
+    if (n > MAX_MANUAL) {
+      setError(`${won(MAX_MANUAL)}원까지 넣을 수 있어요.`);
+      return;
+    }
+    setBusy(true);
+    try {
+      const { saved } = await setManual(n);
+      setEditing(false);
+      setToast(saved ? `저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.` : `시드머니를 ${won(n)}원으로 바꿨어요. 체험 중이라 저장되지 않아요.`);
+    } catch (err) {
+      setError(errorText(err, '저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const reset = () => {
-    setManual(null);
-    setDraft(String(seed.confirmed));
-    setEditing(false);
-    setConfirmReset(false);
-    setToast(`앱 기록 기준 금액 ${won(seed.confirmed)}원으로 돌아갔어요.`);
+  const reset = async () => {
+    setBusy(true);
+    try {
+      await setManual(null);
+      setDraft(String(seed.confirmed));
+      setEditing(false);
+      setToast(`앱 기록 기준 금액 ${won(seed.confirmed)}원으로 돌아갔어요.`);
+    } catch (err) {
+      setToast(errorText(err, '되돌리지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
+    } finally {
+      setBusy(false);
+      setConfirmReset(false);
+    }
   };
 
   return (
@@ -99,14 +122,16 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
               <span className="unit">원</span>
             </div>
             <p id="seedAmountHelp" className={error ? 'form-error' : 'meta'}>
-              {error || '앱 기록 대신 이 금액을 써요.'}
+              {error || '앱 기록 대신 이 금액을 상단 칩·투자 시뮬레이션에서도 써요.'}
             </p>
           </div>
           <div className="seed-edit-acts">
             <button type="button" className="btn btn-line btn-sm" onClick={() => (setEditing(false), setError(''))}>
               취소
             </button>
-            <button className="btn btn-primary btn-sm">저장</button>
+            <button className="btn btn-primary btn-sm" disabled={busy}>
+              {busy ? '저장 중…' : '저장'}
+            </button>
           </div>
         </form>
       ) : (

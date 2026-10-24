@@ -46,7 +46,7 @@ function SeedChip() {
       {open && (
         <div className="popover" id="seedPop" role="dialog" aria-label="시드머니란">
           <h3>내 시드머니 {won(amount)}원</h3>
-          <p>끝난 정산 주기마다 수입 − 지출(고정지출 포함)을 누적한 값이에요. 직접 입력하면 수정값을 우선 사용해요.</p>
+          <p>앱에서 모아둔 돈과 수입일 전날마다 반영한 돈을 더한 값이에요. 홈에서 직접 고친 금액이 있으면 그 값을 써요.</p>
           <p>앱에 입력한 기록 기준이라 실제 통장 잔액과 다를 수 있어요.</p>
         </div>
       )}

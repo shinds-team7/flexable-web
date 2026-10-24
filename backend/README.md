@@ -79,7 +79,9 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /simulations/run` | 없음 | `{startDate:"YYYY-MM-01", funding:{mode:LUMP_SUM\|SPLIT\|PACE, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`(03 §8-2의 부분집합). 응답: 요약·주별 `series[{weekStart,date,tradingDays,total,invested,contributed,profit,returnRate,legs[…]}]`·`assumptions`·`noticeKey=SIM_PAST`·`sources`. 상위 목록 밖 종목·금액 범위·종목 1~3개·비율 합 1은 400, 시세를 아직 모으지 않은 종목은 503 `MARKET_UNAVAILABLE`(+`field`=종목 코드). `events[]`: 기간 안에 시작한 고른 종목의 사건 + 시장 사건 `{id, code(시장 사건은 null), scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline, hasExplanation, sourceName, sourceCount, topSource, score, valueBefore, valueAfter, contributionInWindow, valueChange, noticeKey}`. 이때 내 돈(03 C-9)은 종목 사건이면 그 종목, 시장 사건이면 전체 평가액으로 사건 시작 전날·마지막 날 종가 기준이고, `valueChange = after − before − 그 사이 넣은 돈`, 아직 넣기 전이면 금액 필드가 `null`. 핀 8개 선택·묶음은 화면이 한다 |
 | `GET /app-link` | Bearer | 연동 상태 `AppLink`(아래). 연동돼 있고 마지막 조회에서 1분이 지났으면 앱 서버에서 회원 정보·시드머니를 다시 받는다. 앱 서버 장애면 저장한 마지막 값과 `sync.status: "stale"`. 앱에서 해제·앱 탈퇴(`LINK_NOT_FOUND`)면 웹 연동을 지우고 `{linked: false, reason: "app_unlinked"}` |
 | `POST /app-link` | Bearer | `{code}`(앱에서 받은 6자리, `K7M2Q9`처럼 소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
-| `GET /me/seed-money` | Bearer | 웹 시드머니 `{source: "app"\|"none", status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync}`. 앱 연동 값(`GET /app-link`와 같은 조회·갱신 규칙)이고 연동이 없으면 `source: "none"`에 나머지 `null`. 그래프는 (`startedOn`, `base`) 다음에 (`cycleEnd`, `totalAfter`)를 잇는다. 직접 입력 저장은 아직 없다 |
+| `GET /me/seed-money` | Bearer | 웹 시드머니 `{source: "app"\|"none", status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync, manual}`. 앱 연동 값(`GET /app-link`와 같은 조회·갱신 규칙)이고 연동이 없으면 `source: "none"`에 앱 값 필드는 `null`. 그래프는 (`startedOn`, `base`) 다음에 (`cycleEnd`, `totalAfter`)를 잇는다. `manual`은 웹에서 직접 고친 값 `{total, updatedAt}` 또는 `null`이고, 있으면 화면·시뮬레이션은 앱 값 대신 이 값을 쓴다(앱 값 필드는 그대로) |
+| `PUT /me/seed-money/manual` | Bearer | `{total}`(원 단위 정수, 0~10억 원) → GET과 같은 응답. 회원당 하나, 다시 보내면 덮어쓴다. 범위 밖·소수·문자·빠짐은 400 `VALIDATION_FAILED`+`fields.total` |
+| `DELETE /me/seed-money/manual` | Bearer | 204. 직접 고친 값을 지우고 앱 기록 기준으로 되돌린다. 없어도 204 |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
@@ -159,7 +161,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 ## 데이터
 
-Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](src/main/resources/db/migration/README.md). 현재 V1~V8, 테이블 15개다. 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](src/main/resources/db/migration/README.md). 현재 V1~V9, 테이블 16개다. 앱 DB와 외래 키는 없다.
 
 - `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전)
 - `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함
@@ -169,6 +171,7 @@ Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](s
 - `V6__app_link_entries.sql`: `app_links.seed_started_on`(앱 시작일), `app_link_entries`(applink: 주기별 반영 기록, 조회마다 통째로 바꾸고 연동과 함께 삭제)
 - `V7__privacy_notice_basis.sql`: `users.privacy_agreed_at` NULL 허용(10-21부터 개인정보는 동의가 아니라 계약 이행 근거, 이전 가입자의 동의 시각은 유지)
 - `V8__goals.sql`: `goals`·`goal_coaches`·`goal_coach_usage`·`ai_daily_usage`(engagement, [goal-ai.md](../docs/product/goal-ai.md))
+- `V9__seed_money_manual.sql`: `seed_money_manual`(seedmoney: 웹에서 직접 고친 시드머니, 회원당 하나, 되돌리기·탈퇴 때 삭제)
 
 ## 아직 정해지지 않은 것
 

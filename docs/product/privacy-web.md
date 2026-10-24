@@ -23,6 +23,10 @@
 
 **남은 확인(운영자)**: ① 대한상공회의소의 정확한 기관명·재수탁·VM 스냅숏/백업 여부와 보관 기간(아카데미에 문의) ② 위탁 관계 문서(목적 외 처리 금지·안전조치·종료 시 파기)를 아카데미와 주고받을 수 있는지 ③ 오늘 solpa에서 만든 시험 계정 정리 ④ 문의 메일 30일 삭제 습관 ⑤ 만 14세 미만 가입 제한을 화면 문구 말고 확인 절차로 둘지.
 
+## 0-3. 2026-10-24 시드머니 직접 수정 저장
+
+홈 [수정하기]를 회원 계정에 저장하게 바꿔(decisions 2026-10-24 ②) 제2조 1항에 "시드머니 직접 수정"(금액·수정 일시, 계약 이행 근거), 제4조에 보유 기간(되돌리기·탈퇴까지, 마지막 값만)을 넣고 변경 이력에 적었다. 외부 전송·위탁은 없다(목표 안내의 OpenAI 전송 대상도 아님). **남은 확인**: 제13조 시행 7일 전 고지. solpa에 반영하기 전에 웹 회원 유무를 확인한다([HANDOFF](HANDOFF.md) 2026-10-24).
+
 ## 0-2. 2026-10-24 체험 안내 문구 정리
 
 방침 제3조의 "로그인 전 체험 화면은 예시 데이터를 쓰며"가 실제 동작(비로그인 투자 시뮬레이션도 고른 조건을 서버에 보내 계산)을 충분히 설명하지 못해 문구를 고쳤다. 계산 요청을 저장하지 않는 처리 방식은 그대로이고 새 항목·목적·보관이 생기지 않으므로 변경 이력에 "처리 방식 변화 없음"으로 적었다(10-21 제4조 문구 보완과 같은 방식). 근거는 아래 2의 "비회원 체험" 행.
@@ -51,6 +55,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 시작일·주기별 반영 기록 | `app_links.seed_started_on`, `app_link_entries`(V6: 주기 종료일·방법·금액·반영 후 합계·반영 일시). 조회마다 통째로 바꾸고 연동 행 삭제 시 함께 삭제(FK CASCADE) |
 | 동의·가입 일시, 가입 방법 | `users.terms_agreed_at`·`created_at`, `user_identities.provider`. `privacy_agreed_at`은 10-21 전 가입자만(V7) |
 | 화면 설정 | `user_settings`(theme·seen_tours·disclaimer_ack_at) |
+| 시드머니 직접 수정(10-24) | `seed_money_manual`(seedmoney, V9: user_id·total·updated_at). `PUT·DELETE /api/v1/me/seed-money/manual`. 되돌리기(DELETE)·탈퇴(`SeedMoneyService.onWithdraw`, FK CASCADE) 때 삭제, 다시 고치면 덮어써 마지막 값만 |
 | 연동 일시·마지막 조회 일시 | `app_links.created_at`·`synced_at`·`checked_at` |
 | 서버 오류 기록의 회원 번호 | `AppLinkService` 경고·오류 로그의 `userId`(이메일·linkId는 남기지 않음) |
 | 웹 서버 접속 기록 | `deploy/vm/nginx.conf` `log_format web_access`: IP(앞단 프록시 주소일 수 있음)·일시·메서드·경로(쿼리 제외)·응답 코드·크기·브라우저 정보 |
@@ -60,7 +65,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 연동 코드는 저장하지 않음 | `AppLinkService.link` → `AppApiClient.create`로 전달만, DB·로그에 없음 |
 | 문의 메일 국외 보관 | Gmail(Google LLC). 처리 후 30일 이내 삭제(운영자 수작업) |
 | 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인). 정확한 기관명·스냅숏은 확인 전(0) |
-| 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.tour.invest`(`data/tour.ts`, 비로그인 때 투자 화면 첫 방문 안내를 봤는지. 방침 제8조 "첫 화면 안내 표시 여부"), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음. 홈 시드머니 [수정하기] 값은 브라우저 저장소가 아니라 탭 메모리에만 있다(`data/home.ts`) |
+| 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.tour.invest`(`data/tour.ts`, 비로그인 때 투자 화면 첫 방문 안내를 봤는지. 방침 제8조 "첫 화면 안내 표시 여부"), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음. 비로그인 체험의 시드머니 [수정하기] 값은 브라우저 저장소가 아니라 탭 메모리에만 있다(`data/home.ts`, 회원은 서버 저장) |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
 | 연동 해제·앱 해제·앱 탈퇴 확인 시 파기 | `AppLinkService.unlink`, `sync`·`AppLinkRecheckJob`의 `LINK_NOT_FOUND` 처리. 앱 탈퇴 시 앱이 연동을 함께 지우므로 같은 경로 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |

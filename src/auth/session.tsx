@@ -1,4 +1,5 @@
 // 로그인 상태. 토큰은 localStorage(03-architecture ADR-7: 1단계), 도메인 구매 뒤 httpOnly 쿠키로 바꾼다.
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, setUnauthorizedHandler, tokenStore } from '@/lib/api';
 import { loadSettings } from './settings';
@@ -15,15 +16,24 @@ type Session = {
 
 const Ctx = createContext<Session | null>(null);
 
+/** 회원별 서버 데이터 캐시. 세션이 끝나면 진행 중 요청과 함께 지워 다음 회원에게 보이지 않게 한다. */
+const MEMBER_QUERY_KEYS = [['me'], ['app-link'], ['seed-money']];
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<Session['status']>(tokenStore.get() ? 'loading' : 'guest');
+
+  const qc = useQueryClient();
 
   const clear = useCallback(() => {
     tokenStore.set(null);
     setUser(null);
     setStatus('guest');
-  }, []);
+    for (const queryKey of MEMBER_QUERY_KEYS) {
+      void qc.cancelQueries({ queryKey });
+      qc.removeQueries({ queryKey });
+    }
+  }, [qc]);
 
   useEffect(() => {
     setUnauthorizedHandler(clear);

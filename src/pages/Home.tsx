@@ -4,14 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { loadSettings, saveSettings } from '@/auth/settings';
-import { displayName } from '@/auth/types';
 import { SeedLineChart } from '@/charts/SeedLineChart';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DDay } from '@/components/Icons';
-import { PLAY_URL } from '@/components/Layout';
 import { useAppLink } from '@/data/appLink';
-import { useHomeNews, useIndices, useSeedMoney, type MarketIndices, type SeedMoney } from '@/data/home';
+import { fmtMonth, useGoal } from '@/data/goal';
+import { useHomeNews, useIndices, useSeedMoney, useSetSeedManual, type MarketIndices, type SeedMoney } from '@/data/home';
+import { errorText } from '@/lib/api';
 import { fmtMonthDay, upDown, won } from '@/lib/format';
+
+/** 서버 SeedMoneyDtos.MAX_MANUAL_TOTAL과 같다(10억 원) */
+const MAX_MANUAL = 1_000_000_000;
 
 const RANGES = [
   { r: 6, label: '6개월' },
@@ -20,10 +23,11 @@ const RANGES = [
 ];
 
 function SeedHero({ seed }: { seed: SeedMoney }) {
-  const { user } = useSession();
   const [editing, setEditing] = useState(false);
-  // TODO(BE): 저장·되돌리기는 PUT·DELETE /api/v1/me/seed-money/manual(확정 15). 지금은 화면에서만 바뀐다.
-  const [manual, setManual] = useState<number | null>(seed.manual);
+  // 저장·되돌리기: 로그인 회원은 PUT·DELETE /api/v1/me/seed-money/manual(확정 15), 비로그인 체험은 이 탭에서만.
+  const setManual = useSetSeedManual();
+  const [busy, setBusy] = useState(false);
+  const manual = seed.manual;
   const [draft, setDraft] = useState(String(seed.manual ?? seed.confirmed));
   const [error, setError] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
@@ -46,24 +50,42 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
     setDraft(raw === '' ? '' : String(Number(raw)));
   };
 
-  const save = (e: FormEvent) => {
+  const save = async (e: FormEvent) => {
     e.preventDefault();
     if (draft === '') {
       setError('금액을 입력해 주세요.');
       return;
     }
     const n = Math.floor(Number(draft));
-    setManual(n);
-    setEditing(false);
-    setToast(`저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.`);
+    if (n > MAX_MANUAL) {
+      setError(`${won(MAX_MANUAL)}원까지 넣을 수 있어요.`);
+      return;
+    }
+    setBusy(true);
+    try {
+      const { saved } = await setManual(n);
+      setEditing(false);
+      setToast(saved ? `저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.` : `시드머니를 ${won(n)}원으로 바꿨어요. 체험 중이라 저장되지 않아요.`);
+    } catch (err) {
+      setError(errorText(err, '저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const reset = () => {
-    setManual(null);
-    setDraft(String(seed.confirmed));
-    setEditing(false);
-    setConfirmReset(false);
-    setToast(`앱 기록 기준 금액 ${won(seed.confirmed)}원으로 돌아갔어요.`);
+  const reset = async () => {
+    setBusy(true);
+    try {
+      await setManual(null);
+      setDraft(String(seed.confirmed));
+      setEditing(false);
+      setToast(`앱 기록 기준 금액 ${won(seed.confirmed)}원으로 돌아갔어요.`);
+    } catch (err) {
+      setToast(errorText(err, '되돌리지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
+    } finally {
+      setBusy(false);
+      setConfirmReset(false);
+    }
   };
 
   return (
@@ -100,14 +122,16 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
               <span className="unit">원</span>
             </div>
             <p id="seedAmountHelp" className={error ? 'form-error' : 'meta'}>
-              {error || '앱 기록 대신 이 금액을 써요.'}
+              {error || '앱 기록 대신 이 금액을 상단 칩·투자 시뮬레이션에서도 써요.'}
             </p>
           </div>
           <div className="seed-edit-acts">
             <button type="button" className="btn btn-line btn-sm" onClick={() => (setEditing(false), setError(''))}>
               취소
             </button>
-            <button className="btn btn-primary btn-sm">저장</button>
+            <button className="btn btn-primary btn-sm" disabled={busy}>
+              {busy ? '저장 중…' : '저장'}
+            </button>
           </div>
         </form>
       ) : (
@@ -116,7 +140,7 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
             투자 시뮬레이션 해 보기
           </Link>
           <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
-            시드머니 수정
+            수정하기
           </button>
           {manual != null && (
             <button type="button" className="btn btn-text" onClick={() => setConfirmReset(true)}>
@@ -127,20 +151,18 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
       )}
       <div className="hero-foot">
         {seed.todaySaved != null && <span className="meta">오늘 아낀 돈 {won(seed.todaySaved)}원</span>}
-        {seed.isSample ? (
-          <span className="meta">최근 정산 주기마다 평균 {won(seed.avgPerCycle)}원씩 남겼어요</span>
+        {seed.asOf ? (
+          <>
+            <span className="meta">매달 저축할 돈 {won(seed.avgPerCycle)}원</span>
+            <span className="meta">
+              앱에서 확정한 값 · {fmtMonthDay(seed.asOf)}
+              {seed.stale && ' · 지금은 앱 정보를 불러오지 못해 마지막으로 받은 값이에요'}
+            </span>
+          </>
         ) : (
-          <span className="meta">매달 저축할 돈 {won(seed.avgPerCycle)}원</span>
+          <span className="meta">앱을 연동하면 앱에서 모은 시드머니를 불러와요. 수정하기로 직접 넣을 수도 있어요.</span>
         )}
-        <span className="meta">
-          {seed.isSample ? '앱에 입력한 기록 기준' : '앱에서 확정한 값'} · {fmtMonthDay(seed.asOf)}
-          {seed.stale && ' · 지금은 앱 정보를 불러오지 못해 마지막으로 받은 값이에요'}
-        </span>
       </div>
-      <figure className="profile">
-        <img src="/characters/lv3-3.png" alt="" />
-        <figcaption>{displayName(user)}</figcaption>
-      </figure>
       <ConfirmDialog
         open={confirmReset}
         title="직접 입력한 금액을 지울까요?"
@@ -203,8 +225,7 @@ function WhatIf({ seed }: { seed: SeedMoney }) {
   const base = seed.manual ?? seed.confirmed;
   const rows = [
     { to: '/invest', lbl: '예시 대표지수 ETF', val: Math.floor(base * 1.098), dl: '▲ 9.8%', more: '타임머신 열기' },
-    { to: '/savings', lbl: '은행 평균 적금(한국은행)', val: Math.floor(base * 1.032), dl: '▲ 3.2%', more: '적금 비교 열기' },
-    { to: '/mix', lbl: '이자 없이 모아 둔 경우(0%)', val: base, dl: '0%', more: '섞어서 비교하기' },
+    { to: '/savings', lbl: '은행 평균 적금(한국은행)', val: Math.floor(base * 1.032), dl: '▲ 3.2%', more: '적금 모아보기 열기' },
   ];
   return (
     <div className="card">
@@ -294,6 +315,49 @@ function HomeNews() {
   );
 }
 
+/** 로그인한 회원에게만 웹 목표 요약을 보여 준다(goal-ai.md §6). 숫자는 서버 값 그대로 */
+function GoalMini() {
+  const { status } = useSession();
+  const q = useGoal(status === 'member');
+  if (status !== 'member' || !q.data) return null;
+  const g = q.data.goal;
+  if (!g) {
+    return (
+      <div className="card">
+        <h2>목표</h2>
+        <p className="sub" style={{ marginTop: 4 }}>
+          목표 금액과 기한을 정하면 매달 얼마씩 남기면 되는지 알려 드려요.
+        </p>
+        <Link className="btn btn-line btn-sm" to="/goal" style={{ marginTop: 12 }}>
+          목표 세우기
+        </Link>
+      </div>
+    );
+  }
+  const p = g.progress;
+  return (
+    <Link className="card goal-mini" to="/goal" style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+      <div className="card-head" style={{ marginBottom: 4 }}>
+        <h2>{g.name}</h2>
+        <span className="meta">{fmtMonth(g.dueMonth)}까지</span>
+      </div>
+      <p className="num" style={{ fontWeight: 700 }}>
+        {won(p.current)}원 <span className="meta">/ {won(g.amount)}원</span>
+      </p>
+      <div className="goal-track" aria-hidden="true">
+        <span style={{ width: `${p.ratioBp / 100}%` }} />
+      </div>
+      <p className="meta" style={{ marginTop: 8 }}>
+        {p.status === 'REACHED'
+          ? '목표에 닿았어요'
+          : p.status === 'OVERDUE'
+            ? '기한이 지났어요 · 기한을 새로 정해 보세요'
+            : `매달 ${won(p.requiredMonthly ?? 0)}원 남기면 돼요`}
+      </p>
+    </Link>
+  );
+}
+
 const APP_LINK_INTRO = 'app-link-intro';
 
 /**
@@ -365,19 +429,6 @@ export default function Home() {
                   </Link>
                 </div>
               </div>
-            ) : seed.data.history.length === 0 && seed.data.manual == null && seed.data.confirmed === 0 ? (
-              <div className="empty-box card-hero">
-                <h3>아직 모은 돈이 없어요</h3>
-                <p className="sub">앱에 수입·지출을 기록하면 정산 주기가 끝날 때마다 남긴 돈이 쌓여요. 그 전에도 금액을 직접 넣고 굴려볼 수 있어요.</p>
-                <div className="toolbar">
-                  <Link className="btn btn-primary" to="/invest">
-                    금액을 직접 넣고 굴려보기
-                  </Link>
-                  <a className="btn btn-line" href={PLAY_URL} target="_blank" rel="noreferrer">
-                    앱 받기
-                  </a>
-                </div>
-              </div>
             ) : (
               <>
                 <SeedHero seed={seed.data} />
@@ -386,7 +437,8 @@ export default function Home() {
               </>
             )}
           </div>
-          <aside className="col rail" aria-label="오늘의 시장과 소식">
+          <aside className="col rail" aria-label="목표와 오늘의 시장·소식">
+            <GoalMini />
             <MarketCard m={indices.data} />
             <HomeNews />
           </aside>

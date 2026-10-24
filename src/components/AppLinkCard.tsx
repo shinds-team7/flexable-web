@@ -25,10 +25,10 @@ export function AppLinkCard({ member }: { member: boolean }) {
   const { hash } = useLocation();
   const hidden = !member || (q.data !== undefined && !q.data.enabled && !q.data.linked);
 
-  // 홈 안내의 [앱 연동하기](/me#app-link)로 들어오면 카드로 옮기고 코드 입력칸에 커서를 둔다.
+  // 홈 안내의 [앱 연동하기](/me#app-link)로 들어오면 페이지 맨 위에서 시작하고 코드 입력칸에 커서를 둔다.
   useEffect(() => {
     if (hash !== '#app-link' || hidden || q.isPending) return;
-    document.getElementById('app-link')?.scrollIntoView({ block: 'start' });
+    window.scrollTo({ top: 0 });
     document.getElementById('app-link-code')?.focus({ preventScroll: true });
   }, [hash, hidden, q.isPending]);
 
@@ -81,7 +81,7 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
         </p>
       )}
       <p className="v">
-        앱 <b>설정 › 웹 연동 코드 받기</b>에서 받은 8자리 코드를 입력해 주세요. 코드는 10분 동안 한 번만 쓸 수 있어요.
+        앱 <b>설정 › 웹 연동 코드 받기</b>에서 받은 6자리 코드를 입력해 주세요.
       </p>
       <div className="card-sunken" id="app-link-items">
         <p className="k">앱 연동을 위한 개인정보 수집·이용 동의(선택)</p>
@@ -105,11 +105,11 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
           <input
             className="input num"
             id="app-link-code"
-            placeholder="K7M2-Q9XB"
+            placeholder="K7M2Q9"
             autoComplete="off"
             autoCapitalize="characters"
             spellCheck={false}
-            maxLength={20}
+            maxLength={6}
             required
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}

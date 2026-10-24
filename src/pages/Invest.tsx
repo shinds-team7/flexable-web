@@ -36,6 +36,8 @@ type StartChip = 1 | 3 | 5 | 'custom';
 const SIM_PAST = '과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요.';
 /** 저축 속도가 없을 때 첫 결과에 쓰는 예시 월 금액(시연 페르소나 '지수') */
 const INTRO_SAMPLE_MONTHLY = 78_000;
+/** 등락 숫자 앞 ▲▼. 정확히 0이면 무채색(flat)이라 기호를 붙이지 않는다. 공통 arrow는 0을 ▲로 두는 차트와 맞춰야 해서 이 화면에서만 감싼다 */
+const withArrow = (x: number, text: string) => (x === 0 ? text : `${arrow(x)} ${text}`);
 const TOUR: CoachStep[] = [
   {
     target: () => document.querySelector<HTMLElement>('.tm-cond-bar') ?? document.getElementById('tmFilters'),
@@ -153,7 +155,7 @@ export default function Invest() {
   const [formError, setFormError] = useState<string | null>(null);
   const sim = useSimulation(req);
   const searchRef = useRef<HTMLInputElement>(null);
-  // 결과가 나오면 조건 카드를 한 줄 요약으로 접어 차트가 첫 화면에 들어오게 한다. 고치는 중에는 펼친 채로 둔다
+  // 입력 검사를 통과해 계산 요청을 보내면(시세 오류로 끝나도) 조건 카드를 한 줄 요약으로 접어 차트가 첫 화면에 들어오게 한다. 고치는 중에는 펼친 채로 둔다
   const [condOpen, setCondOpen] = useState(true);
   // 처음 열 때 기본값으로 계산한 결과인지. 직접 계산하면 안내를 내린다
   const [isDefault, setIsDefault] = useState(false);
@@ -201,7 +203,7 @@ export default function Invest() {
     }
     setFormError(null);
     setReq(buildReq(legs, w));
-    // 조건 카드 안(결과 보기·비율 수정)에서 계산했으면 접은 뒤 [조건 바꾸기]로 포커스를 옮긴다
+    // 요청을 보냈으면 결과와 관계없이 접는다. 조건 카드 안(결과 보기·비율 수정)에서 보냈으면 [조건 바꾸기]로 포커스를 옮긴다
     const a = document.activeElement;
     const fromForm = !a || a === document.body || !!formRef.current?.contains(a) || !!a.closest('dialog');
     setCondOpen(false);
@@ -321,7 +323,7 @@ export default function Invest() {
                     ))}
                   </ul>
                 </div>
-                <button ref={condBtnRef} type="button" className="btn btn-sm tm-cond-edit" aria-expanded={false} aria-controls="tmFilters" onClick={openCond}>
+                <button ref={condBtnRef} type="button" className="btn btn-sm tm-cond-edit" aria-expanded={false} onClick={openCond}>
                   <Icon id="i-edit" size={16} />
                   조건 바꾸기
                 </button>
@@ -998,7 +1000,7 @@ function Result({
           <div className="tm-stat-top">
             <span className="lbl">{asOf} 평가액</span>
             <span className={'dl num ' + upDown(r.returnRate)}>
-              {arrow(r.returnRate)} {pctTxt(r.returnRate)}
+              {withArrow(r.returnRate, pctTxt(r.returnRate))}
             </span>
           </div>
           <p className="val num">{won(r.finalValue)}원</p>
@@ -1009,7 +1011,7 @@ function Result({
             <span className="meta">세금·수수료 빼기 전</span>
           </div>
           <p className={'val num ' + upDown(r.profit)}>
-            {arrow(r.profit)} {signWon(r.profit)}
+            {withArrow(r.profit, signWon(r.profit))}
           </p>
         </div>
       </div>
@@ -1228,7 +1230,7 @@ function ResultTable({ r, from, to }: { r: SimulationResult; from: number; to: n
                   <td className={'r ' + upDown(p.profit)}>
                     {signWon(p.profit)}
                     <span className="sm">
-                      {arrow(p.returnRate)} {pctTxt(p.returnRate)}
+                      {withArrow(p.returnRate, pctTxt(p.returnRate))}
                     </span>
                   </td>
                   {p.legs.map((l) => (

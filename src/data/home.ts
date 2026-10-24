@@ -1,6 +1,6 @@
-// 홈 화면 데이터. 시드머니는 웹 백엔드(GET /api/v1/me/seed-money)의 앱 연동 값을 쓰고, 연동 전·체험·앱 서버를 부르는 배포(Vercel)는
-// 예시 값(시연 페르소나 '지수')을 돌려준다. 지수·소식은 아직 예시다. isSample=true면 화면이 "예시" 표시를 붙인다.
-import { useQuery } from '@tanstack/react-query';
+// 홈 화면 데이터. 시드머니는 웹 백엔드(GET /api/v1/me/seed-money)의 앱 연동 값과 직접 고친 값(manual)을 쓴다. 비로그인 체험은 예시 값이다.
+// 지수·소식은 아직 예시다. isSample=true면 화면이 "예시" 표시를 붙인다.
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/auth/session';
 import type { SeedPoint } from '@/charts/SeedLineChart';
 import { api } from '@/lib/api';
@@ -10,7 +10,7 @@ export type SeedMoney = {
   confirmed: number; // 확정 시드머니(앱: 모아둔 돈 + 반영한 돈)
   current: number | null; // 이번 주기 남기는 중(확정 전). 앱이 보내지 않아 연동 값에서는 null
   todaySaved: number | null; // 오늘 아낀 돈(표시 전용). 연동 값에서는 null
-  manual: number | null; // 직접 입력한 값(있으면 우선)
+  manual: number | null; // 직접 고친 값(있으면 앱 값보다 우선). 회원은 서버에 저장, 비로그인 체험은 이 탭에서만
   asOf: string; // 기준 시각(앱이 마지막으로 확정한 시각)
   avgPerCycle: number; // 저축 속도. 연동 값은 앱의 매달 저축할 돈(03 §3-4)
   history: SeedPoint[];
@@ -30,6 +30,7 @@ type SeedMoneyResponse = {
   updatedAt: string | null;
   entries: SeedEntry[] | null;
   sync: { status: 'fresh' | 'stale'; syncedAt: string } | null;
+  manual: { total: number; updatedAt: string } | null;
 };
 
 export type MarketIndex = { code: 'KOSPI' | 'KOSDAQ'; name: string; value: number; change: number; changeRate: number };
@@ -39,34 +40,40 @@ export type NewsItem = { id: string; cat: string; title: string; save: string; d
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 
-const months = [74000, 81000, 78000, 79000, 80000, 78000];
-const history: SeedPoint[] = [];
-months.reduce((cum, v, i) => {
-  const d = new Date(2026, 3 + i, 25);
-  history.push({ date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-25`, saved: v, cum: cum + v });
-  return cum + v;
-}, 0);
-
-const SAMPLE: SeedMoney = {
-  confirmed: 470000,
-  current: 120000,
-  todaySaved: 3000,
+// 연동 전 기본값은 0원이다. 앱을 연동하면 앱 값을 불러오고, 직접 고친 금액이 있으면 그 값이 우선한다.
+const EMPTY: SeedMoney = {
+  confirmed: 0,
+  current: null,
+  todaySaved: null,
   manual: null,
-  asOf: '2026-10-17',
-  avgPerCycle: 78000,
-  history,
-  isSample: true,
+  asOf: '',
+  avgPerCycle: 0,
+  history: [],
+  isSample: false,
   stale: false,
 };
+
+// 게스트(로그인 없이 체험) 기본 시드머니. 예시 값이라 화면에 "예시" 표시가 붙는다.
+const GUEST: SeedMoney = { ...EMPTY, confirmed: 4_270_000, isSample: true };
+
+// 서버에 저장하지 않는 직접 고친 금액: 비로그인 체험과 웹 백엔드가 없는 배포(Vercel)만. 이 탭의 메모리에 두고 새로고침하면 사라진다.
+let localManual: number | null = null;
 
 /** 웹 백엔드(같은 출처 /api)를 쓰는 배포인지. 앱 서버를 부르는 배포(Vercel)에는 이 API가 없다. */
 const usesWebBackend = !import.meta.env.VITE_API_URL;
 
-// 직접 수정 저장(PUT·DELETE /me/seed-money/manual)은 아직 없다. 연동하지 않았거나 금액이 없으면 예시를 보여 준다.
+/** 직접 고친 값을 서버에 저장하는지(로그인 회원 + 웹 백엔드). */
+const savesOnServer = (member: boolean) => member && usesWebBackend;
+
 async function fetchSeedMoney(member: boolean): Promise<SeedMoney> {
-  if (!member || !usesWebBackend) return delay(SAMPLE);
+  if (!member) return delay({ ...GUEST, manual: localManual });
+  if (!usesWebBackend) return delay({ ...EMPTY, manual: localManual });
   const r = await api<SeedMoneyResponse>('/me/seed-money');
-  if (r.source !== 'app' || r.status !== 'available' || r.total == null) return SAMPLE;
+  return { ...fromApp(r), manual: r.manual?.total ?? null };
+}
+
+function fromApp(r: SeedMoneyResponse): SeedMoney {
+  if (r.source !== 'app' || r.status !== 'available' || r.total == null) return EMPTY;
   // 그래프: (시작일, 모아둔 돈) 다음에 (주기 종료일, 반영 후 합계). 누적은 앱이 준 값 그대로 쓴다.
   const points: SeedPoint[] = (r.entries ?? []).map((e) => ({ date: e.cycleEnd, saved: e.amount, cum: e.totalAfter }));
   if (r.startedOn && r.base != null && (points.length === 0 || r.startedOn < points[0].date)) {
@@ -111,6 +118,27 @@ export function useSeedMoney() {
   const { status } = useSession();
   const member = status === 'member';
   return useQuery({ queryKey: ['seed-money', member], queryFn: () => fetchSeedMoney(member) });
+}
+
+/**
+ * 시드머니 직접 고치기(null이면 앱 기록 기준으로 되돌림). 로그인 회원은 PUT·DELETE /api/v1/me/seed-money/manual로 저장하고,
+ * 비로그인 체험은 이 탭에서만 바꾼다. 저장이 끝나면 상단 칩·홈·투자 화면이 같은 값을 쓴다. saved: 서버에 저장했는지.
+ */
+export function useSetSeedManual() {
+  const qc = useQueryClient();
+  const member = useSession().status === 'member';
+  return async (n: number | null): Promise<{ saved: boolean }> => {
+    const saved = savesOnServer(member);
+    if (saved) {
+      if (n == null) await api<void>('/me/seed-money/manual', { method: 'DELETE' });
+      else await api<SeedMoneyResponse>('/me/seed-money/manual', { method: 'PUT', json: { total: n } });
+    } else {
+      localManual = n;
+    }
+    qc.setQueriesData<SeedMoney>({ queryKey: ['seed-money', member] }, (old) => (old ? { ...old, manual: n } : old));
+    if (saved) void qc.invalidateQueries({ queryKey: ['seed-money', member] });
+    return { saved };
+  };
 }
 export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: fetchIndices, staleTime: 5 * 60_000 });
 export const useHomeNews = () => useQuery({ queryKey: ['news', 'home'], queryFn: fetchNews });

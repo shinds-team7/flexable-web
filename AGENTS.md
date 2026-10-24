@@ -25,14 +25,14 @@ src/                     웹사이트(Vite + React + TypeScript, React Router, T
   pages/                 화면 하나 = 파일 하나. 경로 목록은 src/App.tsx
   components/            상단 바·공통 틀(Layout), 아이콘
   charts/                drawTimeChart(타임머신, 사건 핀), SeedLineChart(시드머니 꺾은선)
-  data/                  화면 데이터 hook. home.ts는 API 전까지 예시 값(isSample=true)
+  data/                  화면 데이터 hook. 실제 API(market·appLink·goal, home.ts의 시드머니)와 예시 값(isSample=true: 홈 지수·소식, 체험 시드머니, 적금·소식 화면)이 섞여 있다
   auth/                  세션(JWT, localStorage), 카카오·Google 로그인(start → /oauth/callback → exchange)
   lib/                   API 클라이언트, 표시 포맷, 테마
   styles/tokens.css      디자인 토큰(정본, 라이트·다크)
   styles/global.css      공통 클래스(부품 스타일)와 기존 이름 별칭
 mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
 scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
-backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)·앱 연동(applink), 시세·투자 시뮬레이션(market·simulation, 수집은 worker의 ingest)까지 구현. 패키지 책임·API는 backend/README.md
+backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)·앱 연동(applink·seedmoney), 시세·투자 시뮬레이션·사건(market·simulation, 수집은 worker의 ingest), 목표·AI 안내(engagement·ai)까지 구현. 적금·소식·결제·사건 설명은 아직 없다. 패키지 책임·API는 backend/README.md
 deploy/vm/               웹 VM 배포(Docker Compose: nginx·웹 백엔드·MySQL). 실행 설명서 deploy/vm/README.md
 docs/product/            웹 기획·아키텍처·개발 인수인계 정본
 docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
@@ -41,7 +41,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 ## 규칙
 
 - Node는 `^20.19.0 || >=22.12.0`(Vite 8·rolldown). 낮으면 네이티브 바인딩이 설치되지 않는다.
-- **금액·수익률·이자 계산은 서버가 한다.** 웹은 결과를 그리기만 한다(ADR-3). 원 단위 정수, 나눗셈은 내림. `src/data/sampleMarket.ts`는 랜딩 예시 차트 전용이다.
+- **금액·수익률·이자 계산은 서버가 한다.** 웹은 결과를 그리기만 한다(ADR-3). 원 단위 정수, 나눗셈은 내림. `src/data/sampleMarket.ts`는 랜딩 예시 차트 전용이다. 지금 남은 예외는 홈 '굴렸다면'(고정 예시 수익률을 프론트에서 곱함)과 적금 화면(고정 예시 결과)이며, 서버 계산으로 바꿀 대상이다.
 - 화면에 없는 기능을 암시하지 않는다. "계좌 연결", "투자 권유", "추천" 같은 말을 쓰지 않는다. 과거 계산에는 고지 문구를 붙인다(03 §8-3).
 - 예시 데이터를 보여 줄 때는 `isSample`로 "예시" 표시를 붙인다. API가 붙으면 표시가 자동으로 사라진다.
 - 테마는 기본 라이트다. 다크는 사용자가 내 정보에서 고를 때만(`:root[data-theme="dark"]`). 시스템 설정을 따르지 않는다.

@@ -211,6 +211,8 @@ class GoalApiTest {
 		save(1000000, "목표").andExpect(status().isOk()).andExpect(jsonPath("$.goal.seed.source").value("app"))
 			.andExpect(jsonPath("$.goal.seed.current").value(600000)).andExpect(jsonPath("$.goal.seed.pace").value(100000));
 		when(app.seedMoney(anyString())).thenThrow(new com.flexable.web.applink.AppApiException(com.flexable.web.applink.AppApiException.Kind.BUDGET_NOT_SET));
+		// 조회는 저장한 값만 읽으므로, 화면처럼 앱 서버에서 다시 받은 뒤 본다.
+		mvc.perform(post("/api/v1/app-link/refresh").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
 		lookup().andExpect(status().isOk()).andExpect(jsonPath("$.goal.seed.source").value("manual"))
 			.andExpect(jsonPath("$.goal.seed.current").value(470000));
 	}

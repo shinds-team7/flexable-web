@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/auth/session';
 import type { SeedPoint } from '@/charts/SeedLineChart';
 import { api } from '@/lib/api';
-import type { SeedEntry } from './appLink';
+import { refreshAppLink, type SeedEntry } from './appLink';
 
 export type SeedMoney = {
   confirmed: number; // 확정 시드머니(앱: 모아둔 돈 + 반영한 돈)
@@ -29,7 +29,7 @@ type SeedMoneyResponse = {
   startedOn: string | null;
   updatedAt: string | null;
   entries: SeedEntry[] | null;
-  sync: { status: 'fresh' | 'stale'; syncedAt: string } | null;
+  sync: { status: 'fresh' | 'stale'; syncedAt: string; due: boolean } | null;
   manual: { total: number; updatedAt: string } | null;
 };
 
@@ -68,7 +68,9 @@ const savesOnServer = (member: boolean) => member && usesWebBackend;
 async function fetchSeedMoney(member: boolean): Promise<SeedMoney> {
   if (!member) return delay({ ...GUEST, manual: localManual });
   if (!usesWebBackend) return delay({ ...EMPTY, manual: localManual });
-  const r = await api<SeedMoneyResponse>('/me/seed-money');
+  let r = await api<SeedMoneyResponse>('/me/seed-money');
+  // GET은 저장한 값만 준다. 다시 받을 때가 됐으면 앱 서버에서 받아 온 뒤 다시 읽는다(실패하면 저장한 값 그대로).
+  if (r.sync?.due && (await refreshAppLink())) r = await api<SeedMoneyResponse>('/me/seed-money');
   return { ...fromApp(r), manual: r.manual?.total ?? null };
 }
 

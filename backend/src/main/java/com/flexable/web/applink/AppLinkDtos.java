@@ -31,13 +31,14 @@ public final class AppLinkDtos {
 	static final String SYNC_STALE = "stale";
 
 	/**
-	 * GET·POST /api/v1/app-link 응답. 연동이 없으면 linked=false이고 enabled·reason 말고는 null이다.
+	 * GET·POST /api/v1/app-link, POST /api/v1/app-link/refresh 응답. 연동이 없으면 linked=false이고 enabled·reason 말고는 null이다.
 	 *
 	 * @param enabled 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지. false면 화면이 [앱 연동하기]를 숨긴다
-	 * @param reason 미연동일 때만. app_unlinked = 앱에서 해제·앱 탈퇴로 이번 조회에서 연동이 끝남
+	 * @param reason 미연동일 때만. app_unlinked = 앱에서 해제·앱 탈퇴로 이번 다시 받기(refresh)에서 연동이 끝남
 	 * @param account 앱 회원 정보(email은 소셜 계정이면 null일 수 있음)
 	 * @param seedMoney 앱에서 확정한 시드머니(마지막으로 받은 값)
-	 * @param sync fresh = 방금(또는 refreshInterval 안에) 앱 서버에서 받음, stale = 마지막 조회 실패라 syncedAt 기준 값
+	 * @param sync status: fresh = 마지막 확인에서 앱 서버 값을 받음, stale = 마지막 확인 실패라 syncedAt 기준 값.
+	 *     due = 마지막 확인에서 refreshInterval이 지나 다시 받을 때가 됨(화면이 refresh를 부른다)
 	 */
 	public record AppLinkResponse(boolean enabled, boolean linked, String reason, OffsetDateTime linkedAt,
 			Account account, SeedMoney seedMoney, Sync sync) {
@@ -46,7 +47,7 @@ public final class AppLinkDtos {
 			return new AppLinkResponse(enabled, false, reason, null, null, null, null);
 		}
 
-		static AppLinkResponse of(boolean enabled, AppLink l) {
+		static AppLinkResponse of(boolean enabled, AppLink l, boolean due) {
 			String seedStatus = l.getSeedState() == null ? SEED_NOT_RECEIVED : l.getSeedState();
 			LastEntry last = l.getSeedLastCycleEnd() == null ? null
 					: new LastEntry(l.getSeedLastCycleEnd(), l.getSeedLastChoice(), l.getSeedLastAmount(),
@@ -61,7 +62,7 @@ public final class AppLinkDtos {
 					: new SeedMoney(seedStatus, null, null, null, null, null, null, null);
 			return new AppLinkResponse(enabled, true, null, Times.at(l.getCreatedAt()),
 					new Account(l.getAppEmail(), l.getAppProvider()), seed,
-					new Sync(l.stale() ? SYNC_STALE : SYNC_FRESH, Times.at(l.getSyncedAt())));
+					new Sync(l.stale() ? SYNC_STALE : SYNC_FRESH, Times.at(l.getSyncedAt()), due));
 		}
 	}
 
@@ -84,6 +85,6 @@ public final class AppLinkDtos {
 	public record LastEntry(LocalDate cycleEnd, String choice, Long amount, OffsetDateTime createdAt) {
 	}
 
-	public record Sync(String status, OffsetDateTime syncedAt) {
+	public record Sync(String status, OffsetDateTime syncedAt, boolean due) {
 	}
 }

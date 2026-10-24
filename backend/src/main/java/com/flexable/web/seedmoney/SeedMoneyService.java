@@ -24,7 +24,7 @@ public class SeedMoneyService implements UserWithdrawalListener {
 		this.clock = clock;
 	}
 
-	/** 앱 서버 조회(applink)는 트랜잭션 밖에서 하고, 직접 고친 값은 따로 읽는다. */
+	/** 저장한 값만 읽는다. 앱 연동 값은 applink에 저장된 마지막 값이고(앱 서버를 부르지 않음), 직접 고친 값은 따로 읽는다. */
 	public SeedMoneyResponse get(long userId) {
 		var link = appLinks.status(userId);
 		return SeedMoneyResponse.of(link, Manual.of(manuals.findById(userId).orElse(null)));

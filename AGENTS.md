@@ -48,7 +48,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 - 색·모서리·간격은 `src/styles/tokens.css`의 토큰(`var(--color-brand-primary)`, `var(--radius-soft)`, `var(--density-control)` 등)만 쓴다. 강조 색은 브랜드 블루 하나. 상승은 빨강(`--color-rise`), 하락은 파랑(`--color-fall`)이고 등락 숫자에는 ▲▼를 붙인다.
 - **개인정보처리방침은 웹·앱이 각자 둔다**(같은 운영자, 처리 내용이 다름). 웹이 처리하는 개인정보(저장 항목·브라우저 저장·로그·외부 전송·보관 기간)가 바뀌는 코드는 같은 PR에서 `src/pages/Privacy.tsx`와 `docs/product/privacy-web.md`를 고친다. 운영자·보호책임자·문의처 등 공통 문구는 앱 방침과 같게 둔다. 이용약관·고객지원은 아직 앱 웹(`src/lib/legal.ts`의 `LEGAL_BASE`) 것을 쓴다.
 - `mobile-demo/`는 시연 전용이다. 실제 서비스 API를 부르지 않는다. 버전은 `mobile-demo/src/demo/version.ts`(태그 `demo-v*`).
-- 브랜치 `SXXNHU/<종류>-<내용>`, 커밋 `feat(web): 한국어 요약` / `fix(m): …`, `main`에 PR로 머지.
+- 브랜치 `<종류>-<내용>`, 커밋 `feat(web): 한국어 요약` / `fix(m): …`, `main`에 PR로 머지.
 - **저장소는 공개(PUBLIC)다.** 비밀번호·키·개인 계정 정보를 코드·문서·커밋에 넣지 않는다.
 
 ## 검증 명령

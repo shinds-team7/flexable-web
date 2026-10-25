@@ -1,69 +1,69 @@
-# AGENTS.md
+# 공통 개발 지침(flexable-web)
 
-이 저장소에서 일하는 AI(Claude·Codex·Cursor·Gemini 등)와 사람이 먼저 읽는 안내.
+텅장관리(Flex-able) 데스크톱 웹이다. 화면은 `src/`(Vite·React·TS), 웹 서버는 `backend/`(Spring)이고 앱과 서버·DB·계정을 따로 쓴다. 앱은 별도 저장소 [`shinds-team7/flexable-app`](https://github.com/shinds-team7/flexable-app)(문서의 "project2")다. 파트별 지침은 `backend/AGENTS.md`에 있다. 이 파일에는 무엇을 읽고 어떻게 작업할지만 적고, 제품 내용은 아래 문서에 둔다.
 
-## 무엇을 만드는가
+## 기준 문서(저장소가 유일한 기준본)
 
-텅장관리(Flex-able) **데스크톱 웹사이트**. 앱에서 모은 시드머니로 지난 주식·적금을 실험해 보고(투자 시뮬레이션·적금 비교·섞어보기), 목표를 세우고, 청년 금융 소식을 보는 곳이다.
-이 저장소는 웹 제품 전체의 개발 거점이다. 현재 Vercel 배포본은 팀원이 기능 구현을 이어갈 초기 UI·로그인 기반이며, 예시 데이터·준비 중 화면은 현재 상태이지 개발 범위를 제한하는 규칙이 아니다. 웹 기능 담당자는 화면뿐 아니라 API 계약·서버 로직·데이터·통합 검증까지 완료한다. 웹 서버는 이 저장소 `backend/`에서 만든다(앱과 서버·DB·계정 분리). 앱 저장소에는 앱 연동에 필요한 API·화면만 연계 PR로 올린다.
-
-앱(하루 예산 관리)은 별도 저장소 [`shinds-team7/flexable-app`](https://github.com/shinds-team7/flexable-app)(이전 이름 project2. 이 저장소 문서의 "project2"는 앱 저장소를 뜻한다)에 있고, 앱 서버·앱 계정도 그쪽 `backend/`다. 웹과 앱은 같은 운영자(우리 팀)의 서비스다. 웹은 자기 계정·서버·DB를 따로 쓰고, 사용자가 [앱 연동하기]를 했을 때만 앱 정보를 받아 온다.
-
-| 알고 싶은 것 | 어디 |
+| 무엇 | 어디 |
 |---|---|
-| 기능·화면·아키텍처·일정(정본) | [docs/product/README.md](docs/product/README.md) → 기획·디자인·아키텍처·결정·인수인계 |
-| 화면 설계 샘플 | [`docs/reference/wireframes.html`](docs/reference/wireframes.html) (이 저장소의 설계 샘플 정본). 옮기는 규칙은 [`docs/reference/README.md`](docs/reference/README.md) |
-| API 계약 | 웹 API는 [`backend/README.md`](backend/README.md) "API". 웹 서버가 부르는 앱 연동 API(`/internal/v1`)는 [앱 docs/API.md](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) "웹사이트 연동" |
-| 개인정보처리방침 | 웹 원문 [`src/pages/Privacy.tsx`](src/pages/Privacy.tsx), 항목별 근거·시행 절차 [`docs/product/privacy-web.md`](docs/product/privacy-web.md). 앱 방침은 앱 저장소 |
+| 서비스 목적·범위·화면·아키텍처 | [docs/product/README.md](docs/product/README.md) → 01 기획·02 디자인·03 아키텍처·04 서비스 경계 |
+| API 계약 | 웹 [backend/README.md](backend/README.md) "API", 앱 연동 `/internal/v1`은 [앱 docs/API.md](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) |
+| 결정 기록 | 새 결정은 [docs/decisions/](docs/decisions/), 10-18~10-24 결정은 [docs/product/decisions.md](docs/product/decisions.md) |
+| 문서 변경 이력 | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
+| 진행 현황·할 일 | [docs/product/HANDOFF.md](docs/product/HANDOFF.md) |
+| 개인정보처리방침 | [src/pages/Privacy.tsx](src/pages/Privacy.tsx), 근거 [docs/product/privacy-web.md](docs/product/privacy-web.md) |
+| 작업 방식 자체 | [docs/decisions/2026-10-25-dev-process.md](docs/decisions/2026-10-25-dev-process.md) |
 
-앱·웹 서버 분리, 웹 계정, 앱 연동, 웹 API 경로, worker 규칙은 [docs/product/04-service-boundaries.md](docs/product/04-service-boundaries.md)를 따른다. 기획 문서를 현재 구현으로 오인하지 않는다.
+회의·메신저에서 합의한 내용과 채팅에 붙여 넣은 기획은 PR로 저장소에 반영되기 전까지 개발 기준이 아니다. 저장소 문서와 다르면 저장소를 따르고 차이를 알린다. 기획 문서의 계획을 현재 구현으로 오인하지 않는다(각 문서의 "현재 구현" 상자 확인).
 
-## 구조
+## 작업 시작 전
 
-```text
-src/                     웹사이트(Vite + React + TypeScript, React Router, TanStack Query)
-  pages/                 화면 하나 = 파일 하나. 경로 목록은 src/App.tsx
-  components/            상단 바·공통 틀(Layout), 아이콘
-  charts/                drawTimeChart(타임머신, 사건 핀), SeedLineChart(시드머니 꺾은선)
-  data/                  화면 데이터 hook. 실제 API(market·appLink·goal, home.ts의 시드머니)와 예시 값(isSample=true: 홈 지수·소식, 체험 시드머니, 적금·소식 화면)이 섞여 있다
-  auth/                  세션(JWT, localStorage), 카카오·Google 로그인(start → /oauth/callback → exchange)
-  lib/                   API 클라이언트, 표시 포맷, 테마
-  styles/tokens.css      디자인 토큰(정본, 라이트·다크)
-  styles/global.css      공통 클래스(부품 스타일)와 기존 이름 별칭
-mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
-scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
-backend/                 웹 서버(Spring Boot). 웹 계정(auth·user)·앱 연동(applink·seedmoney), 시세·투자 시뮬레이션·사건(market·simulation, 수집은 worker의 ingest), 목표·AI 안내(engagement·ai)까지 구현. 적금·소식·결제·사건 설명은 아직 없다. 패키지 책임·API는 backend/README.md
-deploy/vm/               웹 VM 배포(Docker Compose: nginx·웹 백엔드·MySQL). 실행 설명서 deploy/vm/README.md
-docs/product/            웹 기획·아키텍처·개발 인수인계 정본
-docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
-```
+- 이번 Issue의 목표·참고 자료·범위·완료 조건을 읽는다. Issue가 없으면 범위와 완료 조건부터 확인한다.
+- Issue가 가리키는 문서와 API 계약을 저장소에서 직접 읽는다.
+- `docs/CHANGELOG.md` 최근 항목을 확인한다.
+- 구현 전에 작업 범위, 참고한 문서, 완료 조건을 요약한다.
 
-## 규칙
+## 작업 중
 
-- Node는 `^20.19.0 || >=22.12.0`(Vite 8·rolldown). 낮으면 네이티브 바인딩이 설치되지 않는다.
-- **금액·수익률·이자 계산은 서버가 한다.** 웹은 결과를 그리기만 한다(ADR-3). 원 단위 정수, 나눗셈은 내림. `src/data/sampleMarket.ts`는 랜딩 예시 차트 전용이다. 지금 남은 예외는 홈 '굴렸다면'(고정 예시 수익률을 프론트에서 곱함)과 적금 화면(고정 예시 결과)이며, 서버 계산으로 바꿀 대상이다.
-- 화면에 없는 기능을 암시하지 않는다. "계좌 연결", "투자 권유", "추천" 같은 말을 쓰지 않는다. 과거 계산에는 고지 문구를 붙인다(03 §8-3).
-- 예시 데이터를 보여 줄 때는 `isSample`로 "예시" 표시를 붙인다. API가 붙으면 표시가 자동으로 사라진다.
-- 테마는 기본 라이트다. 다크는 사용자가 내 정보에서 고를 때만(`:root[data-theme="dark"]`). 시스템 설정을 따르지 않는다.
-- 색·모서리·간격은 `src/styles/tokens.css`의 토큰(`var(--color-brand-primary)`, `var(--radius-soft)`, `var(--density-control)` 등)만 쓴다. 강조 색은 브랜드 블루 하나. 상승은 빨강(`--color-rise`), 하락은 파랑(`--color-fall`)이고 등락 숫자에는 ▲▼를 붙인다.
-- **개인정보처리방침은 웹·앱이 각자 둔다**(같은 운영자, 처리 내용이 다름). 웹이 처리하는 개인정보(저장 항목·브라우저 저장·로그·외부 전송·보관 기간)가 바뀌는 코드는 같은 PR에서 `src/pages/Privacy.tsx`와 `docs/product/privacy-web.md`를 고친다. 운영자·보호책임자·문의처 등 공통 문구는 앱 방침과 같게 둔다. 이용약관·고객지원은 아직 앱 웹(`src/lib/legal.ts`의 `LEGAL_BASE`) 것을 쓴다.
-- `mobile-demo/`는 시연 전용이다. 실제 서비스 API를 부르지 않는다. 버전은 `mobile-demo/src/demo/version.ts`(태그 `demo-v*`).
-- 브랜치 `<종류>-<내용>`, 커밋 `feat(web): 한국어 요약` / `fix(m): …`, `main`에 PR로 머지.
-- **저장소는 공개(PUBLIC)다.** 비밀번호·키·개인 계정 정보를 코드·문서·커밋에 넣지 않는다.
+- 문서끼리 충돌하거나 정책이 없으면 임의로 확정하지 않고 알린다.
+- 작업 요청 없이 `docs/` 문서를 고치지 않는다.
+- API 응답은 계약과 맞춘다. 계약을 바꿔야 하면 구현하지 말고 먼저 알린다.
+- 정책에 없는 결정은 PR의 "새로 내린 결정" 칸에 적는다. 다른 파트(앱·프론트·백엔드)에 영향을 주면 `docs/decisions/`에 기록한다.
+- 제품 공통 규칙:
+  - **금액·수익률·이자 계산은 서버가 한다**(ADR-3). 원 단위 정수, 나눗셈은 내림.
+  - 화면에 없는 기능을 암시하지 않는다. "계좌 연결", "투자 권유", "추천" 같은 말을 쓰지 않고, 과거 계산에는 고지 문구를 붙인다(01 §7).
+  - 예시 데이터에는 `isSample`로 "예시" 표시를 붙인다.
+  - 색·모서리·간격은 `src/styles/tokens.css` 토큰만 쓴다. 강조 색은 브랜드 블루 하나이고, 상승은 빨강 ▲, 하락은 파랑 ▼이다. 테마는 기본 라이트이고, 다크는 사용자가 고를 때만이다.
+  - 웹이 처리하는 개인정보(저장 항목·브라우저 저장·로그·외부 전송·보관 기간)를 바꾸면, 같은 PR에서 `Privacy.tsx`와 `privacy-web.md`를 고친다.
+  - `mobile-demo/`는 시연 전용이라 실제 API를 부르지 않는다(버전 `mobile-demo/src/demo/version.ts`).
+  - **공개 저장소다.** 비밀번호·키·개인 계정 정보를 코드·문서·커밋에 넣지 않는다.
+
+## 작업 완료 시
+
+- 아래 검증 명령을 돌리고 결과를 그대로 보고한다.
+- PR 템플릿을 채운다: Issue(`Closes #번호`), 참고한 문서, 영향받는 파트, 새로 내린 결정, 검증 결과.
+- 기준 문서·계약·정책·지침(`AGENTS.md`)을 바꾼 PR에는 `spec-change` 라벨을 붙이고 `docs/CHANGELOG.md`에 한 줄을 더한다. CI(`pr-rules`)가 검사한다.
+- 브랜치는 `<종류>-<내용>`, 커밋은 `feat(web): 한국어 요약`·`fix(m): …` 형식이다. `main`에는 PR로 머지한다.
+
+## `spec-change` PR이 병합되면
+
+작업 브랜치를 최신 `main`에 rebase하고 CI를 확인한다. 그다음 AI 세션을 새로 시작한다. 진행 중인 세션을 이어 가야 하면 "`docs/CHANGELOG.md`의 최신 항목을 읽고, 변경된 문서를 확인해서 현재 구현과 테스트에 필요한 변경을 먼저 정리해줘"라고 요청한다.
 
 ## 검증 명령
+
+Node `^20.19.0 || >=22.12.0`, Java 21.
 
 ```bash
 npm ci && npm --prefix mobile-demo ci
 npm run typecheck          # 웹 tsc + 시연 tsc
 npm run build              # 웹 빌드 + 시연 빌드(/m) → dist/
 npm --prefix mobile-demo run lint
-(cd backend && ./gradlew test)   # 웹 백엔드 빌드·테스트(Java 21)
+(cd backend && ./gradlew build)   # 웹 백엔드 빌드·테스트
 ```
 
-로컬 실행은 README의 "로컬에서 띄우기"를 본다. 코드를 바꿨으면 위 검사를 돌리고 결과를 그대로 보고한다.
+로컬 실행은 README "로컬에서 띄우기"를 본다.
 
 ## 하지 않는 것
 
-- 배포 설정 변경 없이 Vercel 운영 배포를 직접 실행하지 않는다(`main` 머지 → 자동 배포).
-- 앱 서버(flexable-app `backend/`)·웹 서버의 `.env`·운영 DB를 건드리지 않는다. 서비스 키·암호화 키 같은 비밀 값은 사람이 서버 환경변수에 넣는다.
+- Vercel 운영 배포를 직접 실행하지 않는다(`main` 머지 → 자동 배포).
+- 앱 서버(flexable-app `backend/`)·웹 서버의 `.env`·운영 DB를 건드리지 않는다. 비밀 값은 사람이 서버 환경 변수에 넣는다.

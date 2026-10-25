@@ -1,0 +1,11 @@
+# 공통 정책·계약·지침은 리드가 확인하고 병합한다(docs/decisions/2026-10-25-dev-process.md).
+# 이 경로를 고친 PR은 아래 사람의 리뷰가 필요하다(main 보호 설정).
+/AGENTS.md                @SXXNHU
+/backend/AGENTS.md        @SXXNHU
+/docs/PRD.md              @SXXNHU
+/docs/policies.md         @SXXNHU
+/docs/contracts/          @SXXNHU
+/docs/decisions/          @SXXNHU
+/tests/policy/            @SXXNHU
+/.github/CODEOWNERS       @SXXNHU
+/.github/workflows/       @SXXNHU

@@ -6,7 +6,8 @@
 
 | 무엇 | 어디 |
 |---|---|
-| 서비스 목적·범위·화면·아키텍처 | [docs/product/README.md](docs/product/README.md) → 01 기획·02 디자인·03 아키텍처·04 서비스 경계 |
+| 서비스 목적·사용자·기능·범위 | [docs/PRD.md](docs/PRD.md) (근거·화면·구조는 [docs/product/](docs/product/README.md) 01~04) |
+| 계산·상태 규칙과 예시 표 | [docs/policies.md](docs/policies.md) = [tests/policy/](tests/policy/) 테스트 |
 | API 계약 | 웹 [backend/README.md](backend/README.md) "API", 앱 연동 `/internal/v1`은 [앱 docs/API.md](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) |
 | 결정 기록 | 새 결정은 [docs/decisions/](docs/decisions/), 10-18~10-24 결정은 [docs/product/decisions.md](docs/product/decisions.md) |
 | 문서 변경 이력 | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
@@ -19,7 +20,7 @@
 ## 작업 시작 전
 
 - 이번 Issue의 목표·참고 자료·범위·완료 조건을 읽는다. Issue가 없으면 범위와 완료 조건부터 확인한다.
-- Issue가 가리키는 문서와 API 계약을 저장소에서 직접 읽는다.
+- `docs/PRD.md`에서 목적과 범위를, Issue와 관련된 `docs/policies.md` 항목과 API 계약을 저장소에서 직접 읽는다.
 - `docs/CHANGELOG.md` 최근 항목을 확인한다.
 - 구현 전에 작업 범위, 참고한 문서, 완료 조건을 요약한다.
 
@@ -40,7 +41,7 @@
 
 ## 작업 완료 시
 
-- 아래 검증 명령을 돌리고 결과를 그대로 보고한다.
+- `tests/policy/`를 포함한 아래 검증 명령을 돌리고 결과를 그대로 보고한다.
 - PR 템플릿을 채운다: Issue(`Closes #번호`), 참고한 문서, 영향받는 파트, 새로 내린 결정, 검증 결과.
 - 기준 문서·계약·정책·지침(`AGENTS.md`)을 바꾼 PR에는 `spec-change` 라벨을 붙이고 `docs/CHANGELOG.md`에 한 줄을 더한다. CI(`pr-rules`)가 검사한다.
 - 브랜치는 `<종류>-<내용>`, 커밋은 `feat(web): 한국어 요약`·`fix(m): …` 형식이다. `main`에는 PR로 머지한다.

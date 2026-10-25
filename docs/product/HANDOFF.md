@@ -1,5 +1,24 @@
 # 웹 개발 인수인계
 
+## 2026-10-26(월) 출근하자마자: solpa VM에 `main` 반영
+
+solpa는 10-23 #50(`2c3c1eb`, Flyway V8)에 멈춰 있다. 그 뒤 머지된 것은 Vercel에만 자동 배포됐고 solpa에는 없다. VM은 수동으로 반영한다([웹 운영 현황](#2026-10-21-웹-운영-현황solpa-vm)). 10-25에는 VM·운영 DB·`.env`를 건드리지 않았다.
+
+solpa에 새로 들어가는 것(#50 이후 `backend/src/main`·`deploy/`·방침·화면 변경):
+- **Flyway V9 `seed_money_manual`**(#55): 홈 [수정하기] 저장, `PUT·DELETE /api/v1/me/seed-money/manual`. 운영 DB 구조가 바뀌므로 반영 전에 팀에 알린다
+- 웹 방침 10-24 개정: 제2·4조 시드머니 직접 수정, 제3조 체험 안내. 시행 7일 전 고지는 하지 않는다(10-24 결정)
+- #57 앱 연동 조회 GET 읽기 전용, 다시 받기는 `POST /app-link/refresh`
+- #58 탈퇴 시 카카오 연결 끊기를 트랜잭션 커밋 뒤로
+- 화면: #52 헤더 메뉴·내 정보·앱 연동 화면 정리·연동 코드 6자리, 시드머니 기본값·홈 정리, 플러스 화면 단순화
+
+할 일:
+- [ ] 팀에 "solpa 반영, V9 마이그레이션 적용" 알리기
+- [ ] VM에서 [`deploy/vm/README.md`](../../deploy/vm/README.md) 순서대로 반영: `cd ~/flexable-web/deploy/vm && ./backup.sh` → `backups/`에 새 덤프가 생겼는지 확인(없으면 멈춤) → `cd ~/flexable-web && git status`(브랜치가 `main`이고 깨끗한지) → `git pull` → `cd deploy/vm && docker compose ps`로 worker가 켜져 있는지 본 뒤 `docker compose up -d --build`(worker가 켜져 있었으면 `docker compose --profile worker up -d --build`)
+- [ ] 확인: `curl -s localhost/api/v1/health`가 `{"status":"UP"}`, `docker compose logs api --tail 100`에 Flyway V9 적용, `git log -1`이 반영 시점 `origin/main`과 같음
+- [ ] 화면 확인(https://solpa.shinhanacademy.co.kr): 로그인 → 홈 [수정하기] 저장 후 새로고침해도 값 유지 → [기록 기준으로 되돌리기] → 방침 화면에 10-24 변경 이력 → 내 정보 앱 연동 화면
+- [ ] 반영 뒤 이 절과 [웹 운영 현황](#2026-10-21-웹-운영-현황solpa-vm)의 "10-23 `main` #50까지 반영, Flyway V8"을 실제 반영 커밋·V9로 고친다
+- [ ] 반영이 끝나면 10-22에 남긴 "실제 시세·사건으로 확인"(투자 결과 첫 핀 메모·둘러보기 3·4단계)도 이어서 본다
+
 ## 2026-10-25 작업 방식 도입(팀원 모두 읽기)
 
 팀 개발 진행 가이드를 저장소에 적용했다. 정본은 [작업 방식 결정 기록](../decisions/2026-10-25-dev-process.md), 요약은 루트 [AGENTS.md](../../AGENTS.md)다.

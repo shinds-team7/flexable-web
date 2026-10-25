@@ -8,7 +8,7 @@
 |---|---|
 | 서비스 목적·사용자·기능·범위 | [docs/PRD.md](docs/PRD.md) (근거·화면·구조는 [docs/product/](docs/product/README.md) 01~04) |
 | 계산·상태 규칙과 예시 표 | [docs/policies.md](docs/policies.md) = [tests/policy/](tests/policy/) 테스트 |
-| API 계약 | 웹 [backend/README.md](backend/README.md) "API", 앱 연동 `/internal/v1`은 [앱 docs/API.md](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) |
+| API 계약(OpenAPI) | 웹 [docs/contracts/web-api.yaml](docs/contracts/web-api.yaml)(정본, 사용법 [README](docs/contracts/README.md)). 앱 연동 `/internal/v1`은 [앱 docs/API.md](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) |
 | 결정 기록 | 새 결정은 [docs/decisions/](docs/decisions/), 10-18~10-24 결정은 [docs/product/decisions.md](docs/product/decisions.md) |
 | 문서 변경 이력 | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | 진행 현황·할 일 | [docs/product/HANDOFF.md](docs/product/HANDOFF.md) |
@@ -28,7 +28,7 @@
 
 - 문서끼리 충돌하거나 정책이 없으면 임의로 확정하지 않고 알린다.
 - 작업 요청 없이 `docs/` 문서를 고치지 않는다.
-- API 응답은 계약과 맞춘다. 계약을 바꿔야 하면 구현하지 말고 먼저 알린다.
+- API 응답은 `docs/contracts/web-api.yaml`과 맞춘다(백엔드 `ContractTest`가 검사). 계약을 바꿔야 하면 구현하지 말고 먼저 알린다. 프론트 타입은 `npm run gen:api`로 만들고, 백엔드 없이 화면을 만들 때는 `npm run mock:api` + `npm run dev:mock`.
 - 정책에 없는 결정은 PR의 "새로 내린 결정" 칸에 적는다. 다른 파트(앱·프론트·백엔드)에 영향을 주면 `docs/decisions/`에 기록한다.
 - 제품 공통 규칙:
   - **금액·수익률·이자 계산은 서버가 한다**(ADR-3). 원 단위 정수, 나눗셈은 내림.

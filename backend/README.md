@@ -54,6 +54,8 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 
 ## API
 
+> **정본은 [`docs/contracts/web-api.yaml`](../docs/contracts/web-api.yaml)(OpenAPI)이다.** 아래 표는 읽기 쉬운 요약이고, 다르면 스펙을 따른다. `contract.ContractTest`가 실제 응답을 스펙으로 검사한다.
+
 웹 백엔드는 자기 서버이므로 `/api/v1/...`를 그대로 쓴다(`/web` 접두어 없음). 금액·수익률 계산은 서버가 하고 원 단위 정수, 나눗셈은 내림. 오류는 `{ code, message, ... }`(project2와 같은 형식), 시각은 `+09:00` 붙은 ISO-8601.
 
 | 메서드·경로 | 인증 | 내용 |

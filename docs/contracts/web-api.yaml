@@ -1,0 +1,907 @@
+openapi: 3.0.3
+info:
+  title: 텅장관리 웹 API
+  version: 1.0.0
+  description: |
+    브라우저(웹 프론트) ↔ 웹 백엔드(Spring) 계약. 이 파일이 정본이다.
+    - 백엔드 `ContractTest`가 실제 응답을 이 스펙으로 검사한다(정의되지 않은 필드도 실패).
+    - 프론트 타입은 `npm run gen:api`로 `src/lib/api-schema.d.ts`에 만들고, 목 서버는 `npm run mock:api`.
+    - 바꿀 때는 구현보다 먼저 이 파일을 고치는 PR(`spec-change` 라벨 + docs/CHANGELOG.md)을 올린다.
+    - 금액은 원 단위 정수, 비율·수익률은 소수(0.05 = 5%), 시각은 +09:00이 붙은 ISO-8601이다.
+    - 웹 백엔드가 부르는 앱 서버 `/internal/v1`은 앱 저장소 계약을 따른다.
+servers:
+  - url: /api/v1
+security:
+  - bearer: []
+tags:
+  - name: auth
+  - name: user
+  - name: seed-money
+  - name: app-link
+  - name: goal
+  - name: market
+  - name: simulation
+  - name: health
+
+paths:
+  /auth/signup:
+    post:
+      tags: [auth]
+      summary: 웹 이메일 가입
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, agreeTerms]
+              properties:
+                email: { type: string, maxLength: 254 }
+                password: { type: string, minLength: 8, maxLength: 64, description: '영문과 숫자를 모두 포함' }
+                agreeTerms: { type: boolean, description: 'true여야 한다' }
+      responses:
+        '201': { $ref: '#/components/responses/Auth' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: 웹 이메일 로그인
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Auth' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: 이 회원의 웹 토큰을 모든 기기에서 폐기
+      responses:
+        '204': { description: '폐기함' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/oauth/providers:
+    get:
+      tags: [auth]
+      summary: 설정된 소셜 로그인 공급자
+      security: []
+      responses:
+        '200':
+          description: 공급자 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [providers]
+                additionalProperties: false
+                properties:
+                  providers:
+                    type: array
+                    items: { type: string, enum: [kakao, google] }
+  /auth/oauth/{provider}/start:
+    get:
+      tags: [auth]
+      summary: 공급자 로그인으로 이동(PKCE S256)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+        - { name: redirectUri, in: query, required: true, schema: { type: string } }
+        - { name: codeChallenge, in: query, required: true, schema: { type: string } }
+      responses:
+        '302': { description: '공급자 로그인 화면 또는 redirectUri?error=' }
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [auth]
+      summary: 공급자가 부르는 콜백
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        '302': { description: 'redirectUri?code=(2분, 한 번) 또는 ?error=cancelled|provider_unavailable|email_in_use|failed' }
+  /auth/oauth/exchange:
+    post:
+      tags: [auth]
+      summary: 콜백 code를 웹 토큰으로 교환
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, codeVerifier]
+              properties:
+                code: { type: string }
+                codeVerifier: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Auth' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /me:
+    get:
+      tags: [user]
+      summary: 내 웹 계정
+      responses:
+        '200':
+          description: 계정
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [user]
+      summary: 웹 탈퇴(이메일 계정은 password, 소셜이 붙은 계정은 confirm="탈퇴"). 비밀번호가 틀리면 401 INVALID_CREDENTIALS
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string }
+                confirm: { type: string }
+      responses:
+        '204': { description: '탈퇴함' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /me/settings:
+    get:
+      tags: [user]
+      summary: 화면 설정
+      responses:
+        '200': { $ref: '#/components/responses/Settings' }
+        '401': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [user]
+      summary: 보낸 필드만 바꾼다(seenTours는 병합, disclaimerAck=true는 서버 시각 기록)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                theme: { type: string, enum: [light, dark] }
+                seenTours:
+                  type: array
+                  maxItems: 24
+                  items: { type: string, pattern: '^[a-z0-9][a-z0-9-]{0,39}$' }
+                disclaimerAck: { type: boolean }
+      responses:
+        '200': { $ref: '#/components/responses/Settings' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /me/seed-money:
+    get:
+      tags: [seed-money]
+      summary: 웹 시드머니(앱 연동 값 + 직접 수정 값). 적용 규칙은 docs/policies.md §1
+      responses:
+        '200': { $ref: '#/components/responses/SeedMoney' }
+        '401': { $ref: '#/components/responses/Error' }
+  /me/seed-money/manual:
+    put:
+      tags: [seed-money]
+      summary: 직접 고친 시드머니 저장(0~10억 원 정수, 덮어쓰기)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [total]
+              properties:
+                total: { type: integer, format: int64, minimum: 0, maximum: 1000000000 }
+      responses:
+        '200': { $ref: '#/components/responses/SeedMoney' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [seed-money]
+      summary: 직접 고친 값을 지우고 앱 기록 기준으로(없어도 204)
+      responses:
+        '204': { description: '지움' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /app-link:
+    get:
+      tags: [app-link]
+      summary: 연동 상태(저장한 마지막 값, 앱 서버를 부르지 않음)
+      responses:
+        '200': { $ref: '#/components/responses/AppLink' }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [app-link]
+      summary: 앱에서 받은 6자리 코드로 연동
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, maxLength: 20, pattern: '^[A-Za-z0-9 -]*$' }
+      responses:
+        '201': { $ref: '#/components/responses/AppLink' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [app-link]
+      summary: 연동 해제(앱 서버 장애면 503이고 연동은 남음)
+      responses:
+        '204': { description: '해제함' }
+        '401': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /app-link/refresh:
+    post:
+      tags: [app-link]
+      summary: sync.due이면 앱 서버에서 다시 받기
+      responses:
+        '200': { $ref: '#/components/responses/AppLink' }
+        '401': { $ref: '#/components/responses/Error' }
+
+  /me/goal:
+    get:
+      tags: [goal]
+      summary: 목표와 AI 안내 사용량. 계산 규칙은 docs/policies.md §3
+      responses:
+        '200': { $ref: '#/components/responses/Goal' }
+        '401': { $ref: '#/components/responses/Error' }
+    put:
+      tags: [goal]
+      summary: 목표 하나 만들기·고치기(version 증가)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, name, amount, dueMonth]
+              properties:
+                category: { $ref: '#/components/schemas/GoalCategory' }
+                name: { type: string, minLength: 1, maxLength: 20 }
+                amount: { type: integer, format: int64, minimum: 10000, maximum: 1000000000 }
+                dueMonth: { type: string, pattern: '^\d{4}-\d{2}$', description: '다음 달부터 120개월 안' }
+                currentAmount: { type: integer, format: int64, nullable: true }
+                monthlyPace: { type: integer, format: int64, nullable: true }
+      responses:
+        '200': { $ref: '#/components/responses/Goal' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [goal]
+      summary: 목표·코치 삭제(없어도 204, 사용 횟수는 유지)
+      responses:
+        '204': { description: '지움' }
+        '401': { $ref: '#/components/responses/Error' }
+  /me/goal/coach:
+    post:
+      tags: [goal]
+      summary: AI 안내(실패해도 기본 안내 + fallbackReason). docs/policies.md §4
+      responses:
+        '200':
+          description: 안내
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [coach, ai]
+                additionalProperties: false
+                properties:
+                  coach: { $ref: '#/components/schemas/Coach' }
+                  ai: { $ref: '#/components/schemas/AiStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+
+  /market/instruments:
+    get:
+      tags: [market]
+      summary: 시장별 시가총액 상위 종목(아직 수집 전이면 items 빈 목록)
+      security: []
+      parameters:
+        - { name: board, in: query, required: true, schema: { $ref: '#/components/schemas/Board' } }
+      responses:
+        '200':
+          description: 종목 목록
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardListing' }
+        '400': { $ref: '#/components/responses/Error' }
+  /market/events/{id}:
+    get:
+      tags: [market]
+      summary: 사건 상세(설명 전에는 수치로 만든 사실 문장, aiGenerated=false)
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200':
+          description: 사건
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventDetail' }
+        '404': { $ref: '#/components/responses/Error' }
+  /market/status:
+    get:
+      tags: [market]
+      summary: 시세 수집 상태
+      security: []
+      responses:
+        '200':
+          description: 상태
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pricesAsOf, instrumentsAsOf, instruments, empty]
+                additionalProperties: false
+                properties:
+                  pricesAsOf: { type: string, format: date, nullable: true }
+                  instrumentsAsOf: { type: string, format: date, nullable: true }
+                  instruments: { type: integer }
+                  empty: { type: boolean }
+
+  /simulations/run:
+    post:
+      tags: [simulation]
+      summary: 투자 시뮬레이션(로그인 없이, 저장하지 않음). 계산 규칙은 docs/policies.md §2
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startDate, funding, legs]
+              properties:
+                startDate: { type: string, format: date, description: '그 달 1일로 맞춘다' }
+                funding:
+                  type: object
+                  required: [mode]
+                  properties:
+                    mode: { $ref: '#/components/schemas/FundingMode' }
+                    totalAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000, nullable: true, description: 'LUMP_SUM일 때' }
+                    monthlyAmount: { type: integer, format: int64, minimum: 1000, maximum: 10000000, nullable: true, description: 'SPLIT·PACE일 때' }
+                legs:
+                  type: array
+                  minItems: 1
+                  maxItems: 3
+                  items:
+                    type: object
+                    required: [instrumentId]
+                    properties:
+                      instrumentId: { type: string }
+                      weight: { type: number, nullable: true, description: '모두 비우면 균등, 넣으면 합 1' }
+      responses:
+        '200':
+          description: 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunResponse' }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
+  /health:
+    get:
+      tags: [health]
+      summary: 살아 있는지
+      security: []
+      responses:
+        '200':
+          description: UP
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                additionalProperties: false
+                properties:
+                  status: { type: string, enum: [UP] }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Provider:
+      name: provider
+      in: path
+      required: true
+      schema: { type: string, enum: [kakao, google] }
+
+  responses:
+    Error:
+      description: '오류. code는 ErrorCode, message는 화면에 그대로 보여 줄 문장'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Auth:
+      description: 웹 토큰과 계정
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/AuthResponse' }
+    Settings:
+      description: 화면 설정
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Settings' }
+    SeedMoney:
+      description: 웹 시드머니
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SeedMoneyResponse' }
+    AppLink:
+      description: 앱 연동 상태
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/AppLink' }
+    Goal:
+      description: 목표와 AI 사용량
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [goal, ai]
+            additionalProperties: false
+            properties:
+              goal: { $ref: '#/components/schemas/GoalView' }
+              ai: { $ref: '#/components/schemas/AiStatus' }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          enum: [VALIDATION_FAILED, UNAUTHORIZED, INVALID_CREDENTIALS, SOCIAL_ACCOUNT, OAUTH_CODE_INVALID, NOT_FOUND,
+            GOAL_CHANGED, EMAIL_UNAVAILABLE, TOO_MANY_ATTEMPTS, MARKET_UNAVAILABLE, LINK_CODE_INVALID, APP_LINK_EXISTS,
+            APP_LINK_IN_PROGRESS, APP_LINK_RESULT_UNKNOWN, APP_UNAVAILABLE, INTERNAL_ERROR]
+        message: { type: string }
+        fields:
+          type: object
+          description: VALIDATION_FAILED에서 필드별 문장
+          additionalProperties: { type: string }
+        retryAfterSeconds: { type: integer, format: int64, description: 'TOO_MANY_ATTEMPTS' }
+        plan: { type: string, enum: [FREE], description: '목표 안내 횟수 초과' }
+        limitPerDay: { type: integer, description: '목표 안내 횟수 초과' }
+        field: { type: string, description: 'MARKET_UNAVAILABLE의 종목 코드' }
+        provider: { type: string, description: 'SOCIAL_ACCOUNT의 가입 공급자' }
+
+    Me:
+      type: object
+      required: [id, email, createdAt, provider, hasPassword]
+      additionalProperties: false
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string, nullable: true, description: '소셜 가입에서 이메일을 받지 못했으면 null' }
+        createdAt: { type: string, format: date-time }
+        provider: { type: string, enum: [email, kakao, google] }
+        hasPassword: { type: boolean }
+    AuthResponse:
+      type: object
+      required: [accessToken, expiresAt, user]
+      additionalProperties: false
+      properties:
+        accessToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/Me' }
+    Settings:
+      type: object
+      required: [theme, seenTours, disclaimerAckAt]
+      additionalProperties: false
+      properties:
+        theme: { type: string, enum: [light, dark] }
+        seenTours: { type: array, items: { type: string } }
+        disclaimerAckAt: { type: string, format: date-time, nullable: true }
+
+    SeedStatus:
+      type: string
+      enum: [available, budget_not_set, not_received]
+    SeedEntry:
+      type: object
+      required: [cycleEnd, choice, amount, totalAfter, createdAt]
+      additionalProperties: false
+      properties:
+        cycleEnd: { type: string, format: date }
+        choice: { type: string, enum: [GOAL, ALL, MANUAL] }
+        amount: { type: integer, format: int64 }
+        totalAfter: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time, nullable: true }
+    Sync:
+      type: object
+      nullable: true
+      description: 연동이 없으면 null
+      required: [status, syncedAt, due]
+      additionalProperties: false
+      properties:
+        status: { type: string, enum: [fresh, stale] }
+        syncedAt: { type: string, format: date-time, nullable: true }
+        due: { type: boolean, description: '다시 받을 때가 됨(화면이 POST /app-link/refresh)' }
+    SeedMoneyResponse:
+      type: object
+      required: [source, status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync, manual]
+      additionalProperties: false
+      properties:
+        source: { type: string, enum: [app, none] }
+        status: { type: string, nullable: true, enum: [available, budget_not_set, not_received, null] }
+        total: { type: integer, format: int64, nullable: true }
+        base: { type: integer, format: int64, nullable: true }
+        monthlyGoal: { type: integer, format: int64, nullable: true }
+        startedOn: { type: string, format: date, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+        entries:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/SeedEntry' }
+        sync: { $ref: '#/components/schemas/Sync' }
+        manual:
+          nullable: true
+          type: object
+          required: [total, updatedAt]
+          additionalProperties: false
+          properties:
+            total: { type: integer, format: int64 }
+            updatedAt: { type: string, format: date-time }
+
+    AppLink:
+      type: object
+      required: [enabled, linked, reason, linkedAt, account, seedMoney, sync]
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean, description: 'false면 화면이 [앱 연동하기]를 숨긴다' }
+        linked: { type: boolean }
+        reason: { type: string, nullable: true, enum: [app_unlinked, null] }
+        linkedAt: { type: string, format: date-time, nullable: true }
+        account:
+          nullable: true
+          type: object
+          required: [email, provider]
+          additionalProperties: false
+          properties:
+            email: { type: string, nullable: true }
+            provider: { type: string }
+        seedMoney:
+          nullable: true
+          type: object
+          required: [status, total, base, monthlyGoal, lastEntry, updatedAt, startedOn, entries]
+          additionalProperties: false
+          properties:
+            status: { $ref: '#/components/schemas/SeedStatus' }
+            total: { type: integer, format: int64, nullable: true }
+            base: { type: integer, format: int64, nullable: true }
+            monthlyGoal: { type: integer, format: int64, nullable: true }
+            lastEntry:
+              nullable: true
+              type: object
+              required: [cycleEnd, choice, amount, createdAt]
+              additionalProperties: false
+              properties:
+                cycleEnd: { type: string, format: date }
+                choice: { type: string, enum: [GOAL, ALL, MANUAL] }
+                amount: { type: integer, format: int64, nullable: true }
+                createdAt: { type: string, format: date-time, nullable: true }
+            updatedAt: { type: string, format: date-time, nullable: true }
+            startedOn: { type: string, format: date, nullable: true }
+            entries:
+              type: array
+              nullable: true
+              items: { $ref: '#/components/schemas/SeedEntry' }
+        sync: { $ref: '#/components/schemas/Sync' }
+
+    GoalCategory:
+      type: string
+      enum: [EMERGENCY, TRAVEL, DEVICE, TUITION, HOUSING, OTHER]
+    AiStatus:
+      type: object
+      required: [available, plan, limitPerDay, remainingToday]
+      additionalProperties: false
+      properties:
+        available: { type: boolean, description: '서버에 AI 키가 있는지' }
+        plan: { type: string, enum: [FREE] }
+        limitPerDay: { type: integer }
+        remainingToday: { type: integer }
+    GoalView:
+      type: object
+      nullable: true
+      description: 목표가 없으면 null
+      required: [id, version, category, name, amount, dueMonth, currentAmount, monthlyPace, createdAt, updatedAt, seed,
+        progress, scenarios, checkpoints, coach]
+      additionalProperties: false
+      properties:
+        id: { type: integer, format: int64 }
+        version: { type: integer }
+        category: { $ref: '#/components/schemas/GoalCategory' }
+        name: { type: string }
+        amount: { type: integer, format: int64 }
+        dueMonth: { type: string, pattern: '^\d{4}-\d{2}$' }
+        currentAmount: { type: integer, format: int64, nullable: true }
+        monthlyPace: { type: integer, format: int64, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        seed:
+          type: object
+          required: [source, current, pace, asOf, appStatus]
+          additionalProperties: false
+          properties:
+            source: { type: string, enum: [app, manual] }
+            current: { type: integer, format: int64 }
+            pace: { type: integer, format: int64, nullable: true }
+            asOf: { type: string, format: date-time, nullable: true }
+            appStatus: { type: string, nullable: true }
+        progress:
+          type: object
+          required: [thisMonth, current, remaining, ratioBp, monthsLeft, requiredMonthly, expectedMonths, expectedMonth,
+            status, monthlyGap, dailyGap]
+          additionalProperties: false
+          properties:
+            thisMonth: { type: string }
+            current: { type: integer, format: int64 }
+            remaining: { type: integer, format: int64 }
+            ratioBp: { type: integer, minimum: 0, maximum: 10000 }
+            monthsLeft: { type: integer, format: int64 }
+            requiredMonthly: { type: integer, format: int64, nullable: true, description: '천 원 단위 올림, 기한 지나면 null' }
+            expectedMonths: { type: integer, format: int64, nullable: true }
+            expectedMonth: { type: string, nullable: true }
+            status: { type: string, enum: [REACHED, OVERDUE, NO_PACE, ON_TRACK, BEHIND] }
+            monthlyGap: { type: integer, format: int64 }
+            dailyGap: { type: integer, format: int64, description: '100원 단위 올림' }
+        scenarios:
+          type: array
+          items:
+            type: object
+            required: [key, monthly, reachMonth]
+            additionalProperties: false
+            properties:
+              key: { type: string, enum: [KEEP_PACE, MEET_DUE, EXTEND_6] }
+              monthly: { type: integer, format: int64 }
+              reachMonth: { type: string, nullable: true }
+        checkpoints:
+          type: array
+          items:
+            type: object
+            required: [percent, month, target]
+            additionalProperties: false
+            properties:
+              percent: { type: integer, enum: [25, 50, 75, 100] }
+              month: { type: string }
+              target: { type: integer, format: int64 }
+        coach: { $ref: '#/components/schemas/Coach' }
+    Coach:
+      type: object
+      nullable: true
+      description: 목표 응답에서는 아직 받지 않았으면 null
+      required: [aiGenerated, model, fallbackReason, generatedAt, stale, headline, summary, steps, noticeKey, notice]
+      additionalProperties: false
+      properties:
+        aiGenerated: { type: boolean }
+        model: { type: string, nullable: true }
+        fallbackReason:
+          type: string
+          nullable: true
+          enum: [AI_UNAVAILABLE, DAILY_CAP, AI_FAILED, AI_REJECTED, null]
+          description: AI가 응답하지 않았거나 쓰지 않은 이유. aiGenerated=true면 null
+        generatedAt: { type: string, format: date-time, nullable: true }
+        stale: { type: boolean, description: '목표 숫자가 바뀌어 다시 받을 수 있음' }
+        headline: { type: string }
+        summary: { type: string }
+        steps:
+          type: array
+          items:
+            type: object
+            required: [title, detail]
+            additionalProperties: false
+            properties:
+              title: { type: string }
+              detail: { type: string }
+        noticeKey: { type: string }
+        notice: { type: string }
+
+    Board:
+      type: string
+      enum: [KOSPI, KOSDAQ, ETF]
+    BoardListing:
+      type: object
+      required: [board, items, source, note, dataAsOf]
+      additionalProperties: false
+      properties:
+        board: { $ref: '#/components/schemas/Board' }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name, market, kind, board, rank, marketCap]
+            additionalProperties: false
+            properties:
+              id: { type: string, description: '종목 코드' }
+              name: { type: string }
+              market: { type: string }
+              kind: { type: string, enum: [STOCK, ETF] }
+              board: { $ref: '#/components/schemas/Board' }
+              rank: { type: integer, minimum: 1 }
+              marketCap: { type: integer, format: int64, nullable: true }
+        source: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        dataAsOf: { type: string, format: date, nullable: true }
+    EvidenceRow:
+      type: object
+      required: [type, externalId, title, publisher, date, url, weight]
+      additionalProperties: false
+      properties:
+        type: { type: string, enum: [DART] }
+        externalId: { type: string }
+        title: { type: string }
+        publisher: { type: string, nullable: true }
+        date: { type: string, format: date }
+        url: { type: string }
+        weight: { type: integer }
+    EventDetail:
+      type: object
+      required: [id, code, name, scope, startDate, endDate, windowDays, direction, headline, marketReaction, afterwards,
+        sources, newsSearchUrl, whatHappened, whyItMoved, aiGenerated, confidence, noticeKey, notice]
+      additionalProperties: false
+      properties:
+        id: { type: integer, format: int64 }
+        code: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        scope: { type: string, enum: [STOCK, MARKET] }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        windowDays: { type: integer }
+        direction: { type: string, enum: [RISE, FALL] }
+        headline: { type: string }
+        marketReaction:
+          type: object
+          required: [returnRate, marketReturn, volumeRatio, weekReturn]
+          additionalProperties: false
+          properties:
+            returnRate: { type: number }
+            marketReturn: { type: number, nullable: true }
+            volumeRatio: { type: number, nullable: true }
+            weekReturn: { type: number, nullable: true }
+        afterwards:
+          type: object
+          required: [d30, d365]
+          additionalProperties: false
+          properties:
+            d30: { type: number, nullable: true }
+            d365: { type: number, nullable: true }
+        sources: { type: array, items: { $ref: '#/components/schemas/EvidenceRow' } }
+        newsSearchUrl: { type: string, nullable: true }
+        whatHappened: { type: string }
+        whyItMoved: { type: array, items: { type: object } }
+        aiGenerated: { type: boolean }
+        confidence: { type: string, enum: [LOW, MEDIUM, HIGH] }
+        noticeKey: { type: string, enum: [EVENT_EXPLAIN] }
+        notice: { type: string }
+
+    FundingMode:
+      type: string
+      enum: [LUMP_SUM, SPLIT, PACE]
+    RunResponse:
+      type: object
+      required: [resolvedInput, contributionCount, monthlyAmount, totalInvested, finalValue, profit, returnRate,
+        engineVersion, dataAsOf, seriesBasis, legs, series, events, assumptions, noticeKey, notice, sources]
+      additionalProperties: false
+      properties:
+        resolvedInput:
+          type: object
+          required: [startDate, endDate, mode]
+          additionalProperties: false
+          properties:
+            startDate: { type: string, format: date }
+            endDate: { type: string, format: date }
+            mode: { $ref: '#/components/schemas/FundingMode' }
+        contributionCount: { type: integer }
+        monthlyAmount: { type: integer, format: int64 }
+        totalInvested: { type: integer, format: int64 }
+        finalValue: { type: integer, format: int64 }
+        profit: { type: integer, format: int64 }
+        returnRate: { type: number, description: '소수 4자리 내림' }
+        engineVersion: { type: string }
+        dataAsOf: { type: string, format: date }
+        seriesBasis: { type: string, enum: [WEEK_LAST_CLOSE] }
+        legs:
+          type: array
+          items:
+            type: object
+            required: [id, name, kind, weight, invested, finalValue]
+            additionalProperties: false
+            properties:
+              id: { type: string }
+              name: { type: string }
+              kind: { type: string, enum: [STOCK, ETF] }
+              weight: { type: number }
+              invested: { type: integer, format: int64 }
+              finalValue: { type: integer, format: int64 }
+        series:
+          type: array
+          items:
+            type: object
+            required: [weekStart, date, tradingDays, total, invested, contributed, profit, returnRate, legs]
+            additionalProperties: false
+            properties:
+              weekStart: { type: string, format: date }
+              date: { type: string, format: date }
+              tradingDays: { type: integer }
+              total: { type: integer, format: int64 }
+              invested: { type: integer, format: int64 }
+              contributed: { type: integer, format: int64 }
+              profit: { type: integer, format: int64 }
+              returnRate: { type: number }
+              legs:
+                type: array
+                items:
+                  type: object
+                  required: [id, close, value, invested]
+                  additionalProperties: false
+                  properties:
+                    id: { type: string }
+                    close: { type: integer, format: int64, nullable: true }
+                    value: { type: integer, format: int64 }
+                    invested: { type: integer, format: int64 }
+        events:
+          type: array
+          items:
+            type: object
+            required: [id, code, scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline,
+              hasExplanation, sourceName, sourceCount, topSource, score, valueBefore, valueAfter, contributionInWindow,
+              valueChange, noticeKey]
+            additionalProperties: false
+            properties:
+              id: { type: integer, format: int64 }
+              code: { type: string, nullable: true }
+              scope: { type: string, enum: [STOCK, MARKET] }
+              startDate: { type: string, format: date }
+              endDate: { type: string, format: date }
+              windowDays: { type: integer }
+              direction: { type: string, enum: [RISE, FALL] }
+              returnRate: { type: number }
+              marketReturn: { type: number, nullable: true }
+              headline: { type: string }
+              hasExplanation: { type: boolean }
+              sourceName: { type: string, nullable: true }
+              sourceCount: { type: integer }
+              topSource: { type: string, nullable: true }
+              score: { type: number }
+              valueBefore: { type: integer, format: int64, nullable: true }
+              valueAfter: { type: integer, format: int64, nullable: true }
+              contributionInWindow: { type: integer, format: int64, nullable: true }
+              valueChange: { type: integer, format: int64, nullable: true }
+              noticeKey: { type: string }
+        assumptions: { type: array, items: { type: string } }
+        noticeKey: { type: string, enum: [SIM_PAST] }
+        notice: { type: string }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [name, note]
+            additionalProperties: false
+            properties:
+              name: { type: string }
+              note: { type: string, nullable: true }

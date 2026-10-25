@@ -20,7 +20,7 @@
 | 파트별 `AGENTS.md`: 빌드·테스트 명령, 컨벤션 | `backend/AGENTS.md`. 웹 프론트는 루트 `src/`라 루트 파일에 둔다 | 있음 |
 | `docs/PRD.md`: 서비스 목표·사용자·핵심 기능·개발 범위 | `docs/PRD.md`(01 기획서에서 요약) | 있음 |
 | `docs/policies.md`: 계산·상태 규칙 + 입력→기대값 예시 표 | `docs/policies.md`(시드머니·투자 시뮬레이션·목표·AI 안내) | 있음 |
-| `docs/contracts/*.yaml`: API 계약(OpenAPI) | `docs/contracts/web-api.yaml`(브라우저–웹 백엔드). 웹–앱 서버 간 `/internal/v1`은 앱 저장소 계약을 따른다 | 3단계 |
+| `docs/contracts/*.yaml`: API 계약(OpenAPI) | `docs/contracts/web-api.yaml`(브라우저–웹 백엔드). 백엔드 `ContractTest`가 검사, 프론트 타입 `npm run gen:api`·목 서버 `npm run mock:api`. 웹–앱 서버 간 `/internal/v1`은 앱 저장소 계약을 따른다 | 있음 |
 | `docs/CHANGELOG.md`: 문서 변경 이력 | `docs/CHANGELOG.md` | 있음 |
 | `docs/decisions/`: 주요 결정 기록 | `docs/decisions/`. 10-24까지는 `docs/product/decisions.md` | 있음 |
 | `tests/policy/`: 정책 예시 표를 옮긴 공통 테스트 | `tests/policy/*.json` + 백엔드 `GoalPolicyTest`·`SimulationPolicyTest`가 읽어 검사 | 있음 |
@@ -79,6 +79,6 @@
 |---|---|---|
 | 1 | 지침·템플릿·CODEOWNERS·라벨·PR 규칙 검사·CHANGELOG·decisions | #65 |
 | 2 | `docs/PRD.md`, `docs/policies.md`(예시 표), `tests/policy/`(정책과 테스트는 같은 PR) | #67 |
-| 3 | `docs/contracts/web-api.yaml`, 계약 테스트, 프론트 타입·목 서버 | 다음 PR |
+| 3 | `docs/contracts/web-api.yaml`, 계약 테스트, 프론트 타입·목 서버 | #69 |
 | 4 | `main` 브랜치 보호 | 설정 |
 | 앱 | flexable-app에 같은 구조 적용 | 앱 담당 |

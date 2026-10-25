@@ -8,7 +8,7 @@ info:
     - 프론트 타입은 `npm run gen:api`로 `src/lib/api-schema.d.ts`에 만들고, 목 서버는 `npm run mock:api`.
     - 바꿀 때는 구현보다 먼저 이 파일을 고치는 PR(`spec-change` 라벨 + docs/CHANGELOG.md)을 올린다.
     - 금액은 원 단위 정수, 비율·수익률은 소수(0.05 = 5%), 시각은 +09:00이 붙은 ISO-8601이다.
-    - 웹 백엔드가 부르는 앱 서버 `/internal/v1`은 앱 저장소 계약을 따른다.
+    - 웹 백엔드가 부르는 앱 서버 `/internal/v1/web-links/*`는 앱 저장소 `docs/contracts/web-link-api.yaml`이 정본이다.
 servers:
   - url: /api/v1
 security:

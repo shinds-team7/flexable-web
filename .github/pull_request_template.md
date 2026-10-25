@@ -11,7 +11,7 @@ Closes #
 
 <!-- AI·사람이 기준으로 삼은 저장소 문서. 경로와 절을 적어 주세요. -->
 - [ ] docs/product/ (파일·절: )
-- [ ] API 계약 (backend/README.md "API" 또는 앱 docs/API.md: )
+- [ ] API 계약 (docs/contracts/web-api.yaml 또는 앱 docs/contracts/web-link-api.yaml: )
 - [ ] docs/decisions/ (파일: )
 
 ## 🧩 영향받는 파트

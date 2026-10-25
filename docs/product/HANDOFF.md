@@ -24,7 +24,7 @@
 - [ ] 백엔드 없이 화면을 만들 때는 `npm run mock:api` + `npm run dev:mock`, 타입은 `npm run gen:api`
 
 남은 일:
-- [ ] **앱 저장소(flexable-app)에 같은 구조 적용**: 앱 담당이 결정 기록을 기준으로 진행한다. 순서는 1단계 지침·템플릿 → 2단계 PRD·정책·정책 테스트 → 3단계 `app-api.yaml`·`web-link-api.yaml`·계약 테스트 → 4단계 main 보호(관리자). 웹이 부르는 `/internal/v1/web-links/*` 계약이 앱 쪽 스펙에 생기면 웹 `applink.AppApiClient`와 맞는지 같이 본다
+- [ ] **앱 저장소(flexable-app)에 같은 구조 적용**: 1~3단계 병합됨(앱 #132 지침·템플릿, #134 PRD·정책·정책 테스트, #136 `app-api.yaml`·`web-link-api.yaml`·계약 테스트). 웹 문서의 앱 연동 계약 링크는 `web-link-api.yaml`로 바꿨고(#73), 스펙의 경로·필드·오류 코드가 웹 `RestAppApiClient`와 맞는 것을 확인했다. 남은 것: 4단계 앱 `main` 보호(관리자)
 - [ ] 기존 프론트 data hook(`src/data/*.ts`)의 손으로 쓴 응답 타입을 생성 타입(`src/lib/api-schema.d.ts`)으로 바꾼다
 - [ ] 목 서버 응답이 형식만 맞는 임의 값이다. 화면 개발에 쓸 만하게 스펙의 주요 응답에 `example`을 단다
 - [ ] 첫 팀원 PR에서 규칙이 의도대로 동작하는지 본다: CODEOWNERS 경로 밖 PR은 승인 없이 머지되는지, 안쪽은 리드 승인을 요구하는지

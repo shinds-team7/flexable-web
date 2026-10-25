@@ -80,5 +80,5 @@
 | 1 | 지침·템플릿·CODEOWNERS·라벨·PR 규칙 검사·CHANGELOG·decisions | #65 |
 | 2 | `docs/PRD.md`, `docs/policies.md`(예시 표), `tests/policy/`(정책과 테스트는 같은 PR) | #67 |
 | 3 | `docs/contracts/web-api.yaml`, 계약 테스트, 프론트 타입·목 서버 | #69 |
-| 4 | `main` 브랜치 보호 | 설정 |
-| 앱 | flexable-app에 같은 구조 적용 | 앱 담당 |
+| 4 | `main` 브랜치 보호: 저장소 규칙 "main 보호". 삭제·강제 push 금지, PR 필수, CI `build`·`backend`·`issue-link`·`spec-change` 통과 필수, CODEOWNERS 경로는 리드 승인 필수(그 밖은 승인 없이 머지 가능), 저장소 관리자는 우회 가능 | 설정 완료 |
+| 앱 | flexable-app에 같은 구조 적용(이 문서를 기준으로 앱 담당이 진행) | 앱 담당 |

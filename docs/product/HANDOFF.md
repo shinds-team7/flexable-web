@@ -1,5 +1,34 @@
 # 웹 개발 인수인계
 
+## 2026-10-25 작업 방식 도입(팀원 모두 읽기)
+
+팀 개발 진행 가이드를 저장소에 적용했다. 정본은 [작업 방식 결정 기록](../decisions/2026-10-25-dev-process.md), 요약은 루트 [AGENTS.md](../../AGENTS.md)다.
+
+- 기준 문서:
+  - [docs/PRD.md](../PRD.md)
+  - [docs/policies.md](../policies.md)와 [tests/policy/](../../tests/policy/)(정책 예시 = 테스트)
+  - [docs/contracts/web-api.yaml](../contracts/web-api.yaml)(OpenAPI, 백엔드 `ContractTest`가 검사)
+  - [docs/CHANGELOG.md](../CHANGELOG.md)
+  - [docs/decisions/](../decisions/README.md)
+- 머지된 PR:
+  - #65 지침·템플릿·CODEOWNERS·`pr-rules`
+  - #67 PRD·정책·정책 테스트
+  - #69 계약·계약 테스트·프론트 타입·목 서버
+  - #71 이 기록
+- **`main` 보호(저장소 규칙 "main 보호")**: 직접 push·강제 push·삭제가 금지된다. PR이 필수이고, CI `build`·`backend`·`issue-link`·`spec-change` 통과도 필수다. 지침·PRD·정책·계약·결정·정책 테스트·워크플로(CODEOWNERS 경로)를 바꾼 PR은 @SXXNHU 승인이 필요하다. 저장소 관리자(SXXNHU·gowon0)는 우회할 수 있다.
+
+팀원이 할 일:
+- [ ] **새 AI 세션을 시작한다.** 지침(`AGENTS.md`)이 바뀌었다. 이어 가는 세션이면 "`docs/CHANGELOG.md`의 최신 항목을 읽고, 변경된 문서를 확인해서 현재 구현과 테스트에 필요한 변경을 먼저 정리해줘"라고 요청한다
+- [ ] 작업은 Issue 하나 단위로 시작한다(새 템플릿: 목표·참고 자료·범위·완료 조건). PR 본문에는 `Closes #번호`를 적는다. 없으면 `issue-link` 검사가 실패해 머지할 수 없다
+- [ ] 열린 PR(#47 소식, #53 적금, #60 액티브·패시브 시안, #62 움직임 제안)은 최신 `main`에 rebase하고 본문에 Issue 번호를 넣는다. API 응답을 바꾸는 PR이면 `docs/contracts/web-api.yaml`부터 고치고 `spec-change` 라벨과 CHANGELOG 한 줄을 단다
+- [ ] 백엔드 없이 화면을 만들 때는 `npm run mock:api` + `npm run dev:mock`, 타입은 `npm run gen:api`
+
+남은 일:
+- [ ] **앱 저장소(flexable-app)에 같은 구조 적용**: 앱 담당이 결정 기록을 기준으로 진행한다. 순서는 1단계 지침·템플릿 → 2단계 PRD·정책·정책 테스트 → 3단계 `app-api.yaml`·`web-link-api.yaml`·계약 테스트 → 4단계 main 보호(관리자). 웹이 부르는 `/internal/v1/web-links/*` 계약이 앱 쪽 스펙에 생기면 웹 `applink.AppApiClient`와 맞는지 같이 본다
+- [ ] 기존 프론트 data hook(`src/data/*.ts`)의 손으로 쓴 응답 타입을 생성 타입(`src/lib/api-schema.d.ts`)으로 바꾼다
+- [ ] 목 서버 응답이 형식만 맞는 임의 값이다. 화면 개발에 쓸 만하게 스펙의 주요 응답에 `example`을 단다
+- [ ] 첫 팀원 PR에서 규칙이 의도대로 동작하는지 본다: CODEOWNERS 경로 밖 PR은 승인 없이 머지되는지, 안쪽은 리드 승인을 요구하는지
+
 ## 2026-10-25 열린 PR(팀 논의 필요)
 
 오늘 올린 PR 중 머지하지 않은 두 개다. 둘 다 팀 의견을 받고 정한다. #61(아래 강사님 피드백)은 머지했다.

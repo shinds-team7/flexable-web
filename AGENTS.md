@@ -8,7 +8,7 @@
 |---|---|
 | 서비스 목적·사용자·기능·범위 | [docs/PRD.md](docs/PRD.md) (근거·화면·구조는 [docs/product/](docs/product/README.md) 01~04) |
 | 계산·상태 규칙과 예시 표 | [docs/policies.md](docs/policies.md) = [tests/policy/](tests/policy/) 테스트 |
-| API 계약(OpenAPI) | 웹 [docs/contracts/web-api.yaml](docs/contracts/web-api.yaml)(정본, 사용법 [README](docs/contracts/README.md)). 앱 연동 `/internal/v1`은 [앱 docs/API.md](https://github.com/shinds-team7/flexable-app/blob/main/docs/API.md) |
+| API 계약(OpenAPI) | 웹 [docs/contracts/web-api.yaml](docs/contracts/web-api.yaml)(정본, 사용법 [README](docs/contracts/README.md)). 앱 연동 `/internal/v1/web-links/*`는 [앱 docs/contracts/web-link-api.yaml](https://github.com/shinds-team7/flexable-app/blob/main/docs/contracts/web-link-api.yaml)(앱 저장소 정본) |
 | 결정 기록 | 새 결정은 [docs/decisions/](docs/decisions/), 10-18~10-24 결정은 [docs/product/decisions.md](docs/product/decisions.md) |
 | 문서 변경 이력 | [docs/CHANGELOG.md](docs/CHANGELOG.md) |
 | 진행 현황·할 일 | [docs/product/HANDOFF.md](docs/product/HANDOFF.md) |

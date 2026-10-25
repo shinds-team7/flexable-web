@@ -6,6 +6,7 @@
 
 ## 2026-10-25
 
+- [#73] 앱 연동 `/internal/v1/web-links/*` 계약 링크를 앱 `docs/API.md`에서 앱 `docs/contracts/web-link-api.yaml`(OpenAPI 정본, 앱 #136)로 바꿨다(`AGENTS.md`·`docs/contracts/README.md`·`web-api.yaml` 설명·PR 템플릿·04). 계약 내용은 바뀌지 않았다 — 영향: 백엔드(`applink`를 고칠 때 앱 스펙 기준)
 - [#71] `main` 보호 규칙을 적용하고(PR·CI·`issue-link`·`spec-change` 필수, CODEOWNERS 경로 리드 승인, 관리자 우회), 작업 방식 결정 기록과 HANDOFF에 반영했다 — 영향: 전체(이제 `main`에 직접 push 불가, PR에 Issue 번호 필요)
 - [#69] 웹 API 계약을 `docs/contracts/web-api.yaml`(OpenAPI)로 옮겼다. `backend/README.md` 표는 요약이 됐다. 백엔드 `ContractTest`가 응답을 검사하고, 프론트 타입(`npm run gen:api`)·목 서버(`npm run mock:api`·`dev:mock`)를 추가했다. 실제 동작에 맞춰 `DELETE /me` 비밀번호 오류는 401 `INVALID_CREDENTIALS`로 적었다 — 영향: 프론트·백엔드(응답을 바꿀 때 스펙 먼저)
 - [#67] `docs/PRD.md`(목표·사용자·기능 현재 상태·범위)와 `docs/policies.md`(시드머니·투자 시뮬레이션·목표·AI 안내 규칙 + 예시 표)를 추가하고, 예시 표를 `tests/policy/*.json` + `GoalPolicyTest`·`SimulationPolicyTest`로 묶었다. 계산 규칙 자체는 바뀌지 않았다 — 영향: 백엔드·프론트(참고 문서)

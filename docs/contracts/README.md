@@ -4,7 +4,7 @@
 |---|---|---|
 | [`web-api.yaml`](web-api.yaml) | 브라우저(웹 프론트) ↔ 웹 백엔드 `/api/v1` | 백엔드 `contract.ContractTest`(실제 응답의 상태 코드·필드), CI `npm run check:api`(프론트 타입이 최신인지) |
 
-웹 백엔드가 부르는 앱 서버 `/internal/v1/web-links/*`는 앱 저장소(flexable-app) 계약을 따른다.
+웹 백엔드(`applink.AppApiClient`)가 부르는 앱 서버 `/internal/v1/web-links/*`는 앱 저장소의 [`docs/contracts/web-link-api.yaml`](https://github.com/shinds-team7/flexable-app/blob/main/docs/contracts/web-link-api.yaml)이 정본이다. 앱이 이 스펙을 바꾸면(`spec-change`) 웹 `applink/http/RestAppApiClient`의 요청·응답 record와 맞는지 확인한다.
 
 ## 쓰는 법
 

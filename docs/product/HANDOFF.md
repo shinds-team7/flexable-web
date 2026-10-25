@@ -24,10 +24,11 @@
 - [ ] 백엔드 없이 화면을 만들 때는 `npm run mock:api` + `npm run dev:mock`, 타입은 `npm run gen:api`
 
 남은 일:
-- [ ] **앱 저장소(flexable-app)에 같은 구조 적용**: 1~3단계 병합됨(앱 #132 지침·템플릿, #134 PRD·정책·정책 테스트, #136 `app-api.yaml`·`web-link-api.yaml`·계약 테스트). 웹 문서의 앱 연동 계약 링크는 `web-link-api.yaml`로 바꿨고(#73), 스펙의 경로·필드·오류 코드가 웹 `RestAppApiClient`와 맞는 것을 확인했다. 남은 것: 4단계 앱 `main` 보호(관리자)
+- [x] **앱 저장소(flexable-app)에 같은 구조 적용**(2026-10-25 완료): 앱 #132 지침·템플릿, #134 PRD·정책·정책 테스트, #136 `app-api.yaml`·`web-link-api.yaml`·계약 테스트. 웹 문서의 앱 연동 계약 링크는 `web-link-api.yaml`로 바꿨고(#73), 스펙의 경로·필드·오류 코드가 웹 `RestAppApiClient`와 맞는 것을 확인했다. 앱 `main`에도 같은 규칙 "main 보호"를 켰다: 직접 push·강제 push·삭제 금지, PR 필수, CI `백엔드 테스트`·`프론트엔드 타입 검사·린트`·`웹 빌드·E2E`·`issue-link`·`spec-change` 필수, 앱 CODEOWNERS 경로는 @SXXNHU 승인, 관리자(SXXNHU·gowon0) 우회
+- [ ] 앱 담당: 앱 결정 기록 4단계를 "설정 완료"로 고친다. 앱 `web-link-api.yaml`이 바뀌면(`spec-change`) 웹 `applink/http/RestAppApiClient`도 같이 맞춘다
 - [ ] 기존 프론트 data hook(`src/data/*.ts`)의 손으로 쓴 응답 타입을 생성 타입(`src/lib/api-schema.d.ts`)으로 바꾼다
 - [ ] 목 서버 응답이 형식만 맞는 임의 값이다. 화면 개발에 쓸 만하게 스펙의 주요 응답에 `example`을 단다
-- [ ] 첫 팀원 PR에서 규칙이 의도대로 동작하는지 본다: CODEOWNERS 경로 밖 PR은 승인 없이 머지되는지, 안쪽은 리드 승인을 요구하는지
+- [ ] 첫 팀원 PR에서 규칙이 의도대로 동작하는지 본다(웹·앱 모두): CODEOWNERS 경로 밖 PR은 승인 없이 머지되는지, 안쪽은 리드 승인을 요구하는지
 
 ## 2026-10-25 열린 PR(팀 논의 필요)
 

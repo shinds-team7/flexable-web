@@ -1,0 +1,87 @@
+# PR 규칙(docs/decisions/2026-10-25-dev-process.md)
+# - issue-link: PR 본문에 Issue 번호(#12)가 있어야 한다. 긴급 수정은 no-issue 라벨.
+# - spec-change: 기준 문서·정책·계약·지침을 바꾼 PR은 spec-change 라벨과 docs/CHANGELOG.md 한 줄이 있어야 한다.
+# - spec-change PR이 병합되면 열린 PR마다 rebase·새 AI 세션 안내 댓글을 단다.
+name: pr-rules
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  issue-link:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map((l) => l.name);
+            if (labels.includes('no-issue')) {
+              core.notice('no-issue 라벨: Issue 연결 검사를 건너뜁니다. 사유를 PR 본문에 적어 주세요.');
+              return;
+            }
+            // 템플릿 주석은 빼고 본문에서 #숫자 또는 이슈 URL을 찾는다.
+            const body = (pr.body || '').replace(/<!--[\s\S]*?-->/g, '');
+            if (!/#\d+\b|\/issues\/\d+/.test(body)) {
+              core.setFailed('PR 본문에 처리하는 Issue 번호가 없어요. "Closes #번호"를 적거나, 긴급 수정이면 no-issue 라벨을 붙여 주세요.');
+            }
+
+  spec-change:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            // 바꾸면 spec-change 라벨 + CHANGELOG가 필요한 경로(docs/CHANGELOG.md 자체는 제외)
+            const SPEC = [
+              /^AGENTS\.md$/, /^backend\/AGENTS\.md$/, /^CLAUDE\.md$/,
+              /^docs\/PRD\.md$/, /^docs\/policies\.md$/, /^docs\/contracts\//,
+              /^docs\/decisions\//, /^tests\/policy\//,
+            ];
+            const pr = context.payload.pull_request;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number, per_page: 100,
+            });
+            const names = files.flatMap((f) => [f.filename, f.previous_filename].filter(Boolean));
+            const spec = names.filter((n) => SPEC.some((re) => re.test(n)));
+            const hasLabel = pr.labels.some((l) => l.name === 'spec-change');
+            const hasLog = names.includes('docs/CHANGELOG.md');
+            if (spec.length === 0) {
+              if (hasLabel && !hasLog) core.setFailed('spec-change 라벨이 붙었는데 docs/CHANGELOG.md 변경이 없어요.');
+              return;
+            }
+            const errors = [];
+            if (!hasLabel) errors.push('spec-change 라벨을 붙여 주세요.');
+            if (!hasLog) errors.push('docs/CHANGELOG.md에 한 줄(무엇이, 어느 파트에 영향)을 더해 주세요.');
+            if (errors.length) core.setFailed(`기준 문서를 바꾼 PR이에요(${spec.join(', ')}). ` + errors.join(' '));
+
+  notify-spec-change:
+    if: github.event.action == 'closed' && github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'spec-change')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const merged = context.payload.pull_request;
+            const open = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100,
+            });
+            const body = [
+              `📢 기준 문서가 바뀌었어요: #${merged.number} ${merged.title}`,
+              '',
+              '1. 이 브랜치를 최신 `main`에 rebase하고 CI를 확인해 주세요. 실패한 테스트가 반영할 지점이에요.',
+              '2. AI 세션(Claude·Codex 채팅)을 새로 시작해 주세요. 이어 가야 하면 이렇게 요청하세요:',
+              '   > `docs/CHANGELOG.md`의 최신 항목을 읽고, 변경된 문서를 확인해서 현재 구현과 테스트에 필요한 변경을 먼저 정리해줘.',
+            ].join('\n');
+            for (const pr of open) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, body });
+            }
+            core.info(`열린 PR ${open.length}개에 안내했어요.`);

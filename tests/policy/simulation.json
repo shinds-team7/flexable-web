@@ -1,0 +1,39 @@
+{
+  "policy": "docs/policies.md §2 투자 시뮬레이션",
+  "weights": [
+    { "name": "비율을 모두 비우면 균등, 나머지는 첫 종목", "input": [null, null, null], "expected": ["0.3334", "0.3333", "0.3333"] },
+    { "name": "두 종목 균등", "input": [null, null], "expected": ["0.5", "0.5"] },
+    { "name": "넣은 비율 그대로", "input": ["0.5", "0.3", "0.2"], "expected": ["0.5", "0.3", "0.2"] },
+    { "name": "합이 1이 아니면 거절", "input": ["0.5", "0.4"], "error": "비율의 합이 100%가 되게 넣어 주세요" },
+    { "name": "일부만 넣으면 거절", "input": ["0.5", null], "error": "비율은 모든 종목에 0보다 크게 넣어 주세요" }
+  ],
+  "allocate": [
+    { "name": "비율대로 나눔", "amount": 100000, "weights": ["0.5", "0.3", "0.2"], "expected": [50000, 30000, 20000] },
+    { "name": "내림 뒤 남은 1원은 첫 종목", "amount": 100001, "weights": ["0.3334", "0.3333", "0.3333"], "expected": [33341, 33330, 33330] }
+  ],
+  "rate": [
+    { "name": "수익률은 소수 4자리 내림", "profit": 648830, "invested": 2808000, "expected": "0.2310" },
+    { "name": "손실도 내림(더 작은 쪽)", "profit": -1, "invested": 3, "expected": "-0.3334" },
+    { "name": "넣은 돈 0이면 0", "profit": 5, "invested": 0, "expected": "0" }
+  ],
+  "runs": [
+    {
+      "name": "매달 나눠서: 그 달 첫 거래일 종가로 사고 마지막 종가로 평가",
+      "startDate": "2026-01-01", "mode": "SPLIT", "totalAmount": 0, "monthlyAmount": 10000,
+      "closes": [["2026-01-02", 1000], ["2026-01-09", 1100], ["2026-02-02", 800], ["2026-02-06", 900]],
+      "expected": { "contributionCount": 2, "totalInvested": 20000, "finalValue": 20250, "profit": 250, "returnRate": "0.0125" }
+    },
+    {
+      "name": "한 번에: 첫 달에 전부",
+      "startDate": "2026-01-01", "mode": "LUMP_SUM", "totalAmount": 20000, "monthlyAmount": 0,
+      "closes": [["2026-01-02", 1000], ["2026-01-09", 1100], ["2026-02-02", 800], ["2026-02-06", 900]],
+      "expected": { "contributionCount": 1, "totalInvested": 20000, "finalValue": 18000, "profit": -2000, "returnRate": "-0.1000" }
+    },
+    {
+      "name": "수량은 소수 8자리 내림, 평가액은 원 단위 내림",
+      "startDate": "2026-01-01", "mode": "LUMP_SUM", "totalAmount": 78000, "monthlyAmount": 0,
+      "closes": [["2026-01-02", 61500], ["2026-01-09", 70000]],
+      "expected": { "contributionCount": 1, "totalInvested": 78000, "finalValue": 88780, "profit": 10780, "returnRate": "0.1382" }
+    }
+  ]
+}

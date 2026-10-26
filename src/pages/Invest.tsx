@@ -11,6 +11,7 @@ import { placePinNote, removePinNote } from '@/charts/pinNote';
 import { SeriesKey } from '@/charts/SeriesKey';
 import { TimeChart } from '@/charts/TimeChart';
 import { CoachTour, type CoachStep } from '@/components/CoachTour';
+import { CountUp } from '@/components/CountUp';
 import { EventPanel, eventPeriod } from '@/components/EventPanel';
 import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
@@ -1024,7 +1025,9 @@ function Result({
             <span className="lbl">넣은 돈</span>
             <span className="meta">{r.contributionCount}번 넣음</span>
           </div>
-          <p className="val num">{won(r.totalInvested)}원</p>
+          <p className="val num">
+            <CountUp value={r.totalInvested} format={(n) => `${won(n)}원`} />
+          </p>
         </div>
         <div className="stat tm-stat-main">
           <div className="tm-stat-top">
@@ -1033,7 +1036,9 @@ function Result({
               {withArrow(r.returnRate, pctTxt(r.returnRate))}
             </span>
           </div>
-          <p className="val num">{won(r.finalValue)}원</p>
+          <p className="val num">
+            <CountUp value={r.finalValue} format={(n) => `${won(n)}원`} />
+          </p>
         </div>
         <div className="stat">
           <div className="tm-stat-top">
@@ -1041,7 +1046,7 @@ function Result({
             <span className="meta">세금·수수료 빼기 전</span>
           </div>
           <p className={'val num ' + upDown(r.profit)}>
-            {withArrow(r.profit, signWon(r.profit))}
+            <CountUp value={r.profit} format={(n) => withArrow(r.profit, signWon(n))} />
           </p>
         </div>
       </div>

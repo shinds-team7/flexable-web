@@ -2,6 +2,7 @@
 // 색은 계열이 고른 칸(colorSlot)을 따른다. 순위로 칠하지 않는다. 4·5번째 칸은 선 무늬를 더한다(02 §6-2).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { krShort, niceTicks, won } from '@/lib/format';
+import { RevealClip } from './RevealClip';
 
 export type LinePoint = { x: number; y: number };
 export type LineSeries = { id: string; name: string; colorSlot: number; points: LinePoint[] };
@@ -92,13 +93,15 @@ export function MultiLineChart({ series, baseline, xLabel, tooltip, ariaLabel }:
         )}
         {baseline && <line x1={M.l} x2={W - M.r} y1={Y(baseline.y)} y2={Y(baseline.y)} style={{ stroke: 'var(--baseline)', strokeWidth: 2, strokeDasharray: '4 4' }} />}
         {hover != null && <line x1={X(hover)} x2={X(hover)} y1={M.t} y2={H - M.b} style={{ stroke: 'var(--text-muted)' }} />}
-        {series.map((s) => (
-          <path
-            key={s.id}
-            d={s.points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join(' ')}
-            style={{ fill: 'none', stroke: seriesColor(s.colorSlot), strokeWidth: 2, strokeDasharray: seriesDash(s.colorSlot), strokeLinejoin: 'round', strokeLinecap: 'round' }}
-          />
-        ))}
+        <RevealClip width={W} height={H} replayKey={xs.length}>
+          {series.map((s) => (
+            <path
+              key={s.id}
+              d={s.points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join(' ')}
+              style={{ fill: 'none', stroke: seriesColor(s.colorSlot), strokeWidth: 2, strokeDasharray: seriesDash(s.colorSlot), strokeLinejoin: 'round', strokeLinecap: 'round' }}
+            />
+          ))}
+        </RevealClip>
         {series.map((s, k) => {
           const i = hover ?? last;
           return (

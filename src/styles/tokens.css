@@ -36,6 +36,9 @@
   --color-notice-bg:#EEF3FF; --color-notice-ink:#1B2B55; --color-notice-line:#C9D7FF;
   /* 색 · 메모지(코치마크·차트 손글씨 메모). 실제 UI가 아님을 드러내려고 노랑을 유지한다 */
   --color-memo-bg:#FFF6C9; --color-memo-ink:#3A2E00; --color-memo-line:#9C8636;
+  /* 색 · 홈 히어로 영상 위(영상이 밝은 그대로라 다크에서도 바꾸지 않는다). scene = 영상 배경색 실측 */
+  --color-hero-scene:#E8F0FB; --color-hero-ink:#191F28; --color-hero-ink-sub:#4E5968; --color-hero-ink-muted:#6B7684;
+  --color-hero-surface:#FFFFFF; --color-hero-subtle:#F4F6F9; --color-hero-line:#C5CCD6;
 
   /* 색 · 차트 계열(블루 3단 + 회색 2단). 색만으로 구분하지 않게 범례·값을 같이 둔다 */
   --color-series-1:#0046FF; --color-series-2:#5C8BFF; --color-series-3:#A7C0FF; --color-series-4:#6B7684; --color-series-5:#C3CAD4;

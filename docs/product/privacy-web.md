@@ -23,6 +23,14 @@
 
 **남은 확인(운영자)**: ① 대한상공회의소의 정확한 기관명·재수탁·VM 스냅숏/백업 여부와 보관 기간(아카데미에 문의) ② 위탁 관계 문서(목적 외 처리 금지·안전조치·종료 시 파기)를 아카데미와 주고받을 수 있는지 ③ 오늘 solpa에서 만든 시험 계정 정리 ④ 문의 메일 30일 삭제 습관 ⑤ 만 14세 미만 가입 제한을 화면 문구 말고 확인 절차로 둘지.
 
+## 0-3. 2026-10-24 시드머니 직접 수정 저장
+
+홈 [수정하기]를 회원 계정에 저장하게 바꿔(decisions 2026-10-24 ②) 제2조 1항에 "시드머니 직접 수정"(금액·수정 일시, 계약 이행 근거), 제4조에 보유 기간(되돌리기·탈퇴까지, 마지막 값만)을 넣고 변경 이력에 적었다. 외부 전송·위탁은 없다(목표 안내의 OpenAI 전송 대상도 아님). 기능과 같은 날 시행한다. 실서비스가 아닌 해커톤 시연 서비스라 제13조 시행 7일 전 고지 절차는 적용하지 않는다(사용자 결정 2026-10-24).
+
+## 0-2. 2026-10-24 체험 안내 문구 정리
+
+방침 제3조의 "로그인 전 체험 화면은 예시 데이터를 쓰며"가 실제 동작(비로그인 투자 시뮬레이션도 고른 조건을 서버에 보내 계산)을 충분히 설명하지 못해 문구를 고쳤다. 계산 요청을 저장하지 않는 처리 방식은 그대로이고 새 항목·목적·보관이 생기지 않으므로 변경 이력에 "처리 방식 변화 없음"으로 적었다(10-21 제4조 문구 보완과 같은 방식). 근거는 아래 2의 "비회원 체험" 행.
+
 ## 0-1. 2026-10-23 AI 목표 달성 개정
 
 F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI 국외 처리가 생긴다. 제2조(목표 설정·AI 목표 안내)·제4조(보유 기간)·제6조(OpenAI 위탁·국외 이전)를 추가했다. 제13조는 시행 7일 전 고지가 원칙이지만, 웹 회원이 아직 없어 불이익을 받을 기존 이용자가 없으므로 기능과 같은 날(2026-10-23) 시행했다(사용자 결정, decisions 2026-10-23 ②). 회원이 생긴 뒤의 변경은 7일 전에 예고한다.
@@ -47,6 +55,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 시작일·주기별 반영 기록 | `app_links.seed_started_on`, `app_link_entries`(V6: 주기 종료일·방법·금액·반영 후 합계·반영 일시). 조회마다 통째로 바꾸고 연동 행 삭제 시 함께 삭제(FK CASCADE) |
 | 동의·가입 일시, 가입 방법 | `users.terms_agreed_at`·`created_at`, `user_identities.provider`. `privacy_agreed_at`은 10-21 전 가입자만(V7) |
 | 화면 설정 | `user_settings`(theme·seen_tours·disclaimer_ack_at) |
+| 시드머니 직접 수정(10-24) | `seed_money_manual`(seedmoney, V9: user_id·total·updated_at). `PUT·DELETE /api/v1/me/seed-money/manual`. 되돌리기(DELETE)·탈퇴(`SeedMoneyService.onWithdraw`, FK CASCADE) 때 삭제, 다시 고치면 덮어써 마지막 값만 |
 | 연동 일시·마지막 조회 일시 | `app_links.created_at`·`synced_at`·`checked_at` |
 | 서버 오류 기록의 회원 번호 | `AppLinkService` 경고·오류 로그의 `userId`(이메일·linkId는 남기지 않음) |
 | 웹 서버 접속 기록 | `deploy/vm/nginx.conf` `log_format web_access`: IP(앞단 프록시 주소일 수 있음)·일시·메서드·경로(쿼리 제외)·응답 코드·크기·브라우저 정보 |
@@ -56,13 +65,13 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 연동 코드는 저장하지 않음 | `AppLinkService.link` → `AppApiClient.create`로 전달만, DB·로그에 없음 |
 | 문의 메일 국외 보관 | Gmail(Google LLC). 처리 후 30일 이내 삭제(운영자 수작업) |
 | 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인). 정확한 기관명·스냅숏은 확인 전(0) |
-| 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음 |
+| 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.tour.invest`(`data/tour.ts`, 비로그인 때 투자 화면 첫 방문 안내를 봤는지. 방침 제8조 "첫 화면 안내 표시 여부"), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음. 비로그인 체험의 시드머니 [수정하기] 값은 브라우저 저장소가 아니라 탭 메모리에만 있다(`data/home.ts`, 회원은 서버 저장) |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
 | 연동 해제·앱 해제·앱 탈퇴 확인 시 파기 | `AppLinkService.unlink`, `sync`·`AppLinkRecheckJob`의 `LINK_NOT_FOUND` 처리. 앱 탈퇴 시 앱이 연동을 함께 지우므로 같은 경로 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |
 | 목표·AI 목표 안내(10-23 시행) | `goals`·`goal_coaches`·`goal_coach_usage`(engagement, V8). 탈퇴 시 `UserWithdrawalListener`로 삭제, `goal_coach_usage`는 날짜로부터 7일 지나면 매일 정리 작업이 삭제. 서버 전체 횟수 `ai_daily_usage`는 회원 정보 없음 |
 | OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. 수탁·이전받는 자는 OpenAI OpCo, LLC([서비스 계약](https://openai.com/policies/services-agreement/), 비EEA·스위스 고객), 요청 창구 privacy.openai.com([개인정보 안내](https://openai.com/policies/kr-privacy-policy/)). OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
-| 비회원 체험은 서버 저장 없음 | 로그인 전 화면은 예시 데이터만 사용(`isSample`) |
+| 비회원 체험은 서버 저장 없음 | 홈 시드머니·지수·소식·적금은 예시 데이터(`isSample`). 투자 시뮬레이션은 공개 API(`GET /market/**`, `POST /simulations/run`)로 고른 조건(시작 시점·금액·종목·비율)을 보내 서버가 계산하지만 저장하지 않는다(`SimulationService`, DB 쓰기 없음). 요청 본문은 접속 기록에 남지 않는다(`nginx.conf`는 메서드·경로만) |
 
 ## 3. 시행 전 확인 항목(10-21 모두 채움)
 
@@ -70,10 +79,10 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 |---|---|---|
 | 웹 서버 제공 기관(처리 위탁 수탁자)과 위치 | 대표·운영 | 아카데미 VM(10-21 수령, `solpa.shinhanacademy.co.kr`). 서버·네트워크를 아카데미가 운영하면 위탁, 우리 팀은 VM 안만 관리 |
 | HTTPS 적용 여부 | 운영 | 적용(앞단에서 HTTPS 종료 후 VM 80번). 앞단~VM 구간은 아카데미 내부망 HTTP |
-| DB 외부 접근 차단·접근 권한 | 운영 | `deploy/vm`은 DB 포트를 열지 않고 웹 백엔드만 내부 네트워크로 접근한다. VM 접속 계정 관리는 운영이 정한다 |
-| DB 백업 여부·보관 주기 | 운영 | 안: `deploy/vm/backup.sh` 매일, 7일 보관(같은 VM 안). cron 등록 뒤 확정 |
-| 서버 오류 기록 보관 기간 | 운영 | `deploy/vm`은 컨테이너마다 10MB × 5개에서 회전(기간이 아니라 용량 기준). 기간으로 적으려면 회전 방식을 바꾼다 |
-| Vercel 위탁 유지 여부 | 운영 | VM이 화면을 같은 출처로 서비스한다. 운영 주소를 VM으로 옮기면 Vercel 행을 뺀다 |
+| DB 외부 접근 차단·접근 권한 | 운영 | `deploy/vm`은 DB 포트를 열지 않고 웹 백엔드(api·worker)만 내부 네트워크로 접근한다. VM 접속 계정 관리는 운영이 정한다 |
+| DB 백업 여부·보관 주기 | 운영 | 10-21 적용: `deploy/vm/backup.sh` 매일 04:00 cron, 만든 때부터 최대 7일(같은 VM 안). VM 스냅숏 여부는 §0 남은 확인 |
+| 서버 오류 기록 보관 기간 | 운영 | 10-21 적용: 컨테이너마다 10MB × 5개 회전에 더해 `deploy/vm/purge-logs.sh`가 매주 일요일 04:00(root cron) 모두 비워 최대 7일 |
+| Vercel 위탁 유지 여부 | 운영 | 10-21 정리: solpa 화면은 VM nginx가 직접 제공하므로 웹 방침에서 Vercel 행을 뺐다(§0). Vercel 배포본은 앱 서버·앱 방침을 쓴다 |
 | 만 14세 미만 | 대표 | 앱과 같이 "가입받지 않음". 가입 화면에 연령 확인이 없는 것은 앱과 같다 |
 | 이용약관 | 대표 | 아직 앱 웹 것을 쓴다(`lib/legal.ts`). 웹 전용 약관을 둘지 결정 |
 
@@ -88,6 +97,8 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 - 앱 HANDOFF의 "이후 유동자산 집계"는 04 §5-2 범위 밖이다. 넘기려면 04와 두 방침을 먼저 고친다.
 
 ## 5. 시행 절차
+
+> 10-21 최초 시행에 쓴 절차 기록이다. 1~4는 끝났다. 다음 개정(예: 11-18 VM 종료 뒤 AWS 이전, 11-11까지 고지)에도 같은 순서를 쓴다.
 
 1. 3의 확인 항목을 모두 채운다.
 2. 시행일을 정한다. 웹 백엔드로 가입을 받기 **전**이어야 하며, 앱 방침 개정과 같은 날로 맞추는 것을 권한다.

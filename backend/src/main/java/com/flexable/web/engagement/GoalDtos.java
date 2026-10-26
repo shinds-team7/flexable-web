@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.flexable.web.ai.GoalCoachClient.Content;
+import com.flexable.web.common.WholeWonDeserializer;
 
 import tools.jackson.databind.annotation.JsonDeserialize;
 
@@ -13,9 +14,9 @@ public final class GoalDtos {
 	}
 
 	public record GoalInput(String category, String name,
-			@JsonDeserialize(using = GoalAmountDeserializer.class) Long amount, String dueMonth,
-			@JsonDeserialize(using = GoalAmountDeserializer.class) Long currentAmount,
-			@JsonDeserialize(using = GoalAmountDeserializer.class) Long monthlyPace) {
+			@JsonDeserialize(using = WholeWonDeserializer.class) Long amount, String dueMonth,
+			@JsonDeserialize(using = WholeWonDeserializer.class) Long currentAmount,
+			@JsonDeserialize(using = WholeWonDeserializer.class) Long monthlyPace) {
 	}
 
 	public record AiStatus(boolean available, String plan, int limitPerDay, int remainingToday) {

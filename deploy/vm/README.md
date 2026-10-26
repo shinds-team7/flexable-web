@@ -101,7 +101,9 @@ sudo logrotate -d /etc/logrotate.d/rsyslog   # 문법 확인
 
 ## 시세 수집(worker)
 
-`.env`에 키움·KRX 키를 넣은 뒤 `docker compose --profile worker up -d`. 끄려면 `docker compose stop worker`.
+`.env`에 키움·KRX 키를 넣은 뒤 `docker compose --profile worker up -d`. 끄려면 `docker compose stop worker`. 켜질 때 한 번 수집하고(`MARKET_SYNC_ON_START`), 이후 평일 18:30 KST에 수집한 뒤 사건 탐지·공시 근거를 이어 돈다(`backend/README.md`).
+
+api·worker는 같은 `.env`를 `env_file`로 함께 읽는다(비밀 값이 컨테이너별로 나뉘어 있지 않음). 메모리는 컨테이너 제한 없이 `JAVA_OPTS`(api `-Xmx1g`, worker `-Xmx512m`)로만 정하고, worker의 DB 연결 풀은 3이다.
 
 ## 점검
 
@@ -114,4 +116,4 @@ sudo logrotate -d /etc/logrotate.d/rsyslog   # 문법 확인
 
 ## 바깥 연결
 
-api는 카카오·Google(로그인), 앱 서버(앱 연동)를, worker는 키움·KRX를 HTTPS로 부른다. VM에서 나가는 연결이 막혀 있으면 해당 기능만 실패한다(`curl -sI https://kauth.kakao.com`으로 확인).
+api는 카카오·Google(로그인), 앱 서버(앱 연동, 매일 03:20 일일 확인 포함), OpenAI(목표 안내, `OPENAI_API_KEY`가 있을 때만)를, worker는 키움·KRX·OpenDART(사건 근거 공시, `DART_API_KEY`가 있을 때만)를 HTTPS로 부른다. VM에서 나가는 연결이 막혀 있으면 해당 기능만 실패한다(`curl -sI https://kauth.kakao.com`으로 확인).

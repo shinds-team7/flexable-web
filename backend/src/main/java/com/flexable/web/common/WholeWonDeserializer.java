@@ -1,13 +1,13 @@
-package com.flexable.web.engagement;
+package com.flexable.web.common;
 
 import tools.jackson.core.JsonParser;
 import tools.jackson.core.JsonToken;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
-/** 금액 소수를 Long으로 묵시적으로 잘라 저장하지 않는다. API의 원 단위 정수만 받는다. */
-public class GoalAmountDeserializer extends StdDeserializer<Long> {
-	public GoalAmountDeserializer() {
+/** 금액 소수를 Long으로 묵시적으로 잘라 저장하지 않는다. API의 원 단위 정수만 받는다(목표·시드머니). */
+public class WholeWonDeserializer extends StdDeserializer<Long> {
+	public WholeWonDeserializer() {
 		super(Long.class);
 	}
 

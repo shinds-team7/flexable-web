@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`·`seedmoney`), 시세·투자 시뮬레이션·사건 API(`market`·`simulation`·`ingest`), 목표·AI 안내(`engagement`·`ai`)까지 구현됐다(2026-10-23).** 목표·AI 계약은 [`docs/product/goal-ai.md`](../docs/product/goal-ai.md). 나머지 패키지는 README로 책임만 정해 둔 상태다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`·`seedmoney`), 시세·투자 시뮬레이션·사건 API(`market`·`simulation`·`ingest`), 목표·AI 안내(`engagement`·`ai`)까지 구현됐다(2026-10-23).** 목표·AI 계약은 [`docs/product/goal-ai.md`](../docs/product/goal-ai.md). `insight`·`savings`·`news`·`billing`은 README로 책임만 정해 둔 상태이고 코드가 없다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -11,10 +11,14 @@
 ## 전체 그림
 
 ```text
-브라우저 ──▶ 웹(Vite 정적 파일) + /api ──▶ 웹 백엔드(이 폴더, Spring) ──▶ 웹 DB(MySQL)
-                                                 │
-                                                 └─ applink ──▶ project2 /internal/v1/web-links (연동한 사용자만)
+브라우저 ──▶ nginx(웹 정적 파일 + /api 프록시) ──▶ 웹 백엔드 api(이 폴더, Spring) ──▶ 웹 DB(MySQL 8.4)
+                                                       ├─ applink ──▶ project2 /internal/v1/web-links (연동한 사용자만)
+                                                       ├─ auth ──▶ 카카오·Google(소셜 로그인)
+                                                       └─ ai ──▶ OpenAI(목표 안내, 키가 있을 때만)
+웹 백엔드 worker(같은 코드, worker 프로필, HTTP 없음) ──▶ 키움·KRX·OpenDART ──▶ 같은 웹 DB
 ```
+
+VM 구성(nginx·api·worker·MySQL 컨테이너)은 [`deploy/vm/README.md`](../deploy/vm/README.md). 로컬은 H2 파일 DB(`local` 프로필), 테스트는 H2 메모리 DB를 쓴다.
 
 - 브라우저는 **웹 백엔드만** 호출한다. project2 API를 브라우저가 직접 부르지 않는다.
 - project2와 통신하는 코드는 `applink` 패키지 **한 곳에만** 둔다. 다른 패키지는 `applink`가 공개한 인터페이스·DTO만 쓴다.
@@ -28,25 +32,29 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 
 | 패키지 | 책임 | 의존해도 되는 곳 |
 |---|---|---|
-| `config` | 보안·CORS·프로필(api/worker)·시계 설정 | 전부 |
+| `config` | 보안·CORS·시계 설정 | 전부 |
 | `common` | 오류 응답 형식, 금액·날짜 공통 타입 | 없음 |
 | `applink` | [앱 연동하기]와 project2 호출의 유일한 출입구 | `common` |
 | `auth` | 웹 가입·로그인·세션 발급·폐기(웹 계정, 자체 비밀키) | `user` |
 | `user` | 웹 회원 정보·설정·동의, 탈퇴 조정 | `applink` |
 | `seedmoney` | 앱에서 확정한 시드머니를 받아 웹에서 쓰는 시드머니 | `applink`, `user` |
 | `market` | 종목·일별 시세·사건 | `common` |
-| `insight` | 사건 설명(사전 생성·검수 상태) | `market` |
-| `savings` | 적금 상품·금리 | `common` |
-| `simulation` | 투자·적금 계산 엔진, 프리셋 | `market`, `savings`, `seedmoney` |
-| `news` | 청년 금융 소식 | `common` |
-| `billing` | 요금제·구독·결제 | `user` |
+| `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
+| `savings` | 적금 상품·금리. 코드 없음 | `common` |
+| `simulation` | 투자 시뮬레이션 계산(적금·섞어보기 계산·프리셋은 아직 없음) | `market`, `savings`, `seedmoney` |
+| `news` | 청년 금융 소식. 코드 없음 | `common` |
+| `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |
 | `engagement` | 목표·AI 안내·사용량, 공유·지표 이벤트(미구현) | `simulation`, `user`, `seedmoney`, `ai` |
 | `ai` | OpenAI 목표 안내 클라이언트(식별자·자유 입력 이름 미전송) | `common` |
-| `ingest` | 외부 데이터 수집 작업 공통(worker 프로필에서만 동작) | 각 도메인의 저장 인터페이스 |
+| `ingest` | 외부 데이터 수집 작업(worker 프로필에서만 동작) | 각 도메인의 저장 인터페이스(지금은 `market`) |
+
+표의 오른쪽 열은 **허용**하는 방향이다. 실제 코드는 그중 일부만 쓴다(10-24 기준 `simulation → market`, `seedmoney → applink`, `user → applink`, `engagement → seedmoney·user·ai`, `ingest → market`).
 
 규칙: 표에 없는 방향의 import는 금지하고 `src/test/.../architecture/PackageDependencyTest`로 막는다. `common`은 아무 데도 의존하지 않으므로 모든 패키지가 쓸 수 있다. 다른 패키지의 Repository·엔티티를 직접 쓰지 않고 그 패키지의 공개 서비스·DTO만 쓴다(같은 테스트가 검사). 의존 방향을 거슬러 불러야 할 때(예: 탈퇴 시 각 패키지 데이터 삭제)는 아래 패키지가 인터페이스를 두고 위 패키지가 구현한다(`user.UserWithdrawalListener`). 표를 고치면 테스트의 `ALLOWED`도 함께 고친다. 회원 패키지·테이블 이름은 앱(project2 `user`·`users`)과 같게 `user`로 둔다(2026-10-20 사용자 결정, 이전 표기 `member`).
 
 ## API
+
+> **정본은 [`docs/contracts/web-api.yaml`](../docs/contracts/web-api.yaml)(OpenAPI)이다.** 아래 표는 읽기 쉬운 요약이고, 다르면 스펙을 따른다. `contract.ContractTest`가 실제 응답을 스펙으로 검사한다.
 
 웹 백엔드는 자기 서버이므로 `/api/v1/...`를 그대로 쓴다(`/web` 접두어 없음). 금액·수익률 계산은 서버가 하고 원 단위 정수, 나눗셈은 내림. 오류는 `{ code, message, ... }`(project2와 같은 형식), 시각은 `+09:00` 붙은 ISO-8601.
 
@@ -56,7 +64,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /auth/login` | 없음 | `{email, password}` → `{accessToken, expiresAt, user}`. 틀리면 401 `INVALID_CREDENTIALS`(없는 이메일과 구분하지 않음), 이메일별 10분에 5회 실패하면 429 `TOO_MANY_ATTEMPTS` + `retryAfterSeconds` |
 | `POST /auth/logout` | Bearer | 204. 이 회원의 **웹** 토큰을 모든 기기에서 폐기(`tokenVersion` 증가). 앱 세션·연동은 그대로 |
 | `GET /me` | Bearer | `{id, email, createdAt, provider, hasPassword}`. `provider`는 `email`·`kakao`·`google`, 소셜로 가입했고 이메일을 받지 못했으면 `email`은 `null` |
-| `DELETE /me` | Bearer | 이메일 계정 `{password}`, 소셜이 붙은 계정 `{confirm: "탈퇴"}` → 204. 웹 회원·설정·로그인 수단·앱 연동 삭제, 카카오는 `KAKAO_ADMIN_KEY`가 있으면 연결 끊기. 앱 서버 연동 해제는 커밋 뒤 한 번 요청하고, 실패해도 탈퇴는 끝난다 |
+| `DELETE /me` | Bearer | 이메일 계정 `{password}`, 소셜이 붙은 계정 `{confirm: "탈퇴"}` → 204. 웹 회원·설정·로그인 수단·앱 연동 삭제. 앱 서버 연동 해제와 카카오 연결 끊기(`KAKAO_ADMIN_KEY`가 있을 때)는 커밋 뒤 한 번씩 요청하고, 실패해도 탈퇴는 끝난다(탈퇴가 롤백되면 요청하지 않음) |
 | `GET /auth/oauth/providers` | 없음 | `{providers: ["kakao", "google"]}` — client-id가 설정된 공급자만 |
 | `GET /auth/oauth/{provider}/start` | 없음 | `?redirectUri=&codeChallenge=`(PKCE S256) → 공급자 로그인으로 302. `redirectUri`는 `OAUTH_ALLOWED_REDIRECT_URIS`와 정확히 같아야 한다 |
 | `GET /auth/oauth/{provider}/callback` | 없음 | 공급자가 부른다 → `redirectUri?code=`(2분, 한 번) 또는 `?error=cancelled\|provider_unavailable\|email_in_use\|failed` |
@@ -71,9 +79,12 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `GET /market/events/{id}` | 없음 | 사건 상세 `{id, code, name, scope, startDate, endDate, windowDays, direction, headline, marketReaction:{returnRate, marketReturn, volumeRatio, weekReturn}, afterwards:{d30, d365}, sources:[{type, externalId, title, publisher, date, url, weight}], newsSearchUrl, whatHappened, whyItMoved, aiGenerated, confidence, noticeKey=EVENT_EXPLAIN, notice}`(03 C-10). 수익률은 비율, 30·365일 뒤가 아직 안 왔으면 `null`. 설명(LLM) 전이라 `whatHappened`는 수치로 만든 사실 문장(기간·등락률·같은 기간 시장·공시 수, 원인 단정 없음)이고 `aiGenerated=false`, `confidence`는 근거가 없으면 `LOW`. 없으면 404 `NOT_FOUND` |
 | `GET /market/status` | 없음 | `{pricesAsOf, instrumentsAsOf, instruments, empty}` |
 | `POST /simulations/run` | 없음 | `{startDate:"YYYY-MM-01", funding:{mode:LUMP_SUM\|SPLIT\|PACE, totalAmount?, monthlyAmount?}, legs:[{instrumentId, weight?}]}`(03 §8-2의 부분집합). 응답: 요약·주별 `series[{weekStart,date,tradingDays,total,invested,contributed,profit,returnRate,legs[…]}]`·`assumptions`·`noticeKey=SIM_PAST`·`sources`. 상위 목록 밖 종목·금액 범위·종목 1~3개·비율 합 1은 400, 시세를 아직 모으지 않은 종목은 503 `MARKET_UNAVAILABLE`(+`field`=종목 코드). `events[]`: 기간 안에 시작한 고른 종목의 사건 + 시장 사건 `{id, code(시장 사건은 null), scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline, hasExplanation, sourceName, sourceCount, topSource, score, valueBefore, valueAfter, contributionInWindow, valueChange, noticeKey}`. 이때 내 돈(03 C-9)은 종목 사건이면 그 종목, 시장 사건이면 전체 평가액으로 사건 시작 전날·마지막 날 종가 기준이고, `valueChange = after − before − 그 사이 넣은 돈`, 아직 넣기 전이면 금액 필드가 `null`. 핀 8개 선택·묶음은 화면이 한다 |
-| `GET /app-link` | Bearer | 연동 상태 `AppLink`(아래). 연동돼 있고 마지막 조회에서 1분이 지났으면 앱 서버에서 회원 정보·시드머니를 다시 받는다. 앱 서버 장애면 저장한 마지막 값과 `sync.state: "stale"`. 앱에서 해제·앱 탈퇴(`LINK_NOT_FOUND`)면 웹 연동을 지우고 `{linked: false, reason: "app_unlinked"}` |
+| `GET /app-link` | Bearer | 연동 상태 `AppLink`(아래). 저장한 마지막 값만 읽는다(앱 서버를 부르지 않고 DB에 쓰지 않음). 마지막 확인에서 1분이 지났으면 `sync.due: true`이고, 화면이 `POST /app-link/refresh`로 다시 받는다 |
+| `POST /app-link/refresh` | Bearer | 200 `AppLink`. `sync.due`이면 앱 서버에서 회원 정보·시드머니를 다시 받아 저장하고, 아니거나 같은 회원의 연동·해제·다시 받기가 처리 중이면 저장한 값을 그대로 준다. 앱 서버 장애면 저장한 마지막 값과 `sync.status: "stale"`. 앱에서 해제·앱 탈퇴(`LINK_NOT_FOUND`)면 웹 연동을 지우고 `{linked: false, reason: "app_unlinked"}`. 연동이 없으면 `{linked: false}` |
 | `POST /app-link` | Bearer | `{code}`(앱에서 받은 6자리, `K7M2Q9`처럼 소문자 가능) → 201 `AppLink`. 오류: 400 `LINK_CODE_INVALID`(없음·만료·사용됨), 409 `APP_LINK_EXISTS`(이미 연동, 교체하지 않음), 409 `APP_LINK_IN_PROGRESS`(같은 회원의 요청 처리 중), 429 `TOO_MANY_ATTEMPTS`+`retryAfterSeconds`(코드 실패 회원당 10분 5회 또는 앱 서버 전체 제한), 502 `APP_LINK_RESULT_UNKNOWN`(보낸 뒤 응답 없음 — 다시 보내지 않음, 앱의 연동 목록 확인 후 새 코드), 503 `APP_UNAVAILABLE`(연결 실패·서비스 키 설정 오류) |
-| `GET /me/seed-money` | Bearer | 웹 시드머니 `{source: "app"\|"none", status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync}`. 앱 연동 값(`GET /app-link`와 같은 조회·갱신 규칙)이고 연동이 없으면 `source: "none"`에 나머지 `null`. 그래프는 (`startedOn`, `base`) 다음에 (`cycleEnd`, `totalAfter`)를 잇는다. 직접 입력 저장은 아직 없다 |
+| `GET /me/seed-money` | Bearer | 웹 시드머니 `{source: "app"\|"none", status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync, manual}`. 앱 연동 값(`GET /app-link`처럼 저장한 값만 읽고, `sync.due`이면 화면이 `POST /app-link/refresh` 뒤 다시 읽는다)이고 연동이 없으면 `source: "none"`에 앱 값 필드는 `null`. 그래프는 (`startedOn`, `base`) 다음에 (`cycleEnd`, `totalAfter`)를 잇는다. `manual`은 웹에서 직접 고친 값 `{total, updatedAt}` 또는 `null`이고, 있으면 화면·시뮬레이션은 앱 값 대신 이 값을 쓴다(앱 값 필드는 그대로) |
+| `PUT /me/seed-money/manual` | Bearer | `{total}`(원 단위 정수, 0~10억 원) → GET과 같은 응답. 회원당 하나, 다시 보내면 덮어쓴다. 범위 밖·소수·문자·빠짐은 400 `VALIDATION_FAILED`+`fields.total` |
+| `DELETE /me/seed-money/manual` | Bearer | 204. 직접 고친 값을 지우고 앱 기록 기준으로 되돌린다. 없어도 204 |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
 | `GET /savings/products` | 없음 | `?monthly=&termMonths=&sort=BASE_RATE\|MAX_RATE\|TERM&direction=&reserveType=FIXED\|FREE&sectors=BANK,SAVINGS_BANK&companies=은행이름,…&page=&size=` → `{items[], total, page, size, minInterestAfterTax, maxInterestAfterTax, noRateCount, disclosureMonth, dataAsOf, notice, isSample: false}`. 로컬 DB(finlife 공시 복사본)에서 읽고 `items[].result`(기본금리 기준 만기 계산)는 서버가 계산한다. 월 한도를 넘는 돈은 `excludedAmount` |
 | `GET /savings/companies` | 없음 | 공시가 있는 금융회사 `[{name, sector}]`(가나다순). 화면의 은행 선택지 |
@@ -82,13 +93,15 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /savings/simulate` | 없음 | `{productId, monthly, termMonths, reserveType, rateBasis: BASE\|MAX}` → 만기 계산 + `assumptions` |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
-투자 시뮬레이션 계산(`simulation.SimulationEngine`): 한 주(월~일)의 값 = 그 주 마지막 거래일 종가로 평가(휴장 주는 직전 종가). 납입은 시작 월부터 매달 그 달 첫 거래일 종가로 산다. 한 번에(`LUMP_SUM`) = 첫 달에 `totalAmount`, 매달 나눠서(`SPLIT`)·지금 저축 속도로(`PACE`) = 매달 `monthlyAmount`. 원 단위 정수·내림, 종목 배분 나머지는 첫 종목, 수량은 소수 8자리 내림(소수점 매수 가정). 배당·세금·수수료 미반영.
+투자 시뮬레이션 계산(`simulation.SimulationEngine`): 시작일은 그 달 1일로 맞추고(오늘 이후·10년 넘게 전은 400), 고른 종목 중 시작 무렵 시세가 없는 종목이 있으면 시작일을 바꾸지 않고 400으로 "○○부터 시세가 있어요"를 안내한다. 기간은 시작 월부터 고른 종목들의 마지막 시세일까지이고 시계열은 기간과 관계없이 주별이다. 한 주(월~일)의 값 = 그 주 마지막 거래일 종가로 평가(휴장 주는 직전 종가). 납입은 시작 월부터 매달 그 달 첫 거래일 종가로 산다. 한 번에(`LUMP_SUM`) = 첫 달에 `totalAmount`, 매달 나눠서(`SPLIT`)·지금 저축 속도로(`PACE`) = 매달 `monthlyAmount`. 원 단위 정수·내림, 종목 배분 나머지는 첫 종목, 수량은 소수 8자리 내림(소수점 매수 가정). 배당·세금·수수료 미반영.
 
-`AppLink` = `{enabled, linked, reason, linkedAt, account: {email|null, provider}, seedMoney: {status, total, base, monthlyGoal, lastEntry: {cycleEnd, choice, amount, createdAt}|null, updatedAt, startedOn, entries: [{cycleEnd, choice, amount, totalAfter, createdAt}]}, sync: {status: "fresh"|"stale", syncedAt}}`. `enabled`는 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지이고, `false`면 화면이 [앱 연동하기]를 숨긴다. 미연동이면 `enabled`·`linked`·`reason` 말고는 `null`. `seedMoney.status`는 `available`(금액 있음)·`budget_not_set`(앱 예산 설정 전, 연동은 유지)·`not_received`(아직 한 번도 받지 못함)이고 금액은 `available`일 때만 있다. 금액은 앱 서버 값 그대로다(웹에서 계산하지 않음). `linkId`는 응답·로그에 넣지 않는다.
+`AppLink` = `{enabled, linked, reason, linkedAt, account: {email|null, provider}, seedMoney: {status, total, base, monthlyGoal, lastEntry: {cycleEnd, choice, amount, createdAt}|null, updatedAt, startedOn, entries: [{cycleEnd, choice, amount, totalAfter, createdAt}]}, sync: {status: "fresh"|"stale", syncedAt, due}}`. `due`는 마지막 확인(성공·실패)에서 `refresh-interval`(1분)이 지나 다시 받을 때가 됐는지다. `enabled`는 웹 서버에 앱 서버 주소·서비스 키가 설정됐는지이고, `false`면 화면이 [앱 연동하기]를 숨긴다. 미연동이면 `enabled`·`linked`·`reason` 말고는 `null`. `seedMoney.status`는 `available`(금액 있음)·`budget_not_set`(앱 예산 설정 전, 연동은 유지)·`not_received`(아직 한 번도 받지 못함)이고 금액은 `available`일 때만 있다. 금액은 앱 서버 값 그대로다(웹에서 계산하지 않음). `linkId`는 응답·로그에 넣지 않는다.
 
 소셜 로그인 규칙은 project2와 같다. 공급자가 **확인한** 이메일이 같은 웹 계정이 있으면 그 계정에 로그인 수단을 붙이고 기존 웹 세션을 끊는다. 그 뒤로는 비밀번호 로그인이 401 `SOCIAL_ACCOUNT`(+`provider`)로 안내된다. 같은 공급자의 다른 계정은 붙이지 않는다(`email_in_use`). 확인되지 않은 이메일은 저장하지도 연결에 쓰지도 않는다. **앱 계정은 보지 않는다**(04 §4).
 
 토큰: HS256, 30일, 클레임 `sub`(웹 회원 id)·`tv`(토큰 버전)·`iss=flexable-web`. 서명 키는 웹 전용(`WEB_JWT_SECRET`)이고 `iss`도 검사하므로 앱 토큰은 통과하지 못한다. 요청마다 `user_credentials.token_version`과 `tv`를 비교해 로그아웃·탈퇴된 토큰을 거절한다.
+
+앱 연동 일일 확인: api(`!worker`)의 `applink.AppLinkRecheckJob`이 매일 03:20(Asia/Seoul)에 모든 연동을 앱 서버에 다시 조회해, 앱에서 해제·앱 탈퇴한 연동을 지운다(`app.applink.recheck-cron`). 앱 서버 설정이 없으면 건너뛴다.
 
 목표 안내 사용량 보관: api(`!worker`)의 `engagement.GoalCoachUsageCleanupJob`이 매일 03:40(Asia/Seoul)에 `goal_coach_usage`의 `usage_date <= 오늘 − 7일` 행을 삭제한다(방침 제4조). 키가 없어도 정리하고 회원 정보 없는 `ai_daily_usage`는 남긴다. `app.goal.coach.cleanup-cron`으로 시각을 바꿀 수 있다.
 
@@ -104,7 +117,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 ./gradlew bootRun --args='--spring.profiles.active=local,worker'
 ```
 
-시세 수집(`ingest.MarketSyncJob`, worker만 외부 API를 부른다 04 §8): 켜질 때 한 번(`MARKET_SYNC_ON_START`)과 평일 18:30(`MARKET_SYNC_CRON`)에 돈다. ① 시장별 종목 목록을 받아 시가총액 상위 `MARKET_TOP_LIMIT`개를 `instruments`에 바꿔 넣고 ② 그 종목들의 일봉을 `daily_prices`에 저장한다. 처음에는 `MARKET_BACKFILL_YEARS`년 전 그 달 1일보다 일주일 앞부터(화면 "5년 전"이 그 달 1일부터 계산), 이후에는 마지막 거래일 10일 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 실행 결과는 `ingest_runs`. 처음 실행은 300종목 × 5년이라 몇 분 걸리고, 다 받기 전에는 그 종목 계산이 503이다.
+시세 수집(`ingest.MarketSyncJob`, 데이터 수집 외부 호출은 worker만 한다 04 §8. api가 요청 중에 부르는 소셜 로그인·앱 연동·OpenAI는 예외): 켜질 때 한 번(`MARKET_SYNC_ON_START`)과 평일 18:30(`MARKET_SYNC_CRON`)에 돈다. ① 시장별 종목 목록을 받아 시가총액 상위 `MARKET_TOP_LIMIT`개를 `instruments`에 바꿔 넣고 ② 그 종목들의 일봉을 `daily_prices`에 저장한다. 처음에는 `MARKET_BACKFILL_YEARS`년 전 그 달 1일보다 일주일 앞부터(화면 "5년 전"이 그 달 1일부터 계산), 이후에는 마지막 거래일 10일 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 실행 결과는 `ingest_runs`. 처음 실행은 300종목 × 5년이라 몇 분 걸리고, 다 받기 전에는 그 종목 계산이 503이다.
 
 | 소스 | 구현(`ingest`) | 비고 |
 |---|---|---|
@@ -156,7 +169,20 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 ## 데이터
 
-Flyway `src/main/resources/db/migration`. `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전). `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함. `V3__app_links.sql`: `app_links`(applink: 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니와 조회 시각). `V4__market.sql`: `instruments`(market: 코드 UNIQUE, 시장·시가총액 순위·출처·기준일), `daily_prices`(market: `(instrument_id, trade_date)` PK, 수정주가 종가·거래량·출처·수집 시각), `ingest_runs`(ingest: 수집 실행 기록). `V6__app_link_entries.sql`: `app_links.seed_started_on`(앱 시작일), `app_link_entries`(applink: 주기별 반영 기록, 조회마다 통째로 바꾸고 연동과 함께 삭제). `V5__market_events.sql`: `instruments.corp_code`(OpenDART 고유번호), `market_events`(market: 급변동 사건, `(instrument_id, scope, start_date, detector_version)` UNIQUE, 수익률·z·점수·연도 순위·근거 확인 시각), `event_sources`(market: 사건 근거, DART 접수번호·보고서 이름·제출인·접수일·원문 링크·키워드 점수, 사건을 지우면 함께 지워짐). 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](src/main/resources/db/migration/README.md). 현재 V1~V12, 테이블 19개다. 앱 DB와 외래 키는 없다.
+
+- `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전)
+- `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함
+- `V3__app_links.sql`: `app_links`(applink: 웹 회원당 하나, 암호화한 `linkId`(`link_id_cipher`), 앱에서 마지막으로 받은 회원 정보·시드머니와 조회 시각)
+- `V4__market.sql`: `instruments`(market: 코드 UNIQUE, 시장·시가총액 순위·출처·기준일), `daily_prices`(market: `(instrument_id, trade_date)` PK, 제공처가 준 수정주가 종가·거래량·출처·수집 시각. 수정 계수는 따로 저장하지 않음), `ingest_runs`(ingest: 수집 실행 기록)
+- `V5__market_events.sql`: `instruments.corp_code`(OpenDART 고유번호), `market_events`(market: 급변동 사건, `(instrument_id, scope, start_date, detector_version)` UNIQUE, 수익률·z·점수·연도 순위·근거 확인 시각), `event_sources`(market: 사건 근거, DART 접수번호·보고서 이름·제출인·접수일·원문 링크·키워드 점수, 사건을 지우면 함께 지워짐)
+- `V6__app_link_entries.sql`: `app_links.seed_started_on`(앱 시작일), `app_link_entries`(applink: 주기별 반영 기록, 조회마다 통째로 바꾸고 연동과 함께 삭제)
+- `V7__privacy_notice_basis.sql`: `users.privacy_agreed_at` NULL 허용(10-21부터 개인정보는 동의가 아니라 계약 이행 근거, 이전 가입자의 동의 시각은 유지)
+- `V8__goals.sql`: `goals`·`goal_coaches`·`goal_coach_usage`·`ai_daily_usage`(engagement, [goal-ai.md](../docs/product/goal-ai.md))
+- `V9__seed_money_manual.sql`: `seed_money_manual`(seedmoney: 웹에서 직접 고친 시드머니, 회원당 하나, 되돌리기·탈퇴 때 삭제)
+- `V10__savings.sql`: `savings_products`·`savings_rate_options`(savings: 금융감독원 finlife 적금 공시 복사본, 상품·기간별 기본/최고 금리)
+- `V11__savings_policies.sql`: `savings_policies`(savings: 온통청년 청년정책 중 적금·저축·통장 계열)
+- `V12__savings_policy_region.sql`: `savings_policies.region`(정책 지역, 중앙부처는 '전국')
 
 ## 아직 정해지지 않은 것
 

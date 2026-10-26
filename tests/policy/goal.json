@@ -1,0 +1,31 @@
+{
+  "policy": "docs/policies.md §3 목표 계산",
+  "now": "2026-10",
+  "cases": [
+    {
+      "name": "기한 안에 닿는 속도(ON_TRACK)",
+      "input": { "amount": 10000000, "current": 4000000, "monthlyPace": 500000, "due": "2027-10" },
+      "expected": { "status": "ON_TRACK", "remaining": 6000000, "ratioBp": 4000, "monthsLeft": 12, "requiredMonthly": 500000, "expectedMonths": 12, "expectedMonth": "2027-10", "monthlyGap": 0, "dailyGap": 0 }
+    },
+    {
+      "name": "속도가 모자람(BEHIND): 하루 부족액은 100원 단위 올림",
+      "input": { "amount": 10000000, "current": 4000000, "monthlyPace": 300000, "due": "2027-04" },
+      "expected": { "status": "BEHIND", "remaining": 6000000, "ratioBp": 4000, "monthsLeft": 6, "requiredMonthly": 1000000, "expectedMonths": 20, "expectedMonth": "2028-06", "monthlyGap": 700000, "dailyGap": 23400 }
+    },
+    {
+      "name": "저축 속도 없음(NO_PACE): 필요 월 금액은 천 원 단위 올림",
+      "input": { "amount": 1000000, "current": 0, "monthlyPace": null, "due": "2027-01" },
+      "expected": { "status": "NO_PACE", "remaining": 1000000, "ratioBp": 0, "monthsLeft": 3, "requiredMonthly": 334000, "expectedMonths": null, "expectedMonth": null, "monthlyGap": 0, "dailyGap": 0 }
+    },
+    {
+      "name": "이미 닿음(REACHED): 넘은 금액도 진행률 100%",
+      "input": { "amount": 5000000, "current": 5200000, "monthlyPace": 100000, "due": "2027-10" },
+      "expected": { "status": "REACHED", "remaining": 0, "ratioBp": 10000, "monthsLeft": 12, "requiredMonthly": 0, "expectedMonths": 0, "expectedMonth": "2026-10", "monthlyGap": 0, "dailyGap": 0 }
+    },
+    {
+      "name": "기한 지남(OVERDUE): 필요 월 금액 없음",
+      "input": { "amount": 3000000, "current": 1000000, "monthlyPace": 100000, "due": "2026-08" },
+      "expected": { "status": "OVERDUE", "remaining": 2000000, "ratioBp": 3333, "monthsLeft": -2, "requiredMonthly": null, "expectedMonths": 20, "expectedMonth": "2028-06", "monthlyGap": 0, "dailyGap": 0 }
+    }
+  ]
+}

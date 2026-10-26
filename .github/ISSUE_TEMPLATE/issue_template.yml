@@ -1,22 +1,38 @@
-name: "✨ Feature"
-description: "새로운 기능 추가"
+name: "✨ 작업"
+description: "AI·사람에게 맡길 작업 하나(기능·수정·문서). 작게 나눌수록 좋아요"
 labels: ["feature"]
 body:
   - type: textarea
     attributes:
-      label: 📄 설명
-      description: 새로운 기능에 대한 설명을 작성해 주세요.
-      placeholder: 자세히 적을수록 좋습니다!
+      label: 🎯 목표
+      description: 이 작업이 끝나면 사용자나 팀이 무엇을 할 수 있게 되는지 한두 문장으로 적어 주세요.
+      placeholder: 예) 회원이 홈에서 고친 시드머니가 다른 기기에서도 그대로 보인다
     validations:
       required: true
   - type: textarea
     attributes:
-      label: ✅ 작업할 내용
-      description: 할 일을 체크박스 형태로 작성해주세요.
-      placeholder: 최대한 세분화 해서 적어주세요!
+      label: 📚 참고 자료
+      description: AI가 직접 읽을 저장소 문서와 절·계약을 적어 주세요. 채팅에 붙여 넣은 기획 대신 저장소 경로를 적습니다.
+      placeholder: |
+        - docs/product/01-product.md §3-3 시드머니 정의
+        - backend/README.md "API"의 PUT /me/seed-money/manual
     validations:
       required: true
   - type: textarea
     attributes:
-      label: 🙋🏻 참고 자료
-      description: 참고 자료가 있다면 작성해 주세요.
+      label: 📦 범위
+      description: 할 일과 하지 않을 일을 적어 주세요. 같은 파일을 다른 사람과 동시에 고치게 되면 더 잘게 나눠 주세요.
+      placeholder: |
+        - 할 일: 저장 API, 홈 [수정하기] 연결, 관련 테스트
+        - 하지 않을 일: 앱 쪽 변경
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: ✅ 완료 조건
+      description: 사람과 AI가 같은 기준으로 끝났다고 판단할 수 있게, 가능하면 "어떤 테스트 통과"로 적어 주세요.
+      placeholder: |
+        - [ ] SeedMoneyManualApiTest 통과(범위 밖 금액 400, 다시 보내면 덮어쓰기)
+        - [ ] npm run typecheck · npm run build 통과
+    validations:
+      required: true

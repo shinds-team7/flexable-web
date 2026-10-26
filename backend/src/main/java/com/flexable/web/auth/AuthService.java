@@ -2,6 +2,7 @@ package com.flexable.web.auth;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.client.RestClientResponseException;
 
 import com.flexable.web.auth.AuthDtos.AuthResponse;
@@ -105,7 +108,11 @@ public class AuthService implements UserWithdrawalListener {
 		credentials.findWithLockByUserId(userId).ifPresent(c -> c.revokeTokens(now));
 	}
 
-	/** 이메일 계정은 비밀번호로, 소셜이 붙은 계정은 비밀번호를 쓸 수 없으므로 확인 문구로 본인 확인을 한다. */
+	/**
+	 * 이메일 계정은 비밀번호로, 소셜이 붙은 계정은 비밀번호를 쓸 수 없으므로 확인 문구로 본인 확인을 한다.
+	 * 카카오 연결 끊기는 앱 연동 해제처럼 커밋 뒤에 한 번 요청한다. 로그인 수단 행을 잠근 채 외부를 기다리지 않고,
+	 * 탈퇴가 롤백되면 카카오 연결도 그대로 둔다. 실패해도 탈퇴는 끝난 상태다(로그만 남김).
+	 */
 	@Transactional
 	public void withdraw(long userId, int tokenVersion, String password, String confirm) {
 		Credential credential = credentials.findWithLockByUserId(userId)
@@ -127,10 +134,26 @@ public class AuthService implements UserWithdrawalListener {
 			throw ApiException.invalid("confirm", "확인 문구 '탈퇴'를 입력해 주세요");
 		}
 		String adminKey = oauthProps.kakao().adminKey();
-		if (adminKey != null && !adminKey.isBlank()) {
-			linked.stream().filter(i -> "kakao".equals(i.getProvider())).forEach(i -> unlinkKakao(i.getProviderUserId()));
-		}
+		List<String> kakaoIds = adminKey == null || adminKey.isBlank() ? List.of()
+				: linked.stream().filter(i -> "kakao".equals(i.getProvider())).map(Identity::getProviderUserId).toList();
 		users.withdraw(userId);
+		if (!kakaoIds.isEmpty()) {
+			afterCommit(() -> kakaoIds.forEach(this::unlinkKakao));
+		}
+	}
+
+	/** 트랜잭션이 커밋된 뒤 실행한다. 트랜잭션 밖에서 불리면 바로 실행한다. */
+	private static void afterCommit(Runnable task) {
+		if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+			task.run();
+			return;
+		}
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				task.run();
+			}
+		});
 	}
 
 	/** user.withdraw가 회원 행을 지우기 전에 부른다. 로그인 수단을 지우면 남은 토큰도 함께 무효가 된다. */

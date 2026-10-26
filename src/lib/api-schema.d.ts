@@ -4,6 +4,296 @@
  */
 
 export interface paths {
+    "/practice/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 구현 예정: 준비된 업종과 후보 종목 수 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 후보가 없으면 categories는 빈 배열. 키움 업종명 정규화와 내부 코드 생성은 결정 기록 참조 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            isSample: boolean;
+                            categories: {
+                                code: string;
+                                name: string;
+                                classificationVersion: string;
+                                eligibleCount: number;
+                            }[];
+                        };
+                    };
+                };
+                503: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/practice/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 구현 예정: 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음
+         * @description 동일 startId와 동일 입력은 세션 생존 중 같은 시작 응답. 같은 ID·다른 입력은 409. 종료·만료 후 같은 ID는 새 실행이다. 성공 응답은 no-store. 동시 재전송도 세션 하나만 생성한다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        startId: string;
+                        categoryCode: string;
+                        /** Format: int64 */
+                        initialAmount: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description version=0, 첫 봉만 공개. sessionToken은 256비트 이상 임의 토큰, expiresAt은 시작 후 30분 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            sessionToken: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                            snapshot: components["schemas"]["PracticeSnapshot"];
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/practice/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 구현 예정: 현재까지의 상태만 재조회(no-store) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PracticeToken"];
+                };
+            };
+            responses: {
+                /** @description 현재 상태 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PracticeSnapshot"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/practice/step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 구현 예정: 다음 멈춤까지 진행(no-store)
+         * @description RUNNING에서만 진행. 다음 사건이 나오는 거래일 또는 마지막 봉까지 한 번에 진행하고 version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PracticeCommand"];
+                };
+            };
+            responses: {
+                /** @description 새 봉까지의 상태. 이후 가격·사건·정답은 제외 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PracticeSnapshot"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/practice/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 구현 예정: 현재 사건의 방향 예상과 가상 매매 선택(no-store)
+         * @description AWAITING_DECISION의 eventId만 허용. 선택을 기록하고 RUNNING으로 바꾸며 version 증가. 봉은 아직 진행하지 않고 다음 step에서 시가 체결
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        sessionToken: string;
+                        /** Format: uuid */
+                        commandId: string;
+                        expectedVersion: number;
+                        eventId: string;
+                        /** @enum {string} */
+                        prediction: "POSITIVE" | "NEGATIVE";
+                        /** @enum {string} */
+                        action: "BUY" | "SELL" | "HOLD";
+                        /**
+                         * @description HOLD는 0만, BUY/SELL은 25/50/100만 허용
+                         * @enum {integer}
+                         */
+                        allocationPercent: 0 | 25 | 50 | 100;
+                    };
+                };
+            };
+            responses: {
+                /** @description 선택을 접수한 상태. 판정 전 정답은 없음 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PracticeSnapshot"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/practice/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 구현 예정: 세션 즉시 삭제. 없는 토큰·반복 종료도 204 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PracticeToken"];
+                };
+            };
+            responses: {
+                /** @description 삭제 완료 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/signup": {
         parameters: {
             query?: never;
@@ -972,9 +1262,118 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        PracticeToken: {
+            sessionToken: string;
+        };
+        PracticeCommand: {
+            sessionToken: string;
+            /** Format: uuid */
+            commandId: string;
+            expectedVersion: number;
+        };
+        PracticePortfolio: {
+            /** Format: int64 */
+            cash: number;
+            /** Format: int64 */
+            shares: number;
+            /** Format: int64 */
+            stockValue: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            profit: number;
+            /** @description 서버가 소수 4자리 내림 */
+            returnRate: number;
+        };
+        PracticeSnapshot: {
+            version: number;
+            /** @enum {string} */
+            status: "RUNNING" | "AWAITING_DECISION" | "FINISHED";
+            instrument: {
+                code: string;
+                name: string;
+                categoryCode: string;
+                categoryName: string;
+                classificationVersion: string;
+                /** Format: date */
+                classificationAsOf: string;
+            };
+            /** Format: int64 */
+            initialAmount: number;
+            isSample: boolean;
+            /** @description 공개된 봉만 날짜 오름차순. 아직 진행하지 않은 봉 없음 */
+            candles: {
+                /** Format: date */
+                date: string;
+                /** Format: int64 */
+                open: number;
+                /** Format: int64 */
+                high: number;
+                /** Format: int64 */
+                low: number;
+                /** Format: int64 */
+                close: number;
+            }[];
+            /** @description step 응답에서만 이번에 새로 공개된 봉마다 그날 종가 기준 자산(날짜 오름차순, 마지막 항목 = portfolio). 화면은 이 구간을 3초에 나눠 재생한다. start·state·decision 응답은 빈 배열 */
+            frames: {
+                /** Format: date */
+                date: string;
+                portfolio: components["schemas"]["PracticePortfolio"];
+            }[];
+            portfolio: components["schemas"]["PracticePortfolio"];
+            /** @description AWAITING_DECISION일 때만 현재 문제. 그 밖에는 null */
+            event: {
+                id: string;
+                /** @description 원문 공시 제목. 사후 급등/급락 요약 금지 */
+                title: string;
+                /** Format: date */
+                publishedDate: string;
+                /**
+                 * Format: date
+                 * @description 현재 마지막 봉 날짜. 휴일 접수면 접수일보다 앞설 수 있음
+                 */
+                baselineDate: string;
+                /** Format: uri */
+                sourceUrl: string;
+                sourceName: string;
+            } | null;
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null */
+            decisions: {
+                eventId: string;
+                title: string;
+                /** Format: date */
+                publishedDate: string;
+                /** Format: date */
+                baselineDate: string;
+                /** Format: uri */
+                sourceUrl: string;
+                /** @enum {string} */
+                prediction: "POSITIVE" | "NEGATIVE";
+                /** @enum {string} */
+                action: "BUY" | "SELL" | "HOLD";
+                /** @enum {integer} */
+                allocationPercent: 0 | 25 | 50 | 100;
+                /** @enum {string} */
+                execution: "PENDING" | "FILLED" | "NO_FILL" | "HOLD";
+                /** Format: date */
+                executedDate: string | null;
+                /** Format: int64 */
+                executedPrice: number | null;
+                /** Format: int64 */
+                executedShares: number | null;
+                /** @enum {string|null} */
+                outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
+                /** Format: date */
+                outcomeDate: string | null;
+                subsequentReturnRate: number | null;
+            }[];
+            /** @description 과거 계산·원금 손실·비권유, 세금/수수료/배당 제외, 표본 편향과 현재 업종 분류 고지 */
+            notice: string;
+            sources: string[];
+        };
         Error: {
             /** @enum {string} */
-            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "GOAL_CHANGED" | "EMAIL_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "MARKET_UNAVAILABLE" | "LINK_CODE_INVALID" | "APP_LINK_EXISTS" | "APP_LINK_IN_PROGRESS" | "APP_LINK_RESULT_UNKNOWN" | "APP_UNAVAILABLE" | "INTERNAL_ERROR";
+            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "GOAL_CHANGED" | "EMAIL_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "MARKET_UNAVAILABLE" | "LINK_CODE_INVALID" | "APP_LINK_EXISTS" | "APP_LINK_IN_PROGRESS" | "APP_LINK_RESULT_UNKNOWN" | "APP_UNAVAILABLE" | "INTERNAL_ERROR" | "PRACTICE_CONFLICT" | "PRACTICE_EXPIRED" | "PRACTICE_UNAVAILABLE" | "PRACTICE_CAPACITY";
             message: string;
             /** @description VALIDATION_FAILED에서 필드별 문장 */
             fields?: {

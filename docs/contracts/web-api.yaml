@@ -21,6 +21,7 @@ tags:
   - name: goal
   - name: market
   - name: simulation
+  - name: youth-news
   - name: health
 
 paths:
@@ -400,6 +401,28 @@ paths:
               schema: { $ref: '#/components/schemas/RunResponse' }
         '400': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+
+  /youth-news:
+    get:
+      tags: [youth-news]
+      summary: 청년 금융 소식(승인된 것만, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
+      description: |
+        - category: 소식이 드는 분야(categories) 중 하나라도 맞으면 보인다.
+        - age: 원문에서 확인 못 한 나이 쪽(null)은 막지 않는다.
+        - region: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 나오지 않는다.
+        - 신청 날짜가 없는데 사업기간이 끝난 소식은 그날(Asia/Seoul) 기준으로 뺀다.
+      security: []
+      parameters:
+        - { name: age, in: query, required: false, schema: { type: integer }, description: '만 나이' }
+        - { name: region, in: query, required: false, schema: { type: string }, description: '시도 이름(서울·경기…)' }
+        - { name: category, in: query, required: false, schema: { $ref: '#/components/schemas/NewsCategory' } }
+      responses:
+        '200':
+          description: 소식 목록
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/YouthNewsFeed' }
+        '400': { $ref: '#/components/responses/Error' }
 
   /health:
     get:
@@ -905,3 +928,71 @@ components:
             properties:
               name: { type: string }
               note: { type: string, nullable: true }
+    NewsCategory:
+      type: string
+      description: '교통·주거·일자리·교육·저축·금융·생활·문화·세금·기타'
+      enum: [TRANSPORT, HOUSING, JOB, EDUCATION, FINANCE, CULTURE, TAX, ETC]
+    YouthNewsFeed:
+      type: object
+      required: [items, preview]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/YouthNewsItem' } }
+        preview: { type: boolean, description: 'true면 검수 전 초안도 섞인 로컬 미리보기(local 프로필 전용). 운영은 늘 false' }
+    YouthNewsItem:
+      type: object
+      required: [id, category, categories, title, benefit, audience, regions, applyStart, applyDeadline, alwaysOpen, action, source,
+        postedAt, keywords, calcLink, correctedAt, slot]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        category: { $ref: '#/components/schemas/NewsCategory' }
+        categories:
+          type: array
+          minItems: 1
+          description: '이 소식이 드는 분야 전부. 첫 번째가 대표(category)'
+          items: { $ref: '#/components/schemas/NewsCategory' }
+        title: { type: string }
+        benefit: { type: string, description: '나에게 얼마. 원문 수치 그대로' }
+        audience: { $ref: '#/components/schemas/YouthNewsAudience' }
+        regions:
+          description: '"NATIONWIDE"(전국) 또는 시도 이름 목록'
+          oneOf:
+            - { type: string, enum: [NATIONWIDE] }
+            - { type: array, items: { type: string } }
+        applyStart: { type: string, format: date, nullable: true }
+        applyDeadline: { type: string, format: date, nullable: true }
+        alwaysOpen: { type: boolean }
+        action: { type: string, description: '오늘 할 일 하나' }
+        source: { $ref: '#/components/schemas/YouthNewsSource' }
+        postedAt: { type: string, format: date, nullable: true }
+        keywords: { type: array, items: { type: string } }
+        calcLink: { $ref: '#/components/schemas/YouthNewsCalcLink' }
+        correctedAt: { type: string, format: date, nullable: true, description: '승인 뒤 정정한 날' }
+        slot: { type: string, enum: [MAIN, SUB], nullable: true, description: 'MAIN = 오늘의 한 장' }
+    YouthNewsAudience:
+      type: object
+      required: [summary, ageMin, ageMax, incomeLimit]
+      additionalProperties: false
+      properties:
+        summary: { type: string, nullable: true, description: '나이 외 조건 요약' }
+        ageMin: { type: integer, nullable: true }
+        ageMax: { type: integer, nullable: true }
+        incomeLimit: { type: boolean, nullable: true, description: '원문에 소득 기준이 있으면 true, 언급이 없으면 null' }
+    YouthNewsSource:
+      type: object
+      required: [org, url, asOf]
+      additionalProperties: false
+      properties:
+        org: { type: string }
+        url: { type: string }
+        asOf: { type: string, format: date }
+    YouthNewsCalcLink:
+      type: object
+      nullable: true
+      required: [to, label]
+      additionalProperties: false
+      description: '[계산해 보기]가 여는 내부 화면. 없으면 null'
+      properties:
+        to: { type: string }
+        label: { type: string }

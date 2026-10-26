@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-10-26
+
+- [#47] 청년 소식 `GET /youth-news`(로그인 없음, 승인된 소식만)를 `web-api.yaml`에 추가하고 `ContractTest`가 응답을 검사한다. 응답은 #47 구현 그대로이고 바뀐 동작은 없다 — 영향: 프론트·백엔드
+
 ## 2026-10-25
 
 - [#73] 앱 연동 `/internal/v1/web-links/*` 계약 링크를 앱 `docs/API.md`에서 앱 `docs/contracts/web-link-api.yaml`(OpenAPI 정본, 앱 #136)로 바꿨다(`AGENTS.md`·`docs/contracts/README.md`·`web-api.yaml` 설명·PR 템플릿·04). 계약 내용은 바뀌지 않았다 — 영향: 백엔드(`applink`를 고칠 때 앱 스펙 기준)

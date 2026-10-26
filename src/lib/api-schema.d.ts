@@ -158,8 +158,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 다음 거래일 하나 진행(no-store)
-         * @description RUNNING에서만 진행. version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환
+         * 구현 예정: 다음 멈춤까지 진행(no-store)
+         * @description RUNNING에서만 진행. 다음 사건이 나오는 거래일 또는 마지막 봉까지 한 번에 진행하고 version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환
          */
         post: {
             parameters: {
@@ -1222,6 +1222,20 @@ export interface components {
             commandId: string;
             expectedVersion: number;
         };
+        PracticePortfolio: {
+            /** Format: int64 */
+            cash: number;
+            /** Format: int64 */
+            shares: number;
+            /** Format: int64 */
+            stockValue: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            profit: number;
+            /** @description 서버가 소수 4자리 내림 */
+            returnRate: number;
+        };
         PracticeSnapshot: {
             version: number;
             /** @enum {string} */
@@ -1251,20 +1265,13 @@ export interface components {
                 /** Format: int64 */
                 close: number;
             }[];
-            portfolio: {
-                /** Format: int64 */
-                cash: number;
-                /** Format: int64 */
-                shares: number;
-                /** Format: int64 */
-                stockValue: number;
-                /** Format: int64 */
-                total: number;
-                /** Format: int64 */
-                profit: number;
-                /** @description 서버가 소수 4자리 내림 */
-                returnRate: number;
-            };
+            /** @description step 응답에서만 이번에 새로 공개된 봉마다 그날 종가 기준 자산(날짜 오름차순, 마지막 항목 = portfolio). 화면은 이 구간을 3초에 나눠 재생한다. start·state·decision 응답은 빈 배열 */
+            frames: {
+                /** Format: date */
+                date: string;
+                portfolio: components["schemas"]["PracticePortfolio"];
+            }[];
+            portfolio: components["schemas"]["PracticePortfolio"];
             /** @description AWAITING_DECISION일 때만 현재 문제. 그 밖에는 null */
             event: {
                 id: string;

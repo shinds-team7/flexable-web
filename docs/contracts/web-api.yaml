@@ -109,8 +109,8 @@ paths:
   /practice/step:
     post:
       tags: [practice]
-      summary: '구현 예정: 다음 거래일 하나 진행(no-store)'
-      description: 'RUNNING에서만 진행. version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환'
+      summary: '구현 예정: 다음 멈춤까지 진행(no-store)'
+      description: 'RUNNING에서만 진행. 다음 사건이 나오는 거래일 또는 마지막 봉까지 한 번에 진행하고 version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환'
       security: []
       requestBody:
         required: true
@@ -631,10 +631,21 @@ components:
         sessionToken: { type: string, minLength: 43, maxLength: 128 }
         commandId: { type: string, format: uuid }
         expectedVersion: { type: integer, minimum: 0 }
+    PracticePortfolio:
+      type: object
+      additionalProperties: false
+      required: [cash, shares, stockValue, total, profit, returnRate]
+      properties:
+        cash: { type: integer, format: int64, minimum: 0 }
+        shares: { type: integer, format: int64, minimum: 0 }
+        stockValue: { type: integer, format: int64, minimum: 0 }
+        total: { type: integer, format: int64, minimum: 0 }
+        profit: { type: integer, format: int64 }
+        returnRate: { type: number, description: '서버가 소수 4자리 내림' }
     PracticeSnapshot:
       type: object
       additionalProperties: false
-      required: [version, status, instrument, initialAmount, isSample, candles, portfolio, event, decisions, notice, sources]
+      required: [version, status, instrument, initialAmount, isSample, candles, frames, portfolio, event, decisions, notice, sources]
       properties:
         version: { type: integer, minimum: 0 }
         status: { type: string, enum: [RUNNING, AWAITING_DECISION, FINISHED] }
@@ -666,17 +677,18 @@ components:
               high: { type: integer, format: int64, minimum: 1 }
               low: { type: integer, format: int64, minimum: 1 }
               close: { type: integer, format: int64, minimum: 1 }
-        portfolio:
-          type: object
-          additionalProperties: false
-          required: [cash, shares, stockValue, total, profit, returnRate]
-          properties:
-            cash: { type: integer, format: int64, minimum: 0 }
-            shares: { type: integer, format: int64, minimum: 0 }
-            stockValue: { type: integer, format: int64, minimum: 0 }
-            total: { type: integer, format: int64, minimum: 0 }
-            profit: { type: integer, format: int64 }
-            returnRate: { type: number, description: '서버가 소수 4자리 내림' }
+        frames:
+          type: array
+          maxItems: 120
+          description: 'step 응답에서만 이번에 새로 공개된 봉마다 그날 종가 기준 자산(날짜 오름차순, 마지막 항목 = portfolio). 화면은 이 구간을 3초에 나눠 재생한다. start·state·decision 응답은 빈 배열'
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, portfolio]
+            properties:
+              date: { type: string, format: date }
+              portfolio: { $ref: '#/components/schemas/PracticePortfolio' }
+        portfolio: { $ref: '#/components/schemas/PracticePortfolio' }
         event:
           type: object
           nullable: true

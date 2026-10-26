@@ -1,0 +1,30 @@
+{
+  "status": "SPEC_ONLY",
+  "initialAllocationPercent": 50,
+  "tradeSequence": {
+    "initialAmount": 100000,
+    "bars": [
+      { "open": 3000, "close": 3100, "actionBeforeBar": "START", "allocationPercent": 50, "expected": { "shares": 16, "cash": 52000, "total": 101600, "profit": 1600, "returnRate": 0.0160 } },
+      { "open": 4000, "close": 4100, "actionBeforeBar": "BUY", "allocationPercent": 50, "expected": { "shares": 22, "cash": 28000, "total": 118200, "profit": 18200, "returnRate": 0.1820 } },
+      { "open": 3500, "close": 3600, "actionBeforeBar": "SELL", "allocationPercent": 50, "expected": { "shares": 11, "cash": 66500, "total": 106100, "profit": 6100, "returnRate": 0.0610 } },
+      { "open": 3400, "close": 3400, "actionBeforeBar": "HOLD", "allocationPercent": 0, "expected": { "shares": 11, "cash": 66500, "total": 103900, "profit": 3900, "returnRate": 0.0390 } }
+    ]
+  },
+  "insufficientCash": { "initialAmount": 10000, "open": 20000, "close": 21000, "expected": { "shares": 0, "cash": 10000, "total": 10000, "profit": 0, "returnRate": 0 } },
+  "negativeRounding": {
+    "initialAmount": 10001,
+    "bars": [
+      { "open": 1, "close": 1, "actionBeforeBar": "START", "allocationPercent": 50 },
+      { "open": 1, "close": 1, "actionBeforeBar": "SELL", "allocationPercent": 100 },
+      { "open": 2, "close": 1, "actionBeforeBar": "BUY", "allocationPercent": 100 }
+    ],
+    "expected": { "shares": 5000, "cash": 1, "total": 5001, "profit": -5000, "returnRate": -0.5000 }
+  },
+  "quizCases": [
+    { "baseline": 1000, "afterFiveSessions": 1100, "prediction": "POSITIVE", "expected": "CORRECT", "returnRate": 0.1000 },
+    { "baseline": 1000, "afterFiveSessions": 900, "prediction": "POSITIVE", "expected": "INCORRECT", "returnRate": -0.1000 },
+    { "baseline": 1000, "afterFiveSessions": 1000, "prediction": "NEGATIVE", "expected": "NEUTRAL", "returnRate": 0 },
+    { "baseline": 100000, "afterFiveSessions": 100001, "prediction": "POSITIVE", "expected": "CORRECT", "returnRate": 0 },
+    { "baseline": 3, "afterFiveSessions": 2, "prediction": "NEGATIVE", "expected": "CORRECT", "returnRate": -0.3334 }
+  ]
+}

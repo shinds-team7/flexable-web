@@ -21,9 +21,155 @@ tags:
   - name: goal
   - name: market
   - name: simulation
+  - name: practice
+    description: '구현 전 계약. 사건 퀴즈 투자 시뮬레이션. 기존 simulation과 별도이며 policies §5 적용'
   - name: health
 
 paths:
+  /practice/categories:
+    get:
+      tags: [practice]
+      summary: '구현 예정: 준비된 업종과 후보 종목 수'
+      security: []
+      responses:
+        '200':
+          description: '후보가 없으면 categories는 빈 배열. 키움 업종명 정규화와 내부 코드 생성은 결정 기록 참조'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [categories, isSample]
+                properties:
+                  isSample: { type: boolean }
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [code, name, classificationVersion, eligibleCount]
+                      properties:
+                        code: { type: string }
+                        name: { type: string }
+                        classificationVersion: { type: string }
+                        eligibleCount: { type: integer, minimum: 1 }
+        '503': { $ref: '#/components/responses/Error' }
+  /practice/start:
+    post:
+      tags: [practice]
+      summary: '구현 예정: 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음'
+      description: '동일 startId와 동일 입력은 세션 생존 중 같은 시작 응답. 같은 ID·다른 입력은 409. 종료·만료 후 같은 ID는 새 실행이다. 성공 응답은 no-store. 동시 재전송도 세션 하나만 생성한다.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [startId, categoryCode, initialAmount]
+              properties:
+                startId: { type: string, format: uuid }
+                categoryCode: { type: string, minLength: 1, maxLength: 32 }
+                initialAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000 }
+      responses:
+        '200':
+          description: 'version=0, 첫 봉만 공개. sessionToken은 256비트 이상 임의 토큰, expiresAt은 시작 후 30분'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [sessionToken, expiresAt, snapshot]
+                properties:
+                  sessionToken: { type: string, minLength: 43, maxLength: 128 }
+                  expiresAt: { type: string, format: date-time }
+                  snapshot: { $ref: '#/components/schemas/PracticeSnapshot' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /practice/state:
+    post:
+      tags: [practice]
+      summary: '구현 예정: 현재까지의 상태만 재조회(no-store)'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PracticeToken' }
+      responses:
+        '200':
+          description: 현재 상태
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PracticeSnapshot' }
+        '400': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+  /practice/step:
+    post:
+      tags: [practice]
+      summary: '구현 예정: 다음 거래일 하나 진행(no-store)'
+      description: 'RUNNING에서만 진행. version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PracticeCommand' }
+      responses:
+        '200':
+          description: 새 봉까지의 상태. 이후 가격·사건·정답은 제외
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PracticeSnapshot' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+  /practice/decision:
+    post:
+      tags: [practice]
+      summary: '구현 예정: 현재 사건의 방향 예상과 가상 매매 선택(no-store)'
+      description: 'AWAITING_DECISION의 eventId만 허용. 선택을 기록하고 RUNNING으로 바꾸며 version 증가. 봉은 아직 진행하지 않고 다음 step에서 시가 체결'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [sessionToken, commandId, expectedVersion, eventId, prediction, action, allocationPercent]
+              properties:
+                sessionToken: { type: string, minLength: 43, maxLength: 128 }
+                commandId: { type: string, format: uuid }
+                expectedVersion: { type: integer, minimum: 0 }
+                eventId: { type: string }
+                prediction: { type: string, enum: [POSITIVE, NEGATIVE] }
+                action: { type: string, enum: [BUY, SELL, HOLD] }
+                allocationPercent: { type: integer, enum: [0, 25, 50, 100], description: 'HOLD는 0만, BUY/SELL은 25/50/100만 허용' }
+      responses:
+        '200':
+          description: 선택을 접수한 상태. 판정 전 정답은 없음
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PracticeSnapshot' }
+        '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+  /practice/end:
+    post:
+      tags: [practice]
+      summary: '구현 예정: 세션 즉시 삭제. 없는 토큰·반복 종료도 204'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PracticeToken' }
+      responses:
+        '204': { description: 삭제 완료 }
+        '400': { $ref: '#/components/responses/Error' }
   /auth/signup:
     post:
       tags: [auth]
@@ -471,6 +617,108 @@ components:
               ai: { $ref: '#/components/schemas/AiStatus' }
 
   schemas:
+    PracticeToken:
+      type: object
+      additionalProperties: false
+      required: [sessionToken]
+      properties:
+        sessionToken: { type: string, minLength: 43, maxLength: 128 }
+    PracticeCommand:
+      type: object
+      additionalProperties: false
+      required: [sessionToken, commandId, expectedVersion]
+      properties:
+        sessionToken: { type: string, minLength: 43, maxLength: 128 }
+        commandId: { type: string, format: uuid }
+        expectedVersion: { type: integer, minimum: 0 }
+    PracticeSnapshot:
+      type: object
+      additionalProperties: false
+      required: [version, status, instrument, initialAmount, isSample, candles, portfolio, event, decisions, notice, sources]
+      properties:
+        version: { type: integer, minimum: 0 }
+        status: { type: string, enum: [RUNNING, AWAITING_DECISION, FINISHED] }
+        instrument:
+          type: object
+          additionalProperties: false
+          required: [code, name, categoryCode, categoryName, classificationVersion, classificationAsOf]
+          properties:
+            code: { type: string }
+            name: { type: string }
+            categoryCode: { type: string }
+            categoryName: { type: string }
+            classificationVersion: { type: string }
+            classificationAsOf: { type: string, format: date }
+        initialAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000 }
+        isSample: { type: boolean }
+        candles:
+          type: array
+          minItems: 1
+          maxItems: 120
+          description: '공개된 봉만 날짜 오름차순. 아직 진행하지 않은 봉 없음'
+          items:
+            type: object
+            additionalProperties: false
+            required: [date, open, high, low, close]
+            properties:
+              date: { type: string, format: date }
+              open: { type: integer, format: int64, minimum: 1 }
+              high: { type: integer, format: int64, minimum: 1 }
+              low: { type: integer, format: int64, minimum: 1 }
+              close: { type: integer, format: int64, minimum: 1 }
+        portfolio:
+          type: object
+          additionalProperties: false
+          required: [cash, shares, stockValue, total, profit, returnRate]
+          properties:
+            cash: { type: integer, format: int64, minimum: 0 }
+            shares: { type: integer, format: int64, minimum: 0 }
+            stockValue: { type: integer, format: int64, minimum: 0 }
+            total: { type: integer, format: int64, minimum: 0 }
+            profit: { type: integer, format: int64 }
+            returnRate: { type: number, description: '서버가 소수 4자리 내림' }
+        event:
+          type: object
+          nullable: true
+          additionalProperties: false
+          description: 'AWAITING_DECISION일 때만 현재 문제. 그 밖에는 null'
+          required: [id, title, publishedDate, baselineDate, sourceUrl, sourceName]
+          properties:
+            id: { type: string }
+            title: { type: string, description: '원문 공시 제목. 사후 급등/급락 요약 금지' }
+            publishedDate: { type: string, format: date }
+            baselineDate: { type: string, format: date, description: '현재 마지막 봉 날짜. 휴일 접수면 접수일보다 앞설 수 있음' }
+            sourceUrl: { type: string, format: uri }
+            sourceName: { type: string }
+        decisions:
+          type: array
+          maxItems: 3
+          description: '이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null'
+          items:
+            type: object
+            additionalProperties: false
+            required: [eventId, title, publishedDate, baselineDate, sourceUrl, prediction, action, allocationPercent, execution, executedDate, executedPrice, executedShares, outcome, outcomeDate, subsequentReturnRate]
+            properties:
+              eventId: { type: string }
+              title: { type: string }
+              publishedDate: { type: string, format: date }
+              baselineDate: { type: string, format: date }
+              sourceUrl: { type: string, format: uri }
+              prediction: { type: string, enum: [POSITIVE, NEGATIVE] }
+              action: { type: string, enum: [BUY, SELL, HOLD] }
+              allocationPercent: { type: integer, enum: [0, 25, 50, 100] }
+              execution: { type: string, enum: [PENDING, FILLED, NO_FILL, HOLD] }
+              executedDate: { type: string, format: date, nullable: true }
+              executedPrice: { type: integer, format: int64, nullable: true, minimum: 1 }
+              executedShares: { type: integer, format: int64, nullable: true, minimum: 0 }
+              outcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null] }
+              outcomeDate: { type: string, format: date, nullable: true }
+              subsequentReturnRate: { type: number, nullable: true }
+        notice: { type: string, description: '과거 계산·원금 손실·비권유, 세금/수수료/배당 제외, 표본 편향과 현재 업종 분류 고지' }
+        sources:
+          type: array
+          minItems: 1
+          items: { type: string }
     Error:
       type: object
       required: [code, message]
@@ -480,7 +728,8 @@ components:
           type: string
           enum: [VALIDATION_FAILED, UNAUTHORIZED, INVALID_CREDENTIALS, SOCIAL_ACCOUNT, OAUTH_CODE_INVALID, NOT_FOUND,
             GOAL_CHANGED, EMAIL_UNAVAILABLE, TOO_MANY_ATTEMPTS, MARKET_UNAVAILABLE, LINK_CODE_INVALID, APP_LINK_EXISTS,
-            APP_LINK_IN_PROGRESS, APP_LINK_RESULT_UNKNOWN, APP_UNAVAILABLE, INTERNAL_ERROR]
+            APP_LINK_IN_PROGRESS, APP_LINK_RESULT_UNKNOWN, APP_UNAVAILABLE, INTERNAL_ERROR,
+            PRACTICE_CONFLICT, PRACTICE_EXPIRED, PRACTICE_UNAVAILABLE, PRACTICE_CAPACITY]
         message: { type: string }
         fields:
           type: object

@@ -1,9 +1,11 @@
 import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import BillingResult from '@/pages/BillingResult';
+import Diversify from '@/pages/Diversify';
 import GoalPage from '@/pages/Goal';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
+import { InvestorTypeDetail, InvestorTypes } from '@/pages/InvestorType';
 import Simulation from '@/pages/Simulation';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
@@ -25,6 +27,10 @@ export const router = createBrowserRouter([
       { path: '/login', element: <Login /> },
       { path: '/signup', element: <Signup /> },
       { path: '/oauth/callback', element: <OAuthCallback /> },
+      // 투자 성향 시연 화면(docs/product/proposal-investor-type.md)
+      { path: '/type', element: <InvestorTypes /> },
+      { path: '/type/:id', element: <InvestorTypeDetail /> },
+      { path: '/diversify', element: <Diversify /> },
       { path: '/invest', element: <Invest /> },
       { path: '/simulation', element: <Simulation /> },
       { path: '/savings', element: <Savings /> },

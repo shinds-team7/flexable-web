@@ -16,6 +16,8 @@ import { Icon } from '@/components/Icons';
 import { useSeedMoney } from '@/data/home';
 import { useBoard, useSimulation, type Board, type FundingMode, type Instrument, type SimPoint, type SimulationRequest, type SimulationResult } from '@/data/market';
 import { useFirstVisit } from '@/data/tour';
+import { setInvestorType, useInvestorType } from '@/data/investorType';
+import { TypeChoices } from '@/pages/InvestorType';
 import { ApiError, errorText } from '@/lib/api';
 import { arrow, fmtDate, krShort, pctTxt, signWon, upDown, won } from '@/lib/format';
 
@@ -543,241 +545,241 @@ function SeedValue({ amount, loading, sample, prefix }: { amount: number; loadin
       {loading ? (
         <span className="meta">불러오는 중</span>
       ) : (
-        <>
-          <span>
-            {prefix && <span className="pre">{prefix}</span>}
-            <b className="num">{won(amount)}</b>원
-          </span>
-          {sample && <span className="tag-ex">예시</span>}
-        </>
-      )}
-    </div>
-  );
-}
-
-function StockList({
-  board,
-  setBoard,
-  listing,
-  picked,
-  onToggle,
-  searchRef,
-}: {
-  board: Board;
-  setBoard: (b: Board) => void;
-  listing: ReturnType<typeof useBoard>;
-  picked: Instrument[];
-  onToggle: (i: Instrument) => void;
-  searchRef: React.RefObject<HTMLInputElement | null>;
-}) {
-  const [q, setQ] = useState('');
-  const items = listing.data?.items ?? [];
-  const term = q.trim().toLowerCase();
-  const shown = term ? items.filter((i) => i.name.toLowerCase().includes(term) || i.id.toLowerCase().includes(term)) : items;
-  const full = picked.length >= MAX_LEGS;
-  // 시장이나 검색어가 바뀌면 목록을 맨 위(1위)부터 다시 보여 준다
-  const listRef = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: 0 });
-  }, [board, term]);
-
-  const clear = () => {
-    setQ('');
-    searchRef.current?.focus();
-  };
-
-  return (
-    <form className="card cond-full tm-stocks" aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
-      <div className="tm-stocks-head">
-        <div>
-          <h2 className="tm-stocks-title">종목 고르기</h2>
-          <p className="meta">
-            시가총액 상위 {items.length || 100}개 · 최대 {MAX_LEGS}개
-          </p>
-        </div>
-        <div className="seg fill" role="group" aria-label="시장">
-          {BOARDS.map((b) => (
-            <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
-              {b.label}
-            </button>
-          ))}
-        </div>
-        <div className="tm-search">
-          <Icon id="i-search" size={16} />
-          <input
-            ref={searchRef}
-            className="input"
-            type="search"
-            placeholder="종목 이름이나 코드로 찾기"
-            aria-label="종목 찾기"
-            aria-describedby="tmSearchCount"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && q) {
-                e.preventDefault();
-                setQ('');
-              }
-            }}
-          />
-          {q && (
-            <button type="button" className="tm-search-clear" aria-label="검색어 지우기" onClick={clear}>
-              <Icon id="i-close" size={14} />
-            </button>
-          )}
-        </div>
-        <p id="tmSearchCount" className="tm-search-count" role="status">
-          {term && shown.length > 0 && (
-            <>
-              <b className="num">{shown.length}</b>개 찾음
-            </>
-          )}
-        </p>
-        {full && <p className="tm-note">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
-      </div>
-
-      <div className="tm-stocks-body">
-        {listing.isPending && (
-          <ul className="tm-list" aria-hidden="true">
-            {Array.from({ length: 8 }, (_, k) => (
-              <li key={k} className="skel tm-skel-row" />
-            ))}
-          </ul>
-        )}
-        {listing.isError && (
-          <div className="tm-list-state">
-            <p className="meta">{errorText(listing.error)}</p>
-            <button type="button" className="btn btn-line btn-sm" onClick={() => listing.refetch()}>
-              다시 시도
-            </button>
-          </div>
-        )}
-        {listing.data && items.length === 0 && <p className="tm-list-state meta">아직 종목 목록을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
-        {listing.data && items.length > 0 && shown.length === 0 && (
-          <div className="tm-list-state">
-            <p className="sub">‘{q.trim()}’에 맞는 종목이 없어요</p>
-            <p className="meta">이름이나 6자리 코드로 다시 찾거나, 다른 시장을 골라 보세요.</p>
-            <button type="button" className="btn btn-line btn-sm" onClick={clear}>
-              검색어 지우기
-            </button>
-          </div>
-        )}
-        {shown.length > 0 && (
-          <ol ref={listRef} className="tm-list" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
-            {shown.map((i) => {
-              const on = picked.some((p) => p.id === i.id);
-              return (
-                <li key={i.id}>
-                  <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(i)} title={on ? '빼기' : '고르기'}>
-                    <span className="rk">{i.rank}</span>
-                    <span className="nm">
-                      {i.name}
-                      <span className="sub2">{i.id}</span>
-                    </span>
-                    {on ? (
-                      <span className="cap on">
-                        <Icon id="i-check" size={14} />
-                        고름
-                      </span>
-                    ) : (
-                      <span className="cap">{capText(i.marketCap)}</span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+          <>
+            <span>
+              {prefix && <span className="pre">{prefix}</span>}
+              <b className="num">{won(amount)}</b>원
+            </span>
+            {sample && <span className="tag-ex">예시</span>}
+          </>
         )}
       </div>
+    );
+  }
 
-      {listing.data?.source && (
-        <p className="meta tm-stocks-foot">
-          {listing.data.source} · {listing.data.dataAsOf && `${listing.data.dataAsOf.replaceAll('-', '.')} 기준 `}시가총액{listing.data.note ? '(상장주식수 × 종가 어림값)' : ''} 순
-          {listing.data.note && <span className="tm-block">{listing.data.note}</span>}
-        </p>
-      )}
-    </form>
-  );
-}
+  function StockList({
+    board,
+    setBoard,
+    listing,
+    picked,
+    onToggle,
+    searchRef,
+  }: {
+    board: Board;
+    setBoard: (b: Board) => void;
+    listing: ReturnType<typeof useBoard>;
+    picked: Instrument[];
+    onToggle: (i: Instrument) => void;
+    searchRef: React.RefObject<HTMLInputElement | null>;
+  }) {
+    const [q, setQ] = useState('');
+    const items = listing.data?.items ?? [];
+    const term = q.trim().toLowerCase();
+    const shown = term ? items.filter((i) => i.name.toLowerCase().includes(term) || i.id.toLowerCase().includes(term)) : items;
+    const full = picked.length >= MAX_LEGS;
+    // 시장이나 검색어가 바뀌면 목록을 맨 위(1위)부터 다시 보여 준다
+    const listRef = useRef<HTMLOListElement>(null);
+    useEffect(() => {
+      listRef.current?.scrollTo({ top: 0 });
+    }, [board, term]);
 
-function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument[]; weights: number[]; onClose: () => void; onSave: (w: number[]) => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [draft, setDraft] = useState<string[]>(() => weights.map(String));
-  // dialog의 close 이벤트로 상태를 바꾸지 않는다: 개발 모드(StrictMode)는 effect를 두 번 돌려
-  // 정리 단계의 close()가 onClose를 불러 열자마자 닫혔다. 닫기는 Esc·취소·바깥 클릭·저장에서만.
-  useEffect(() => {
-    const d = ref.current;
-    if (d && !d.open) d.showModal();
-    d?.querySelector<HTMLInputElement>('input')?.select();
-    return () => {
-      if (d?.open) d.close();
+    const clear = () => {
+      setQ('');
+      searchRef.current?.focus();
     };
-  }, []);
-  const nums = draft.map((x) => digits(x));
-  const sum = nums.reduce((a, b) => a + b, 0);
-  const problem = weightProblem(nums);
 
-  return (
-    <dialog
-      ref={ref}
-      aria-labelledby="weightTitle"
-      onCancel={(e) => {
-        e.preventDefault(); // Esc
-        onClose();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose(); // 바깥(backdrop) 클릭
-      }}
-    >
-      <form
-        className="tm-dialog"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!problem) onSave(nums);
+    return (
+      <form className="card cond-full tm-stocks" aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
+        <div className="tm-stocks-head">
+          <div>
+            <h2 className="tm-stocks-title">종목 고르기</h2>
+            <p className="meta">
+              시가총액 상위 {items.length || 100}개 · 최대 {MAX_LEGS}개
+            </p>
+          </div>
+          <div className="seg fill" role="group" aria-label="시장">
+            {BOARDS.map((b) => (
+              <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
+                {b.label}
+              </button>
+            ))}
+          </div>
+          <div className="tm-search">
+            <Icon id="i-search" size={16} />
+            <input
+              ref={searchRef}
+              className="input"
+              type="search"
+              placeholder="종목 이름이나 코드로 찾기"
+              aria-label="종목 찾기"
+              aria-describedby="tmSearchCount"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape' && q) {
+                  e.preventDefault();
+                  setQ('');
+                }
+              }}
+            />
+            {q && (
+              <button type="button" className="tm-search-clear" aria-label="검색어 지우기" onClick={clear}>
+                <Icon id="i-close" size={14} />
+              </button>
+            )}
+          </div>
+          <p id="tmSearchCount" className="tm-search-count" role="status">
+            {term && shown.length > 0 && (
+              <>
+                <b className="num">{shown.length}</b>개 찾음
+              </>
+            )}
+          </p>
+          {full && <p className="tm-note">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
+        </div>
+
+        <div className="tm-stocks-body">
+          {listing.isPending && (
+            <ul className="tm-list" aria-hidden="true">
+              {Array.from({ length: 8 }, (_, k) => (
+                <li key={k} className="skel tm-skel-row" />
+              ))}
+            </ul>
+          )}
+          {listing.isError && (
+            <div className="tm-list-state">
+              <p className="meta">{errorText(listing.error)}</p>
+              <button type="button" className="btn btn-line btn-sm" onClick={() => listing.refetch()}>
+                다시 시도
+              </button>
+            </div>
+          )}
+          {listing.data && items.length === 0 && <p className="tm-list-state meta">아직 종목 목록을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
+          {listing.data && items.length > 0 && shown.length === 0 && (
+            <div className="tm-list-state">
+              <p className="sub">‘{q.trim()}’에 맞는 종목이 없어요</p>
+              <p className="meta">이름이나 6자리 코드로 다시 찾거나, 다른 시장을 골라 보세요.</p>
+              <button type="button" className="btn btn-line btn-sm" onClick={clear}>
+                검색어 지우기
+              </button>
+            </div>
+          )}
+          {shown.length > 0 && (
+            <ol ref={listRef} className="tm-list" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
+              {shown.map((i) => {
+                const on = picked.some((p) => p.id === i.id);
+                return (
+                  <li key={i.id}>
+                    <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(i)} title={on ? '빼기' : '고르기'}>
+                      <span className="rk">{i.rank}</span>
+                      <span className="nm">
+                        {i.name}
+                        <span className="sub2">{i.id}</span>
+                      </span>
+                      {on ? (
+                        <span className="cap on">
+                          <Icon id="i-check" size={14} />
+                          고름
+                        </span>
+                      ) : (
+                        <span className="cap">{capText(i.marketCap)}</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+
+        {listing.data?.source && (
+          <p className="meta tm-stocks-foot">
+            {listing.data.source} · {listing.data.dataAsOf && `${listing.data.dataAsOf.replaceAll('-', '.')} 기준 `}시가총액{listing.data.note ? '(상장주식수 × 종가 어림값)' : ''} 순
+            {listing.data.note && <span className="tm-block">{listing.data.note}</span>}
+          </p>
+        )}
+      </form>
+    );
+  }
+
+  function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument[]; weights: number[]; onClose: () => void; onSave: (w: number[]) => void }) {
+    const ref = useRef<HTMLDialogElement>(null);
+    const [draft, setDraft] = useState<string[]>(() => weights.map(String));
+    // dialog의 close 이벤트로 상태를 바꾸지 않는다: 개발 모드(StrictMode)는 effect를 두 번 돌려
+    // 정리 단계의 close()가 onClose를 불러 열자마자 닫혔다. 닫기는 Esc·취소·바깥 클릭·저장에서만.
+    useEffect(() => {
+      const d = ref.current;
+      if (d && !d.open) d.showModal();
+      d?.querySelector<HTMLInputElement>('input')?.select();
+      return () => {
+        if (d?.open) d.close();
+      };
+    }, []);
+    const nums = draft.map((x) => digits(x));
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const problem = weightProblem(nums);
+
+    return (
+      <dialog
+        ref={ref}
+        aria-labelledby="weightTitle"
+        onCancel={(e) => {
+          e.preventDefault(); // Esc
+          onClose();
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose(); // 바깥(backdrop) 클릭
         }}
       >
-        <div>
-          <h2 id="weightTitle" className="tm-dialog-title">
-            종목 비율 수정
-          </h2>
-          <p className="meta">넣는 돈을 종목마다 몇 %씩 나눌지 정해요. 합이 100%여야 해요.</p>
-        </div>
-        <div>
-          {picked.map((p, j) => (
-            <label key={p.id} className="weight-row">
-              <SeriesKey index={j} color={COLORS[j]} />
-              <span className="nm">{p.name}</span>
-              <span className="tm-pct">
-                <input
-                  className="input num"
-                  inputMode="numeric"
-                  aria-label={`${p.name} 비율(%)`}
-                  value={draft[j]}
-                  onChange={(e) => setDraft((d) => d.map((x, k) => (k === j ? e.target.value.replace(/[^\d]/g, '').slice(0, 3) : x)))}
-                  onFocus={(e) => e.target.select()}
-                />
-                <span className="unit">%</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <div className="tm-weight-sum">
-          <span className={problem ? 'form-error' : 'meta'} role="status">
-            {problem ?? `합계 ${sum}%`}
-          </span>
-          <button type="button" className="btn-text meta" onClick={() => setDraft(equalSplit(picked.length).map(String))}>
-            같은 비율로
-          </button>
-        </div>
-        <div className="toolbar tm-dialog-acts">
-          <button type="button" className="btn btn-line" onClick={onClose}>
-            취소
-          </button>
-          <button type="submit" className="btn btn-primary" disabled={problem != null}>
-            저장
-          </button>
-        </div>
-      </form>
+        <form
+          className="tm-dialog"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!problem) onSave(nums);
+          }}
+        >
+          <div>
+            <h2 id="weightTitle" className="tm-dialog-title">
+              종목 비율 수정
+            </h2>
+            <p className="meta">넣는 돈을 종목마다 몇 %씩 나눌지 정해요. 합이 100%여야 해요.</p>
+          </div>
+          <div>
+            {picked.map((p, j) => (
+              <label key={p.id} className="weight-row">
+                <SeriesKey index={j} color={COLORS[j]} />
+                <span className="nm">{p.name}</span>
+                <span className="tm-pct">
+                  <input
+                    className="input num"
+                    inputMode="numeric"
+                    aria-label={`${p.name} 비율(%)`}
+                    value={draft[j]}
+                    onChange={(e) => setDraft((d) => d.map((x, k) => (k === j ? e.target.value.replace(/[^\d]/g, '').slice(0, 3) : x)))}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <span className="unit">%</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="tm-weight-sum">
+            <span className={problem ? 'form-error' : 'meta'} role="status">
+              {problem ?? `합계 ${sum}%`}
+            </span>
+            <button type="button" className="btn-text meta" onClick={() => setDraft(equalSplit(picked.length).map(String))}>
+              같은 비율로
+            </button>
+          </div>
+          <div className="toolbar tm-dialog-acts">
+            <button type="button" className="btn btn-line" onClick={onClose}>
+              취소
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={problem != null}>
+              저장
+            </button>
+          </div>
+        </form>
     </dialog>
   );
 }
@@ -786,6 +788,10 @@ function WeightDialog({ picked, weights, onClose, onSave }: { picked: Instrument
 function IntroDialog({ pace, sample, onStart }: { pace: number; sample: boolean; onStart: (typedMonthly: number | null, ack: boolean) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [value, setValue] = useState('');
+  // 마지막 단계: 투자 성향을 아직 고르지 않았으면 [첫 결과 보기] 뒤에 한 번 묻는다(proposal-investor-type.md). 고르지 않고 넘어가도 된다
+  const mine = useInvestorType();
+  const [last, setLast] = useState<[number | null, boolean] | null>(null);
+  const finish = (typedMonthly: number | null, ack: boolean) => (mine ? onStart(typedMonthly, ack) : setLast([typedMonthly, ack]));
   // WeightDialog와 같은 이유로 close 이벤트에서 상태를 바꾸지 않는다(StrictMode)
   useEffect(() => {
     const d = ref.current;
@@ -804,14 +810,37 @@ function IntroDialog({ pace, sample, onStart }: { pace: number; sample: boolean;
       aria-labelledby="introTitle"
       onCancel={(e) => {
         e.preventDefault(); // Esc: 고지 확인 없이 닫고 기본 결과를 보여 준다(결과 아래에도 같은 고지가 있다)
-        onStart(hasPace ? null : INTRO_SAMPLE_MONTHLY, false);
+        if (last) onStart(...last);
+        else onStart(hasPace ? null : INTRO_SAMPLE_MONTHLY, false);
       }}
     >
+      {last ? (
+        <div className="tm-dialog it-step">
+          <div>
+            <h2 id="introTitle" className="tm-dialog-title">
+              마지막으로, 어떤 투자자에 가까워요?
+            </h2>
+            <p className="meta">고른 성향에 흔히 쓰이는 상품 유형을 [내 투자 성향]에서 볼 수 있어요. 언제든 바꿀 수 있어요.</p>
+          </div>
+          <TypeChoices
+            compact
+            onPick={(id) => {
+              setInvestorType(id);
+              onStart(...last);
+            }}
+          />
+          <div className="toolbar tm-dialog-acts">
+            <button type="button" className="btn btn-line" onClick={() => onStart(...last)}>
+              나중에 고를게요
+            </button>
+          </div>
+        </div>
+      ) : (
       <form
         className="tm-dialog"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!problem) onStart(hasPace ? null : typed || INTRO_SAMPLE_MONTHLY, true);
+          if (!problem) finish(hasPace ? null : typed || INTRO_SAMPLE_MONTHLY, true);
         }}
       >
         <div>
@@ -847,6 +876,7 @@ function IntroDialog({ pace, sample, onStart }: { pace: number; sample: boolean;
           </button>
         </div>
       </form>
+      )}
     </dialog>
   );
 }

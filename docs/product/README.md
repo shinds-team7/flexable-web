@@ -107,6 +107,8 @@
 
 ## 5. 화면 구성과 와이어프레임
 
+> **결정(2026-10-26, [기록](../decisions/2026-10-26-investor-type.md)):** 사용자가 투자 성향(안정형·균형형·성장형)을 직접 고르고, 유형별 투자 전략과 상품 유형·상품을 보여 준다. 메뉴 맨 앞 [내 투자 성향] `/type`. 설계는 [proposal-investor-type.md](proposal-investor-type.md). 10-25 액티브·패시브 구분안([proposal-active-passive.md](proposal-active-passive.md))은 이 안으로 대체됐다. 법률 확인은 기획이 따로 한다.
+
 **IA(현재):** 랜딩 → 로그인/체험 → 홈. 상단 메뉴는 투자 시뮬레이션·적금 모아보기·AI 계획 수립·청년 금융 소식·플러스, 오른쪽에 시드머니 칩·내 정보(`src/components/Layout.tsx`). 플러스에서 결제 결과로 연결한다. 10-18 계획의 '굴려보기(주식 타임머신·적금 비교·섞어보기)' 하위 탭은 쓰지 않는다(02 §3은 계획 기록).
 
 **공통 레이아웃:** 상단 바 64px(하위 탭 없음), 시드머니 칩. (아래 300px/360px 3단은 계획이고, 현재 투자 화면은 왼쪽 종목 목록 열 + 본문, 사건은 본문 안 패널이다.) 본문 최대 1280px, 실험 화면은 조건 300px / 차트 가변 / 오른쪽 레일 360px. 소식·공유는 모바일 완전 동작 우선, 시뮬레이션은 데스크톱 우선이다(02 §4, 01 §4 F0). 레일은 사건 목록·상세, 상품 상세, 프리셋 등 보조 정보로 쓰며 로딩·빈 상태·오류도 설계한다.
@@ -292,6 +294,8 @@ Q 표는 10/18 답변을 우선한다. 남은 담당자·권리·예산은 확�
 | 클릭형 화면·상태·플랜·테마 | [wireframes.html](../reference/wireframes.html), [02-design.md](02-design.md) §12 |
 | ADR·구성·인증·시드머니·데이터/권리·계산·DB·API | [03-architecture.md](03-architecture.md) §1~8 |
 | 인프라·폐쇄망·결제·보안·WBS·주별 일정·시연 | [03-architecture.md](03-architecture.md) §9~13 |
+| 투자 성향별 안내(2026-10-26 결정) | [proposal-investor-type.md](proposal-investor-type.md) |
+| 액티브·패시브 구분 제안(대체됨) | [proposal-active-passive.md](proposal-active-passive.md) |
 | 팀장 최종 확정 기준 | [decisions.md](decisions.md) 「확정 사항」 |
 | 발표용 BM 확장 아이디어·기획 담당 할 일 | [bm-ideas.md](bm-ideas.md) |
 | 2차 회의 기록·팀장 결정 결과(§7)·선택 문의/설문 초안 | [meeting-2026-10-18.md](meeting-2026-10-18.md) |

@@ -2,7 +2,7 @@
 // 카드는 4줄(위 · 본문 · 공고문 · 아래)이고, 같은 줄의 카드끼리 공고문 버튼과 아래 구분선 높이를 맞춘다(subgrid).
 // 오늘 할 일은 당분간 카드에서 뺀다(데이터 필드 action은 유지).
 import { Link } from 'react-router-dom';
-import { categoryLabel, type YouthNews } from '@/data/news';
+import { categoryLabel, newsCategories, type YouthNews } from '@/data/news';
 import { fmtMonthDay } from '@/lib/format';
 import { cardTags, periodText } from '@/lib/newsList';
 import { DeadlineBadge, NoticeLink, SaveButton, ShareButton } from './NewsBits';
@@ -37,7 +37,11 @@ export function NewsCard({ n, today, isSample, saved, onToggleSave, onToast }: P
       </div>
       <div className="news-card-foot">
         <ul className="news-chips" aria-label="분야·지역·대상·기관">
-          <li className="news-chip cat">{categoryLabel(n.category)}</li>
+          {newsCategories(n).map((c) => (
+            <li key={c} className="news-chip cat">
+              {categoryLabel(c)}
+            </li>
+          ))}
           {cardTags(n).map((t) => (
             <li key={t} className="news-chip">
               {t}

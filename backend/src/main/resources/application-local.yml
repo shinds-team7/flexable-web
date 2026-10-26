@@ -13,3 +13,6 @@ app:
   # 로컬은 앱 서버 없이 고정 연동(snapshot)으로 화면을 확인한다. 실제 앱 서버에 붙이려면 APP_LINK_MODE=http와 주소·키를 넣는다.
   applink:
     mode: ${APP_LINK_MODE:snapshot}
+  # 로컬은 검수 전 초안도 /youth-news에 보여 준다(화면 확인용, 응답 preview=true). 운영(기본값 false)은 승인된 소식만
+  news:
+    preview-drafts: ${NEWS_PREVIEW_DRAFTS:true}

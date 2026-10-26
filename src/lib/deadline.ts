@@ -35,6 +35,3 @@ export function deadlineState(p: ApplyPeriod, today: string): DeadlineState {
   if (p.applyStart && daysBetween(today, p.applyStart) > 0) return { kind: 'upcoming', start: p.applyStart };
   return { kind: 'unknown' };
 }
-
-/** 지금 신청할 수 있다고 확인된 상태만 true. 마감일 미정은 확정하지 않는다. */
-export const canApplyNow = (s: DeadlineState) => s.kind === 'always' || s.kind === 'today' || s.kind === 'open';

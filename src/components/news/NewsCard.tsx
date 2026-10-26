@@ -23,7 +23,7 @@ export function NewsCard({ n, today, isSample, saved, onToggleSave, onToast }: P
         {n.correctedAt && <p className="news-corrected">{fmtMonthDay(n.correctedAt)} 정정</p>}
         <h3 id={`news-${n.id}`}>{n.title}</h3>
         {n.summary && (
-          <p className="news-card-sum">
+          <p className="news-card-sum" title={n.summary}>
             {!isSample && <span className="news-ai">AI 요약</span>}
             {n.summary}
           </p>

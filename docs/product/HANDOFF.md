@@ -7,6 +7,7 @@
 - 확인: `docker compose logs worker | grep "청년 소식 요약 끝"`, 운영 `/api/v1/youth-news`에 `items`가 나오는지. 처음 실행은 마감 전 소식 전부(약 1,700건)를 요약하므로 무료 한도에 걸리면 다음 날 이어서 한다.
 - [ ] Gemini 무료 등급 한도(분당·하루)를 AI Studio에서 확인하고 필요하면 `GEMINI_BATCH_SIZE`·`GEMINI_MAX_CALLS`·`GEMINI_CALL_DELAY`를 맞춘다
 - [ ] #48 "남은 확인"(온통청년 코드표 대조·하루 호출 한도·적금 코드 합치기)은 그대로 남아 있다
+- [ ] "오늘의 한 장"(맨 위 큰 카드) 고르는 방식 정하기. 지금은 편집자가 붙이던 `slot=MAIN`이 없어 실제 데이터에서는 안 보인다(사용자가 나중에 정함)
 
 ## 2026-10-26(월) 출근하자마자: solpa VM에 `main` 반영
 

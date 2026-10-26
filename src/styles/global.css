@@ -831,6 +831,8 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .news-page .dday{border-color:transparent;background:var(--brand-soft)}
 .news-page .dday.calm{background:var(--sunken)}
 .news-page .dday.urgent{background:var(--danger-soft);color:var(--danger)}
+/* 7일 안 마감은 주황(오늘 마감은 빨강) */
+.news-page .dday.soon{background:var(--warn-soft);color:var(--warn)}
 /* 소식 화면은 목록을 넓게: 저장함을 320px로 고정(홈의 .g84는 그대로). 1023px 이하는 한 단 */
 @media (min-width:1024px){.news-page .g84{grid-template-columns:minmax(0,1fr) 320px}}
 .news-rail{max-height:calc(100vh - 96px);overflow:auto}

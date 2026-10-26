@@ -17,7 +17,7 @@ export function DeadlineBadge({ period, today }: { period: ApplyPeriod; today: s
       );
     case 'open':
       return s.days <= 7 ? (
-        <span className="dday">
+        <span className="dday soon">
           <Icon id="i-clock" />
           D-{s.days}
         </span>

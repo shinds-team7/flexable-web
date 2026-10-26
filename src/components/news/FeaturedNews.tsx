@@ -1,4 +1,4 @@
-// 오늘의 한 장: 고른 소식 1개를 크게(slot=MAIN, 없으면 화면이 고른다). 요약은 AI 요약이고 없으면 줄을 뺀다.
+// 오늘의 한 장: slot=MAIN인 소식 1개를 크게. 요약은 AI 요약이고 없으면 줄을 뺀다.
 import { categoryLabel, type YouthNews } from '@/data/news';
 import { ageText, regionText } from '@/lib/newsList';
 import { DeadlineBadge, NoticeLink, SaveButton, deadlineText } from './NewsBits';

@@ -51,12 +51,14 @@ import com.flexable.web.applink.AppApiClient.AppSeedMoney;
 import com.flexable.web.applink.AppApiClient.CreatedLink;
 import com.flexable.web.applink.AppApiClient.Entry;
 import com.flexable.web.applink.AppApiClient.LastEntry;
+import com.flexable.web.ingest.fake.FakePracticeData;
 import com.flexable.web.market.Board;
 import com.flexable.web.market.DailyClose;
 import com.flexable.web.market.EventDtos.EvidenceRow;
 import com.flexable.web.market.EventService;
 import com.flexable.web.market.MarketDtos.InstrumentRow;
 import com.flexable.web.market.MarketService;
+import com.flexable.web.market.PracticeMarketService;
 import com.flexable.web.news.NewsCategory;
 import com.flexable.web.news.NewsDtos.PolicyDraft;
 import com.flexable.web.news.NewsService;
@@ -84,6 +86,8 @@ class ContractTest {
 	EventService events;
 	@Autowired
 	NewsService news;
+	@Autowired
+	PracticeMarketService practice;
 	@Autowired
 	JdbcTemplate jdbc;
 	@MockitoBean
@@ -159,6 +163,8 @@ class ContractTest {
 				false, List.of("서울"), null, null, true, "서울특별시(예시)", "https://example.com/c-seoul", today, null, List.of(), null));
 		jdbc.update("UPDATE youth_news SET review_status = 'APPROVED', benefit = '월 최대 10만 원', action = '신청서 내기' WHERE source = 'FAKE'");
 		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN', audience_summary = '소득 기준 있음' WHERE external_id = 'c-all'");
+		// 사건 퀴즈 시뮬레이션: 가상 기업 예시 자료(테스트는 price-source=fake라 예시만 후보)
+		FakePracticeData.create(today).forEach(practice::save);
 	}
 
 	/** 요청을 보내고 상태 코드를 확인한 뒤 응답을 스펙으로 검사한다. */
@@ -226,6 +232,36 @@ class ContractTest {
 		assertThat((List<?>) JsonPath.read(feed.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items")).hasSize(2);
 		call(get("/api/v1/youth-news?age=25&region=서울&category=HOUSING"), 200);
 		call(get("/api/v1/youth-news?category=NOPE"), 400);
+	}
+
+	@Test
+	void 사건_퀴즈_시뮬레이션() throws Exception {
+		MvcResult categories = call(get("/api/v1/practice/categories"), 200);
+		String category = JsonPath.read(categories.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.categories[0].code");
+		call(json(post("/api/v1/practice/start"), "{\"startId\":\"" + UUID.randomUUID() + "\",\"categoryCode\":\"" + category + "\",\"initialAmount\":500}"), 400);
+		MvcResult started = call(json(post("/api/v1/practice/start"),
+				"{\"startId\":\"" + UUID.randomUUID() + "\",\"categoryCode\":\"" + category + "\",\"initialAmount\":1000000}"), 200);
+		String token = JsonPath.read(started.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.sessionToken");
+		String tokenBody = "{\"sessionToken\":\"" + token + "\"}";
+		call(json(post("/api/v1/practice/state"), tokenBody), 200);
+		// 한 번의 진행은 첫 사건까지 가고, 새 봉마다 자산을 돌려준다
+		MvcResult stepped = call(json(post("/api/v1/practice/step"), command(token, 0)), 200);
+		String body = stepped.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat((String) JsonPath.read(body, "$.status")).isEqualTo("AWAITING_DECISION");
+		assertThat((Integer) JsonPath.read(body, "$.frames.length()")).isEqualTo(14);
+		call(json(post("/api/v1/practice/step"), command(token, 1)), 409);
+		String eventId = JsonPath.read(body, "$.event.id");
+		String decision = "{\"sessionToken\":\"" + token + "\",\"commandId\":\"" + UUID.randomUUID() + "\",\"expectedVersion\":1,\"eventId\":\"" + eventId
+				+ "\",\"prediction\":\"POSITIVE\",\"action\":\"HOLD\",\"allocationPercent\":";
+		call(json(post("/api/v1/practice/decision"), decision + "50}"), 400);
+		call(json(post("/api/v1/practice/decision"), decision + "0}"), 200);
+		call(json(post("/api/v1/practice/end"), tokenBody), 204);
+		call(json(post("/api/v1/practice/end"), tokenBody), 204);
+		call(json(post("/api/v1/practice/state"), tokenBody), 410);
+	}
+
+	private static String command(String token, int version) {
+		return "{\"sessionToken\":\"" + token + "\",\"commandId\":\"" + UUID.randomUUID() + "\",\"expectedVersion\":" + version + "}";
 	}
 
 	@Test

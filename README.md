@@ -18,6 +18,30 @@
 3. 화면은 `src/`, 서버는 `backend/`에서 구현한다. 앱 연동에 필요한 앱 저장소 쪽 변경만 연계 PR로 올린다. 예시 응답을 실제 API로 바꾸고 실패·빈 상태도 검증한다.
 4. 검사 결과와 미구현·운영 미확인 항목을 분리해 기록한다. Vercel에 UI가 배포됐다고 기능 완료로 기록하지 않는다.
 
+작업은 Issue 하나 단위로 시작하고(템플릿: 목표·참고 자료·범위·완료 조건), PR에 Issue를 연결한다. 기준 문서를 바꾸면 `spec-change` 라벨과 [CHANGELOG](docs/CHANGELOG.md) 한 줄이 필요하다. 자세한 규칙은 [AGENTS.md](AGENTS.md)와 [작업 방식](docs/decisions/2026-10-25-dev-process.md).
+
+## 폴더 구조
+
+```text
+src/                     웹사이트(Vite + React + TypeScript, React Router, TanStack Query)
+  pages/                 화면 하나 = 파일 하나. 경로 목록은 src/App.tsx
+  components/            상단 바·공통 틀(Layout), 아이콘
+  charts/                drawTimeChart(타임머신, 사건 핀), SeedLineChart(시드머니 꺾은선)
+  data/                  화면 데이터 hook. 실제 API와 예시 값(isSample=true)이 섞여 있다
+  auth/                  세션(JWT, localStorage), 카카오·Google 로그인(start → /oauth/callback → exchange)
+  lib/                   API 클라이언트, 표시 포맷, 테마
+  styles/tokens.css      디자인 토큰(정본, 라이트·다크)
+  styles/global.css      공통 클래스(부품 스타일)와 기존 이름 별칭
+mobile-demo/             앱 시연(Expo 웹, 예시 데이터). 사이트의 /m 아래에 배포된다
+scripts/                 빌드 보조(시연 빌드를 dist/m에 합침)
+backend/                 웹 서버(Spring Boot). 패키지 책임·API는 backend/README.md, 지침은 backend/AGENTS.md
+deploy/vm/               웹 VM 배포(Docker Compose: nginx·웹 백엔드·MySQL). deploy/vm/README.md
+docs/product/            웹 기획·아키텍처·개발 인수인계
+docs/decisions/          개발 중 내린 주요 결정(2026-10-25부터)
+docs/CHANGELOG.md        기준 문서 변경 이력
+docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
+```
+
 ## 경로
 
 | 경로 | 화면 | 상태 |

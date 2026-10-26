@@ -6,10 +6,14 @@
   "scripts": {
     "dev": "vite",
     "dev:m": "npm --prefix mobile-demo run web",
+    "dev:mock": "vite --mode mock",
     "build": "npm run build:web && npm run build:m && node scripts/merge-mobile-demo.mjs",
     "build:web": "tsc -b && vite build",
     "build:m": "npm --prefix mobile-demo run build:web",
     "typecheck": "tsc -b && npm --prefix mobile-demo run typecheck",
+    "gen:api": "openapi-typescript docs/contracts/web-api.yaml -o src/lib/api-schema.d.ts",
+    "check:api": "npm run gen:api && git diff --exit-code -- src/lib/api-schema.d.ts",
+    "mock:api": "npx --yes @stoplight/prism-cli@5.16.0 mock -p 4010 docs/contracts/web-api.yaml",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -23,6 +27,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.9.0",
     "vite": "^8.3.4"
   }

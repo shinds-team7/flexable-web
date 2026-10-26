@@ -19,6 +19,7 @@ jobs:
             mobile-demo/package-lock.json
       - run: npm ci
       - run: npm --prefix mobile-demo ci
+      - run: npm run check:api   # src/lib/api-schema.d.ts가 docs/contracts/web-api.yaml과 같은지
       - run: npm run typecheck
       - run: npm --prefix mobile-demo run lint
       - run: npm run build

@@ -208,8 +208,8 @@ export default function Diversify() {
             </div>
             {mode !== 'sector' && (
               <div className="toolbar" style={{ marginTop: 16 }}>
-                <Link className="btn btn-line btn-sm" to="/passive/accounts">
-                  계좌 알아보기
+                <Link className="btn btn-line btn-sm" to="/type">
+                  내 투자 성향 보기
                 </Link>
               </div>
             )}

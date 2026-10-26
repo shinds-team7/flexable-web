@@ -65,7 +65,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 연동 코드는 저장하지 않음 | `AppLinkService.link` → `AppApiClient.create`로 전달만, DB·로그에 없음 |
 | 문의 메일 국외 보관 | Gmail(Google LLC). 처리 후 30일 이내 삭제(운영자 수작업) |
 | 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인). 정확한 기관명·스냅숏은 확인 전(0) |
-| 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.tour.invest`(`data/tour.ts`, 비로그인 때 투자 화면 첫 방문 안내를 봤는지. 방침 제8조 "첫 화면 안내 표시 여부"), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음. 비로그인 체험의 시드머니 [수정하기] 값은 브라우저 저장소가 아니라 탭 메모리에만 있다(`data/home.ts`, 회원은 서버 저장) |
+| 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.tour.invest`(`data/tour.ts`, 비로그인 때 투자 화면 첫 방문 안내를 봤는지. 방침 제8조 "첫 화면 안내 표시 여부"), `fx.investorType`(`data/investorType.ts`, 사용자가 고른 투자 성향 `stable`·`balanced`·`growth`. 회원도 지금은 서버에 저장하지 않는다. 방침 제8조 "고른 투자 성향"), `fx.news.saved`·`fx.news.filter`(`data/newsSaved.ts`), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음. 비로그인 체험의 시드머니 [수정하기] 값은 브라우저 저장소가 아니라 탭 메모리에만 있다(`data/home.ts`, 회원은 서버 저장) |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |
 | 연동 해제·앱 해제·앱 탈퇴 확인 시 파기 | `AppLinkService.unlink`, `sync`·`AppLinkRecheckJob`의 `LINK_NOT_FOUND` 처리. 앱 탈퇴 시 앱이 연동을 함께 지우므로 같은 경로 |
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |

@@ -1,5 +1,4 @@
-// 공통 틀: 상단 바(64px). 본문 최대 1344px(패딩 포함 1280px).
-// 시안(docs/product/proposal-active-passive.md): 액티브·패시브 두 카테고리는 눌러서 여는 하위 메뉴를 가진다.
+// 공통 틀: 상단 바(64px, 하위 탭 없음). 본문 최대 1344px(패딩 포함 1280px).
 // 로그인한 사용자와 체험 중인 손님은 로고를 누르면 홈(/home)으로 간다.
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
@@ -11,72 +10,14 @@ import { won } from '@/lib/format';
 import { Logo } from './Icons';
 
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
-type NavLeaf = { to: string; label: string; desc?: string };
-type NavGroup = { label: string; hint: string; items: NavLeaf[] };
-const NAV: (NavLeaf | NavGroup)[] = [
-  {
-    label: '액티브 투자',
-    hint: '골라서 투자',
-    items: [
-      { to: '/active', label: '액티브 투자란?', desc: '종목을 직접 고르는 방식' },
-      { to: '/invest', label: '투자 시뮬레이션', desc: '지난 기록으로 배우기' },
-      { to: '/active/diversify', label: '분산 투자', desc: '지금 가진 종목 점검' },
-    ],
-  },
-  {
-    label: '패시브 투자',
-    hint: '시장 전체에 꾸준히',
-    items: [
-      { to: '/passive', label: '패시브 투자란?', desc: '지수를 꾸준히 사 두는 방식' },
-      { to: '/passive/index', label: '지수 시뮬레이션', desc: '지수에 매달 넣었다면' },
-      { to: '/passive/plan', label: '계좌 설계', desc: '월급이 흘러가는 길' },
-      { to: '/passive/accounts', label: '계좌 알아보기', desc: 'CMA·ISA·연금 한눈에' },
-      { to: '/savings', label: '적금 모아보기', desc: '쓸 날짜가 정해진 돈' },
-    ],
-  },
+const NAV = [
+  { to: '/type', label: '내 투자 성향' },
+  { to: '/invest', label: '투자 시뮬레이션' },
+  { to: '/savings', label: '적금 모아보기' },
   { to: '/goal', label: 'AI 계획 수립' },
   { to: '/news', label: '청년 금융 소식' },
   { to: '/plus', label: '플러스' },
 ];
-
-/** 하위 메뉴가 있는 카테고리. 데스크톱은 눌러서 여는 패널, 좁은 화면은 펼친 목록이다. */
-function NavGroupItem({ group, pathname }: { group: NavGroup; pathname: string }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  const on = group.items.some((it) => pathname === it.to);
-  useEffect(() => setOpen(false), [pathname]);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent ? e.key === 'Escape' : !box.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    document.addEventListener('keydown', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('keydown', close);
-    };
-  }, [open]);
-  return (
-    <div ref={box} className={'nav-group' + (open ? ' open' : '') + (on ? ' on' : '')}>
-      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        {group.label}
-        <span className="caret" aria-hidden="true">
-          ▾
-        </span>
-      </button>
-      <div className="nav-pop">
-        <p className="nav-hint">{group.hint}</p>
-        {group.items.map((it) => (
-          <NavLink key={it.to} to={it.to} end>
-            <b>{it.label}</b>
-            {it.desc && <span>{it.desc}</span>}
-          </NavLink>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function SeedChip() {
   const { data } = useSeedMoney();
@@ -130,15 +71,11 @@ export function Layout() {
             <Logo />
           </Link>
           <nav className={'mainnav' + (menu ? ' open' : '')} id="mainnav" aria-label="주 메뉴">
-            {NAV.map((n) =>
-              'items' in n ? (
-                <NavGroupItem key={n.label} group={n} pathname={pathname} />
-              ) : (
-                <NavLink key={n.to} to={n.to}>
-                  {n.label}
-                </NavLink>
-              ),
-            )}
+            {NAV.map((n) => (
+              <NavLink key={n.to} to={n.to}>
+                {n.label}
+              </NavLink>
+            ))}
           </nav>
           <div className="nav-right">
             <button className="menu-btn" aria-expanded={menu} aria-controls="mainnav" onClick={() => setMenu((v) => !v)}>

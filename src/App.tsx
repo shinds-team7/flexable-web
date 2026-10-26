@@ -1,21 +1,16 @@
 import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
-import Active from '@/pages/Active';
 import BillingResult from '@/pages/BillingResult';
 import Diversify from '@/pages/Diversify';
 import GoalPage from '@/pages/Goal';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
+import { InvestorTypeDetail, InvestorTypes } from '@/pages/InvestorType';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Me from '@/pages/Me';
-import Mix from '@/pages/Mix';
 import News from '@/pages/News';
 import OAuthCallback from '@/pages/OAuthCallback';
-import Passive from '@/pages/Passive';
-import PassiveAccounts from '@/pages/PassiveAccounts';
-import PassiveIndex from '@/pages/PassiveIndex';
-import PassivePlan from '@/pages/PassivePlan';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
 import Privacy from '@/pages/Privacy';
@@ -31,16 +26,13 @@ export const router = createBrowserRouter([
       { path: '/login', element: <Login /> },
       { path: '/signup', element: <Signup /> },
       { path: '/oauth/callback', element: <OAuthCallback /> },
-      // 액티브·패시브 구분 시안(docs/product/proposal-active-passive.md). 팀 동의 전 화면이다.
-      { path: '/active', element: <Active /> },
+      // 투자 성향 시연 화면(docs/product/proposal-investor-type.md)
+      { path: '/type', element: <InvestorTypes /> },
+      { path: '/type/:id', element: <InvestorTypeDetail /> },
+      { path: '/diversify', element: <Diversify /> },
       { path: '/invest', element: <Invest /> },
-      { path: '/active/diversify', element: <Diversify /> },
-      { path: '/passive', element: <Passive /> },
-      { path: '/passive/index', element: <PassiveIndex /> },
-      { path: '/passive/plan', element: <PassivePlan /> },
-      { path: '/passive/accounts', element: <PassiveAccounts /> },
       { path: '/savings', element: <Savings /> },
-      { path: '/mix', element: <Mix /> },
+      { path: '/mix', element: <Placeholder title="섞어보기" desc="배분 · 비교 · 프리셋 저장 · 공유" wireframe="섞어보기" /> },
       // 예전 경로(하위 탭 시절) 호환
       { path: '/lab/stocks', element: <Navigate to="/invest" replace /> },
       { path: '/lab/savings', element: <Navigate to="/savings" replace /> },

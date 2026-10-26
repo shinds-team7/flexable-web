@@ -76,7 +76,8 @@ public class KiwoomPriceSource implements PriceSource {
 						continue;
 					}
 					if (!d.isAfter(to)) {
-						out.add(new DailyBar(d, price(row.get("cur_prc")), volume(row.get("trde_qty"))));
+						out.add(new DailyBar(d, price(row.get("cur_prc")), volume(row.get("trde_qty")),
+                                optionalPrice(row.get("open_pric")), optionalPrice(row.get("high_pric")), optionalPrice(row.get("low_pric"))));
 					}
 				}
 			}
@@ -95,6 +96,9 @@ public class KiwoomPriceSource implements PriceSource {
 		return Math.abs(Long.parseLong(s.startsWith("+") ? s.substring(1) : s));
 	}
 
+    static Long optionalPrice(Object v) {
+        try { return v == null ? null : price(v); } catch (NumberFormatException e) { return null; }
+    }
 	static Long volume(Object v) {
 		try {
 			return v == null ? null : Math.abs(Long.parseLong(String.valueOf(v).trim().replace(",", "")));

@@ -39,6 +39,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `user` | 웹 회원 정보·설정·동의, 탈퇴 조정 | `applink` |
 | `seedmoney` | 앱에서 확정한 시드머니를 받아 웹에서 쓰는 시드머니 | `applink`, `user` |
 | `market` | 종목·일별 시세·사건 | `common` |
+| `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
 | `savings` | 적금 상품·금리. 코드 없음 | `common` |
 | `simulation` | 투자 시뮬레이션 계산(적금·섞어보기 계산·프리셋은 아직 없음) | `market`, `savings`, `seedmoney` |

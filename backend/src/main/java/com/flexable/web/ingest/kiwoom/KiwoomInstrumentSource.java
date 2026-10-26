@@ -80,7 +80,8 @@ public class KiwoomInstrumentSource implements InstrumentSource {
 				for (Object o : rows) {
 					if (o instanceof Map<?, ?> row && row.get("code") instanceof String code && row.get("name") instanceof String name) {
 						out.add(new InstrumentInfo(code.trim(), name.trim(), board == Board.ETF ? null : board.name(),
-								board == Board.ETF ? "ETF" : "STOCK", cap(row.get("listCount"), row.get("lastPrice"))));
+								board == Board.ETF ? "ETF" : "STOCK", cap(row.get("listCount"), row.get("lastPrice")),
+                                row.get("upName") instanceof String industry ? industry : null));
 					}
 				}
 			}

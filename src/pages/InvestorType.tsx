@@ -30,8 +30,8 @@ import { arrow, pctTxt, upDown, won } from '@/lib/format';
 export const TYPE_LIST =
   '고른 성향에 흔히 쓰이는 상품 유형과, 그 유형에 속한 상품을 정해진 기준으로 나열했어요. 특정 상품을 사라는 뜻이 아니에요. 투자 상품은 원금을 잃을 수 있고, 실제 조건은 금융사에서 꼭 확인해 주세요.';
 
-/** 투자 시뮬레이션(퀴즈형, 별도 작업) 경로. 화면이 생기면 넣는다. 그 전에는 카드를 숨긴다(없는 기능 암시 금지) */
-const SIMULATION_PATH: string | null = null;
+/** 투자 시뮬레이션(사건 퀴즈, #88) 경로. null이면 카드를 숨긴다(없는 기능 암시 금지) */
+const SIMULATION_PATH: string | null = '/simulation';
 
 const man = (n: number) => `${won(n / 10000)}만 원`;
 

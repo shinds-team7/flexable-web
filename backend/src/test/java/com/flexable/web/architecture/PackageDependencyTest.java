@@ -39,6 +39,7 @@ class PackageDependencyTest {
 			Map.entry("user", Set.of("applink")),
 			Map.entry("seedmoney", Set.of("applink", "user")),
 			Map.entry("market", Set.of("common")),
+            Map.entry("practice", Set.of("market")),
 			Map.entry("insight", Set.of("market")),
 			Map.entry("savings", Set.of("common")),
 			Map.entry("simulation", Set.of("market", "savings", "seedmoney")),

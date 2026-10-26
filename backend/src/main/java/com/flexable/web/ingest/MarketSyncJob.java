@@ -43,6 +43,8 @@ public class MarketSyncJob implements ApplicationRunner {
 	private final IngestRunRepository runs;
 	private final Clock clock;
 	private final MarketEventJob eventJob;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private PracticeSyncJob practice;
 
 	public MarketSyncJob(InstrumentSource instruments, PriceSource prices, MarketService market, MarketProperties marketProps,
 			IngestProperties props, IngestRunRepository runs, Clock clock, MarketEventJob eventJob) {
@@ -73,6 +75,7 @@ public class MarketSyncJob implements ApplicationRunner {
 	void runAll() {
 		runOnce();
 		eventJob.runOnce();
+        if (practice != null) practice.runOnce();
 	}
 
 	public synchronized Result runOnce() {

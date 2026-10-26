@@ -4,6 +4,10 @@ import org.springframework.http.HttpStatus;
 
 /** 오류 응답의 code. 이름과 응답 형식은 project2와 같게 둔다(웹 화면이 같은 처리를 쓴다). */
 public enum ErrorCode {
+    PRACTICE_CONFLICT(HttpStatus.CONFLICT, "진행 상태가 바뀌었어요. 현재 상태를 다시 확인해 주세요"),
+    PRACTICE_EXPIRED(HttpStatus.GONE, "연습 시간이 만료되었어요. 새로 시작해 주세요"),
+    PRACTICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "이 업종의 시세·사건 자료를 준비하고 있어요"),
+    PRACTICE_CAPACITY(HttpStatus.SERVICE_UNAVAILABLE, "연습 중인 사용자가 많아요. 잠시 후 다시 시작해 주세요"),
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력한 내용을 확인해 주세요"),
 	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "다시 로그인해 주세요"),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 맞지 않아요"),

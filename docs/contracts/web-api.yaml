@@ -551,8 +551,9 @@ paths:
   /youth-news:
     get:
       tags: [youth-news]
-      summary: 청년 금융 소식(승인된 것만, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
+      summary: 청년 금융 소식(수집한 소식을 검수 없이 게시, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
       description: |
+        - 매일 06:00 수집한 소식을 사람 검수 없이 내보낸다(2026-10-26 결정). 반려(REJECTED)한 것만 뺀다.
         - category: 소식이 드는 분야(categories) 중 하나라도 맞으면 보인다.
         - age: 원문에서 확인 못 한 나이 쪽(null)은 막지 않는다.
         - region: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 나오지 않는다.
@@ -1195,14 +1196,13 @@ components:
       enum: [TRANSPORT, HOUSING, JOB, EDUCATION, FINANCE, CULTURE, TAX, ETC]
     YouthNewsFeed:
       type: object
-      required: [items, preview]
+      required: [items]
       additionalProperties: false
       properties:
         items: { type: array, items: { $ref: '#/components/schemas/YouthNewsItem' } }
-        preview: { type: boolean, description: 'true면 검수 전 초안도 섞인 로컬 미리보기(local 프로필 전용). 운영은 늘 false' }
     YouthNewsItem:
       type: object
-      required: [id, category, categories, title, benefit, audience, regions, applyStart, applyDeadline, alwaysOpen, action, source,
+      required: [id, category, categories, title, summary, benefit, audience, regions, applyStart, applyDeadline, alwaysOpen, action, source,
         postedAt, keywords, calcLink, correctedAt, slot]
       additionalProperties: false
       properties:
@@ -1214,7 +1214,8 @@ components:
           description: '이 소식이 드는 분야 전부. 첫 번째가 대표(category)'
           items: { $ref: '#/components/schemas/NewsCategory' }
         title: { type: string }
-        benefit: { type: string, description: '나에게 얼마. 원문 수치 그대로' }
+        summary: { type: string, nullable: true, description: 'AI 요약(Gemini, 1~3문장). 원문에 없는 숫자가 있으면 버려서 null. 화면에 "AI 요약" 표시' }
+        benefit: { type: string, nullable: true, description: '나에게 얼마(사람이 쓰던 항목). 지금은 null' }
         audience: { $ref: '#/components/schemas/YouthNewsAudience' }
         regions:
           description: '"NATIONWIDE"(전국) 또는 시도 이름 목록'
@@ -1224,12 +1225,12 @@ components:
         applyStart: { type: string, format: date, nullable: true }
         applyDeadline: { type: string, format: date, nullable: true }
         alwaysOpen: { type: boolean }
-        action: { type: string, description: '오늘 할 일 하나' }
+        action: { type: string, nullable: true, description: '오늘 할 일(사람이 쓰던 항목). 지금은 null' }
         source: { $ref: '#/components/schemas/YouthNewsSource' }
         postedAt: { type: string, format: date, nullable: true }
         keywords: { type: array, items: { type: string } }
         calcLink: { $ref: '#/components/schemas/YouthNewsCalcLink' }
-        correctedAt: { type: string, format: date, nullable: true, description: '승인 뒤 정정한 날' }
+        correctedAt: { type: string, format: date, nullable: true, description: '게시 뒤 정정한 날' }
         slot: { type: string, enum: [MAIN, SUB], nullable: true, description: 'MAIN = 오늘의 한 장' }
     YouthNewsAudience:
       type: object

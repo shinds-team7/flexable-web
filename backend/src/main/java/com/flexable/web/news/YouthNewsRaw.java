@@ -54,4 +54,8 @@ class YouthNewsRaw {
 	String getContentHash() {
 		return contentHash;
 	}
+
+	String getPayload() {
+		return payload;
+	}
 }

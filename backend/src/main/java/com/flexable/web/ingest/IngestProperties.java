@@ -10,10 +10,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * - backfillYears: 처음 받을 때 몇 년 전부터, recheckDays: 이후에는 마지막 거래일 며칠 전부터 다시 받아 정정을 반영
  * - disclosureSource: dart | fake | none (사건 근거 공시)
  * - youth: 청년 정책(소식) 수집. source: youthcenter | fake
+ * - gemini: 소식 카드 요약(Gemini API). apiKey가 비어 있으면 요약하지 않는다(게시는 그대로)
  */
 @ConfigurationProperties("app.ingest")
 public record IngestProperties(String priceSource, String instrumentSource, String instrumentFallback, Integer backfillYears,
-		Integer recheckDays, Boolean runOnStart, Kiwoom kiwoom, Krx krx, String disclosureSource, Dart dart, Youth youth) {
+		Integer recheckDays, Boolean runOnStart, Kiwoom kiwoom, Krx krx, String disclosureSource, Dart dart, Youth youth, Gemini gemini) {
 
 	public IngestProperties {
 		priceSource = priceSource == null ? "kiwoom" : priceSource;
@@ -27,6 +28,7 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 		disclosureSource = disclosureSource == null ? "dart" : disclosureSource;
 		dart = dart == null ? new Dart(null, null, null, null) : dart;
 		youth = youth == null ? new Youth(null, null, null, null, null, null, null) : youth;
+		gemini = gemini == null ? new Gemini(null, null, null, null, null, null) : gemini;
 	}
 
 	public record Kiwoom(String baseUrl, String appKey, String secretKey, Duration pageDelay) {
@@ -64,6 +66,20 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 			maxPages = maxPages == null ? 100 : maxPages;
 			runOnStart = runOnStart == null || runOnStart;
 			callDelay = callDelay == null ? Duration.ofMillis(200) : callDelay;
+		}
+	}
+
+	/**
+	 * 소식 카드 요약(Gemini generateContent, 2026-10-26 결정). 무료 등급 한도가 있어 한 번에 batchSize건을 묶어 부르고,
+	 * 한 번 실행에 maxCalls번까지만 부른다(남은 카드는 다음 실행). callDelay: 호출 사이 쉬는 시간(분당 한도).
+	 */
+	public record Gemini(String baseUrl, String apiKey, String model, Integer batchSize, Integer maxCalls, Duration callDelay) {
+		public Gemini {
+			baseUrl = baseUrl == null || baseUrl.isBlank() ? "https://generativelanguage.googleapis.com" : baseUrl;
+			model = model == null || model.isBlank() ? "gemini-flash-lite-latest" : model;
+			batchSize = batchSize == null ? 20 : batchSize;
+			maxCalls = maxCalls == null ? 100 : maxCalls;
+			callDelay = callDelay == null ? Duration.ofSeconds(7) : callDelay;
 		}
 	}
 }

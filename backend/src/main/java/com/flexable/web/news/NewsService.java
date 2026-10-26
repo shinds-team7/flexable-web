@@ -6,11 +6,13 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,64 +23,52 @@ import com.flexable.web.news.NewsDtos.NewsItem;
 import com.flexable.web.news.NewsDtos.PolicyDraft;
 import com.flexable.web.news.NewsDtos.SaveOutcome;
 import com.flexable.web.news.NewsDtos.Source;
+import com.flexable.web.news.NewsDtos.SummaryResult;
+import com.flexable.web.news.NewsDtos.SummaryTarget;
 import com.flexable.web.news.YouthNews.ReviewStatus;
 
 /**
  * 청년 금융 소식 저장소의 공개 창구. 읽기는 api(화면), 쓰기는 worker(ingest)가 쓴다. 외부 API는 부르지 않는다(04 §8).
- * 화면에는 승인(APPROVED)된 소식만, 그중 카드 필수 항목(제목·나에게 얼마·오늘 할 일·출처·지역)이 다 있는 것만 내보낸다.
+ * 수집한 소식은 사람 검수 없이 화면에 나간다(2026-10-26 결정). 반려(REJECTED)한 것과 카드 필수 항목(제목·출처·지역)이 빠진 것만 뺀다.
+ * 요약(summary)은 worker가 Gemini로 만들어 applySummaries로 넣는다.
  */
 @Service
 public class NewsService {
 
-	/** 미리보기에서 사람이 아직 쓰지 않은 항목 자리에 넣는 문구. 금액·기한을 만들어 넣지 않는다. */
-	static final String PREVIEW_BENEFIT = "검수 전 초안 · 지원 내용은 공고문에서 확인";
-	static final String PREVIEW_ACTION = "공고문에서 신청 방법 확인하기";
-	static final String PREVIEW_SUMMARY = "검수 전 초안";
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
 	private final YouthNewsRepository news;
 	private final YouthNewsRawRepository raws;
 	private final Clock clock;
-	private final boolean previewDrafts;
 
-	public NewsService(YouthNewsRepository news, YouthNewsRawRepository raws, Clock clock,
-			@Value("${app.news.preview-drafts:false}") boolean previewDrafts) {
+	public NewsService(YouthNewsRepository news, YouthNewsRawRepository raws, Clock clock) {
 		this.news = news;
 		this.raws = raws;
 		this.clock = clock;
-		this.previewDrafts = previewDrafts;
 	}
 
 	// ───────── 읽기(api) ─────────
 
 	/**
-	 * 승인된 소식. 필터는 고르지 않으면 빼고 본다. 분야: 소식이 드는 분야 중 하나라도 맞으면 보인다.
-	 * 나이: 원문에서 확인 못 한 쪽(null)은 막지 않는다. 지역: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 지역을 고르면 빠진다.
+	 * 화면에 내보낼 소식. 필터는 고르지 않으면 빼고 본다. 분야: 소식이 드는 분야 중 하나라도 맞으면 보인다.
+	 * 나이: 원문에서 확인 못 한 쪽(null)은 막지 않는다. 지역: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 내보내지 않는다.
 	 * 신청 날짜가 없는데 원문의 사업기간이 끝난 소식은 마감으로 보고 뺀다(마감일이 지난 소식은 화면이 목록에서 내린다).
-	 * 미리보기(app.news.preview-drafts, local 프로필 전용)면 검수 전 초안도 넣고, 사람이 쓸 항목은 미리보기 문구로 채운다.
 	 */
 	@Transactional(readOnly = true)
 	public NewsFeed list(Integer age, String region, NewsCategory category) {
-		List<YouthNews> rows = previewDrafts
-				? news.findByReviewStatusInOrderByIdAsc(List.of(ReviewStatus.APPROVED, ReviewStatus.DRAFT))
-				: news.findByReviewStatusOrderByIdAsc(ReviewStatus.APPROVED);
 		LocalDate today = LocalDate.now(clock.withZone(SEOUL));
-		List<NewsItem> items = rows.stream()
-			.filter(n -> previewDrafts && n.getReviewStatus() == ReviewStatus.DRAFT ? previewable(n) : publishable(n))
+		List<NewsItem> items = news.findByReviewStatusNotOrderByIdAsc(ReviewStatus.REJECTED).stream()
+			.filter(NewsService::publishable)
 			.filter(n -> !n.endedWithoutApplyDates(today))
 			.filter(n -> category == null || n.categoryList().contains(category))
 			.filter(n -> age == null || ((n.getAgeMin() == null || n.getAgeMin() <= age) && (n.getAgeMax() == null || n.getAgeMax() >= age)))
 			.filter(n -> region == null || region.isBlank() || matchesRegion(n.regionsValue(), region.trim()))
-			.map(n -> view(n, n.getReviewStatus() == ReviewStatus.DRAFT))
+			.map(NewsService::view)
 			.toList();
-		return new NewsFeed(items, previewDrafts);
+		return new NewsFeed(items);
 	}
 
 	private static boolean publishable(YouthNews n) {
-		return previewable(n) && notBlank(n.getBenefit()) && notBlank(n.getAction());
-	}
-
-	private static boolean previewable(YouthNews n) {
 		return notBlank(n.getTitle()) && notBlank(n.getSourceOrg()) && notBlank(n.getSourceUrl()) && n.regionsValue() != null;
 	}
 
@@ -86,22 +76,65 @@ public class NewsService {
 		return YouthNews.NATIONWIDE.equals(regions) || regions instanceof List<?> l && l.contains(region);
 	}
 
-	private static NewsItem view(YouthNews n, boolean draft) {
+	private static NewsItem view(YouthNews n) {
 		CalcTarget c = n.getCalcTarget();
 		List<NewsCategory> cats = n.categoryList();
-		return new NewsItem(String.valueOf(n.getId()), cats.getFirst(), cats, n.getTitle(), fill(n.getBenefit(), draft, PREVIEW_BENEFIT),
-				new Audience(fill(n.getAudienceSummary(), draft, PREVIEW_SUMMARY), n.getAgeMin(), n.getAgeMax(), n.getIncomeLimit()),
-				n.regionsValue(), n.getApplyStart(), n.getApplyDeadline(), n.isAlwaysOpen(), fill(n.getAction(), draft, PREVIEW_ACTION),
+		return new NewsItem(String.valueOf(n.getId()), cats.getFirst(), cats, n.getTitle(), n.getSummary(), n.getBenefit(),
+				new Audience(n.getAudienceSummary(), n.getAgeMin(), n.getAgeMax(), n.getIncomeLimit()),
+				n.regionsValue(), n.getApplyStart(), n.getApplyDeadline(), n.isAlwaysOpen(), n.getAction(),
 				new Source(n.getSourceOrg(), n.getSourceUrl(), n.getAsOf()), n.getPostedAt(), n.keywordList(),
 				c == null ? null : new CalcLink(c.to(), c.label()), n.getCorrectedAt(), n.getSlot());
 	}
 
-	private static String fill(String value, boolean draft, String placeholder) {
-		return draft && !notBlank(value) ? placeholder : value;
-	}
-
 	private static boolean notBlank(String s) {
 		return s != null && !s.isBlank();
+	}
+
+	// ───────── 요약(worker) ─────────
+
+	/**
+	 * 요약할 카드: 화면에 나가는 카드 중 아직 요약하지 않았거나 원문이 바뀐 것. 마감 지난 것은 빼고 마감이 가까운 순서
+	 * (마감일 없는 것·상시는 뒤)로 최대 limit건. 하루 호출 한도가 있어 남은 것은 다음 실행에 이어서 한다.
+	 */
+	@Transactional(readOnly = true)
+	public List<SummaryTarget> summaryTargets(int limit) {
+		LocalDate today = LocalDate.now(clock.withZone(SEOUL));
+		List<YouthNews> cards = news.findByReviewStatusNotOrderByIdAsc(ReviewStatus.REJECTED).stream()
+			.filter(NewsService::publishable)
+			.filter(n -> n.getRawId() != null)
+			.filter(n -> !n.endedWithoutApplyDates(today))
+			.filter(n -> n.getApplyDeadline() == null || !n.getApplyDeadline().isBefore(today))
+			.toList();
+		Map<Long, YouthNewsRaw> rawById = new HashMap<>();
+		raws.findAllById(cards.stream().map(YouthNews::getRawId).toList()).forEach(r -> rawById.put(r.getId(), r));
+		return cards.stream()
+			.filter(n -> rawById.containsKey(n.getRawId()) && !rawById.get(n.getRawId()).getContentHash().equals(n.getSummaryHash()))
+			.sorted(Comparator.comparing(YouthNews::getApplyDeadline, Comparator.nullsLast(Comparator.naturalOrder()))
+				.thenComparing(YouthNews::getId))
+			.limit(limit)
+			.map(n -> {
+				YouthNewsRaw r = rawById.get(n.getRawId());
+				return new SummaryTarget(n.getId(), n.getTitle(), r.getPayload(), r.getContentHash());
+			})
+			.toList();
+	}
+
+	/** 요약을 넣는다. 그사이 원문이 또 바뀌었으면(hash가 다르면) 넣지 않는다. 넣은 건수를 돌려준다. */
+	@Transactional
+	public int applySummaries(List<SummaryResult> results) {
+		int applied = 0;
+		for (SummaryResult s : results) {
+			YouthNews card = news.findById(s.id()).orElse(null);
+			if (card == null || card.getRawId() == null) {
+				continue;
+			}
+			String current = raws.findById(card.getRawId()).map(YouthNewsRaw::getContentHash).orElse(null);
+			if (s.contentHash().equals(current)) {
+				card.applySummary(s.summary(), s.contentHash(), clock.instant());
+				applied++;
+			}
+		}
+		return applied;
 	}
 
 	// ───────── 쓰기(worker) ─────────

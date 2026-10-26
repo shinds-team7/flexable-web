@@ -1,5 +1,13 @@
 # 웹 개발 인수인계
 
+## 2026-10-26 청년 소식 자동 게시 + AI 요약(#48)
+
+- 결정: 수집한 소식을 검수 없이 게시하고 Gemini로 1~3문장 요약을 붙인다([결정 기록](../decisions/2026-10-26-youth-news-auto-publish.md)). 나에게 얼마·오늘 할 일은 화면에서 뺐다.
+- solpa 반영 때 할 일: VM `.env`에 `GEMINI_API_KEY`를 사람이 넣는다(키가 없으면 요약 없이 게시). Flyway **V15**(`youth_news` 요약 열 3개)가 붙으므로 반영 전에 팀에 알린다. worker는 `docker compose --profile worker up -d --build`로 다시 띄운다.
+- 확인: `docker compose logs worker | grep "청년 소식 요약 끝"`, 운영 `/api/v1/youth-news`에 `items`가 나오는지. 처음 실행은 마감 전 소식 전부(약 1,700건)를 요약하므로 무료 한도에 걸리면 다음 날 이어서 한다.
+- [ ] Gemini 무료 등급 한도(분당·하루)를 AI Studio에서 확인하고 필요하면 `GEMINI_BATCH_SIZE`·`GEMINI_MAX_CALLS`·`GEMINI_CALL_DELAY`를 맞춘다
+- [ ] #48 "남은 확인"(온통청년 코드표 대조·하루 호출 한도·적금 코드 합치기)은 그대로 남아 있다
+
 ## 2026-10-26(월) 출근하자마자: solpa VM에 `main` 반영
 
 solpa는 10-23 #50(`2c3c1eb`, Flyway V8)에 멈춰 있다. 그 뒤 머지된 것은 Vercel에만 자동 배포됐고 solpa에는 없다. VM은 수동으로 반영한다([웹 운영 현황](#2026-10-21-웹-운영-현황solpa-vm)). 10-25에는 VM·운영 DB·`.env`를 건드리지 않았다.

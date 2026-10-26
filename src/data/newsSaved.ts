@@ -8,7 +8,10 @@ const SAVED_KEY = 'fx.news.saved';
 const FILTER_KEY = 'fx.news.filter';
 
 /** 목록에서 빠져도(마감·필터) 저장함에 보이도록 카드에 필요한 값만 같이 남긴다. */
-export type SavedNews = Pick<YouthNews, 'id' | 'title' | 'benefit' | 'category' | 'applyStart' | 'applyDeadline' | 'alwaysOpen'> & {
+// benefit은 10-26 전에 저장한 항목에만 있다(그때 카드 요약 줄). 새로 저장하면 summary를 남긴다.
+export type SavedNews = Pick<YouthNews, 'id' | 'title' | 'category' | 'applyStart' | 'applyDeadline' | 'alwaysOpen'> & {
+  summary?: string | null;
+  benefit?: string | null;
   url: string;
   savedAt: number;
 };
@@ -55,7 +58,7 @@ function subscribe(l: () => void) {
 const snapshot = (n: YouthNews): SavedNews => ({
   id: n.id,
   title: n.title,
-  benefit: n.benefit,
+  summary: n.summary,
   category: n.category,
   applyStart: n.applyStart,
   applyDeadline: n.applyDeadline,

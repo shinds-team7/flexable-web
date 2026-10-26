@@ -22,7 +22,7 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
 function matchesQuery(n: YouthNews, q: string) {
   const k = norm(q);
   if (!k) return true;
-  return [n.title, n.benefit, n.audience.summary, n.source.org, ...(n.keywords ?? [])].some((s) => norm(s).includes(k));
+  return [n.title, n.summary, n.audience.summary, n.source.org, ...(n.keywords ?? [])].some((s) => s != null && norm(s).includes(k));
 }
 
 const matchesRegion = (n: YouthNews, r: NewsFilter['region']) => r === 'ALL' || n.regions === 'NATIONWIDE' || n.regions.includes(r);

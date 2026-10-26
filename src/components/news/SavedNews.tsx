@@ -40,7 +40,7 @@ export function SavedNews({ saved, items, today, onRemove }: Props) {
               return (
                 <li key={s.id} className={'news-saved-item' + (closed ? ' closed' : '')}>
                   <p className="news-saved-title">{cur?.title ?? s.title}</p>
-                  <p className="meta">{cur?.benefit ?? s.benefit}</p>
+                  {(cur?.summary ?? s.summary ?? s.benefit) && <p className="meta">{cur?.summary ?? s.summary ?? s.benefit}</p>}
                   <div className="news-saved-acts">
                     <DeadlineBadge period={period} today={today} />
                     <span className="spacer" />

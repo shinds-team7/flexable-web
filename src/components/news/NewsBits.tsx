@@ -44,11 +44,11 @@ export function SaveButton({ title, saved, onToggle }: { title: string; saved: b
 }
 
 /** 공유: 기기 공유 창이 있으면 그것을, 없으면 제목·공고문 링크를 클립보드에 복사한다. 상세 화면이 생기면 그 주소로 바꾼다. */
-export function ShareButton({ n, onDone }: { n: Pick<YouthNews, 'title' | 'benefit' | 'source'>; onDone: (msg: string) => void }) {
+export function ShareButton({ n, onDone }: { n: Pick<YouthNews, 'title' | 'summary' | 'source'>; onDone: (msg: string) => void }) {
   const share = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: n.title, text: `${n.title} · ${n.benefit}`, url: n.source.url });
+        await navigator.share({ title: n.title, text: n.summary ? `${n.title} · ${n.summary}` : n.title, url: n.source.url });
       } catch {
         // 사용자가 공유 창을 닫은 경우. 알릴 것 없음
       }

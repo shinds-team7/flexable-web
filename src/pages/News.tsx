@@ -27,7 +27,6 @@ export default function News() {
 
   const items = useMemo(() => news.data?.items ?? [], [news.data]);
   const isSample = news.data?.isSample ?? false;
-  const isPreview = news.data?.isPreview ?? false;
   const list = useMemo(() => selectNews(items, filter, today), [items, filter, today]);
   const main = useMemo(() => pickMain(items, today), [items, today]);
   // 목록은 한 페이지에 NEWS_PAGE_SIZE개. 필터·정렬을 바꾸면 1페이지로 돌아간다
@@ -55,7 +54,6 @@ export default function News() {
             <p className="page-desc">청년에게 필요한 정책과 지원 소식을 한곳에서. 신청 전엔 꼭 공고문을 확인하세요.</p>
           </div>
           {isSample && <span className="tag-ex">아래 소식은 모두 화면 설명용 예시</span>}
-          {isPreview && <span className="tag-ex">검수 전 초안 미리보기(로컬 전용)</span>}
         </div>
         <NewsBanner />
         <div className="g84">

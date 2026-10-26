@@ -11,7 +11,8 @@ import { Logo } from './Icons';
 
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
 const NAV = [
-  { to: '/invest', label: '투자 시뮬레이션' },
+  { to: '/invest', label: '투자 인사이트' },
+  { to: '/simulation', label: '투자 시뮬레이션' },
   { to: '/savings', label: '적금 모아보기' },
   { to: '/goal', label: 'AI 계획 수립' },
   { to: '/news', label: '청년 금융 소식' },

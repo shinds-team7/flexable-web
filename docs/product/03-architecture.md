@@ -722,7 +722,7 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 
 **적금:** 목록 각 상품은 {id,company,name,baseRate,maxRate,termMonths,reserveType,interestType,disclosureMonth,maxLimit,joinMember,joinDeny,openToAll,disclosureUrl,dataAsOf}. 상세만 specialConditionText(원문) 추가. 계산 결과 {principal,interestPreTax,tax,interestAfterTax,maturityAmount,excludedAmount,rateBasis}. simulate는 기간 동안 내 돈 선으로 series:[{month,principal,interestPreTax}]를 함께 준다(month = 1..termMonths, 그 달 끝까지 넣은 돈과 쌓인 세전 이자. 회차마다 C-12 이자를 경과 개월로 계산해 내림 후 합산, 마지막 점 = 만기 세전 이자). 최고금리는 '우대조건을 모두 채운 경우' 가정; 개인 조건 판정 없음. 정책 적금은 {principal,govContribution,interestPreTax,tax:0,total,averageSavingsComparison,rulesVersion,verificationStatus} 추가, 기여금 지급 가정과 미확인 표시를 항상 반환.
 
-**소식:** {requestedDate,date,items:[{id,title,summary,benefitText,todayAction,calcTarget,slot,category,ageMin,ageMax,regionName,audienceText,applyStart,applyDeadline,alwaysOpen,sourceUrl,asOf,correctedAt,correctionNote}]}. E2의 action_text/featured는 todayAction/slot으로 통일. calcTarget은 승인된 내부 경로 키+상품 코드만 허용. 개인화 필터를 서버 프로필에 저장하지 않는다.
+**소식:** 필드 이름은 01 §F4 "카드 필수 항목 = API 필드"를 따른다(2026-10-21 정리, 정본 계약은 backend/README "API"). {items:[{id,category,categories,title,benefit,audience:{summary,ageMin,ageMax,incomeLimit},regions,applyStart,applyDeadline,alwaysOpen,action,source:{org,url,asOf},postedAt,keywords,calcLink:{to,label},correctedAt,slot}]}. 01의 featured는 slot(MAIN/SUB)으로 통일. calcLink는 서버가 승인된 내부 화면 키(calc_target)로만 만든다. 개인화 필터를 서버 프로필에 저장하지 않는다. requestedDate/date(어제 소식 안내)·correctionNote는 검수·게시일 기능과 함께 붙인다.
 
 ### 8-3. 고지 상수(기획 리뷰 D12 기준)
 | noticeKey | 서버가 내려 주는 문장 |

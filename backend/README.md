@@ -1,6 +1,6 @@
 # 웹 백엔드 (flexable-web/backend)
 
-> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`·`seedmoney`), 시세·투자 시뮬레이션·사건 API(`market`·`simulation`·`ingest`), 목표·AI 안내(`engagement`·`ai`)까지 구현됐다(2026-10-23).** 목표·AI 계약은 [`docs/product/goal-ai.md`](../docs/product/goal-ai.md). `insight`·`savings`·`news`·`billing`은 README로 책임만 정해 둔 상태이고 코드가 없다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
+> **웹 계정(`config`·`common`·`auth`·`user`), 앱 연동(`applink`·`seedmoney`), 시세·투자 시뮬레이션·사건 API(`market`·`simulation`·`ingest`), 목표·AI 안내(`engagement`·`ai`), 청년 정책 수집(온통청년)·승인 소식 조회(`news`·`ingest`)까지 구현됐다(2026-10-26). 소식 검수·승인 API는 아직 없다.** 목표·AI 계약은 [`docs/product/goal-ai.md`](../docs/product/goal-ai.md). `insight`·`savings`·`billing`은 README로 책임만 정해 둔 상태이고 코드가 없다. 2026-10-20 사용자 결정: 웹은 앱(project2)과 서버·DB·계정을 따로 운영하고, 사용자가 원할 때만 [앱 연동하기]로 앱 정보를 받아 온다. 경계와 연동 계약은 [`docs/product/04-service-boundaries.md`](../docs/product/04-service-boundaries.md)가 정본이다.
 
 ## 왜 분리하나
 
@@ -87,6 +87,12 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `PUT /me/seed-money/manual` | Bearer | `{total}`(원 단위 정수, 0~10억 원) → GET과 같은 응답. 회원당 하나, 다시 보내면 덮어쓴다. 범위 밖·소수·문자·빠짐은 400 `VALIDATION_FAILED`+`fields.total` |
 | `DELETE /me/seed-money/manual` | Bearer | 204. 직접 고친 값을 지우고 앱 기록 기준으로 되돌린다. 없어도 204 |
 | `DELETE /app-link` | Bearer | 204. 앱 서버 해제 → 웹 연동·저장한 앱 정보 삭제. 연동이 없으면 그대로 204. 앱 서버 장애면 503 `APP_UNAVAILABLE`이고 연동은 남는다(다시 시도) |
+| `GET /savings/products` | 없음 | `?monthly=&termMonths=&sort=BASE_RATE\|MAX_RATE\|TERM&direction=&reserveType=FIXED\|FREE&sectors=BANK,SAVINGS_BANK&companies=은행이름,…&page=&size=` → `{items[], total, page, size, minInterestAfterTax, maxInterestAfterTax, noRateCount, disclosureMonth, dataAsOf, notice, isSample: false}`. 로컬 DB(finlife 공시 복사본)에서 읽고 `items[].result`(기본금리 기준 만기 계산)는 서버가 계산한다. 월 한도를 넘는 돈은 `excludedAmount` |
+| `GET /savings/companies` | 없음 | 공시가 있는 금융회사 `[{name, sector}]`(가나다순). 화면의 은행 선택지 |
+| `GET /savings/policies` | 없음 | `?ids=정책번호,…` → 청년정책(적금·저축·통장 계열, 온통청년) `[{id, name, summary, support, agency, applyPeriod, minAge, maxAge, applyMethod, documents, applyUrl, …}]`. 금리가 없어 계산하지 않는다 |
+| `GET /savings/products/{id}` | 없음 | `?termMonths=&reserveType=` → 상품 상세(우대조건 원문 `specialConditionText` 포함) |
+| `POST /savings/simulate` | 없음 | `{productId, monthly, termMonths, reserveType, rateBasis: BASE\|MAX}` → 만기 계산 + `assumptions` |
+| `GET /youth-news?age=&region=&category=` | 없음 | 승인된 청년 금융 소식 `{preview, items:[{id, category, categories, title, benefit, audience:{summary, ageMin, ageMax, incomeLimit}, regions, applyStart, applyDeadline, alwaysOpen, action, source:{org, url, asOf}, postedAt, keywords, calcLink:{to, label}\|null, correctedAt, slot}]}`. 필드는 01 §F4 카드 필수 항목(= 화면 `src/data/news.ts`의 `YouthNews`). `regions`는 `"NATIONWIDE"` 또는 시도 이름 목록, 날짜는 `YYYY-MM-DD`, 원문에서 확인 못 한 값은 `null`(조건 없음이 아님). 필터는 모두 선택: `age`(만 나이, 나이 범위를 모르는 쪽은 막지 않음), `region`(시도 이름, 전국 소식 포함), `category`(`TRANSPORT`·`HOUSING`·`FINANCE`·`JOB`·`EDUCATION`·`CULTURE`·`TAX`·`ETC`(기타), 그 밖은 400, `categories` 중 하나라도 맞으면 포함). `category`는 대표 분야(배지), `categories`는 드는 분야 전부(분야가 없으면 `["ETC"]`). 검수에서 승인(`APPROVED`)되고 나에게 얼마·오늘 할 일·출처·지역이 다 채워진 것만 나간다. 신청 날짜가 없고 상시도 아닌데 원문의 사업기간(`bizPrdEndYmd`)이 끝난 소식은 마감으로 보고 뺀다(마감일이 지난 소식은 화면이 목록에서 내린다). `preview`는 `local` 프로필의 초안 미리보기(`NEWS_PREVIEW_DRAFTS`, 운영 기본 꺼짐)일 때만 `true`이고, 이때는 검수 전 초안도 사람이 쓸 항목을 "검수 전 초안" 문구로 채워 내보낸다. `Cache-Control: public, max-age=300` |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
 투자 시뮬레이션 계산(`simulation.SimulationEngine`): 시작일은 그 달 1일로 맞추고(오늘 이후·10년 넘게 전은 400), 고른 종목 중 시작 무렵 시세가 없는 종목이 있으면 시작일을 바꾸지 않고 400으로 "○○부터 시세가 있어요"를 안내한다. 기간은 시작 월부터 고른 종목들의 마지막 시세일까지이고 시계열은 기간과 관계없이 주별이다. 한 주(월~일)의 값 = 그 주 마지막 거래일 종가로 평가(휴장 주는 직전 종가). 납입은 시작 월부터 매달 그 달 첫 거래일 종가로 산다. 한 번에(`LUMP_SUM`) = 첫 달에 `totalAmount`, 매달 나눠서(`SPLIT`)·지금 저축 속도로(`PACE`) = 매달 `monthlyAmount`. 원 단위 정수·내림, 종목 배분 나머지는 첫 종목, 수량은 소수 8자리 내림(소수점 매수 가정). 배당·세금·수수료 미반영.
@@ -115,10 +121,13 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 시세 수집(`ingest.MarketSyncJob`, 데이터 수집 외부 호출은 worker만 한다 04 §8. api가 요청 중에 부르는 소셜 로그인·앱 연동·OpenAI는 예외): 켜질 때 한 번(`MARKET_SYNC_ON_START`)과 평일 18:30(`MARKET_SYNC_CRON`)에 돈다. ① 시장별 종목 목록을 받아 시가총액 상위 `MARKET_TOP_LIMIT`개를 `instruments`에 바꿔 넣고 ② 그 종목들의 일봉을 `daily_prices`에 저장한다. 처음에는 `MARKET_BACKFILL_YEARS`년 전 그 달 1일보다 일주일 앞부터(화면 "5년 전"이 그 달 1일부터 계산), 이후에는 마지막 거래일 10일 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 실행 결과는 `ingest_runs`. 처음 실행은 300종목 × 5년이라 몇 분 걸리고, 다 받기 전에는 그 종목 계산이 503이다.
 
+청년 정책 수집(`ingest.YouthNewsSyncJob`, 03 §5-7 `youth-collect`): 켜질 때 한 번(`YOUTH_SYNC_ON_START`)과 매일 06:00(`YOUTH_SYNC_CRON`)에 돈다. 정책 목록을 받아 원문을 `youth_news_raw`에, 카드 초안을 `youth_news`(`DRAFT`)에 넣는다. 원문이 그대로면(내용 해시가 같으면) 건너뛰고, 승인·반려된 카드는 다시 받아도 덮어쓰지 않는다. 초안에는 원문에서 옮길 수 있는 값(제목·분야·나이·지역·신청 기간·기관·링크·키워드)만 넣고, 나에게 얼마·오늘 할 일·대상 요약은 사람이 쓴다(01 §F4). 화면에는 승인된 것만 나간다. 온통청년 요청 주소(`/go/ythip/getPlcy`)·응답 필드 이름은 2026-10-21 실제 키로 확인했다(3,472건). 코드 값의 뜻(신청기간·소득 조건 구분, 광주·전남 통합 지역코드 `12`)은 건수로 맞춰 본 것이라 코드에 `[미확인]`·추정으로 표시했다. 원문의 담당자 이름(`…PicNm`)은 저장하지 않는다.
+
 | 소스 | 구현(`ingest`) | 비고 |
 |---|---|---|
 | 일봉 | `kiwoom.KiwoomPriceSource`(ka10081 주식일봉, 수정주가, `next-key` 연속조회) | `MARKET_PRICE_SOURCE=kiwoom\|fake` |
 | 사건 근거 공시 | `dart.DartDisclosureSource`(OpenDART `corpCode.xml`·`list.json`, 원문 링크 `dart.fss.or.kr`), 가짜 `fake.FakeDisclosureSource` | `MARKET_DISCLOSURE_SOURCE=dart\|fake\|none`. `DART_API_KEY`가 비어 있으면 공시 단계를 건너뛴다(탐지는 한다) |
+| 청년 정책(소식 초안) | `youthcenter.YouthCenterPolicySource`(온통청년 오픈API, 페이지 넘김), 가짜 `fake.FakeYouthPolicySource` | `YOUTH_POLICY_SOURCE=youthcenter\|fake`. `YOUTHCENTER_API_KEY`가 비어 있으면 건너뛰고 `ingest_runs`에 "키 없음"을 남긴다 |
 | 종목 목록 | `krx.KrxInstrumentSource`(코스피·코스닥·ETF 일별매매정보 `MKTCAP`), 대체 `kiwoom.KiwoomInstrumentSource`(ka10099, 상장주식수 × 종가 어림) | `MARKET_INSTRUMENT_SOURCE`, 시장별로 실패하면 `MARKET_INSTRUMENT_FALLBACK`(예: KRX ETF API 미승인 401) |
 
 사건 탐지·공시 근거(`ingest.MarketEventJob`, 03 §5-3·5-4): 시세 수집이 끝나면 이어서 돈다. ① 시장 대용 종목(`MARKET_INDEX_PROXY`, 기본 KODEX 200)과 상위 목록 종목마다 저장된 전체 일봉으로 사건을 다시 찾아 `market_events`에 바꿔 넣는다(`market.EventDetector`, 03 C-8 v1). 종목 사건은 시장 영향을 뺀 초과수익률 z ≥ 3이고 하루 ±4%(ETF 3%) 이상, 또는 ±15% 이상이다. 하루 사건이 없으면 5영업일 누적 z ≥ 3.5인데, 가장 큰 하루를 빼고도 나머지 4일 누적 z ≥ 3.5여야 한다(하루에 몰린 움직임이 며칠짜리 사건으로 번지지 않게). 시장 사건(`scope=MARKET`)은 대용 종목이 하루 ±3% 이상인 날이고 대용 종목에 붙는다. 3영업일 안 사건은 합치되 한 사건은 5거래일을 넘지 않고, 종목 사건은 연도별 점수 상위 6건만 남긴다. 다시 탐지하면 같은 시작일이거나 기간이 겹치는 사건을 갱신해 id·근거를 지킨다. ② 공시 소스가 켜져 있으면 고유번호가 없는 종목만 `corpCode.xml`로 채운다. 이어 근거를 아직 찾지 않았거나 마지막 날 + 3일 전에 찾은 종목 사건마다 사건 시작 5거래일 전부터 마지막 날까지 `list.json`을 조회한다. 보고서 이름 키워드 점수(`ingest.DisclosureKeywords`: 잠정실적·공급계약·증자·합병·최대주주 변경 3점, 자기주식·배당·중대재해 2점, 대량보유·주주총회 1점 등) 순으로 사건당 5건까지 `event_sources`에 둔다. 거의 매일 나오는 임원 지분 보고는 근거로 쓰지 않는다. 시장 전체 사건은 회사 공시와 연결하지 않는다. 한 번에 `DART_MAX_CALLS`건까지 처리하고 나머지는 다음 실행에서 이어 한다. 키 문제·한도 초과(010·011·012·020·901)면 공시 단계만 멈춘다. `list.json`에는 접수 시각이 없어 "장 마감 뒤 공시는 다음 영업일 사건"을 가리지 못한다. 실행 결과는 `ingest_runs`(job=`market-events`)에 남는다.
@@ -155,6 +164,9 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `KIWOOM_BASE_URL`, `KIWOOM_APP_KEY`, `KIWOOM_SECRET_KEY` | 키움 REST API(모의투자는 `https://mockapi.kiwoom.com`) | `https://api.kiwoom.com`, 없음 |
 | `KRX_BASE_URL`, `KRX_AUTH_KEY` | KRX 정보데이터시스템 Open API(API마다 이용 신청) | `https://data-dbg.krx.co.kr/svc/apis`, 없음 |
 | `MARKET_INDEX_PROXY` | 사건 탐지에서 시장 전체로 보는 종목 코드(코스피200 추종 ETF) | `069500` |
+| `YOUTH_POLICY_SOURCE`, `YOUTHCENTER_BASE_URL`, `YOUTHCENTER_API_KEY` | 청년 정책 수집 소스(`youthcenter`·`fake`), 온통청년 주소·오픈API 인증키(youthcenter.go.kr에서 발급) | `youthcenter`, `https://www.youthcenter.go.kr`, 없음 |
+| `YOUTH_SYNC_ON_START`, `YOUTH_SYNC_CRON` | 켜질 때 한 번 돌지, 정기 실행 시각(Asia/Seoul) | `true`, `0 0 6 * * *` |
+| `NEWS_PREVIEW_DRAFTS` | `/youth-news`에 검수 전 초안도 보여 줄지(화면 확인용). **운영에서는 켜지 않는다** | `false`(`local` 프로필은 `true`) |
 | `MARKET_DISCLOSURE_SOURCE`, `DART_BASE_URL`, `DART_API_KEY`, `DART_MAX_CALLS` | 사건 근거 공시 소스, OpenDART 주소·인증키, 한 번 실행에서 공시를 찾을 사건 수 상한(하루 20,000건 한도 안) | `dart`, `https://opendart.fss.or.kr`, 없음, `5000` |
 | `APP_LINK_BASE_URL` | 앱 서버 주소(`/internal/v1` 앞까지). 비어 있으면 [앱 연동하기]가 503 | 없음 |
 | `APP_LINK_SERVICE_KEY` | `X-Service-Key` 값. 앱 서버 `WEB_LINK_SERVICE_KEYS` 중 하나와 같아야 한다(32자 이상) | 없음 |
@@ -165,7 +177,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 
 ## 데이터
 
-Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](src/main/resources/db/migration/README.md). 현재 V1~V9, 테이블 16개다. 앱 DB와 외래 키는 없다.
+Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](src/main/resources/db/migration/README.md). 현재 V1~V13, 테이블 21개다. 앱 DB와 외래 키는 없다.
 
 - `V1__web_accounts.sql`: `users`(user: 이메일·동의 시각), `user_settings`(user), `user_credentials`(auth: 비밀번호 해시·토큰 버전)
 - `V2__social_login.sql`: `user_identities`(auth: 소셜 로그인 수단), 소셜 가입을 위해 `users.email`·`user_credentials.password_hash`를 비울 수 있게 함
@@ -176,6 +188,10 @@ Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](s
 - `V7__privacy_notice_basis.sql`: `users.privacy_agreed_at` NULL 허용(10-21부터 개인정보는 동의가 아니라 계약 이행 근거, 이전 가입자의 동의 시각은 유지)
 - `V8__goals.sql`: `goals`·`goal_coaches`·`goal_coach_usage`·`ai_daily_usage`(engagement, [goal-ai.md](../docs/product/goal-ai.md))
 - `V9__seed_money_manual.sql`: `seed_money_manual`(seedmoney: 웹에서 직접 고친 시드머니, 회원당 하나, 되돌리기·탈퇴 때 삭제)
+- `V10__savings.sql`: `savings_products`·`savings_rate_options`(savings: 금융감독원 finlife 적금 공시 복사본, 상품·기간별 기본/최고 금리)
+- `V11__savings_policies.sql`: `savings_policies`(savings: 온통청년 청년정책 중 적금·저축·통장 계열)
+- `V12__savings_policy_region.sql`: `savings_policies.region`(정책 지역, 중앙부처는 '전국')
+- `V13__youth_news.sql`: `youth_news_raw`(news: 수집 원문, `(source, external_id)` UNIQUE, 내용 해시), `youth_news`(news: 소식 카드, 검수 상태 `DRAFT`·`APPROVED`·`REJECTED`, 01 §F4 카드 항목, 계산 화면 키·오늘의 한 장 슬롯)
 
 ## 아직 정해지지 않은 것
 

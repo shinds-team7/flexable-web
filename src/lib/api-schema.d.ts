@@ -1170,6 +1170,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/youth-news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 청년 금융 소식(승인된 것만, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
+         * @description - category: 소식이 드는 분야(categories) 중 하나라도 맞으면 보인다.
+         *     - age: 원문에서 확인 못 한 나이 쪽(null)은 막지 않는다.
+         *     - region: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 나오지 않는다.
+         *     - 신청 날짜가 없는데 사업기간이 끝난 소식은 그날(Asia/Seoul) 기준으로 뺀다.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 만 나이 */
+                    age?: number;
+                    /** @description 시도 이름(서울·경기…) */
+                    region?: string;
+                    category?: components["schemas"]["NewsCategory"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 소식 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["YouthNewsFeed"];
+                    };
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1730,6 +1779,69 @@ export interface components {
                 note: string | null;
             }[];
         };
+        /**
+         * @description 교통·주거·일자리·교육·저축·금융·생활·문화·세금·기타
+         * @enum {string}
+         */
+        NewsCategory: "TRANSPORT" | "HOUSING" | "JOB" | "EDUCATION" | "FINANCE" | "CULTURE" | "TAX" | "ETC";
+        YouthNewsFeed: {
+            items: components["schemas"]["YouthNewsItem"][];
+            /** @description true면 검수 전 초안도 섞인 로컬 미리보기(local 프로필 전용). 운영은 늘 false */
+            preview: boolean;
+        };
+        YouthNewsItem: {
+            id: string;
+            category: components["schemas"]["NewsCategory"];
+            /** @description 이 소식이 드는 분야 전부. 첫 번째가 대표(category) */
+            categories: components["schemas"]["NewsCategory"][];
+            title: string;
+            /** @description 나에게 얼마. 원문 수치 그대로 */
+            benefit: string;
+            audience: components["schemas"]["YouthNewsAudience"];
+            /** @description "NATIONWIDE"(전국) 또는 시도 이름 목록 */
+            regions: "NATIONWIDE" | string[];
+            /** Format: date */
+            applyStart: string | null;
+            /** Format: date */
+            applyDeadline: string | null;
+            alwaysOpen: boolean;
+            /** @description 오늘 할 일 하나 */
+            action: string;
+            source: components["schemas"]["YouthNewsSource"];
+            /** Format: date */
+            postedAt: string | null;
+            keywords: string[];
+            calcLink: components["schemas"]["YouthNewsCalcLink"];
+            /**
+             * Format: date
+             * @description 승인 뒤 정정한 날
+             */
+            correctedAt: string | null;
+            /**
+             * @description MAIN = 오늘의 한 장
+             * @enum {string|null}
+             */
+            slot: "MAIN" | "SUB" | null;
+        };
+        YouthNewsAudience: {
+            /** @description 나이 외 조건 요약 */
+            summary: string | null;
+            ageMin: number | null;
+            ageMax: number | null;
+            /** @description 원문에 소득 기준이 있으면 true, 언급이 없으면 null */
+            incomeLimit: boolean | null;
+        };
+        YouthNewsSource: {
+            org: string;
+            url: string;
+            /** Format: date */
+            asOf: string;
+        };
+        /** @description [계산해 보기]가 여는 내부 화면. 없으면 null */
+        YouthNewsCalcLink: {
+            to: string;
+            label: string;
+        } | null;
     };
     responses: {
         /** @description 오류. code는 ErrorCode, message는 화면에 그대로 보여 줄 문장 */

@@ -12,7 +12,11 @@
 | `V7__privacy_notice_basis.sql` | `users.privacy_agreed_at` NULL 허용(10-21부터 가입 정보는 계약 이행 근거로 처리, 이전 동의 시각은 유지) |
 | `V8__goals.sql` | `goals`(engagement: 회원당 목표 하나), `goal_coaches`(engagement: 마지막 목표 안내), `goal_coach_usage`(engagement: 회원·날짜별 AI 호출 수, 7일 뒤 삭제), `ai_daily_usage`(engagement: 회원 정보 없는 날짜별 전체 호출 수) |
 | `V9__seed_money_manual.sql` | `seed_money_manual`(seedmoney: 웹에서 직접 고친 시드머니 금액·수정 시각, 회원당 하나) |
+| `V10__savings.sql` | `savings_products`·`savings_rate_options`(savings): 금융감독원 finlife 적금 공시 복사본(상품·기간별 기본/최고 금리) |
+| `V11__savings_policies.sql` | `savings_policies`(savings): 온통청년 청년정책 중 적금·저축·통장 계열 |
+| `V12__savings_policy_region.sql` | `savings_policies.region`: 정책 지역(중앙부처는 '전국') |
+| `V13__youth_news.sql` | `youth_news_raw`(news: 청년 정책 수집 원문), `youth_news`(news: 소식 카드, 검수 상태) |
 
-현재 테이블은 16개다(V1~V9). 적금·소식·프리셋·구독·결제·사건 설명 표는 아직 없다(03 §7은 계획 초안).
+현재 테이블은 21개다(V1~V13). 프리셋·구독·결제·사건 설명 표는 아직 없다(03 §7은 계획 초안).
 
 MySQL과 H2(MySQL 모드, 로컬·테스트) 양쪽에서 돌아야 한다. 테스트(`./gradlew test`)가 매번 처음부터 적용하고 `ddl-auto=validate`로 엔티티와 맞는지 본다.

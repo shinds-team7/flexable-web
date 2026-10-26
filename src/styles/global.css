@@ -676,6 +676,53 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .sv-sort{flex-direction:row;align-items:center;gap:8px}
 .sv-sort .input{height:36px;width:auto}
 .sv-name{color:var(--text);font-weight:700;text-align:left}
+.sv-cond-bar{display:flex;flex-wrap:nowrap;gap:12px 18px;align-items:flex-end;padding:14px 20px}
+.sv-cond-bar .field{flex:none}
+.sv-cond-note{align-self:center;margin:0}
+.sv-region{width:140px}
+.sv-central{height:40px;white-space:nowrap}
+.sv-central:has(input:disabled){opacity:.6}
+.sv-cond-bar .seg button{height:32px;padding:0 10px}
+.sv-cond-bar .sv-pick summary{height:40px;min-height:0}
+.sv-amt{width:104px;text-align:right}
+.sv-main{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:24px;align-items:start}
+.sv-rail{position:sticky;top:calc(64px + 16px);max-height:calc(100vh - 96px);overflow:auto}
+.sv-pick{position:relative;width:170px}
+.sv-pick summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;gap:8px}
+.sv-pick summary::-webkit-details-marker{display:none}
+.sv-pick{border-bottom:0;padding:0}
+.sv-pick summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);transform:rotate(45deg) translateY(-2px);flex:none}
+.sv-pick[open] summary{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.sv-pick-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-pick-panel{position:absolute;z-index:50;top:calc(100% + 6px);left:0;width:300px;max-height:360px;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft-sm);box-shadow:var(--shadow-float);padding:8px 0}
+.sv-pick-panel .check{padding:6px 14px}
+.sv-pick-panel .check:hover{background:var(--brand-softer)}
+.sv-pick-all{font-weight:700}
+.sv-pick-group h4{margin:8px 14px 2px;font-size:12px;color:var(--text-muted);letter-spacing:.02em}
+.sv-pick-policy{align-items:flex-start}
+.sv-pick-policy input{margin-top:4px}
+.sv-policy-list{display:flex;flex-direction:column}
+.sv-policy{border-top:1px solid var(--line)}
+.sv-policy-row{padding:12px 4px;display:flex;flex-direction:column;gap:2px}
+.sv-policy-row:hover{background:var(--brand-softer)}
+.sv-policy.open .sv-policy-row{background:var(--brand-soft)}
+.sv-policy.open .sv-detail-body{max-width:none;padding:8px 16px 20px;background:var(--sunken)}
+.sv-detail td{background:var(--sunken);padding:8px 20px 20px}
+.sv-detail-body{max-width:720px}
+.to-top{position:fixed;right:24px;bottom:24px;z-index:60;box-shadow:var(--shadow-float)}
+@media (max-width:1279px){
+  .sv-cond-bar{flex-wrap:wrap}
+  .sv-main{grid-template-columns:minmax(0,1fr)}
+  .sv-rail{position:static;max-height:none}
+}
+@media (max-width:767px){
+  .sv-cond-bar{padding:14px 16px}
+  .sv-pick{width:100%}
+}
+.sv-row{cursor:pointer}
+.sv-row:hover td{background:var(--brand-softer)}
+.sv-row.sel td{background:var(--brand-soft)}
+.sv-detail td{border-top:1px solid var(--line)}
 .sv-cmp{accent-color:var(--brand);width:16px;height:16px}
 .sv-rates{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:16px}
 .sv-h3{font-size:15px;margin:20px 0 8px}
@@ -683,6 +730,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .sv-bars{display:flex;flex-direction:column;gap:10px}
 .sv-bar{display:grid;grid-template-columns:minmax(120px,180px) minmax(0,1fr);gap:12px;align-items:center}
 .sv-bar-name{min-width:0}
+.sv-rail .sv-bar{grid-template-columns:minmax(0,1fr);gap:4px}
 .sv-bar-name p:first-child{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sv-bar-track{display:flex;align-items:center;gap:8px}
 .sv-bar-track span{display:block;height:20px;border-radius:0 4px 4px 0}
@@ -745,11 +793,13 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appearance:none;padding-right:40px;background-image:linear-gradient(45deg,transparent 50%,var(--text-sub) 50%),linear-gradient(135deg,var(--text-sub) 50%,transparent 50%);background-position:right 19px center,right 14px center;background-size:5px 5px;background-repeat:no-repeat}
 /* 필터 박스 아래 한 줄: 왼쪽 개수 · 필터 지우기 / 오른쪽 진행중 | 정렬(글자 버튼, 고른 것은 밑줄) */
 .news-count{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 12px;min-height:32px}
+/* 소식 목록 페이지 번호(12개씩). 숫자 버튼은 .chip의 aria-pressed 모양을 그대로 쓴다 */
+.news-pager{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px}
+.news-pager .chip{min-width:34px;justify-content:center;padding:0 8px;cursor:pointer}
+.news-pager-gap{color:var(--text-muted);padding:0 2px}
 .news-count-l{display:flex;align-items:center;gap:12px}
 .news-count-l .btn-text{font-size:13px}
 .news-sortbar{display:flex;align-items:center;gap:12px}
-.news-sortbar .check{font-size:13px}
-.news-sortbar-div{width:1px;height:14px;background:var(--line)}
 .news-sort{display:flex;gap:2px}
 .news-sort button{background:none;border:0;padding:4px 6px;border-radius:var(--radius-soft-sm);font-size:13px;font-weight:600;color:var(--text-muted)}
 .news-sort button:hover{color:var(--text)}

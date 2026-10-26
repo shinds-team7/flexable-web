@@ -1,10 +1,12 @@
-// 적금 비교 데이터(지금 가입하면: 일반 적금 상품 + 정책 적금). 지금은 서버 API가 없어 예시 값을 돌려준다.
+// 적금 비교 데이터(지금 가입하면: 일반 적금 상품 + 정책 적금).
+// 일반 적금 상품은 웹 백엔드(/api/v1/savings/*)가 로컬 DB(finlife 공시 복사본)에서 읽어 계산한 값을 그대로 쓴다.
+// 정책 적금(청년미래적금)은 아직 서버 API가 없어 예시 값을 돌려준다.
 // 2026-10-20 사용자 결정으로 [그때 들었다면](POST /savings/average/simulate)은 화면에서 뺐다.
 // 계약 초안은 docs/product/03-architecture.md §8(엔드포인트·필드), 계산 정의는 C-12. API가 생기면 fetch 함수 안만 바꾼다.
-// 금액은 모두 서버 계산 결과다. 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
-// 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
+// 금액은 모두 서버 계산 결과다. 정책 적금 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
+// 정책 적금 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ApiError } from '@/lib/api';
+import { ApiError, api } from '@/lib/api';
 
 export type SavingsSort = 'BASE_RATE' | 'MAX_RATE' | 'TERM';
 export type SortDirection = 'DESC' | 'ASC';
@@ -28,7 +30,7 @@ export type SavingsProduct = {
   id: string;
   company: string;
   name: string;
-  sector: Sector; // TODO(BE): 03 §8-2 목록 필드에 없음. finlife 권역 코드로 내려 달라고 맞출 것
+  sector: Sector; // finlife 권역(020000 은행, 030300 저축은행)
   baseRate: number; // 연 %, 공시 그대로(예: 3.3)
   maxRate: number;
   termMonths: number;
@@ -41,7 +43,7 @@ export type SavingsProduct = {
   openToAll: boolean | null;
   disclosureUrl: string;
   dataAsOf: string;
-  result: SavingsResult; // 요청한 monthly·termMonths로 서버가 계산한 기본금리 기준 결과. TODO(BE): 목록 응답에 넣을지 계약에서 확정
+  result: SavingsResult; // 요청한 monthly·termMonths로 서버가 계산한 기본금리 기준 결과
 };
 
 export type SavingsProductDetail = Omit<SavingsProduct, 'result'> & { specialConditionText: string };
@@ -53,10 +55,18 @@ export type SavingsListParams = {
   direction: SortDirection;
   reserveType: ReserveType;
   sectors: Sector[];
+  companies: string[]; // 비어 있으면 전체
+  page: number; // 1부터
+  size: number;
 };
 
 export type SavingsProductList = {
-  items: SavingsProduct[];
+  items: SavingsProduct[]; // 요청한 쪽만
+  total: number; // 조건에 맞는 전체 상품 수
+  page: number;
+  size: number;
+  minInterestAfterTax: number | null; // 전체 기준 만기 세후 이자 범위
+  maxInterestAfterTax: number | null;
   noRateCount: number; // 금리가 비어 목록에서 뺀 상품 수("금리 정보 없음 n개")
   disclosureMonth: string;
   dataAsOf: string;
@@ -64,9 +74,8 @@ export type SavingsProductList = {
   isSample: boolean;
 };
 
-export type SavingsSimulateRequest = { productId: string; monthly: number; termMonths: SavingsTerm; rateBasis: RateBasis };
-// 기간 동안 내 돈: m개월 끝까지 넣은 돈과 그때까지 쌓인 세전 이자(중도해지 금리가 아니라 약정 금리로 쌓인 몫). 마지막 점 = 만기 세전 이자
-// TODO(BE): 03 §8 simulate 응답에 series를 추가하는 것으로 계약을 맞출 것
+export type SavingsSimulateRequest = { productId: string; monthly: number; termMonths: SavingsTerm; reserveType: ReserveType; rateBasis: RateBasis };
+// 기간 동안 내 돈: m개월 끝까지 넣은 돈과 그때까지 쌓인 세전 이자(약정 금리 기준). 마지막 점 = 만기 세전 이자
 export type SavingsPoint = { month: number; principal: number; interestPreTax: number };
 export type SavingsSimulation = SavingsResult & { series: SavingsPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
@@ -105,98 +114,35 @@ export type PolicySimulation = {
   isSample: boolean;
 };
 
-// 고지 문구는 서버 상수(03 §8-3, 01 F2-b)를 그대로 쓴다
-const SAVINGS_EST = '공시 금리로 계산한 추정이에요. 은행 계산과 조금 다를 수 있고 우대조건은 직접 확인해야 해요.';
+// 정책 적금 고지 문구(03 §8-3, 01 F2-b). 일반 적금 고지는 서버가 내려 준다
 const POLICY_EST = '공식 안내 기준으로 계산한 추정이에요. 자격과 금리는 신청할 때 꼭 확인해 주세요.';
 
 const SAMPLE_MONTHLY = 78000;
-const SAMPLE_AS_OF = '2026-10-17';
-const SAMPLE_MONTH = '2026-10';
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 const sampleOnly = () => new ApiError(400, 'SAMPLE_ONLY', '예시에서는 매달 78,000원 기본 조건만 계산해요');
 
-type SampleProduct = Omit<SavingsProductDetail, 'termMonths' | 'disclosureMonth' | 'disclosureUrl' | 'dataAsOf'>;
-const SAMPLE_PRODUCTS: SampleProduct[] = [
-  { id: 'p1', company: '예시은행 가', name: '청년 첫걸음 적금', sector: 'BANK', baseRate: 3.0, maxRate: 4.3, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 500000, joinMember: '만 19~34세 개인', joinDeny: '1인 1계좌', openToAll: false, specialConditionText: '1. 이 은행 계좌로 급여이체 6개월 이상: 연 0.6%p\n2. 이 은행 카드 월 30만 원 이상 사용: 연 0.5%p\n3. 앱으로 가입: 연 0.2%p' },
-  { id: 'p2', company: '예시은행 나', name: '매일 조금 적금', sector: 'BANK', baseRate: 3.3, maxRate: 3.9, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 300000, joinMember: '실명의 개인', joinDeny: '제한 없음', openToAll: true, specialConditionText: '1. 적금 자동이체 12회 이상: 연 0.3%p\n2. 이 은행 첫 거래: 연 0.3%p' },
-  { id: 'p3', company: '예시은행 다', name: '사회초년생 우대 적금', sector: 'BANK', baseRate: 2.6, maxRate: 4.5, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 470000, joinMember: '입사 3년 이내 직장인', joinDeny: '1인 1계좌', openToAll: false, specialConditionText: '1. 급여이체: 연 1.0%p\n2. 카드 월 30만 원 이상 사용: 연 0.7%p\n3. 마케팅 수신 동의: 연 0.2%p' },
-  { id: 'p4', company: '예시저축은행 라', name: '라온 정기적금', sector: 'SAVINGS_BANK', baseRate: 3.9, maxRate: 4.2, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 470000, joinMember: '실명의 개인', joinDeny: '제한 없음', openToAll: true, specialConditionText: '1. 앱으로 가입: 연 0.3%p' },
-  { id: 'p5', company: '예시은행 마', name: '모으기 습관 적금', sector: 'BANK', baseRate: 2.9, maxRate: 4.4, reserveType: 'FIXED', interestType: 'COMPOUND', maxLimit: 500000, joinMember: '실명의 개인', joinDeny: '제한 없음', openToAll: true, specialConditionText: '1. 적금 자동이체: 연 0.4%p\n2. 앱으로 가입: 연 0.3%p\n3. 카드 월 30만 원 이상 사용: 연 0.8%p' },
-  { id: 'p6', company: '예시은행 바', name: '목돈 만들기 적금', sector: 'BANK', baseRate: 3.5, maxRate: 3.5, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 2000000, joinMember: '실명의 개인', joinDeny: '제한 없음', openToAll: true, specialConditionText: '우대조건 없음' },
-  { id: 'p7', company: '예시저축은행 사', name: '첫 저축 적금', sector: 'SAVINGS_BANK', baseRate: 3.6, maxRate: 4.5, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 300000, joinMember: '이 저축은행 첫 거래 고객', joinDeny: '1인 1계좌', openToAll: false, specialConditionText: '1. 이 저축은행 첫 거래: 연 0.6%p\n2. 마케팅 수신 동의: 연 0.3%p' },
-  { id: 'p8', company: '예시은행 아', name: '급여 플러스 적금', sector: 'BANK', baseRate: 2.4, maxRate: 4.9, reserveType: 'FIXED', interestType: 'SIMPLE', maxLimit: 470000, joinMember: '이 은행 급여이체 고객', joinDeny: '1인 1계좌', openToAll: false, specialConditionText: '1. 급여이체: 연 1.5%p\n2. 카드 월 30만 원 이상 사용: 연 1.0%p' },
-];
-
-// 매달 78,000원 × 기간별 C-12 결과 [원금, 세전 이자, 세금, 세후 이자, 만기 수령액, 한도 초과분]. 예시 상품은 기간과 관계없이 같은 금리로 둔다.
-type R = [number, number, number, number, number, number];
-const SAMPLE_RESULTS: Record<string, Record<SavingsTerm, Record<RateBasis, R>>> = {
-  p1: { 6: { BASE: [468000, 4095, 630, 3465, 471465, 0], MAX: [468000, 5865, 903, 4962, 472962, 0] }, 12: { BASE: [936000, 15210, 2342, 12868, 948868, 0], MAX: [936000, 21792, 3355, 18437, 954437, 0] }, 24: { BASE: [1872000, 58500, 9009, 49491, 1921491, 0], MAX: [1872000, 83832, 12910, 70922, 1942922, 0] }, 36: { BASE: [2808000, 129870, 19999, 109871, 2917871, 0], MAX: [2808000, 186120, 28662, 157458, 2965458, 0] } },
-  p2: { 6: { BASE: [468000, 4503, 693, 3810, 471810, 0], MAX: [468000, 5322, 819, 4503, 472503, 0] }, 12: { BASE: [936000, 16728, 2576, 14152, 950152, 0], MAX: [936000, 19770, 3044, 16726, 952726, 0] }, 24: { BASE: [1872000, 64344, 9908, 54436, 1926436, 0], MAX: [1872000, 76044, 11710, 64334, 1936334, 0] }, 36: { BASE: [2808000, 142848, 21998, 120850, 2928850, 0], MAX: [2808000, 168822, 25998, 142824, 2950824, 0] } },
-  p3: { 6: { BASE: [468000, 3549, 546, 3003, 471003, 0], MAX: [468000, 6141, 945, 5196, 473196, 0] }, 12: { BASE: [936000, 13182, 2030, 11152, 947152, 0], MAX: [936000, 22812, 3513, 19299, 955299, 0] }, 24: { BASE: [1872000, 50700, 7807, 42893, 1914893, 0], MAX: [1872000, 87744, 13512, 74232, 1946232, 0] }, 36: { BASE: [2808000, 112554, 17333, 95221, 2903221, 0], MAX: [2808000, 194796, 29998, 164798, 2972798, 0] } },
-  p4: { 6: { BASE: [468000, 5322, 819, 4503, 472503, 0], MAX: [468000, 5733, 882, 4851, 472851, 0] }, 12: { BASE: [936000, 19770, 3044, 16726, 952726, 0], MAX: [936000, 21294, 3279, 18015, 954015, 0] }, 24: { BASE: [1872000, 76044, 11710, 64334, 1936334, 0], MAX: [1872000, 81900, 12612, 69288, 1941288, 0] }, 36: { BASE: [2808000, 168822, 25998, 142824, 2950824, 0], MAX: [2808000, 181818, 27999, 153819, 2961819, 0] } },
-  p5: { 6: { BASE: [468000, 3971, 611, 3360, 471360, 0], MAX: [468000, 6041, 930, 5111, 473111, 0] }, 12: { BASE: [936000, 14827, 2283, 12544, 948544, 0], MAX: [936000, 22607, 3481, 19126, 955126, 0] }, 24: { BASE: [1872000, 57597, 8869, 48728, 1920728, 0], MAX: [1872000, 88252, 13590, 74662, 1946662, 0] }, 36: { BASE: [2808000, 129133, 19886, 109247, 2917247, 0], MAX: [2808000, 198869, 30625, 168244, 2976244, 0] } },
-  p6: { 6: { BASE: [468000, 4776, 735, 4041, 472041, 0], MAX: [468000, 4776, 735, 4041, 472041, 0] }, 12: { BASE: [936000, 17742, 2732, 15010, 951010, 0], MAX: [936000, 17742, 2732, 15010, 951010, 0] }, 24: { BASE: [1872000, 68244, 10509, 57735, 1929735, 0], MAX: [1872000, 68244, 10509, 57735, 1929735, 0] }, 36: { BASE: [2808000, 151506, 23331, 128175, 2936175, 0], MAX: [2808000, 151506, 23331, 128175, 2936175, 0] } },
-  p7: { 6: { BASE: [468000, 4914, 756, 4158, 472158, 0], MAX: [468000, 6141, 945, 5196, 473196, 0] }, 12: { BASE: [936000, 18252, 2810, 15442, 951442, 0], MAX: [936000, 22812, 3513, 19299, 955299, 0] }, 24: { BASE: [1872000, 70200, 10810, 59390, 1931390, 0], MAX: [1872000, 87744, 13512, 74232, 1946232, 0] }, 36: { BASE: [2808000, 155844, 23999, 131845, 2939845, 0], MAX: [2808000, 194796, 29998, 164798, 2972798, 0] } },
-  p8: { 6: { BASE: [468000, 3276, 504, 2772, 470772, 0], MAX: [468000, 6687, 1029, 5658, 473658, 0] }, 12: { BASE: [936000, 12168, 1873, 10295, 946295, 0], MAX: [936000, 24840, 3825, 21015, 957015, 0] }, 24: { BASE: [1872000, 46800, 7207, 39593, 1911593, 0], MAX: [1872000, 95544, 14713, 80831, 1952831, 0] }, 36: { BASE: [2808000, 103896, 15999, 87897, 2895897, 0], MAX: [2808000, 212112, 32665, 179447, 2987447, 0] } },
-};
-
-// 매달 78,000원 · 기본금리로 m개월(1~36) 끝에 쌓인 세전 이자(C-12 회차 이자를 회차마다 내림해 합산). 만기 개월의 값은 위 세전 이자와 같다.
-const SAMPLE_ACCRUED: Record<string, number[]> = {
-  p1: [195, 585, 1170, 1950, 2925, 4095, 5460, 7020, 8775, 10725, 12870, 15210, 17745, 20475, 23400, 26520, 29835, 33345, 37050, 40950, 45045, 49335, 53820, 58500, 63375, 68445, 73710, 79170, 84825, 90675, 96720, 102960, 109395, 116025, 122850, 129870],
-  p2: [214, 643, 1286, 2144, 3216, 4503, 6004, 7720, 9650, 11795, 14154, 16728, 19516, 22519, 25736, 29168, 32814, 36675, 40750, 45040, 49544, 54263, 59196, 64344, 69706, 75283, 81074, 87080, 93300, 99735, 106384, 113248, 120326, 127619, 135126, 142848],
-  p3: [169, 507, 1014, 1690, 2535, 3549, 4732, 6084, 7605, 9295, 11154, 13182, 15379, 17745, 20280, 22984, 25857, 28899, 32110, 35490, 39039, 42757, 46644, 50700, 54925, 59319, 63882, 68614, 73515, 78585, 83824, 89232, 94809, 100555, 106470, 112554],
-  p4: [253, 760, 1520, 2534, 3801, 5322, 7096, 9124, 11405, 13940, 16728, 19770, 23065, 26614, 30416, 34472, 38781, 43344, 48160, 53230, 58553, 64130, 69960, 76044, 82381, 88972, 95816, 102914, 110265, 117870, 125728, 133840, 142205, 150824, 159696, 168822],
-  p5: [188, 565, 1131, 1887, 2834, 3971, 5300, 6820, 8532, 10437, 12535, 14827, 17313, 19993, 22868, 25939, 29206, 32669, 36329, 40186, 44241, 48494, 52946, 57597, 62448, 67499, 72751, 78204, 83859, 89716, 95776, 102039, 108506, 115177, 122052, 129133],
-  p6: [227, 682, 1364, 2274, 3411, 4776, 6368, 8188, 10235, 12510, 15012, 17742, 20699, 23884, 27296, 30936, 34803, 38898, 43220, 47770, 52547, 57552, 62784, 68244, 73931, 79846, 85988, 92358, 98955, 105780, 112832, 120112, 127619, 135354, 143316, 151506],
-  p7: [234, 702, 1404, 2340, 3510, 4914, 6552, 8424, 10530, 12870, 15444, 18252, 21294, 24570, 28080, 31824, 35802, 40014, 44460, 49140, 54054, 59202, 64584, 70200, 76050, 82134, 88452, 95004, 101790, 108810, 116064, 123552, 131274, 139230, 147420, 155844],
-  p8: [156, 468, 936, 1560, 2340, 3276, 4368, 5616, 7020, 8580, 10296, 12168, 14196, 16380, 18720, 21216, 23868, 26676, 29640, 32760, 36036, 39468, 43056, 46800, 50700, 54756, 58968, 63336, 67860, 72540, 77376, 82368, 87516, 92820, 98280, 103896],
-};
-
-const toResult = ([principal, interestPreTax, tax, interestAfterTax, maturityAmount, excludedAmount]: R, rateBasis: RateBasis): SavingsResult => ({
-  principal, interestPreTax, tax, interestAfterTax, maturityAmount, excludedAmount, rateBasis,
-});
-
-const sampleDetail = (p: SampleProduct, termMonths: number): SavingsProductDetail => ({
-  ...p, termMonths, disclosureMonth: SAMPLE_MONTH, disclosureUrl: 'https://finlife.fss.or.kr', dataAsOf: SAMPLE_AS_OF,
-});
-
-const assumptionsOf = (p: SampleProduct) => [
-  p.interestType === 'SIMPLE' ? '정액적립식 단리, 회차마다 이자를 원 단위로 내림' : '정액적립식 월복리, 회차마다 이자를 원 단위로 내림',
-  '세금은 이자의 15.4%로 단순 계산(내림)',
-  '우대조건은 계산에 넣지 않아요',
-];
-
-// TODO(BE): GET /api/v1/savings/products?monthly&termMonths&sort&direction&reserveType&sectors (03 §8-1). 기본 BASE_RATE 내림차순
 async function fetchProducts(q: SavingsListParams): Promise<SavingsProductList> {
-  if (q.monthly !== SAMPLE_MONTHLY) throw sampleOnly();
-  const key: Record<SavingsSort, (p: SampleProduct) => number> = { BASE_RATE: (p) => p.baseRate, MAX_RATE: (p) => p.maxRate, TERM: () => q.termMonths };
-  const sign = q.direction === 'DESC' ? -1 : 1;
-  const items = SAMPLE_PRODUCTS.filter((p) => q.sectors.includes(p.sector) && p.reserveType === q.reserveType)
-    .sort((a, b) => sign * (key[q.sort](a) - key[q.sort](b)) || b.baseRate - a.baseRate)
-    .map((p): SavingsProduct => {
-      const { specialConditionText: _omit, ...item } = sampleDetail(p, q.termMonths); // 우대조건 원문은 상세에만
-      return { ...item, result: toResult(SAMPLE_RESULTS[p.id][q.termMonths].BASE, 'BASE') };
-    });
-  return delay({ items, noRateCount: 0, disclosureMonth: SAMPLE_MONTH, dataAsOf: SAMPLE_AS_OF, notice: SAVINGS_EST, isSample: true });
+  const qs = new URLSearchParams({
+    monthly: String(q.monthly),
+    termMonths: String(q.termMonths),
+    sort: q.sort,
+    direction: q.direction,
+    reserveType: q.reserveType,
+    sectors: q.sectors.join(','),
+    page: String(q.page),
+    size: String(q.size),
+  });
+  if (q.companies.length > 0) qs.set('companies', q.companies.join(','));
+  return api<SavingsProductList>(`/savings/products?${qs}`);
 }
 
-// TODO(BE): GET /api/v1/savings/products/{id}. 우대조건 원문은 상세에만
-async function fetchProduct(id: string, termMonths: SavingsTerm): Promise<SavingsProductDetail> {
-  const p = SAMPLE_PRODUCTS.find((x) => x.id === id);
-  if (!p) throw new ApiError(404, 'PRODUCT_NOT_FOUND', '상품을 찾지 못했어요');
-  return delay(sampleDetail(p, termMonths));
+async function fetchProduct(id: string, termMonths: SavingsTerm, reserveType: ReserveType): Promise<SavingsProductDetail> {
+  return api<SavingsProductDetail>(`/savings/products/${encodeURIComponent(id)}?termMonths=${termMonths}&reserveType=${reserveType}`);
 }
 
-// TODO(BE): POST /api/v1/savings/simulate {productId, monthly, termMonths, rateBasis}
 async function simulate(q: SavingsSimulateRequest): Promise<SavingsSimulation> {
-  const p = SAMPLE_PRODUCTS.find((x) => x.id === q.productId);
-  if (!p) throw new ApiError(404, 'PRODUCT_NOT_FOUND', '상품을 찾지 못했어요');
-  if (q.monthly !== SAMPLE_MONTHLY) throw sampleOnly();
-  const assumptions = [...assumptionsOf(p), ...(q.rateBasis === 'MAX' ? ['최고금리는 우대조건을 모두 채운 경우예요'] : [])];
-  // 예시의 기간 선은 기본금리만 있다(화면도 기본금리 기준 선만 그린다)
-  const series = q.rateBasis === 'BASE' ? SAMPLE_ACCRUED[p.id].slice(0, q.termMonths).map((interestPreTax, i) => ({ month: i + 1, principal: SAMPLE_MONTHLY * (i + 1), interestPreTax })) : [];
-  return delay({ ...toResult(SAMPLE_RESULTS[p.id][q.termMonths][q.rateBasis], q.rateBasis), series, assumptions, notice: SAVINGS_EST, isSample: true });
+  return api<SavingsSimulation>('/savings/simulate', { method: 'POST', json: q });
 }
 
 const POLICY_ASSUMPTIONS = ['기여금은 만기에 한 번에 받는다고 가정, 기여금에는 이자 없음', '기여금 적립 방식 확인 중 · 추정', '이자는 정액적립식 단리, 비과세'];
@@ -245,14 +191,50 @@ async function simulatePolicy(q: PolicySimulateRequest): Promise<PolicySimulatio
 
 export const useSavingsProducts = (q: SavingsListParams, enabled = true) =>
   useQuery({ queryKey: ['savings', 'products', q], queryFn: () => fetchProducts(q), staleTime: 5 * 60_000, enabled });
-export const useSavingsProduct = (id: string | null, termMonths: SavingsTerm) =>
-  useQuery({ queryKey: ['savings', 'product', id, termMonths], queryFn: () => fetchProduct(id!, termMonths), enabled: id !== null });
+export type SavingsCompany = { name: string; sector: Sector };
+
+// 청년정책(적금·저축·통장 계열, 온통청년). 금리가 없어 계산하지 않고 안내 정보만 보여 준다.
+export type YouthPolicy = {
+  id: string;
+  name: string;
+  summary: string | null;
+  support: string | null;
+  category: string | null;
+  agency: string | null;
+  operator: string | null;
+  applyPeriod: string | null;
+  bizPeriod: string | null;
+  minAge: number | null;
+  maxAge: number | null;
+  applyMethod: string | null;
+  screening: string | null;
+  documents: string | null;
+  applyUrl: string | null;
+  refUrl: string | null;
+  etc: string | null;
+  incomeNote: string | null;
+  qualification: string | null;
+  restriction: string | null;
+  region: string; // 서울·부산·…·제주, 광주·전남. 중앙부처 정책은 '전국'
+  dataAsOf: string;
+};
+export const useYouthPolicies = (ids: string[], enabled = true) =>
+  useQuery({
+    queryKey: ['savings', 'youth-policies', ids.join(',')],
+    queryFn: () => api<YouthPolicy[]>('/savings/policies' + (ids.length > 0 ? `?ids=${encodeURIComponent(ids.join(','))}` : '')),
+    staleTime: 60 * 60_000,
+    enabled,
+  });
+export const useSavingsCompanies = () =>
+  useQuery({ queryKey: ['savings', 'companies'], queryFn: () => api<SavingsCompany[]>('/savings/companies'), staleTime: 60 * 60_000 });
+export const useSavingsProduct = (id: string | null, termMonths: SavingsTerm, reserveType: ReserveType) =>
+  useQuery({ queryKey: ['savings', 'product', id, termMonths, reserveType], queryFn: () => fetchProduct(id!, termMonths, reserveType), enabled: id !== null });
 export const useSavingsSimulation = (q: SavingsSimulateRequest | null) =>
   useQuery({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q!), enabled: q !== null });
 /** 고른 상품마다 기본금리 계산 결과(기간 선 포함). 상품 순서대로 돌려준다. */
 export const useSavingsSimulations = (reqs: SavingsSimulateRequest[]) =>
   useQueries({ queries: reqs.map((q) => ({ queryKey: ['savings', 'simulate', q], queryFn: () => simulate(q) })) });
-export const usePolicySavings =(code: string) =>
+export const usePolicySavings = (code: string) =>
   useQuery({ queryKey: ['savings', 'policy', code], queryFn: () => fetchPolicy(code), staleTime: 5 * 60_000 });
 export const usePolicySimulation = (q: PolicySimulateRequest | null) =>
   useQuery({ queryKey: ['savings', 'policy', 'simulate', q], queryFn: () => simulatePolicy(q!), enabled: q !== null });

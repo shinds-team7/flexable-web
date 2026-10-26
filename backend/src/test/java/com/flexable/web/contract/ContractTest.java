@@ -31,6 +31,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -56,6 +57,9 @@ import com.flexable.web.market.EventDtos.EvidenceRow;
 import com.flexable.web.market.EventService;
 import com.flexable.web.market.MarketDtos.InstrumentRow;
 import com.flexable.web.market.MarketService;
+import com.flexable.web.news.NewsCategory;
+import com.flexable.web.news.NewsDtos.PolicyDraft;
+import com.flexable.web.news.NewsService;
 import com.jayway.jsonpath.JsonPath;
 
 import tools.jackson.databind.json.JsonMapper;
@@ -78,6 +82,10 @@ class ContractTest {
 	MarketService market;
 	@Autowired
 	EventService events;
+	@Autowired
+	NewsService news;
+	@Autowired
+	JdbcTemplate jdbc;
 	@MockitoBean
 	AppApiClient app;
 	@MockitoBean
@@ -143,6 +151,14 @@ class ContractTest {
 		eventId = events.events("005930").stream().filter(e -> e.startDate().equals(jumpDate)).findFirst().orElseThrow().id();
 		events.saveEvidence(eventId, "DART", List.of(new EvidenceRow("DART", "20990101000001", "단일판매ㆍ공급계약체결", "삼성전자",
 				jumpDate, "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20990101000001", 3)));
+		// 청년 소식: 전국·계산 연결이 있는 카드와 지역 목록·빈 값이 많은 카드를 승인해 둔다
+		news.saveCollected(new PolicyDraft("FAKE", "c-all", "{}", "전국 청년 저축 지원", List.of(NewsCategory.FINANCE, NewsCategory.CULTURE), 19, 34,
+				Boolean.TRUE, true, null, today.minusDays(1), today.plusDays(30), false, "○○부(예시)", "https://example.com/c-all", today,
+				today.minusDays(3), List.of("저축"), null));
+		news.saveCollected(new PolicyDraft("FAKE", "c-seoul", "{}", "서울 청년 월세 지원", List.of(NewsCategory.HOUSING), null, null, null,
+				false, List.of("서울"), null, null, true, "서울특별시(예시)", "https://example.com/c-seoul", today, null, List.of(), null));
+		jdbc.update("UPDATE youth_news SET review_status = 'APPROVED', benefit = '월 최대 10만 원', action = '신청서 내기' WHERE source = 'FAKE'");
+		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN', audience_summary = '소득 기준 있음' WHERE external_id = 'c-all'");
 	}
 
 	/** 요청을 보내고 상태 코드를 확인한 뒤 응답을 스펙으로 검사한다. */
@@ -205,6 +221,11 @@ class ContractTest {
 		call(get("/api/v1/market/status"), 200);
 		call(get("/api/v1/market/events/" + eventId), 200);
 		call(get("/api/v1/market/events/999999999"), 404);
+		MvcResult feed = call(get("/api/v1/youth-news"), 200);
+		// 카드 필드까지 검사되도록 승인한 두 건이 다 나와야 한다
+		assertThat((List<?>) JsonPath.read(feed.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items")).hasSize(2);
+		call(get("/api/v1/youth-news?age=25&region=서울&category=HOUSING"), 200);
+		call(get("/api/v1/youth-news?category=NOPE"), 400);
 	}
 
 	@Test

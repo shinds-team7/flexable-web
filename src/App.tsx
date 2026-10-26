@@ -4,6 +4,7 @@ import BillingResult from '@/pages/BillingResult';
 import GoalPage from '@/pages/Goal';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
+import Simulation from '@/pages/Simulation';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Me from '@/pages/Me';
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: '/signup', element: <Signup /> },
       { path: '/oauth/callback', element: <OAuthCallback /> },
       { path: '/invest', element: <Invest /> },
+      { path: '/simulation', element: <Simulation /> },
       { path: '/savings', element: <Savings /> },
       { path: '/mix', element: <Placeholder title="섞어보기" desc="배분 · 비교 · 프리셋 저장 · 공유" wireframe="섞어보기" /> },
       // 예전 경로(하위 탭 시절) 호환

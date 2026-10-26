@@ -48,6 +48,9 @@ public class SecurityConfig {
 				// 시세·시뮬레이션은 공개(03 §8-1). 비로그인 체험도 같은 계산을 쓴다
 				.requestMatchers(HttpMethod.GET, "/api/v1/market/**").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/simulations/run").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/practice/categories").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/practice/start", "/api/v1/practice/state", "/api/v1/practice/step",
+                        "/api/v1/practice/decision", "/api/v1/practice/end").permitAll()
 				.requestMatchers("/api/v1/health", "/actuator/health/**", "/error").permitAll()
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(rs -> rs

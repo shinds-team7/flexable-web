@@ -1104,6 +1104,184 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/market/instruments/{id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 구현 전 계약. 종목 일별 종가(화면 차트용, decisions/2026-10-26-invest-insight-redesign ④). 수집 대상 종목·최근 3년까지만
+         * @description - 기간은 마지막 거래일(dataAsOf)에서 개월 수만큼 거슬러 간 날 이후의 첫 거래일부터다. 3M=3, 6M=6, 1Y=12, 3Y=36개월.
+         *     - 일별 종가 하나만 준다(시가·고가·저가·거래량 없음). 다운로드·내보내기 용도로 쓰지 않는다.
+         *     - 수집 대상이 아니거나 시세가 없는 종목은 404.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    period?: components["schemas"]["PricePeriod"];
+                };
+                header?: never;
+                path: {
+                    /** @description 종목 코드 */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 일별 종가 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PriceSeries"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/instruments/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 구현 전 계약. 종목·기간의 사건 핀(종목 사건 + 시장 사건). 금액 필드 없음. 상세는 /market/events/{id} */
+        get: {
+            parameters: {
+                query?: {
+                    period?: components["schemas"]["PricePeriod"];
+                };
+                header?: never;
+                path: {
+                    /** @description 종목 코드 */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 사건 목록(시간순). 없으면 items 빈 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PriceEvents"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/indices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 구현 전 계약. 지수 띠(코스피·코스닥 지수, 나스닥100 추종 국내 ETF). 아직 수집 전인 칸은 value가 null
+         * @description - 코스피·코스닥은 키움 업종일봉(ka20006)의 종합지수, unit=POINT(소수 2자리).
+         *     - 나스닥 칸은 국내 상장 나스닥100 추종 ETF이고 name은 ETF 실제 이름, unit=KRW(원 단위 정수).
+         *     - changeRate = (value − prevValue) ÷ prevValue, 소수 4자리 내림. 등락률로 정렬하지 않는다(PRD §5).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 지수 띠 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IndexStrip"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/industries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 구현 전 계약. 업종별 시가총액 상위 종목(키움 ka10099 upName, KIWOOM_UPNAME_V1). 테마 자동 분류 아님
+         * @description - 수집 대상(시장별 시가총액 상위 100) 안에서만 업종으로 묶는다. 업종 빈 값은 제외한다.
+         *     - 업종은 업종 안 시가총액 합이 큰 순, 업종 안 종목은 시가총액 순이다. 등락률로 정렬하지 않는다.
+         *     - 아직 업종을 수집하지 않았으면 items가 빈 목록.
+         */
+        get: {
+            parameters: {
+                query: {
+                    board: "KOSPI" | "KOSDAQ";
+                    /** @description 업종마다 보여 줄 종목 수 */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 업종별 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IndustryListing"];
+                    };
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/simulations/run": {
         parameters: {
             query?: never;
@@ -1676,6 +1854,131 @@ export interface components {
             /** @enum {string} */
             noticeKey: "EVENT_EXPLAIN";
             notice: string;
+        };
+        /**
+         * @default 3M
+         * @enum {string}
+         */
+        PricePeriod: "3M" | "6M" | "1Y" | "3Y";
+        SourceRow: {
+            name: string;
+            note: string | null;
+        };
+        PriceSeries: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "STOCK" | "ETF";
+            period: components["schemas"]["PricePeriod"];
+            /**
+             * Format: date
+             * @description 실제 첫 거래일
+             */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+            /** Format: date */
+            dataAsOf: string;
+            /**
+             * @description 수정주가 일별 종가
+             * @enum {string}
+             */
+            basis: "DAILY_ADJ_CLOSE";
+            points: {
+                /** Format: date */
+                date: string;
+                /**
+                 * Format: int64
+                 * @description 원
+                 */
+                close: number;
+            }[];
+            sources: components["schemas"]["SourceRow"][];
+            /** @enum {string} */
+            noticeKey: "PRICE_PAST";
+            notice: string;
+            isSample: boolean;
+        };
+        PriceEvents: {
+            id: string;
+            period: components["schemas"]["PricePeriod"];
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+            items: {
+                /** Format: int64 */
+                id: number;
+                code: string | null;
+                /** @enum {string} */
+                scope: "STOCK" | "MARKET";
+                /** Format: date */
+                startDate: string;
+                /** Format: date */
+                endDate: string;
+                windowDays: number;
+                /** @enum {string} */
+                direction: "RISE" | "FALL";
+                returnRate: number;
+                marketReturn: number | null;
+                headline: string;
+                hasExplanation: boolean;
+                sourceName: string | null;
+                sourceCount: number;
+                topSource: string | null;
+                score: number;
+            }[];
+            /** @enum {string} */
+            noticeKey: "EVENT_EXPLAIN";
+        };
+        IndexStrip: {
+            items: {
+                /** @enum {string} */
+                key: "KOSPI" | "KOSDAQ" | "NASDAQ100_ETF";
+                /** @description 화면 표시 이름. NASDAQ100_ETF는 ETF 실제 이름 */
+                name: string;
+                /** @enum {string} */
+                kind: "INDEX" | "ETF";
+                /** @enum {string} */
+                unit: "POINT" | "KRW";
+                /** @description POINT는 소수 2자리, KRW는 정수 */
+                value: number | null;
+                prevValue: number | null;
+                change: number | null;
+                /** @description 소수 4자리 내림 */
+                changeRate: number | null;
+                /** Format: date */
+                date: string | null;
+            }[];
+            sources: components["schemas"]["SourceRow"][];
+            isSample: boolean;
+        };
+        IndustryListing: {
+            /** @enum {string} */
+            board: "KOSPI" | "KOSDAQ";
+            items: {
+                /** @description 내부 식별자(업종명 SHA-256 앞 24자리). 공식 업종 코드 아님 */
+                categoryCode: string;
+                categoryName: string;
+                /** Format: int64 */
+                totalMarketCap: number | null;
+                instruments: {
+                    id: string;
+                    name: string;
+                    /** @description 시장 전체 시가총액 순위 */
+                    rank: number;
+                    /** Format: int64 */
+                    marketCap: number | null;
+                }[];
+            }[];
+            /** @enum {string} */
+            classificationVersion: "KIWOOM_UPNAME_V1";
+            /** Format: date */
+            classificationAsOf: string | null;
+            sources: components["schemas"]["SourceRow"][];
+            /** @description 현재 업종을 과거에 적용·수집 대상 안에서만 묶었다는 안내 */
+            note: string | null;
+            isSample: boolean;
         };
         /** @enum {string} */
         FundingMode: "LUMP_SUM" | "SPLIT" | "PACE";

@@ -8,18 +8,18 @@ import com.flexable.web.ingest.InstrumentInfo;
 import com.flexable.web.ingest.InstrumentListing;
 import com.flexable.web.ingest.InstrumentSource;
 
-/** 키 없이 쓰는 고정 종목 목록(테스트·오프라인 확인용). 시가총액은 순서만 맞춘 가짜 값이다. */
+/** 키 없이 쓰는 고정 종목 목록(테스트·오프라인 확인용). 시가총액은 순서만 맞춘 가짜 값, 업종은 키움 upName 모양의 가짜 값이다. */
 public class FakeInstrumentSource implements InstrumentSource {
 
 	private static final Map<Board, List<InstrumentInfo>> ITEMS = Map.of(
 			Board.KOSPI, List.of(
-					new InstrumentInfo("005930", "삼성전자", "KOSPI", "STOCK", 900L),
-					new InstrumentInfo("000660", "SK하이닉스", "KOSPI", "STOCK", 800L),
-					new InstrumentInfo("035420", "NAVER", "KOSPI", "STOCK", 300L),
-					new InstrumentInfo("105560", "KB금융", "KOSPI", "STOCK", 400L)),
+					new InstrumentInfo("005930", "삼성전자", "KOSPI", "STOCK", 900L, "전기전자"),
+					new InstrumentInfo("000660", "SK하이닉스", "KOSPI", "STOCK", 800L, "전기전자"),
+					new InstrumentInfo("035420", "NAVER", "KOSPI", "STOCK", 300L, "서비스업"),
+					new InstrumentInfo("105560", "KB금융", "KOSPI", "STOCK", 400L, "금융업")),
 			Board.KOSDAQ, List.of(
-					new InstrumentInfo("196170", "알테오젠", "KOSDAQ", "STOCK", 200L),
-					new InstrumentInfo("086520", "에코프로", "KOSDAQ", "STOCK", 150L)),
+					new InstrumentInfo("196170", "알테오젠", "KOSDAQ", "STOCK", 200L, "제약"),
+					new InstrumentInfo("086520", "에코프로", "KOSDAQ", "STOCK", 150L, "화학")),
 			Board.ETF, List.of(
 					new InstrumentInfo("069500", "KODEX 200", null, "ETF", 120L),
 					new InstrumentInfo("102110", "TIGER 200", null, "ETF", 100L),

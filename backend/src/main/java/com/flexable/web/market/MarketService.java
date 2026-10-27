@@ -202,6 +202,26 @@ public class MarketService {
 		return n;
 	}
 
+	/**
+	 * 종목코드 → 업종명(키움 upName). KIWOOM_UPNAME_V1 규칙(PracticeMarketService.categoryName)으로 정리하고, 빈 값은 저장하지 않는다.
+	 * 맵에 없는 종목은 마지막 값을 둔다. 바꾼 수를 돌려준다.
+	 */
+	@Transactional
+	public int setIndustries(Map<String, String> industries, LocalDate asOf) {
+		List<Instrument> found = instruments.findByCodeIn(List.copyOf(industries.keySet()));
+		int n = 0;
+		for (Instrument i : found) {
+			String name = PracticeMarketService.categoryName(industries.get(i.getCode()));
+			if (name.isEmpty()) {
+				continue;
+			}
+			i.setIndustry(name, asOf);
+			n++;
+		}
+		instruments.saveAll(found);
+		return n;
+	}
+
 	private static InstrumentView view(Instrument i) {
 		return new InstrumentView(i.getCode(), i.getName(), i.getMarket(), i.getKind(), i.getBoard(), i.getCapRank(), i.getMarketCap());
 	}

@@ -56,6 +56,9 @@ import com.flexable.web.market.Board;
 import com.flexable.web.market.DailyClose;
 import com.flexable.web.market.EventDtos.EvidenceRow;
 import com.flexable.web.market.EventService;
+import com.flexable.web.market.IndexKey;
+import com.flexable.web.market.InsightDtos.IndexValue;
+import com.flexable.web.market.MarketInsightService;
 import com.flexable.web.market.MarketDtos.InstrumentRow;
 import com.flexable.web.market.MarketService;
 import com.flexable.web.market.PracticeMarketService;
@@ -86,6 +89,8 @@ class ContractTest {
 	MarketService market;
 	@Autowired
 	EventService events;
+	@Autowired
+	MarketInsightService insight;
 	@Autowired
 	NewsService news;
 	@Autowired
@@ -157,6 +162,11 @@ class ContractTest {
 		eventId = events.events("005930").stream().filter(e -> e.startDate().equals(jumpDate)).findFirst().orElseThrow().id();
 		events.saveEvidence(eventId, "DART", List.of(new EvidenceRow("DART", "20990101000001", "단일판매ㆍ공급계약체결", "삼성전자",
 				jumpDate, "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20990101000001", 3)));
+		// 투자 인사이트: 업종(삼성전자만), 시장 띠는 코스피 두 날(보임)·코스닥 하루(전일 값이 없어 빠짐)
+		market.setIndustries(Map.of("005930", "전기전자"), today);
+		insight.saveIndex(IndexKey.KOSPI, List.of(new IndexValue(dates.get(dates.size() - 2), new java.math.BigDecimal("2600.10")),
+				new IndexValue(dates.getLast(), new java.math.BigDecimal("2587.55"))), "키움증권");
+		insight.saveIndex(IndexKey.KOSDAQ, List.of(new IndexValue(dates.getLast(), new java.math.BigDecimal("850.00"))), "키움증권");
 		// 청년 소식(검수 없이 게시): 요약·계산 연결이 있는 전국 카드, 요약 없이 빈 값이 많은 지역 카드, 반려해서 빠지는 카드
 		news.saveCollected(new PolicyDraft("FAKE", "c-all", "{}", "전국 청년 저축 지원", List.of(NewsCategory.FINANCE, NewsCategory.CULTURE), 19, 34,
 				Boolean.TRUE, true, null, today.minusDays(1), today.plusDays(30), false, "○○부(예시)", "https://example.com/c-all", today,
@@ -233,6 +243,26 @@ class ContractTest {
 		call(get("/api/v1/market/status"), 200);
 		call(get("/api/v1/market/events/" + eventId), 200);
 		call(get("/api/v1/market/events/999999999"), 404);
+		for (String period : List.of("3M", "6M", "1Y", "3Y")) {
+			call(get("/api/v1/market/instruments/005930/prices?period=" + period), 200);
+		}
+		call(get("/api/v1/market/instruments/005930/prices"), 200);
+		call(get("/api/v1/market/instruments/005930/prices?period=5Y"), 400);
+		call(get("/api/v1/market/instruments/999999/prices"), 404);
+		call(get("/api/v1/market/instruments/360750/prices"), 404); // 시세를 모으지 않은 종목
+		MvcResult pins = call(get("/api/v1/market/instruments/005930/events?period=3Y"), 200);
+		assertThat((List<?>) JsonPath.read(pins.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items[?(@.sourceCount > 0)]"))
+			.isNotEmpty();
+		call(get("/api/v1/market/instruments/005930/events?period=1D"), 400);
+		call(get("/api/v1/market/instruments/999999/events"), 404);
+		MvcResult strip = call(get("/api/v1/market/indices"), 200);
+		assertThat((List<String>) JsonPath.read(strip.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items[*].key"))
+			.containsExactly("KOSPI");
+		call(get("/api/v1/market/industries?board=KOSPI"), 200);
+		call(get("/api/v1/market/industries?board=KOSDAQ&limit=10"), 200);
+		call(get("/api/v1/market/industries?board=ETF"), 400);
+		call(get("/api/v1/market/industries?board=KOSPI&limit=11"), 400);
+		call(get("/api/v1/market/industries"), 400);
 		MvcResult feed = call(get("/api/v1/youth-news"), 200);
 		// 카드 필드까지 검사되도록 두 건이 다 나와야 한다: 요약이 있는 카드와 summary·benefit·action이 모두 null인 카드(반려한 것은 빠짐)
 		String feedBody = feed.getResponse().getContentAsString(StandardCharsets.UTF_8);

@@ -10,13 +10,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import com.flexable.web.ingest.fake.FakeInstrumentSource;
 import com.flexable.web.ingest.fake.FakePracticeData;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
 import com.flexable.web.ingest.kiwoom.KiwoomTokenClient;
 import com.flexable.web.market.*;
 import com.flexable.web.market.PracticeMarketData.*;
 
-/** 기존 시세·사건 수집 뒤 신규 기능용 자료를 보충한다. 실패 시 마지막 성공 자료 보존. */
+/**
+ * 기존 시세·사건 수집 뒤 신규 기능용 자료를 보충한다. 실패 시 마지막 성공 자료 보존.
+ * 받은 키움 종목정보 리스트(ka10099)의 업종(upName)은 instruments에도 저장해 투자 인사이트 업종별 목록에 쓴다(decisions/2026-10-26-invest-insight-redesign ⑦).
+ */
 @Component
 @Profile("worker")
 public class PracticeSyncJob {
@@ -39,6 +43,8 @@ public class PracticeSyncJob {
     public void runOnce() {
         LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
         if ("fake".equals(props.priceSource())) {
+            var fake = new FakeInstrumentSource();
+            for (Board board : List.of(Board.KOSPI, Board.KOSDAQ)) saveIndustries(fake.listing(board).items(), today);
             FakePracticeData.create(today).forEach(store::save);
             return;
         }
@@ -46,6 +52,7 @@ public class PracticeSyncJob {
             List<InstrumentInfo> listing;
             try { listing = industries.listing(board).items(); }
             catch (RuntimeException e) { log.warn("시뮬레이션 업종 보충 실패: {}", board); continue; }
+            saveIndustries(listing, today);
             var byCode = new HashMap<String, InstrumentInfo>();
             listing.forEach(i -> byCode.put(i.code(), i));
             for (var ranked : market.board(board).items()) {
@@ -68,5 +75,13 @@ public class PracticeSyncJob {
                 } catch (RuntimeException e) { log.warn("시뮬레이션 자료 보충 실패: {}", info.code()); }
             }
         }
+    }
+
+    /** 업종이 있는 종목만 저장한다. 실패해도 시뮬레이션 자료 보충은 계속한다. */
+    void saveIndustries(List<InstrumentInfo> listing, LocalDate asOf) {
+        var industryOf = new HashMap<String, String>();
+        listing.stream().filter(i -> i.industry() != null).forEach(i -> industryOf.put(i.code(), i.industry()));
+        try { market.setIndustries(industryOf, asOf); }
+        catch (RuntimeException e) { log.warn("업종 저장 실패: {}", e.getMessage()); }
     }
 }

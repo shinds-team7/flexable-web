@@ -64,6 +64,13 @@ public class Instrument {
 	@Column(name = "corp_code", length = 8)
 	private String corpCode;
 
+	/** 업종(키움 ka10099 upName, KIWOOM_UPNAME_V1). 모르면 null. 현재 업종이라 과거 기간에도 같은 값을 쓴다. */
+	@Column(name = "industry_name", length = 100)
+	private String industryName;
+
+	@Column(name = "industry_as_of")
+	private LocalDate industryAsOf;
+
 	protected Instrument() {
 	}
 
@@ -94,6 +101,11 @@ public class Instrument {
 
 	void setCorpCode(String corpCode) {
 		this.corpCode = corpCode;
+	}
+
+	void setIndustry(String industryName, LocalDate asOf) {
+		this.industryName = industryName;
+		this.industryAsOf = asOf;
 	}
 
 	Long getId() {
@@ -142,5 +154,13 @@ public class Instrument {
 
 	String getCorpCode() {
 		return corpCode;
+	}
+
+	String getIndustryName() {
+		return industryName;
+	}
+
+	LocalDate getIndustryAsOf() {
+		return industryAsOf;
 	}
 }

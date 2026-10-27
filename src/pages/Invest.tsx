@@ -178,11 +178,6 @@ export default function Invest() {
     setSp({}, { replace: true });
   }, [sp, setSp, firstReady]);
 
-  // [+ 종목 추가]: 시가총액 탭의 검색칸으로. 업종별 탭이었으면 탭을 바꾼 뒤 그려지고 나서 옮긴다
-  const focusList = () => {
-    setView('cap');
-    requestAnimationFrame(() => requestAnimationFrame(() => searchRef.current?.focus()));
-  };
 
   return (
     <section>
@@ -217,7 +212,6 @@ export default function Invest() {
                 prices={prices}
                 pins={pins}
                 onRemove={toggle}
-                onAdd={focusList}
                 pinHint={pinHint}
                 onPinSeen={() => setPinHint(false)}
               />
@@ -428,7 +422,6 @@ function Charts({
   prices,
   pins,
   onRemove,
-  onAdd,
   pinHint,
   onPinSeen,
 }: {
@@ -438,7 +431,6 @@ function Charts({
   prices: PricesQuery[];
   pins: PinsQuery[];
   onRemove: (i: Instrument) => void;
-  onAdd: () => void;
   /** 첫 방문 직후: 첫 핀 옆에 메모 1개 */
   pinHint: boolean;
   onPinSeen: () => void;
@@ -485,10 +477,6 @@ function Charts({
             </button>
           ))}
         </div>
-        <span className="spacer" />
-        <button type="button" className="btn btn-line btn-sm" disabled={picked.length >= MAX_PICKS} onClick={onAdd}>
-          + 종목 추가
-        </button>
       </div>
 
       <div className={many ? 'ii-multiples' : 'ii-single'}>

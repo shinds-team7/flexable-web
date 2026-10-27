@@ -1093,6 +1093,8 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .ii-card-title .meta{margin:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .ii-last{color:var(--text);font-size:15px}
 .ii-card-x{flex:none}
+/* 주가 선은 천천히 고르게 그린다. 공통 --ease(앞에서 몰아 드러냄)로는 900ms도 순식간에 지나가 보였다. 움직임 줄이기면 global 규칙이 끈다 */
+.ii-charts .reveal-rect{animation-duration:1600ms;animation-timing-function:cubic-bezier(.45,.05,.35,1)}
 
 /* 종목 순위 패널: [시가총액 | 업종별] 탭. 시가총액은 먼저 20위까지, 업종은 접고 펴는 묶음 */
 .tm-list .ii-more{display:flex;justify-content:center;padding:8px 0 4px}

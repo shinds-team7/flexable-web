@@ -8,13 +8,13 @@
 
 - [ ] **웹 #103 강제 push**: 10-27 저녁 main에 #90(투자 인사이트 스펙)·#99(키움 호출 간격)가 머지되어 #103이 충돌했다. 로컬 `feat-seed-money-app-sync`는 최신 main에 rebase를 마쳤다(`docs/decisions/README.md` 색인 충돌만 정리, ContractTest·SeedMoneyManualApiTest·RestAppApiClientTest 통과). 강제 push가 권한에서 막혀 원격에는 아직 올리지 못했다. `git push --force-with-lease origin feat-seed-money-app-sync`를 사람이 실행하거나 허용한다
   - 10-27 저녁 재확인: 원격 #103은 여전히 `f97cb52`(충돌 상태)이고, `orca/flexable-web`에는 rebase한 로컬 브랜치·worktree가 없다. rebase한 폴더를 못 찾으면 최신 main에 다시 rebase한 뒤 강제 push한다
-- [ ] #101·#106·#108·#110은 10-27 기준 main과 git 충돌이 없다. 다만 여러 PR이 `docs/CHANGELOG.md`에 `## 2026-10-27`을 새로 만들므로, 머지할 때 같은 날짜 아래로 합친다
+- [ ] #101·#106·#108은 #110 머지(`15df62a`) 뒤에도 main과 git 충돌이 없다(#101은 README 경로 표의 붙은 줄 `/home`·`/invest`를 확인, `MERGEABLE CLEAN`). main CHANGELOG에는 #110으로 `## 2026-10-27`이 이미 생겼으므로, 남은 spec-change PR(#102·#103·#106·#108)은 머지 전에 자기 줄을 그 제목 아래로 옮긴다
 - [ ] #90은 10-27 머지됐다. rhkrqkq가 결정 ③·④·⑧ 수정 스펙 PR [#102](https://github.com/shinds-team7/flexable-web/pull/102)(차트 하나로 합치기·표로 보기 삭제·시장 띠 멈춤 버튼 삭제, spec-change, CI 통과)를 올렸고, 구현은 `feat-invest-insight-impl` 브랜치에 있다. #102 머지 뒤 `Closes #89` 구현 PR이 올라온다. 리드 검토가 필요하다
-- [ ] **#98과 #110이 겹친다**: 둘 다 PRD 사건 퀴즈 상태·정책 §5 제목("구현 전 계약" 삭제)·`2026-10-26-investment-practice` 상태·`practice` 태그 설명을 고친다. #98은 base가 아직 머지된 `feat-invest-insight-redesign`이다. #98에만 있는 것(`tests/policy/practice.json` `IMPLEMENTED`·`tests/policy/README.md` 표, 결정 기록 "현재 구현" 상자, README 경로 표 `/simulation` 행)을 #110에 옮기고 #98을 닫을지, #98 base를 main으로 바꿔 먼저 머지하고 #110을 rebase할지 정한다
+- [x] **#98과 #110 겹침 정리**(10-27): #98에만 있던 것(결정 기록 "현재 구현" 상자·개인정보 절·진행 상태, 계약 `/practice/*` 요약의 "구현 예정" 제거와 생성 타입, `practice.json` `IMPLEMENTED`·`tests/policy/README.md` 표, README 경로 표 `/invest`·`/simulation`·상단 메뉴)을 #110에 합치고(`6e0eb47`) #98은 닫았다. 겹친 문장은 #110 것을 남겼다. #110은 10-27 머지(`15df62a`, Issue #109 닫힘)
 - [ ] [#104](https://github.com/shinds-team7/flexable-web/issues/104) 적금 모아보기 첫 진입 시 첫 상품 상세가 펼쳐지는 문제: Issue만 있고 담당·PR이 없다. `Savings.tsx`의 `openId` 처음 값 `undefined`(첫 상품 펼침)를 `null`로 바꾸는 작은 수정이다
 - [x] #99(키움 일봉 호출을 종목 사이에도 띄워 429 막기) 10-27 머지. solpa worker 반영 대상에 들어간다
 - [ ] solpa 반영 결과(현재 커밋·Flyway 버전·요약 로그)를 받아 아래 solpa 절에 적는다
-- 로컬 작업 폴더(git worktree): `../flexable-web-contract`(#106), `../flexable-web-appcheck`(#108), `../flexable-web-docs`(#110), 앱 `../flexable-app-83`(앱 #189). PR이 머지되면 `git worktree remove`로 지운다. 10-27 저녁 `orca/flexable-web`의 `git worktree list`에는 없다(다른 폴더·PC에서 만든 것이면 그쪽에서 정리)
+- 로컬 작업 폴더(git worktree): `../flexable-web-contract`(#106), `../flexable-web-appcheck`(#108), `../flexable-web-docs`(#110, 머지됨), 앱 `../flexable-app-83`(앱 #189). PR이 머지되면 `git worktree remove`로 지운다. 10-27 저녁 `orca/flexable-web`의 `git worktree list`에는 없다(다른 폴더·PC에서 만든 것이면 그쪽에서 정리)
 
 
 1. 최신 main을 받은 뒤 CHANGELOG와 변경 문서를 읽고, 스펙 변경이 머지됐으면 적용할 차이부터 정리한다.
@@ -29,14 +29,13 @@
 | PR | 내용 | 머지 때 주의 |
 |---|---|---|
 | 앱 [#189](https://github.com/shinds-team7/flexable-app/pull/189) → 웹 [#103](https://github.com/shinds-team7/flexable-web/pull/103) | #83 웹에서 고친 시드머니를 연동한 앱에도 반영(앱은 모아둔 돈 = 총액 − 반영한 돈 합, 실패하면 웹에만 저장하고 안내, 성공하면 웹 직접 수정값 삭제). spec-change, 방침 제2·3·4조 개정 | **앱 #189 머지·앱 서버 배포가 먼저**다. 그 전에 웹을 머지하면 늘 실패 안내로 동작한다. 앱 방침 §4 문구를 고칠지 리드가 정한다 |
-| [#101](https://github.com/shinds-team7/flexable-web/pull/101) | 홈 소식을 `GET /youth-news` 마감 임박순 3건으로, '이 돈을 굴렸다면?' 카드 제거 | #103과 같은 `Home.tsx`·`home.ts`를 고친다. 나중 쪽이 충돌 정리 |
+| [#101](https://github.com/shinds-team7/flexable-web/pull/101) | 홈 소식을 `GET /youth-news` 마감 임박순 3건으로, '이 돈을 굴렸다면?' 카드 제거 | #103과 같은 `Home.tsx`·`home.ts`를 고친다. 나중 쪽이 충돌 정리. #110 머지 뒤 main과 충돌 없음 확인 |
 | [#106](https://github.com/shinds-team7/flexable-web/pull/106) | 적금 API 5개 계약 추가, 화면 타입 대조(`src/lib/contractChecks.ts`), 목 서버 example. spec-change | 대조 중 찾은 null 가능 필드 3개를 화면 타입에 반영 |
 | [#108](https://github.com/shinds-team7/flexable-web/pull/108) | 앱 웹 연동 계약 사본·대조 테스트·사본 비교 CI `app-contract`(필수 아님). spec-change | 앱 #189가 머지되면 `app-contract`가 실패한다 → 사본 갱신과 PUT 예시 추가 |
-| [#110](https://github.com/shinds-team7/flexable-web/pull/110) | 문서 구현 상태 현행화, 화면 결정 기록(기간 칩 5년·플러스 월간 기본·섞어보기 메뉴 제거). spec-change | #98과 같은 문단을 고친다(위 10-28 할 일) |
-| [#98](https://github.com/shinds-team7/flexable-web/pull/98) | 사건 퀴즈 문서 상태를 구현됨으로(PRD·정책 §5·결정 기록·계약·`practice.json`·README 경로 표). spec-change | base가 머지된 #90 브랜치. #110과 겹침 |
+| [#110](https://github.com/shinds-team7/flexable-web/pull/110) | 문서 구현 상태 현행화, 화면 결정 기록(기간 칩 5년·플러스 월간 기본·섞어보기 메뉴 제거), #98 내용 합침. spec-change | **10-27 머지**. #98은 합치고 닫음 |
 | [#102](https://github.com/shinds-team7/flexable-web/pull/102)(rhkrqkq) | 투자 인사이트 결정 ③·④·⑧ 수정. spec-change | 머지 뒤 #89 구현 PR |
 
-#98·#102·#103·#106·#108·#110이 모두 `docs/CHANGELOG.md`에 `## 2026-10-27` 제목을 새로 만든다. 두 번째로 머지하는 PR부터는 같은 날짜 아래로 합친다.
+#102·#103·#106·#108도 `docs/CHANGELOG.md`에 `## 2026-10-27` 제목을 새로 만든다. main에는 #110으로 이 제목이 이미 있으므로 머지할 때 같은 날짜 아래로 합친다.
 
 웹 빌드의 500kB 초과 번들 경고는 남아 있다.
 
@@ -148,7 +147,7 @@
 - [x] 목 응답 `example`(시드머니·종목·적금·소식)과 example 검사 테스트(#106). `npm run dev:mock`으로 화면을 직접 띄워 보는 확인은 아직 하지 않았다
 - [x] 앱 `web-link-api.yaml` 자동 대조: 사본·`AppSpecFixtureTest`·CI `app-contract`(#108)
 - [x] 홈 "이 돈을 굴렸다면?" 카드 제거(#101, 리드 10-27 결정)
-- [x] PRD·정책 §5·결정 기록·계약 태그·backend README·03·product README의 옛 구현 상태 현행화(#110). README 경로 표의 홈 설명은 #101에서 고쳤다
+- [x] PRD·정책 §5·결정 기록·계약 태그·backend README·03·product README의 옛 구현 상태 현행화(#110). 10-27 머지. README 경로 표의 홈 설명은 #101에서 고쳤다
 - [x] 기간 칩 5년·플러스 월간 기본·섞어보기 메뉴 제거를 결정 기록으로 남김(#110, `2026-10-27-screen-defaults`)
 - 10-18~10-24 디자인 후속 대조 결과(10-27, 코드 기준):
   - 날짜 범위: [직접]은 10년 전까지 고를 수 있다(`Invest.tsx` `yearsAgo(10)`). 자료는 5년 백필이라, 그보다 앞 날짜를 골랐을 때 화면이 어떻게 안내하는지는 확인하지 않았다
@@ -235,6 +234,6 @@
 - 10-24: 시세 제공처·현재 구현 문서·체험 방침을 맞추고, #55 직접 수정 서버 저장과 V9를 추가했다. 시드머니 방침 개정의 7일 전 고지는 해커톤 시연이라는 리드 결정으로 고려하지 않았다. AWS 이전 고지 계획과는 별개다.
 - 10-25: 개발 기준 문서·정책 fixture·OpenAPI·타입 생성·목 서버·PR 규칙과 main 보호를 도입했다. 보호 규칙은 PR·필수 CI·CODEOWNERS 경로 리드 승인, 관리자 우회 허용으로 기록돼 있다.
 - 10-26: #53·#47·#84(앱 쓰기 할 일)·#86·#88·#60·#62 머지, 기존 앱 연동 실기기 확인 완료(리드 확인). 이 문서의 현재 상태·남은 일로 합쳤다.
-- 10-27: #93(#48 청년 소식 자동 게시·Gemini 요약, V15) 머지, #96 홈 히어로 고양이 영상·#97 머지, 투자 인사이트 스펙 #90·키움 호출 간격 #99 머지. #98·#101~#110 PR 올라옴.
+- 10-27: #93(#48 청년 소식 자동 게시·Gemini 요약, V15) 머지, #96 홈 히어로 고양이 영상·#97 머지, 투자 인사이트 스펙 #90·키움 호출 간격 #99 머지. #98·#101~#110 PR 올라옴. #98을 #110에 합쳐 닫고 #110 머지.
 
 세부 과거 기록은 [갱신 전 HANDOFF(`26c1bae`)](https://github.com/shinds-team7/flexable-web/blob/26c1baeb6a8e1a8e4986bef0a5699d64ac4acc37/docs/product/HANDOFF.md)에 보존돼 있다. 지난 날짜·머지·과거 체크박스만으로 배포나 실제 데이터 검증을 완료 처리하지 않는다.

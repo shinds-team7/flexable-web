@@ -6,7 +6,7 @@
 
 ## 2026-10-27
 
-- [#PRNUM] 앱 웹 연동 계약 사본 `docs/contracts/vendor/web-link-api.yaml`과 대조 테스트 `AppSpecFixtureTest`(앱 스펙에 맞는 응답을 웹 클라이언트가 읽는지, 웹 요청이 스펙에 맞는지), 사본이 앱 원본과 같은지 보는 CI `app-contract`(필수 아님)를 추가했다. 계약 내용은 바뀌지 않았다 — 영향: 백엔드(앱이 연동 계약을 바꾸면 사본·클라이언트 갱신)
+- [#108] 앱 웹 연동 계약 사본 `docs/contracts/vendor/web-link-api.yaml`과 대조 테스트 `AppSpecFixtureTest`(앱 스펙에 맞는 응답을 웹 클라이언트가 읽는지, 웹 요청이 스펙에 맞는지), 사본이 앱 원본과 같은지 보는 CI `app-contract`(필수 아님)를 추가했다. 계약 내용은 바뀌지 않았다 — 영향: 백엔드(앱이 연동 계약을 바꾸면 사본·클라이언트 갱신)
 
 ## 2026-10-26
 

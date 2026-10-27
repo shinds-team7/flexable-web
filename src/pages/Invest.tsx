@@ -445,7 +445,6 @@ function Charts({
 }) {
   const [sel, setSel] = useState<number | null>(null);
   const [focusIds, setFocusIds] = useState<number[] | null>(null);
-  const [showTable, setShowTable] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // 핀을 누르면 공통 상세 패널 하나. 시장 사건은 종목마다 같은 사건이라 한 번만 둔다
@@ -490,9 +489,6 @@ function Charts({
         <button type="button" className="btn btn-line btn-sm" disabled={picked.length >= MAX_PICKS} onClick={onAdd}>
           + 종목 추가
         </button>
-        <button type="button" className="btn btn-line btn-sm" aria-expanded={showTable} aria-controls="iiTable" onClick={() => setShowTable(!showTable)} disabled={!head}>
-          {showTable ? '표 닫기' : '표로 보기'}
-        </button>
       </div>
 
       <div className={many ? 'ii-multiples' : 'ii-single'}>
@@ -532,8 +528,6 @@ function Charts({
           <EventPanel events={events} names={names} selectedId={sel} onSelect={pick} focusIds={focusIds} onClearFocus={() => setFocusIds(null)} />
         </div>
       )}
-
-      {showTable && series.length > 0 && <MonthEndTable series={series} />}
 
       {head && (
         <div className="chart-foot tm-foot">
@@ -696,61 +690,6 @@ function ChartCard({
         </p>
       )}
     </div>
-  );
-}
-
-/** 표로 보기: 월말 종가만(결정 ④, 일별 종가를 표로 내보내지 않는다). 그 달 마지막 거래일 값을 고르기만 한다. */
-function MonthEndTable({ series }: { series: PriceSeries[] }) {
-  const rows = useMemo(() => {
-    const byMonth = new Map<string, Map<string, { date: string; close: number }>>();
-    series.forEach((s) =>
-      s.points.forEach((pt) => {
-        const ym = pt.date.slice(0, 7);
-        if (!byMonth.has(ym)) byMonth.set(ym, new Map());
-        byMonth.get(ym)!.set(s.id, pt);
-      }),
-    );
-    return [...byMonth.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  }, [series]);
-
-  return (
-    <section id="iiTable" className="tm-table-sec" aria-label="월말 종가 표">
-      <div className="toolbar">
-        <h3 className="tm-table-title">월말 종가</h3>
-        <span className="spacer" />
-        <span className="meta">그 달 마지막 거래일 종가 · 최근부터</span>
-      </div>
-      <div className="tm-table-wrap">
-        <table className="tm-table">
-          <thead>
-            <tr>
-              <th scope="col">월</th>
-              {series.map((s) => (
-                <th key={s.id} scope="col" className="r">
-                  {s.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(([ym, by]) => (
-              <tr key={ym}>
-                <td className="nw">{ym.replace('-', '.')}</td>
-                {series.map((s) => {
-                  const pt = by.get(s.id);
-                  return (
-                    <td key={s.id} className="r">
-                      {pt ? `${won(pt.close)}원` : '—'}
-                      {pt && <span className="sm">{pt.date.slice(5).replace('-', '.')}</span>}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
   );
 }
 

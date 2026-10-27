@@ -6,7 +6,7 @@
 
 ## 2026-10-27
 
-- [#PRNUM] 연동 회원이 홈에서 고친 시드머니를 앱에도 반영하기로 결정했다([결정](decisions/2026-10-27-seed-money-app-sync.md)). 계약: `PUT /me/seed-money/manual` 응답(`SeedMoneyResponse`)에 `appSync`(applied·failed, GET은 null) 추가. 정책 §1에 연동 회원 규칙·예시 2줄, 04 §5-2에 웹 → 앱 행, 방침 제2·3·4조 개정. 앱 서버 `PUT /internal/v1/web-links/{linkId}/seed-money`(앱 #189)가 필요하다 — 영향: 프론트·백엔드·앱
+- [#103] 연동 회원이 홈에서 고친 시드머니를 앱에도 반영하기로 결정했다([결정](decisions/2026-10-27-seed-money-app-sync.md)). 계약: `PUT /me/seed-money/manual` 응답(`SeedMoneyResponse`)에 `appSync`(applied·failed, GET은 null) 추가. 정책 §1에 연동 회원 규칙·예시 2줄, 04 §5-2에 웹 → 앱 행, 방침 제2·3·4조 개정. 앱 서버 `PUT /internal/v1/web-links/{linkId}/seed-money`(앱 #189)가 필요하다 — 영향: 프론트·백엔드·앱
 
 ## 2026-10-26
 

@@ -1,5 +1,5 @@
 {
-  "status": "SPEC_ONLY",
+  "status": "IMPLEMENTED",
   "initialAllocationPercent": 50,
   "tradeSequence": {
     "initialAmount": 100000,

@@ -1114,6 +1114,11 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .ii-card{min-width:0;position:relative;transition:opacity 140ms var(--ease)}
 .ii-card.refetching .chart-wrap{opacity:.45}
 .ii-charts .tm-error{margin:8px 0}
+/* 사건 핀 범례: 차트 핀(.pin .dot)과 같은 모양을 제자리에 그린다 */
+.ii-pin-key{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--text-sub)}
+.ii-pin-key li{display:flex;align-items:center;gap:6px}
+.pin.ii-pin-sample{position:static;width:auto;height:auto;margin:0;pointer-events:none}
+.pin.ii-pin-sample:hover .dot{transform:none}
 /* 주가 선은 천천히 고르게 그린다. 공통 --ease(앞에서 몰아 드러냄)로는 900ms도 순식간에 지나가 보였다. 움직임 줄이기면 global 규칙이 끈다 */
 .ii-charts .reveal-rect{animation-duration:1600ms;animation-timing-function:cubic-bezier(.45,.05,.35,1)}
 /* 선(1.6초) → 선 아래 면이 위에서 아래로 펼쳐짐(0.6초) → 사건 핀 순서로 나타난다 */

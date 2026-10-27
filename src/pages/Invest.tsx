@@ -665,10 +665,11 @@ function Charts({
           )}
         </div>
       )}
+      {events.length > 0 && <PinKey />}
       <p className="meta tm-chart-note">
         {multi && '여러 종목은 기간 첫날 종가를 같은 높이에 맞춰 흐름만 견줘요. 세로 높이는 가격이 아니에요. 선에 마우스를 올리면 그날 종가(원)가 보여요. '}
         {events.length > 0
-          ? '빨간 ▲ 핀은 크게 오른 때, 파란 ▼ 핀은 크게 내린 때예요. 가까운 사건 여러 개는 숫자 핀 하나로 묶었어요(누르면 그 기간을 확대). 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
+          ? '숫자 핀을 누르면 그 기간을 확대해요. 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
           : head
             ? '이 기간에는 크게 오르내린 때가 없어요.'
             : ''}
@@ -693,6 +694,29 @@ function Charts({
         </div>
       )}
     </div>
+  );
+}
+
+/** 사건 핀 범례: 차트의 핀과 같은 모양·색으로 뜻을 적는다(색만으로 구분하지 않게 ▲▼·숫자도 함께) */
+function PinKey() {
+  const items: { cls: string; mark: string; text: string }[] = [
+    { cls: 'rise', mark: '▲', text: '크게 오른 때' },
+    { cls: 'fall', mark: '▼', text: '크게 내린 때' },
+    { cls: 'cluster rise', mark: '2', text: '가까운 사건 묶음 · 모두 오름' },
+    { cls: 'cluster fall', mark: '2', text: '모두 내림' },
+    { cls: 'cluster', mark: '3', text: '오름·내림 섞임' },
+  ];
+  return (
+    <ul className="ii-pin-key" aria-label="사건 핀 보는 법">
+      {items.map((it) => (
+        <li key={it.cls}>
+          <span className={'pin ii-pin-sample ' + it.cls} aria-hidden="true">
+            <span className="dot">{it.mark}</span>
+          </span>
+          {it.text}
+        </li>
+      ))}
+    </ul>
   );
 }
 

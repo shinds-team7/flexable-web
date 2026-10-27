@@ -386,6 +386,11 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const yv = Y(Number.isFinite(raw) ? raw : (norm.map((a) => a[ref.idx]).find(Number.isFinite) ?? 1));
     const y = Math.max(m.t - 16, Math.min(H - m.b + 6, kind === 'fall' ? yv + 22 : yv - 22));
     const cluster = items.length > 1;
+    // 묶음 색: 모두 오름이면 빨강, 모두 내림이면 파랑, 섞이면 검정(.pin.cluster). 구성은 툴팁·읽어 주기에 함께 적는다
+    const ups = items.filter((e) => e.kind === 'rise').length;
+    const downs = items.filter((e) => e.kind === 'fall').length;
+    const parts = [ups ? `오름 ${ups}` : '', downs ? `내림 ${downs}` : ''].filter(Boolean).join('·');
+    const mix = parts ? `(${parts})` : '';
     // 묶음을 누르면 확대: 앞뒤 여유를 두고, 이미 그만큼 확대돼 있으면 더 좁게. 같은 주에 겹쳐 확대로 풀 수 없으면 사건 고르기
     const first = Math.min(...items.map((e) => e.idx));
     const last = Math.max(...items.map((e) => e.idx));
@@ -402,7 +407,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     if (cluster) {
       b.setAttribute(
         'aria-label',
-        `사건 ${items.length}개 묶음, ${fmtYM(WEEKS[first])}부터 ${fmtYM(WEEKS[last])}. ${canZoom ? '누르면 이 기간을 확대해요' : '누르면 사건을 골라 볼 수 있어요'}`,
+        `사건 ${items.length}개 묶음${mix}, ${fmtYM(WEEKS[first])}부터 ${fmtYM(WEEKS[last])}. ${canZoom ? '누르면 이 기간을 확대해요' : '누르면 사건을 골라 볼 수 있어요'}`,
       );
     } else {
       const c = ref.change;
@@ -413,7 +418,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const show = () => {
       tip.replaceChildren();
       if (cluster) {
-        tip.append(h('div', { cls: 't-title', text: `사건 ${items.length}개가 가까이 있어요` }));
+        tip.append(h('div', { cls: 't-title', text: `사건 ${items.length}개가 가까이 있어요${mix}` }));
         items.forEach((e) => {
           const c = e.change;
           tip.append(h('div', { cls: 't-row' }, h('span', { text: `${fmtYM(WEEKS[e.idx])} ${e.title}` }), h('b', { cls: 'num ' + cls(c.p), text: `${arrow(c.p)}${pctTxt(c.p)}` })));

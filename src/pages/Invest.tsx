@@ -1,13 +1,14 @@
 // 투자 인사이트(/invest). 시장 띠·종목의 지난 주가·사건 핀·시가총액·업종별 순위를 본다(decisions/2026-10-26-invest-insight-redesign).
 // 위는 흐르는 시장 띠(국내외 지수·금·환율 중 수집된 칸), 왼쪽(#tmConditions)은 종목 순위([시가총액 | 업종별] 탭, 종목 고르기), 오른쪽은 주가 차트.
 // 차트의 세로축은 주가(원)다. 금액을 넣어 보는 계산은 투자 시뮬레이션(/simulation)이 맡고 이 화면에는 없다. 종가·사건·순위는 모두 서버 값이다(ADR-3).
-// 종목을 하나 고르면 큰 차트, 둘 이상(최대 3개)이면 종목마다 축이 따로 있는 작은 차트를 나란히 둔다. 핀을 누르면 공통 상세 패널 하나가 열린다.
+// 차트는 하나다. 종목이 하나면 세로축 = 종가(원), 둘 이상(최대 3개)이면 기간 첫날을 같은 높이에 맞춰 흐름을 견준다(높이 맞춤은 그리기 전용). 핀을 누르면 공통 상세 패널 하나가 열린다.
 // 첫 방문(F5)이면 안내 모달 1장([차트 보기])과 투자 성향 선택(아직 안 골랐을 때)을 먼저 띄우고, 닫은 뒤 시가총액 1위·3개월 차트를 그린다.
 // 4단계 둘러보기는 [사용법 보기](또는 /invest?tour=1, 내 정보의 사용법 다시 보기)로만 연다.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ChartData } from '@/charts/drawTimeChart';
 import { placePinNote, removePinNote } from '@/charts/pinNote';
+import { SeriesKey } from '@/charts/SeriesKey';
 import { TimeChart } from '@/charts/TimeChart';
 import { CoachTour, type CoachStep } from '@/components/CoachTour';
 import { CountUp } from '@/components/CountUp';
@@ -34,6 +35,8 @@ import { ApiError, errorText } from '@/lib/api';
 import { fmtDate, krShort, won } from '@/lib/format';
 
 const MAX_PICKS = 3;
+/** 고른 순서대로 차트 계열색(블루 3단). 색만으로 구분하지 않게 표식 모양(SeriesKey)도 함께 쓴다 */
+const COLORS = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
 /** 주가 선 아래 그라데이션 면. 피드백으로 시험 중이라 넣을지 말지 정할 때까지 여기서 끄고 켠다 */
 const SHOW_AREA = true;
 /** 시가총액 순위는 먼저 이만큼만 보이고 [더 보기]로 나머지를 연다(긴 목록 스크롤 줄이기) */
@@ -414,7 +417,52 @@ function StockList({
 
 type PricesQuery = ReturnType<typeof usePrices>;
 type PinsQuery = ReturnType<typeof usePriceEvents>;
+type Slot = { inst: Instrument; color: string; index: number; q: PricesQuery; pinsQ: PinsQuery };
+type Drawn = { key: string; items: { slot: Slot; p: PriceSeries; events: PriceEvent[] }[]; chart: ChartData };
 
+/**
+ * 고른 종목들을 차트 하나로. 하나면 toChart(세로축 = 종가 원), 둘 이상이면 날짜를 합쳐 줄을 맞춘다(그날 시세가 없으면 NaN).
+ * 둘 이상일 때 높이 맞춤(기간 첫날 = 같은 높이)은 drawTimeChart의 compare 모드가 그리기에서만 한다.
+ */
+function toCombined(items: { slot: Slot; p: PriceSeries; events: PriceEvent[] }[]): ChartData {
+  if (items.length === 1) return toChart(items[0].p, items[0].events);
+  const dates = [...new Set(items.flatMap((it) => it.p.points.map((pt) => pt.date)))].sort();
+  const legs = items.map((it) => {
+    const close = new Map(it.p.points.map((pt) => [pt.date, pt.close]));
+    return { name: it.p.name, color: it.slot.color, values: dates.map((dt) => close.get(dt) ?? NaN), invested: [] };
+  });
+  const byId = new Map<number, PriceEvent>();
+  items.forEach((it) => it.events.forEach((e) => byId.set(e.id, e)));
+  return {
+    dates: dates.map(parseDay),
+    heads: dates.map((dt) => `${fmtDate(parseDay(dt))} 종가`),
+    tipTitle: '일별 종가(수정주가)',
+    total: legs[0].values,
+    invested: [],
+    legs,
+    startIdx: 0,
+    events: [...byId.values()].flatMap((e) => {
+      const idx = dates.findIndex((dt) => dt >= e.startDate);
+      if (idx < 0) return [];
+      const leg = e.code == null ? -1 : items.findIndex((it) => it.p.id === e.code);
+      return [
+        {
+          id: String(e.id),
+          idx,
+          kind: e.direction === 'RISE' ? ('rise' as const) : ('fall' as const),
+          title: e.headline,
+          leg: leg < 0 ? null : leg,
+          sourceName: e.sourceCount > 0 ? `${e.sourceName} ${e.sourceCount}건` : '',
+          change: { p: e.returnRate, before: 0, diff: 0 },
+          days: e.windowDays,
+          period: eventPeriod(e),
+        },
+      ];
+    }),
+  };
+}
+
+/** 주가 차트 하나(결정 ③ 변경 대기: 여러 종목도 한 차트에). 고른 순서대로 색·표식을 준다. */
 function Charts({
   picked,
   period,
@@ -438,21 +486,46 @@ function Charts({
   const [sel, setSel] = useState<number | null>(null);
   const [focusIds, setFocusIds] = useState<number[] | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const slots: Slot[] = picked.map((inst, k) => ({ inst, color: COLORS[k], index: k, q: prices[k], pinsQ: pins[k] }));
+
+  // 종목마다: 이 기간 주가가 왔는지, 사건까지 왔는지(사건 조회가 실패하면 핀 없이), 주가 조회가 실패했는지
+  const state = slots.map((sl) => {
+    const p = sl.q.data && sl.q.data.id === sl.inst.id && sl.q.data.period === period ? sl.q.data : null;
+    const pe = sl.pinsQ.data && sl.pinsQ.data.id === sl.inst.id && sl.pinsQ.data.period === period ? sl.pinsQ.data : null;
+    return { sl, p, events: pe?.items ?? [], ready: !!p && (!!pe || sl.pinsQ.isError), failed: !p && sl.q.isError };
+  });
+  const failed = state.filter((x) => x.failed);
+  // 모든 종목이 준비되거나 실패한 뒤 한 번만 그린다(늦게 온 응답으로 다시 그리면 선 그리기 모션이 끊긴다).
+  // 그 전에는 직전에 그린 차트를 흐리게 둔다
+  const allSettled = state.every((x) => x.ready || x.failed);
+  const okKey = state.filter((x) => x.ready).map((x) => x.sl.inst.id).join(',') + ':' + period;
+  const ready = useMemo<Drawn | null>(() => {
+    const ok = state.filter((x) => x.ready && x.p);
+    if (!allSettled || ok.length === 0) return null;
+    const items = ok.map((x) => ({ slot: x.sl, p: x.p!, events: x.events }));
+    return { key: okKey, items, chart: toCombined(items) };
+    // 훅 의존성 수를 고정하려고 최대 3칸을 늘 넣는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSettled, okKey, ...[0, 1, 2].map((k) => state[k]?.p ?? null), ...[0, 1, 2].map((k) => state[k]?.events ?? null)]);
+  const lastReady = useRef(ready);
+  if (ready) lastReady.current = ready;
+  const shown = ready ?? (picked.length ? lastReady.current : null);
+  const busy = !ready || slots.some((sl) => sl.q.isFetching);
+  // 묶음 핀을 눌러 확대한 구간. 종목·기간이 바뀌면 푼다
+  const [zoom, setZoom] = useState<{ from: number; to: number } | null>(null);
+  useEffect(() => setZoom(null), [shown?.key]);
 
   // 핀을 누르면 공통 상세 패널 하나. 시장 사건은 종목마다 같은 사건이라 한 번만 둔다
   const events = useMemo(() => {
     const byId = new Map<number, PanelEvent>();
-    picked.forEach((_, k) => pins[k].data?.items.forEach((e) => byId.set(e.id, e)));
+    shown?.items.forEach((it) => it.events.forEach((e) => byId.set(e.id, e)));
     return [...byId.values()].sort((a, b) => a.startDate.localeCompare(b.startDate));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked, pins[0].data, pins[1].data, pins[2].data]);
+  }, [shown]);
   const names = Object.fromEntries(picked.map((p) => [p.id, p.name]));
   const pick = (id: number | null) => {
     setSel(id);
     requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   };
-  const series = picked.map((_, k) => prices[k].data).filter((x): x is PriceSeries => !!x);
-  const head = series[0];
 
   if (picked.length === 0) {
     return (
@@ -461,12 +534,17 @@ function Charts({
           <path d="M4 48 L28 36 L48 42 L72 22 L92 28 L116 8" />
         </svg>
         <h3>종목을 하나 고르면 주가 차트가 나와요</h3>
-        <p className="sub">왼쪽 시가총액 순위나 아래 업종별 순위에서 골라 보세요.</p>
+        <p className="sub">왼쪽 시가총액 순위나 업종별 순위에서 골라 보세요.</p>
       </div>
     );
   }
 
-  const many = picked.length > 1;
+  const multi = (shown?.items.length ?? 0) > 1;
+  const head = shown?.items[0]?.p;
+  const chart = shown?.chart;
+  const N = chart?.dates.length ?? 0;
+  const periodLabel = PERIODS.find((x) => x.v === period)!.label;
+
   return (
     <div className="card ii-charts">
       <div className="toolbar ii-chart-head">
@@ -479,31 +557,115 @@ function Charts({
         </div>
       </div>
 
-      <div className={many ? 'ii-multiples' : 'ii-single'}>
-        {picked.map((inst, k) => (
-          <ChartCard
-            key={inst.id}
-            inst={inst}
-            period={period}
-            q={prices[k]}
-            pinsQ={pins[k]}
-            small={many}
-            selectedId={sel}
-            onRemove={many ? () => onRemove(inst) : undefined}
-            pinHint={pinHint && k === 0}
-            onPinSeen={onPinSeen}
+      {/* 범례: 고른 종목마다 표식·이름·마지막 종가. 둘 이상이면 [빼기] */}
+      <ul className="ii-legend" aria-label="차트의 종목">
+        {slots.map((sl) => {
+          const p = shown?.items.find((it) => it.slot.inst.id === sl.inst.id)?.p;
+          return (
+            <li key={sl.inst.id}>
+              {picked.length > 1 ? <SeriesKey index={sl.index} color={sl.color} /> : <Avatar name={sl.inst.name} />}
+              <span className="nm">{sl.inst.name}</span>
+              {p && (
+                <span className="meta num">
+                  {fmtDate(parseDay(p.endDate))} 종가{' '}
+                  <b className="ii-last">
+                    <CountUp value={p.points[p.points.length - 1]?.close ?? 0} format={(n) => `${won(n)}원`} />
+                  </b>
+                </span>
+              )}
+              {p?.isSample && <span className="tag-ex">예시</span>}
+              {picked.length > 1 && (
+                <button type="button" className="tm-chip-x" aria-label={`${sl.inst.name} 차트에서 빼기`} onClick={() => onRemove(sl.inst)}>
+                  <Icon id="i-close" size={14} />
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {failed.length > 0 && (
+        <div className="error-box tm-error" role="alert">
+          {failed.map(({ sl }) => {
+            const e = sl.q.error;
+            const offline = e instanceof TypeError || (e instanceof ApiError && (e.status === 502 || e.status === 504));
+            return (
+              <div key={sl.inst.id} className="toolbar">
+                <span className="sub">
+                  {e instanceof ApiError && e.status === 404 ? `${sl.inst.name}의 주가를 아직 모으지 않았어요` : offline ? '시세 서버에 연결하지 못했어요' : errorText(e)}
+                </span>
+                <span className="spacer" />
+                <button type="button" className="btn btn-line btn-sm" onClick={() => sl.q.refetch()}>
+                  다시 시도
+                </button>
+                {picked.length > 1 && (
+                  <button type="button" className="btn btn-line btn-sm" onClick={() => onRemove(sl.inst)}>
+                    빼기
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {failed.some(({ sl }) => sl.q.error instanceof TypeError) && import.meta.env.DEV && (
+            <p className="meta">backend 폴더에서 웹 백엔드(8080, local 프로필)를 켰는지 확인해 주세요.</p>
+          )}
+        </div>
+      )}
+
+      {!chart || N < 2 ? (
+        failed.length === slots.length ? null : (
+          <div aria-busy="true">
+            <p className="sub">{chart ? '이 기간에는 시세가 부족해요.' : '지난 주가를 불러오는 중이에요…'}</p>
+            <div className="skel tm-skel-chart" aria-hidden="true" />
+          </div>
+        )
+      ) : (
+        <div className={'ii-card' + (busy ? ' refetching' : '')} aria-busy={busy}>
+          <TimeChart
+            label={`${shown!.items.map((it) => it.p.name).join(', ')} ${periodLabel} 일별 종가${multi ? '(첫날을 같은 높이에 맞춘 흐름)' : '(원)'}. 사건 핀은 화살표 키로 옮겨 다닐 수 있어요`}
+            data={chart}
+            from={zoom ? zoom.from : 0}
+            to={zoom ? zoom.to : N - 1}
+            mode={multi ? 'compare' : 'price'}
+            area={!multi && SHOW_AREA}
+            height={400}
+            revealKey={shown!.key}
+            selectedId={sel == null ? null : String(sel)}
+            afterDraw={pinHint ? (wrap) => placePinNote(wrap) : undefined}
+            onHover={
+              pinHint
+                ? () => {
+                    removePinNote();
+                    onPinSeen();
+                  }
+                : undefined
+            }
             onSelect={(id) => {
+              if (pinHint) {
+                removePinNote();
+                onPinSeen();
+              }
               setFocusIds(null);
-              pick(id);
+              pick(Number(id));
             }}
+            onZoom={(a, b) => setZoom({ from: a, to: b })}
             onPickMany={(ids) => {
-              setFocusIds(ids);
+              setFocusIds(ids.map(Number));
               pick(null);
             }}
           />
-        ))}
-      </div>
+          {zoom && (
+            <p className="meta tm-chart-note">
+              이 기간을 확대했어요.{' '}
+              <button type="button" className="btn-text" onClick={() => setZoom(null)}>
+                전체 기간으로
+              </button>
+            </p>
+          )}
+        </div>
+      )}
       <p className="meta tm-chart-note">
+        {multi && '여러 종목은 기간 첫날 종가를 같은 높이에 맞춰 흐름만 견줘요. 세로 높이는 가격이 아니에요. 선에 마우스를 올리면 그날 종가(원)가 보여요. '}
         {events.length > 0
           ? '빨간 ▲ 핀은 크게 오른 때, 파란 ▼ 핀은 크게 내린 때예요. 가까운 사건 여러 개는 숫자 핀 하나로 묶었어요(누르면 그 기간을 확대). 핀에 포커스를 두고 ←/→로 옮겨 다닐 수 있어요.'
           : head
@@ -524,158 +686,10 @@ function Charts({
             <span>{head.notice}</span>
           </div>
           <p className="meta">
-            {series.some((s) => s.isSample) && <span className="tag-ex">예시</span>} 주가: {head.sources[0]?.name} · {head.sources[0]?.note} · 종목 정보:{' '}
+            {shown!.items.some((it) => it.p.isSample) && <span className="tag-ex">예시</span>} 주가: {head.sources[0]?.name} · {head.sources[0]?.note} · 종목 정보:{' '}
             {head.sources[1]?.name} · 사건 근거: 금융감독원 OpenDART · 기준일 {fmtDate(parseDay(head.dataAsOf))}
           </p>
         </div>
-      )}
-    </div>
-  );
-}
-
-function ChartCard({
-  inst,
-  period,
-  q,
-  pinsQ,
-  small,
-  selectedId,
-  onRemove,
-  pinHint,
-  onPinSeen,
-  onSelect,
-  onPickMany,
-}: {
-  inst: Instrument;
-  period: PricePeriod;
-  q: PricesQuery;
-  pinsQ: PinsQuery;
-  small: boolean;
-  selectedId: number | null;
-  onRemove?: () => void;
-  pinHint: boolean;
-  onPinSeen: () => void;
-  onSelect: (id: number) => void;
-  onPickMany: (ids: number[]) => void;
-}) {
-  // 다른 종목·기간의 이전 값이 남아 있으면(placeholder) 이 종목 차트로 치지 않는다
-  const fresh = q.data && q.data.id === inst.id ? q.data : null;
-  const pe = pinsQ.data;
-  // 주가와 사건이 둘 다 온 뒤에 한 번만 그린다. 사건이 늦게 와서 다시 그리면 왼쪽부터 그리던 선이 끊기고 핀이 먼저 보였다.
-  // 사건 조회가 실패하면 핀 없이 그린다. 기간을 바꾸는 동안에는 직전에 그린 차트를 흐리게 둔다
-  const pinsSettled = !!fresh && ((pe != null && pe.id === fresh.id && pe.period === fresh.period) || pinsQ.isError);
-  const ready = useMemo(
-    () => (fresh && pinsSettled ? { p: fresh, chart: toChart(fresh, pe && pe.id === fresh.id && pe.period === fresh.period ? pe.items : []) } : null),
-    [fresh, pinsSettled, pe],
-  );
-  const lastReady = useRef(ready);
-  if (ready) lastReady.current = ready;
-  const shown = ready ?? lastReady.current;
-  const p = shown?.p ?? null;
-  const chart = shown?.chart ?? null;
-  const busy = q.isFetching || !ready;
-  // 묶음 핀을 눌러 확대한 구간. 기간·종목이 바뀌면 푼다
-  const [zoom, setZoom] = useState<{ from: number; to: number } | null>(null);
-  useEffect(() => setZoom(null), [p]);
-  const height = small ? 240 : 400;
-
-  const header = (
-    <div className="ii-card-head">
-      <Avatar name={inst.name} />
-      <div className="ii-card-title">
-        <h3>{inst.name}</h3>
-        {p && (
-          <p className="meta num">
-            {fmtDate(parseDay(p.endDate))} 종가 <b className="ii-last">
-              <CountUp value={p.points[p.points.length - 1]?.close ?? 0} format={(n) => `${won(n)}원`} />
-            </b>
-            {p.isSample && <span className="tag-ex">예시</span>}
-          </p>
-        )}
-      </div>
-      {onRemove && (
-        <button type="button" className="tm-chip-x ii-card-x" aria-label={`${inst.name} 차트 빼기`} onClick={onRemove}>
-          <Icon id="i-close" size={14} />
-        </button>
-      )}
-    </div>
-  );
-
-  if (q.isError && !fresh && !p) {
-    const e = q.error;
-    const offline = e instanceof TypeError || (e instanceof ApiError && (e.status === 502 || e.status === 504));
-    return (
-      <div className="ii-card">
-        {header}
-        <div className="error-box tm-error" role="alert">
-          <h3>
-            <Icon id="i-info" size={18} />
-            {e instanceof ApiError && e.status === 404 ? `${inst.name}의 주가를 아직 모으지 않았어요` : offline ? '시세 서버에 연결하지 못했어요' : errorText(e)}
-          </h3>
-          <p className="sub">
-            {offline && import.meta.env.DEV ? 'backend 폴더에서 웹 백엔드(8080, local 프로필)를 켰는지 확인해 주세요.' : '시세 수집(worker)이 끝나면 다시 시도해 주세요.'}
-          </p>
-          <div className="toolbar">
-            <button type="button" className="btn btn-line" onClick={() => q.refetch()}>
-              다시 시도
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!p || !chart || chart.dates.length < 2) {
-    return (
-      <div className="ii-card" aria-busy="true">
-        {header}
-        <p className="sub">{p ? '이 기간에는 시세가 부족해요.' : '지난 주가를 불러오는 중이에요…'}</p>
-        <div className="skel tm-skel-chart" style={{ height }} aria-hidden="true" />
-      </div>
-    );
-  }
-
-  const N = chart.dates.length;
-  return (
-    <div className={'ii-card' + (busy ? ' refetching' : '')} aria-busy={busy}>
-      {header}
-      <TimeChart
-        label={`${inst.name} ${PERIODS.find((x) => x.v === period)!.label} 일별 종가(원). 사건 핀은 화살표 키로 옮겨 다닐 수 있어요`}
-        data={chart}
-        from={zoom ? zoom.from : 0}
-        to={zoom ? zoom.to : N - 1}
-        mode="price"
-        area={SHOW_AREA}
-        height={height}
-        compact={small}
-        revealKey={`${inst.id}:${p.period}`}
-        selectedId={selectedId == null ? null : String(selectedId)}
-        afterDraw={pinHint ? (wrap) => placePinNote(wrap) : undefined}
-        onHover={
-          pinHint
-            ? () => {
-                removePinNote();
-                onPinSeen();
-              }
-            : undefined
-        }
-        onSelect={(id) => {
-          if (pinHint) {
-            removePinNote();
-            onPinSeen();
-          }
-          onSelect(Number(id));
-        }}
-        onZoom={(a, b) => setZoom({ from: a, to: b })}
-        onPickMany={(ids) => onPickMany(ids.map(Number))}
-      />
-      {zoom && (
-        <p className="meta tm-chart-note">
-          이 기간을 확대했어요.{' '}
-          <button type="button" className="btn-text" onClick={() => setZoom(null)}>
-            전체 기간으로
-          </button>
-        </p>
       )}
     </div>
   );

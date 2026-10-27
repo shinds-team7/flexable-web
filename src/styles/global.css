@@ -1103,19 +1103,17 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .tm-list.ii-rank button{grid-template-columns:24px 28px minmax(0,1fr) auto}
 .tm-list.ii-rank button[aria-pressed="true"] .ii-avatar{background:var(--card);border-color:var(--brand);color:var(--brand-text)}
 
-/* 주가 차트: 하나면 큰 차트, 둘 이상이면 종목마다 축이 따로 있는 작은 차트 */
-.ii-chart-head{margin-bottom:16px}
-.ii-multiples{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
-.ii-card{min-width:0;position:relative;transition:opacity 140ms var(--ease)}
-.ii-multiples .ii-card{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px}
-.ii-card.refetching .chart-wrap{opacity:.45}
-.ii-card .tm-skel-chart{margin-top:12px}
-.ii-card-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.ii-card-title{min-width:0;flex:1}
-.ii-card-title h3{font-size:16px;line-height:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ii-card-title .meta{margin:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* 주가 차트: 하나. 위에 기간, 그 아래 범례(종목마다 표식·이름·마지막 종가) */
+.ii-chart-head{margin-bottom:12px}
+.ii-legend{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-wrap:wrap;gap:6px 20px}
+.ii-legend li{display:flex;align-items:center;gap:8px;min-width:0}
+.ii-legend .nm{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.ii-legend .meta{margin:0;white-space:nowrap}
+.ii-legend .tm-chip-x{width:24px;height:24px}
 .ii-last{color:var(--text);font-size:15px}
-.ii-card-x{flex:none}
+.ii-card{min-width:0;position:relative;transition:opacity 140ms var(--ease)}
+.ii-card.refetching .chart-wrap{opacity:.45}
+.ii-charts .tm-error{margin:8px 0}
 /* 주가 선은 천천히 고르게 그린다. 공통 --ease(앞에서 몰아 드러냄)로는 900ms도 순식간에 지나가 보였다. 움직임 줄이기면 global 규칙이 끈다 */
 .ii-charts .reveal-rect{animation-duration:1600ms;animation-timing-function:cubic-bezier(.45,.05,.35,1)}
 /* 선(1.6초) → 선 아래 면이 위에서 아래로 펼쳐짐(0.6초) → 사건 핀 순서로 나타난다 */
@@ -1143,4 +1141,4 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .ii-ind-list button:disabled{opacity:.45;cursor:not-allowed}
 .ii-ind-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ii-ind-list .cap.on{display:inline-flex;align-items:center;gap:4px;color:var(--brand-text);font-weight:700;font-size:12px}
-@media (max-width:767px){.ii-strip-cell{padding:6px 14px}.ii-multiples{grid-template-columns:1fr}}
+@media (max-width:767px){.ii-strip-cell{padding:6px 14px}}

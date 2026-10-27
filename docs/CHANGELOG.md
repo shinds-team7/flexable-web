@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-10-27
+
+- [#PRNUM] 앱 웹 연동 계약 사본 `docs/contracts/vendor/web-link-api.yaml`과 대조 테스트 `AppSpecFixtureTest`(앱 스펙에 맞는 응답을 웹 클라이언트가 읽는지, 웹 요청이 스펙에 맞는지), 사본이 앱 원본과 같은지 보는 CI `app-contract`(필수 아님)를 추가했다. 계약 내용은 바뀌지 않았다 — 영향: 백엔드(앱이 연동 계약을 바꾸면 사본·클라이언트 갱신)
+
 ## 2026-10-26
 
 - [#90] 투자 인사이트(`/invest`) 개편 스펙을 제안했다([결정](decisions/2026-10-26-invest-insight-redesign.md)). 세로축을 주가(원)로 바꾸고 금액 계산 UI는 이 화면에서 뺀다. 화면 차트용 일별 종가 제공을 허용하고(10-24 결정 ① 일부 변경), `GET /market/instruments/{id}/prices`·`/events`·`/market/indices`(시장 띠 9칸: 국내외 지수·금·환율, 해외·금·환율 수집은 #94)·`/market/industries` 계약을 추가했다(구현 전). 02 §7-3에 이 화면만 스크롤·흐르는 시장 띠 모션 예외를 두고, PRD F1·F5를 고쳤다. `/simulations/run`은 바뀌지 않는다 — 영향: 프론트·백엔드(스펙 병합 후 구현)

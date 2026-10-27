@@ -1,0 +1,158 @@
+openapi: 3.0.3
+info:
+  title: 텅장관리 앱 서버 — 웹 연동 API(서버 간)
+  version: 1.0.0
+  description: |
+    웹 서버(flexable-web backend `applink.AppApiClient`) → 앱 서버 `/internal/v1/web-links/*` 계약. 이 파일이 정본이다.
+    - 사용자가 앱에서 받은 연동 코드를 웹에 넣으면 웹 서버가 연동을 만들고, 이후 `linkId`로 회원 정보·확정 시드머니를 읽는다.
+    - 헤더 `X-Service-Key`로 인증한다(서버 환경 변수 `WEB_LINK_SERVICE_KEYS`). 사용자 토큰으로는 열리지 않고 CORS를 열지 않는다.
+    - 백엔드 `contract.ContractTest`가 실제 응답을 이 스펙으로 검사한다(정의되지 않은 필드·상태 코드도 실패).
+    - **웹 백엔드가 기대하는 계약이다. 바꿀 때는 이 파일을 먼저 고치는 PR(`spec-change`)을 올리고 웹 저장소에도 알린다.**
+    - 금액은 원 단위 정수, 날짜는 YYYY-MM-DD, 시각은 +09:00이 붙은 ISO-8601이다. 웹은 금액을 다시 계산하지 않는다.
+servers:
+  - url: /internal/v1
+security:
+  - serviceKey: []
+
+paths:
+  /web-links:
+    post:
+      summary: 앱 연동 코드로 연동 만들기
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, description: '앱에서 받은 6자리. 대소문자·공백·하이픈 무시, 10분, 한 번만' }
+      responses:
+        '201':
+          description: 연동 생성. linkId는 이 응답에서 한 번만 준다(서버는 해시만 저장)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [linkId, profile]
+                additionalProperties: false
+                properties:
+                  linkId: { type: string, description: '43자 임의 값. 비밀값이라 로그에 남기지 않는다' }
+                  profile: { $ref: '#/components/schemas/AppProfile' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /web-links/{linkId}/profile:
+    parameters:
+      - $ref: '#/components/parameters/LinkId'
+    get:
+      summary: 앱 회원 정보
+      responses:
+        '200':
+          description: 회원 정보
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AppProfile' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /web-links/{linkId}/seed-money:
+    parameters:
+      - $ref: '#/components/parameters/LinkId'
+    get:
+      summary: 확정된 시드머니(반영 대기·후보 금액·거래 기록은 주지 않음)
+      responses:
+        '200':
+          description: 시드머니
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SeedMoney' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /web-links/{linkId}:
+    parameters:
+      - $ref: '#/components/parameters/LinkId'
+    delete:
+      summary: 연동 해제
+      responses:
+        '204': { description: 해제함 }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
+components:
+  securitySchemes:
+    serviceKey:
+      type: apiKey
+      in: header
+      name: X-Service-Key
+
+  parameters:
+    LinkId:
+      name: linkId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    Error:
+      description: |
+        오류. 401 UNAUTHORIZED(서비스 키 없음·틀림), 400 LINK_CODE_INVALID(코드 없음·만료·재사용)·VALIDATION_FAILED,
+        404 LINK_NOT_FOUND(해제·앱 탈퇴 → 웹은 연동을 끊고 저장한 앱 정보를 지운다)·BUDGET_NOT_SET(앱 예산 설정 전, 시드머니만),
+        429 TOO_MANY_ATTEMPTS(서비스 전체 코드 실패 10분 30회)
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message]
+            additionalProperties: false
+            properties:
+              code: { type: string, enum: [VALIDATION_FAILED, UNAUTHORIZED, LINK_CODE_INVALID, LINK_NOT_FOUND, BUDGET_NOT_SET, TOO_MANY_ATTEMPTS, INTERNAL_ERROR] }
+              message: { type: string }
+              fields: { type: object, additionalProperties: { type: string } }
+              retryAfterSeconds: { type: integer, format: int64 }
+
+  schemas:
+    AppProfile:
+      type: object
+      required: [email, provider]
+      additionalProperties: false
+      description: 앱에는 닉네임이 없다
+      properties:
+        email: { type: string, nullable: true, description: '소셜 계정은 null일 수 있다' }
+        provider: { type: string, enum: [email, kakao, google] }
+    SeedChoice:
+      type: string
+      enum: [GOAL, ALL, MANUAL]
+    SeedMoney:
+      type: object
+      required: [total, base, monthlyGoal, lastEntry, updatedAt, startedOn, entries]
+      additionalProperties: false
+      properties:
+        total: { type: integer, format: int64, description: 'base + 확정 금액 전체 합' }
+        base: { type: integer, format: int64, description: '모아둔 돈(앱 설정 seedBase)' }
+        monthlyGoal: { type: integer, format: int64, description: '매달 저축할 돈 합' }
+        lastEntry:
+          type: object
+          nullable: true
+          description: 마지막 주기 반영. 기록이 없으면 null
+          required: [cycleEnd, choice, amount, createdAt]
+          additionalProperties: false
+          properties:
+            cycleEnd: { type: string, format: date }
+            choice: { $ref: '#/components/schemas/SeedChoice' }
+            amount: { type: integer, format: int64 }
+            createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time, description: '마지막 반영 또는 예산 설정 저장 중 늦은 시각' }
+        startedOn: { type: string, format: date, nullable: true, description: '첫 하루 예산 기록일. 없으면 null' }
+        entries:
+          type: array
+          description: '확정 기록 전부, cycleEnd 오름차순. MANUAL 0원도 포함, 미반영 주기는 없음'
+          items:
+            type: object
+            required: [cycleEnd, choice, amount, totalAfter, createdAt]
+            additionalProperties: false
+            properties:
+              cycleEnd: { type: string, format: date }
+              choice: { $ref: '#/components/schemas/SeedChoice' }
+              amount: { type: integer, format: int64 }
+              totalAfter: { type: integer, format: int64, description: '조회 시점 base + 그 주기까지 확정 금액 합. 마지막 값 = total' }
+              createdAt: { type: string, format: date-time }

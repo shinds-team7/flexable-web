@@ -4,7 +4,10 @@
 |---|---|---|
 | [`web-api.yaml`](web-api.yaml) | 브라우저(웹 프론트) ↔ 웹 백엔드 `/api/v1` | 백엔드 `contract.ContractTest`(실제 응답의 상태 코드·필드), CI `npm run check:api`(프론트 타입이 최신인지) |
 
-웹 백엔드(`applink.AppApiClient`)가 부르는 앱 서버 `/internal/v1/web-links/*`는 앱 저장소의 [`docs/contracts/web-link-api.yaml`](https://github.com/shinds-team7/flexable-app/blob/main/docs/contracts/web-link-api.yaml)이 정본이다. 앱이 이 스펙을 바꾸면(`spec-change`) 웹 `applink/http/RestAppApiClient`의 요청·응답 record와 맞는지 확인한다.
+웹 백엔드(`applink.AppApiClient`)가 부르는 앱 서버 `/internal/v1/web-links/*`는 앱 저장소의 [`docs/contracts/web-link-api.yaml`](https://github.com/shinds-team7/flexable-app/blob/main/docs/contracts/web-link-api.yaml)이 정본이다. 이 저장소에는 사본 [`vendor/web-link-api.yaml`](vendor/web-link-api.yaml)을 둔다(직접 고치지 않음).
+
+- 백엔드 `applink.http.AppSpecFixtureTest`가 앱 스펙에 맞는 응답 예시로 `RestAppApiClient`를 부르고, 웹이 보내는 요청도 스펙으로 검사한다. 예시가 스펙과 어긋나면 실패한다.
+- CI `app-contract`(매일, 연동 코드를 고친 PR)가 사본과 앱 `main`의 원본을 비교한다. 다르면 `npm run sync:app-contract`로 사본을 갱신하고, `RestAppApiClient`·`AppSpecFixtureTest`를 맞춘 PR을 올린다. 필수 검사가 아니라 다른 PR을 막지 않는다.
 
 ## 쓰는 법
 

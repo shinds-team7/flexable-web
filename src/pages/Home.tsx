@@ -57,6 +57,9 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
     setDraft(raw === '' ? '' : String(Number(raw)));
   };
 
+  const draftText = draft === '' ? '' : won(Number(draft));
+  const cancel = () => (setEditing(false), setError(''));
+
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (draft === '') {
@@ -107,7 +110,7 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
           내 시드머니
           {manual != null && <span className="tag">직접 입력</span>}
           {!editing && (
-            <button type="button" className="hero-edit" onClick={() => setEditing(true)}>
+            <button type="button" className="hero-edit" onClick={() => (setDraft(String(amount)), setEditing(true))}>
               수정하기
             </button>
           )}
@@ -117,46 +120,51 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
             </button>
           )}
         </div>
-        <p className="hero-num num">
-          <RollingNumber value={amount} />
-          <small>원</small>
-        </p>
-        {seed.current != null && (
-          <p className="sub">
-            이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
-          </p>
-        )}
-        {editing && (
-          <form className="seed-edit" onSubmit={save} noValidate>
-            <div className="field">
-              <label htmlFor="seedAmount">시드머니</label>
-              <div className="input-affix">
-                <input
-                  id="seedAmount"
-                  className="input num"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={draft === '' ? '' : won(Number(draft))}
-                  onChange={(e) => change(e.target.value)}
-                  aria-invalid={!!error}
-                  aria-describedby="seedAmountHelp"
-                  autoFocus
-                />
-                <span className="unit">원</span>
-              </div>
-              <p id="seedAmountHelp" className={error ? 'form-error' : 'meta'}>
-                {error || '앱 기록 대신 이 금액을 상단 칩·투자 시뮬레이션에서도 써요.'}
-              </p>
-            </div>
-            <div className="seed-edit-acts">
-              <button type="button" className="btn btn-line btn-sm" onClick={() => (setEditing(false), setError(''))}>
+        {editing ? (
+          // 숫자 자리에 그대로 입력 창을 띄운다(따로 폼을 펼치지 않음)
+          <form className="seed-inline" onSubmit={save} noValidate>
+            <div className="seed-inline-acts">
+              <button type="button" className="btn btn-line btn-sm" onClick={cancel}>
                 취소
               </button>
               <button className="btn btn-primary btn-sm" disabled={busy}>
                 {busy ? '저장 중…' : '저장'}
               </button>
             </div>
+            <span className="seed-inline-box num">
+              <span className="seed-inline-field" data-value={draftText}>
+                <input
+                  className="seed-inline-input"
+                  size={1}
+                  aria-label="시드머니"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={draftText}
+                  onChange={(e) => change(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Escape' && cancel()}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'seedAmountError' : undefined}
+                  autoFocus
+                />
+              </span>
+              <small>원</small>
+            </span>
+            {error && (
+              <p id="seedAmountError" className="form-error" role="alert">
+                {error}
+              </p>
+            )}
           </form>
+        ) : (
+          <p className="hero-num num">
+            <RollingNumber value={amount} />
+            <small>원</small>
+          </p>
+        )}
+        {seed.current != null && (
+          <p className="sub">
+            이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
+          </p>
         )}
       </div>
       <div className="hero-foot">

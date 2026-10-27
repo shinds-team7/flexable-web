@@ -1,5 +1,5 @@
 // 홈 화면 데이터. 시드머니는 웹 백엔드(GET /api/v1/me/seed-money)의 앱 연동 값과 직접 고친 값(manual)을 쓴다. 비로그인 체험은 예시 값이다.
-// 지수·소식은 아직 예시다. isSample=true면 화면이 "예시" 표시를 붙인다.
+// 지수는 아직 예시다(#89 GET /market/indices가 생기면 바꾼다). isSample=true면 화면이 "예시" 표시를 붙인다. 소식은 data/news.ts.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/auth/session';
 import type { SeedPoint } from '@/charts/SeedLineChart';
@@ -35,8 +35,6 @@ type SeedMoneyResponse = {
 
 export type MarketIndex = { code: 'KOSPI' | 'KOSDAQ'; name: string; value: number; change: number; changeRate: number };
 export type MarketIndices = { asOf: string; source: string; items: MarketIndex[]; isSample: boolean };
-
-export type NewsItem = { id: string; cat: string; title: string; save: string; dday: number | null };
 
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 
@@ -107,15 +105,6 @@ async function fetchIndices(): Promise<MarketIndices> {
   });
 }
 
-// TODO(BE·콘텐츠): 승인된 청년 금융 소식 API
-async function fetchNews(): Promise<NewsItem[]> {
-  return delay([
-    { id: 'n3', cat: '생활·문화', title: '청년 문화 이용권 하반기 접수', save: '공연·전시에 연 최대 10만 원', dday: 2 },
-    { id: 'n1', cat: '교통', title: '기후동행카드 만료에 따른 K-패스 페이백 강화', save: '대중교통비를 돌려받는 폭이 커져요', dday: 3 },
-    { id: 'n2', cat: '주거', title: '○○시 청년 월세 지원 2차 신청', save: '월 최대 20만 원 · 12개월', dday: 5 },
-  ]);
-}
-
 export function useSeedMoney() {
   const { status } = useSession();
   const member = status === 'member';
@@ -143,4 +132,3 @@ export function useSetSeedManual() {
   };
 }
 export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: fetchIndices, staleTime: 5 * 60_000 });
-export const useHomeNews = () => useQuery({ queryKey: ['news', 'home'], queryFn: fetchNews });

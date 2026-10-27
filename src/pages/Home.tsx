@@ -1,4 +1,4 @@
-// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선)·굴렸다면. 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 금융 소식.
+// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선). 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 금융 소식.
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -11,7 +11,10 @@ import { DDay } from '@/components/Icons';
 import { RollingNumber } from '@/components/RollingNumber';
 import { useAppLink } from '@/data/appLink';
 import { fmtMonth, useGoal } from '@/data/goal';
-import { useHomeNews, useIndices, useSeedMoney, useSetSeedManual, type MarketIndices, type SeedMoney } from '@/data/home';
+import { useIndices, useSeedMoney, useSetSeedManual, type MarketIndices, type SeedMoney } from '@/data/home';
+import { categoryLabel, useNews } from '@/data/news';
+import { deadlineState, todayKst } from '@/lib/deadline';
+import { cardTags, DEFAULT_FILTER, selectNews } from '@/lib/newsList';
 import { errorText } from '@/lib/api';
 import { fmtMonthDay, upDown, won } from '@/lib/format';
 
@@ -238,40 +241,6 @@ function SeedHistory({ seed }: { seed: SeedMoney }) {
   );
 }
 
-function WhatIf({ seed }: { seed: SeedMoney }) {
-  // TODO(BE): 서버 계산 결과로 바꾼다(클라이언트 재계산 금지, ADR-3). 아래는 예시 값.
-  const base = seed.manual ?? seed.confirmed;
-  const rows = [
-    { to: '/invest', lbl: '예시 대표지수 ETF', val: Math.floor(base * 1.098), dl: '▲ 9.8%', more: '타임머신 열기' },
-    { to: '/savings', lbl: '은행 평균 적금(한국은행)', val: Math.floor(base * 1.032), dl: '▲ 3.2%', more: '적금 모아보기 열기' },
-  ];
-  return (
-    <div className="card">
-      <div className="card-head">
-        <div>
-          <h2>이 돈을 굴렸다면?</h2>
-          <p className="meta">1년 전 오늘, {won(base)}원을 한 번에 넣었다고 같은 조건으로 계산했어요 · 예시 수익률</p>
-        </div>
-      </div>
-      <div className="stats">
-        {rows.map((r) => (
-          <Link key={r.to} className="stat" to={r.to} style={{ color: 'inherit' }}>
-            <span className="lbl">{r.lbl}</span>
-            <p className="val num">
-              <CountUp value={r.val} format={(n) => `${won(n)}원`} />
-            </p>
-            <span className={'dl ' + (r.val > base ? 'up' : 'flat')}>{r.dl}</span>
-            <p className="meta">{r.more}</p>
-          </Link>
-        ))}
-      </div>
-      <p className="meta" style={{ marginTop: 12 }}>
-        과거 기준 계산이에요. 앞으로도 그렇다는 뜻은 아니에요.
-      </p>
-    </div>
-  );
-}
-
 function MarketCard({ m }: { m: MarketIndices | undefined }) {
   return (
     <div className="card">
@@ -311,27 +280,43 @@ function MarketCard({ m }: { m: MarketIndices | undefined }) {
   );
 }
 
+/** 소식 화면과 같은 목록(GET /youth-news)에서 마감 임박순 3건. 마감된 소식은 빠진다. */
 function HomeNews() {
-  const { data } = useHomeNews();
+  const { data } = useNews();
+  const today = todayKst();
+  const items = data ? selectNews(data.items, DEFAULT_FILTER, today).slice(0, 3) : null;
   return (
     <div className="card">
       <div className="card-head" style={{ marginBottom: 8 }}>
         <h2>오늘의 청년 금융 소식</h2>
+        {data?.isSample && <span className="tag-ex">예시</span>}
         <Link to="/news" style={{ fontSize: 14, fontWeight: 600 }}>
           전체 보기
         </Link>
       </div>
       <div className="col" style={{ gap: 12 }}>
-        {(data ?? []).map((n) => (
-          <Link key={n.id} to={`/news/${n.id}`} className="card-sunken" style={{ display: 'block', color: 'inherit' }}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
-              <DDay d={n.dday} />
-              <span className="tag">{n.cat}</span>
-            </div>
-            <p style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.45 }}>{n.title}</p>
-            <p className="meta">{n.save}</p>
-          </Link>
-        ))}
+        {!items ? (
+          <>
+            <div className="skel" style={{ height: 76 }} />
+            <div className="skel" style={{ height: 76 }} />
+          </>
+        ) : (
+          items.map((n) => {
+            const st = deadlineState(n, today);
+            return (
+              <Link key={n.id} to="/news" className="card-sunken" style={{ display: 'block', color: 'inherit' }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+                  {st.kind === 'always' && <DDay d={null} />}
+                  {st.kind === 'today' && <DDay d={0} />}
+                  {st.kind === 'open' && <DDay d={st.days} />}
+                  <span className="tag">{categoryLabel(n.category)}</span>
+                </div>
+                <p style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.45 }}>{n.title}</p>
+                <p className="meta">{cardTags(n).slice(0, 2).join(' · ')}</p>
+              </Link>
+            );
+          })
+        )}
       </div>
     </div>
   );
@@ -455,7 +440,6 @@ export default function Home() {
               <>
                 <SeedHero seed={seed.data} />
                 <SeedHistory seed={seed.data} />
-                <WhatIf seed={seed.data} />
               </>
             )}
           </div>

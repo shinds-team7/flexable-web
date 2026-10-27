@@ -1,5 +1,6 @@
 // 투자 인사이트 상단 시장 띠(decisions/2026-10-26-invest-insight-redesign ⑤·⑧). 서버가 준 칸만 순서대로 보인다(수집 전 칸은 서버가 뺀다).
-// 오른쪽 → 왼쪽으로 저절로 흐르고 끝까지 가면 이어서 반복한다. 마우스를 올리거나, 키보드 포커스가 띠 안에 있거나, [멈춤]을 누르거나, 탭이 숨겨지면 멈춘다.
+// 오른쪽 → 왼쪽으로 저절로 흐르고 끝까지 가면 이어서 반복한다. 마우스를 올리거나, 키보드 포커스가 띠 안에 있거나, 탭이 숨겨지면 멈춘다.
+// [멈춤] 버튼은 피드백으로 뺐다(결정 ⑧과 다름, #90에서 리드 결정 대기).
 // 움직임 줄이기면 흐르지 않고 고정하고, 넘치는 칸은 가로 스크롤로 본다. 이어 붙이려고 복제한 칸은 aria-hidden이라 스크린리더는 목록을 한 번만 읽는다.
 // 값·전일 대비·등락률은 모두 서버 값이고 여기서는 표시만 한다. 등락률로 줄을 세우지 않는다(PRD §5).
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -44,7 +45,6 @@ function Cell({ i }: { i: IndexItem }) {
 
 export function MarketStrip({ data }: { data: IndexStrip }) {
   const reduced = useReducedMotion();
-  const [paused, setPaused] = useState(false);
   const [tabHidden, setTabHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const viewRef = useRef<HTMLDivElement>(null);
   const setRef = useRef<HTMLUListElement>(null);
@@ -80,7 +80,7 @@ export function MarketStrip({ data }: { data: IndexStrip }) {
   if (data.items.length === 0) return null;
   const cells = data.items.map((i) => <Cell key={i.key} i={i} />);
   const copies = reduced ? 0 : loop.reps * 2 - 1;
-  const stopped = paused || tabHidden;
+  const stopped = tabHidden;
 
   return (
     <section className="ii-strip" aria-labelledby="iiStripTitle">
@@ -114,13 +114,6 @@ export function MarketStrip({ data }: { data: IndexStrip }) {
         <p className="meta">
           {data.isSample && <span className="tag-ex">예시</span>} 출처: {data.sources.map((s) => s.name).join(' · ')} · 칸마다 마지막 거래일 기준(전일 대비)
         </p>
-        {!reduced && (
-          <button type="button" className="btn btn-line btn-sm ii-strip-pause" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
-            {/* 이름은 "멈춤"으로 두고 눌림 상태(aria-pressed)로 알린다. 모양만 멈춤 ❚❚ ↔ 재생 ▶ */}
-            <span aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
-            멈춤
-          </button>
-        )}
       </div>
     </section>
   );

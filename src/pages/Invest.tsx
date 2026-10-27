@@ -55,7 +55,7 @@ const TOUR: CoachStep[] = [
   {
     target: () => document.querySelector<HTMLElement>('.ii-strip'),
     title: '시장 흐름은 맨 위에서 봐요',
-    body: '지수·금·환율의 마지막 값과 전일 대비예요. 마우스를 올리거나 [멈춤]을 누르면 멈춰요.',
+    body: '지수·금·환율의 마지막 값과 전일 대비예요. 마우스를 올리면 멈춰요.',
   },
   {
     target: () => document.querySelector<HTMLElement>('.tm-stocks'),

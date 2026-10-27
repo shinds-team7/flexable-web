@@ -4,10 +4,17 @@
 
 개발 기준은 [PRD](../PRD.md)·[정책](../policies.md)·[웹 API 계약](../contracts/web-api.yaml)·[변경 이력](../CHANGELOG.md)·[결정 기록](../decisions/README.md)이다. 이 문서에 남은 제안이나 Issue만으로 정책·계약을 바꾸지 않는다.
 
-## 다음 작업 순서
+## 10-28 이어서 할 것(10-27 퇴근 시점)
+
+- [ ] **웹 #103 강제 push**: 10-27 저녁 main에 #90(투자 인사이트 스펙)·#99(키움 호출 간격)가 머지되어 #103이 충돌했다. 로컬 `feat-seed-money-app-sync`는 최신 main에 rebase를 마쳤다(`docs/decisions/README.md` 색인 충돌만 정리, ContractTest·SeedMoneyManualApiTest·RestAppApiClientTest 통과). 강제 push가 권한에서 막혀 원격에는 아직 올리지 못했다. `git push --force-with-lease origin feat-seed-money-app-sync`를 사람이 실행하거나 허용한다
+- [ ] #101·#106·#108·#110은 10-27 기준 main과 git 충돌이 없다. 다만 여러 PR이 `docs/CHANGELOG.md`에 `## 2026-10-27`을 새로 만들므로, 머지할 때 같은 날짜 아래로 합친다
+- [ ] #90은 10-27 머지됐다. 이제 #89 구현을 시작할 수 있다(rhkrqkq)
+- [ ] solpa 반영 결과(현재 커밋·Flyway 버전·요약 로그)를 받아 아래 solpa 절에 적는다
+- 로컬 작업 폴더(git worktree): `../flexable-web-contract`(#106), `../flexable-web-appcheck`(#108), `../flexable-web-docs`(#110), 앱 `../flexable-app-83`(앱 #189). PR이 머지되면 `git worktree remove`로 지운다
+
 
 1. 최신 main을 받은 뒤 CHANGELOG와 변경 문서를 읽고, 스펙 변경이 머지됐으면 적용할 차이부터 정리한다.
-2. 투자 인사이트 스펙 PR #90은 리드 승인 기록이 있고 최신 main과 충돌이 없는 미머지 상태다. 최종 CI·리드 확인 뒤 머지하고, 그다음 #89 구현을 시작한다. #89·#94 담당은 `rhkrqkq`이며, #89가 시장 띠 응답 틀과 국내 지수를 먼저 만들고 #94가 해외 지수·환율·금을 추가한다.
+2. 투자 인사이트 스펙 PR #90은 10-27 머지됐다. 이제 #89 구현을 시작한다. #89·#94 담당은 `rhkrqkq`이며, #89가 시장 띠 응답 틀과 국내 지수를 먼저 만들고 #94가 해외 지수·환율·금을 추가한다.
 3. #48(청년 소식 자동 게시·AI 요약)은 #93으로 main에 머지됐다. solpa 반영(V15·`GEMINI_API_KEY`)과 남은 확인은 아래 각 절을 따른다.
 4. 홈 히어로 고양이 영상은 #96(Issue #95)으로 main에 머지됐다. 남은 것은 사용자가 만드는 새 영상으로 교체하는 일과 Safari·Firefox 재생 확인이다.
 5. 기존 앱 연동 실기기 확인은 완료다. #83(웹 수정 → 앱 쓰기)은 10-27에 구현 PR을 올렸다(아래 표). #89 개편, F7 기획·F3 범위 결정은 아래 조건에 따라 이어간다.

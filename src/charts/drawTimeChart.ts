@@ -85,7 +85,7 @@ export type TimeChartOptions = {
   height?: number;
   /** 선이 왼쪽부터 그려진다(RevealClip과 같은 .reveal-rect). 사건 핀은 선을 다 그린 뒤 나타난다(.pins-wait). 움직임 줄이기면 global.css가 애니메이션을 끈다 */
   reveal?: boolean;
-  /** price 모드: 선 아래를 브랜드 색으로 채우고 바닥으로 갈수록 연하게(그라데이션). reveal이면 선을 다 그린 뒤 나타난다(.area-wait) */
+  /** price 모드: 선 아래를 브랜드 색으로 채우고 바닥으로 갈수록 연하게(그라데이션). reveal이면 선을 다 그린 뒤 위에서 아래로 펼쳐진다(.area-grow) */
   area?: boolean;
   compact?: boolean;
   selectedId?: string | null;
@@ -152,16 +152,24 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   }
   if (price) {
     if (o.area) {
-      // 선 아래 면. 위(선의 가장 높은 곳)는 브랜드 색 18%, 바닥은 투명. 선보다 뒤에 깔고, 선 그리기 clip 밖이라 따로 나타난다
-      const grad = svg('linearGradient', { id: uid + 'g', x1: 0, y1: 0, x2: 0, y2: 1 }, svg('defs', {}, s));
+      // 선 아래 면. 위(선의 가장 높은 곳)는 브랜드 색 18%, 바닥은 투명. 선보다 뒤에 깐다.
+      // reveal이면 위쪽에 붙은 자르기 상자가 아래로 늘어나, 진한 위쪽부터 바닥 쪽으로 펼쳐진다(선 그리기가 끝난 뒤)
+      const defs = svg('defs', {}, s);
+      const grad = svg('linearGradient', { id: uid + 'g', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
       svg('stop', { offset: '0%', style: 'stop-color:var(--brand);stop-opacity:.18' }, grad);
       svg('stop', { offset: '100%', style: 'stop-color:var(--brand);stop-opacity:0' }, grad);
       const area = svg('path', {
         d: path(d.total) + ` L${X(to).toFixed(1)} ${H - m.b} L${X(from).toFixed(1)} ${H - m.b} Z`,
         style: `fill:url(#${uid}g);stroke:none;pointer-events:none`,
-        ...(o.reveal ? { class: 'area-wait' } : {}),
       });
-      s.insertBefore(area, plot === s ? null : plot);
+      let layerEl: Element = area;
+      if (o.reveal) {
+        const cp = svg('clipPath', { id: uid + 'a' }, defs);
+        svg('rect', { class: 'area-grow', x: 0, y: 0, width: W, height: H - m.b }, cp);
+        layerEl = svg('g', { 'clip-path': `url(#${uid}a)` });
+        layerEl.appendChild(area);
+      }
+      s.insertBefore(layerEl, plot === s ? null : plot);
     }
     // 선·끝점은 아래 면과 같은 브랜드 색(차트 계열 1번)
     svg('path', { d: path(d.total), style: 'fill:none;stroke:var(--brand);stroke-width:2;stroke-linejoin:round;stroke-linecap:round' }, plot);

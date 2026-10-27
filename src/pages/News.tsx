@@ -11,6 +11,9 @@ import { readNewsFilter, useSavedNews, writeNewsFilter } from '@/data/newsSaved'
 import { todayKst } from '@/lib/deadline';
 import { DEFAULT_FILTER, isDefaultFilter, NEWS_PAGE_SIZE, pageCount, pageWindow, pickMain, selectNews, type NewsFilter } from '@/lib/newsList';
 
+/** 화면 위에 붙어 있는 상단 바 높이(.topnav .wrap). 이보다 위로 올라간 영역은 가려져 안 보인다 */
+const TOPBAR_HEIGHT = 64;
+
 export default function News() {
   const news = useNews();
   const { saved, isSaved, toggle, remove } = useSavedNews();
@@ -27,7 +30,6 @@ export default function News() {
 
   const items = useMemo(() => news.data?.items ?? [], [news.data]);
   const isSample = news.data?.isSample ?? false;
-  const isPreview = news.data?.isPreview ?? false;
   const list = useMemo(() => selectNews(items, filter, today), [items, filter, today]);
   const main = useMemo(() => pickMain(items, today), [items, today]);
   // 목록은 한 페이지에 NEWS_PAGE_SIZE개. 필터·정렬을 바꾸면 1페이지로 돌아간다
@@ -43,8 +45,25 @@ export default function News() {
   };
 
   const onToggleSave = (n: YouthNews) => setToast(toggle(n) ? '저장했어요' : '저장을 뺐어요');
-  const change = (patch: Partial<NewsFilter>) => setFilter((f) => ({ ...f, ...patch }));
-  const clear = () => setFilter((f) => ({ ...DEFAULT_FILTER, sort: f.sort }));
+  // 검색·필터로 목록이 짧아지면 페이지가 줄어 스크롤이 위로 튄다. 바꾸기 직전 목록 영역 높이를 최소 높이로 붙잡아 둔다(필터 지우기에서 푼다)
+  const allRef = useRef<HTMLElement>(null);
+  const [holdHeight, setHoldHeight] = useState<number | null>(null);
+  const change = (patch: Partial<NewsFilter>) => {
+    const h = allRef.current?.offsetHeight;
+    if (h) setHoldHeight((prev) => Math.max(prev ?? 0, h));
+    // 검색어를 칠 때 필터 박스가 화면에 하나도 안 보이면(스크롤해서 상단 바 위로 지나갔거나 화면 아래에 있으면) 필터 박스로 올린다.
+    // 조금이라도 보이면 움직이지 않는다
+    if ('query' in patch) {
+      const box = allRef.current?.querySelector<HTMLElement>('.news-filters');
+      const r = box?.getBoundingClientRect();
+      if (box && r && (r.bottom <= TOPBAR_HEIGHT || r.top >= window.innerHeight)) box.scrollIntoView({ block: 'start' });
+    }
+    setFilter((f) => ({ ...f, ...patch }));
+  };
+  const clear = () => {
+    setHoldHeight(null);
+    setFilter((f) => ({ ...DEFAULT_FILTER, sort: f.sort }));
+  };
 
   return (
     <section>
@@ -55,13 +74,12 @@ export default function News() {
             <p className="page-desc">청년에게 필요한 정책과 지원 소식을 한곳에서. 신청 전엔 꼭 공고문을 확인하세요.</p>
           </div>
           {isSample && <span className="tag-ex">아래 소식은 모두 화면 설명용 예시</span>}
-          {isPreview && <span className="tag-ex">검수 전 초안 미리보기(로컬 전용)</span>}
         </div>
         <NewsBanner />
         <div className="g84">
           <div className="col">
             {main && <FeaturedNews main={main} today={today} isSample={isSample} saved={isSaved(main.id)} onToggleSave={() => onToggleSave(main)} />}
-            <section aria-labelledby="news-all-title" className="col" style={{ gap: 16 }}>
+            <section aria-labelledby="news-all-title" className="col" style={{ gap: 16, minHeight: holdHeight ?? undefined }} ref={allRef}>
               <h2 id="news-all-title" className="sec-title" ref={listTop}>
                 전체 소식
               </h2>
@@ -95,7 +113,7 @@ export default function News() {
                   </button>
                 </div>
               ) : list.length === 0 ? (
-                <div className="empty-box">
+                <div className="empty-box news-empty">
                   <h3>조건에 맞는 소식이 없어요</h3>
                   <p className="sub">다른 지역이나 분야로 찾아보세요.</p>
                   <button type="button" className="btn btn-line" onClick={clear}>

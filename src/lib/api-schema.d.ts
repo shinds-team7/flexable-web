@@ -1178,8 +1178,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 청년 금융 소식(승인된 것만, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
-         * @description - category: 소식이 드는 분야(categories) 중 하나라도 맞으면 보인다.
+         * 청년 금융 소식(수집한 소식을 검수 없이 게시, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
+         * @description - 매일 06:00 수집한 소식을 사람 검수 없이 내보낸다(2026-10-26 결정). 반려(REJECTED)한 것만 뺀다.
+         *     - category: 소식이 드는 분야(categories) 중 하나라도 맞으면 보인다.
          *     - age: 원문에서 확인 못 한 나이 쪽(null)은 막지 않는다.
          *     - region: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 나오지 않는다.
          *     - 신청 날짜가 없는데 사업기간이 끝난 소식은 그날(Asia/Seoul) 기준으로 뺀다.
@@ -1786,8 +1787,6 @@ export interface components {
         NewsCategory: "TRANSPORT" | "HOUSING" | "JOB" | "EDUCATION" | "FINANCE" | "CULTURE" | "TAX" | "ETC";
         YouthNewsFeed: {
             items: components["schemas"]["YouthNewsItem"][];
-            /** @description true면 검수 전 초안도 섞인 로컬 미리보기(local 프로필 전용). 운영은 늘 false */
-            preview: boolean;
         };
         YouthNewsItem: {
             id: string;
@@ -1795,8 +1794,10 @@ export interface components {
             /** @description 이 소식이 드는 분야 전부. 첫 번째가 대표(category) */
             categories: components["schemas"]["NewsCategory"][];
             title: string;
-            /** @description 나에게 얼마. 원문 수치 그대로 */
-            benefit: string;
+            /** @description AI 요약(Gemini, 1~3문장). 원문에 없는 숫자가 있으면 버려서 null. 화면에 "AI 요약" 표시 */
+            summary: string | null;
+            /** @description 나에게 얼마(사람이 쓰던 항목). 지금은 null */
+            benefit: string | null;
             audience: components["schemas"]["YouthNewsAudience"];
             /** @description "NATIONWIDE"(전국) 또는 시도 이름 목록 */
             regions: "NATIONWIDE" | string[];
@@ -1805,8 +1806,8 @@ export interface components {
             /** Format: date */
             applyDeadline: string | null;
             alwaysOpen: boolean;
-            /** @description 오늘 할 일 하나 */
-            action: string;
+            /** @description 오늘 할 일(사람이 쓰던 항목). 지금은 null */
+            action: string | null;
             source: components["schemas"]["YouthNewsSource"];
             /** Format: date */
             postedAt: string | null;
@@ -1814,7 +1815,7 @@ export interface components {
             calcLink: components["schemas"]["YouthNewsCalcLink"];
             /**
              * Format: date
-             * @description 승인 뒤 정정한 날
+             * @description 게시 뒤 정정한 날
              */
             correctedAt: string | null;
             /**

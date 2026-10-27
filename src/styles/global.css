@@ -778,7 +778,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .news-facts dt{flex:none;white-space:nowrap;font-size:13px}
 .news-facts dd{margin:0;text-align:right;font-size:13px}
 .news-facts .set-row{padding:5px 0;flex-wrap:nowrap;gap:12px}
-.news-filters{display:flex;flex-direction:column;gap:12px;background:var(--sunken);border-radius:var(--radius-soft);padding:20px 24px}
+.news-filters{display:flex;flex-direction:column;gap:12px;background:var(--sunken);border-radius:var(--radius-soft);padding:20px 24px;scroll-margin-top:80px}
 /* 검색 · 지역 · 나이: 왼쪽에 이름표, 오른쪽에 입력 */
 .news-fields{gap:12px 24px;margin-top:4px;padding-top:16px;border-top:1px solid var(--line)}
 .news-fields .input{height:38px;font-size:14px}
@@ -812,7 +812,10 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .news-card .news-corrected{font-size:12px;font-weight:700;color:var(--warn)}
 .news-card-acts{flex:none;display:flex;align-items:center;margin-right:-6px}
 .news-card-body{display:flex;flex-direction:column;gap:8px;min-width:0}
-.news-card-sum{font-size:14px;line-height:1.5;color:var(--text-sub);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* AI 요약은 3줄까지 보이고, 카드에 마우스를 올리거나 카드 안 버튼에 초점이 가면 전체가 보이게 카드가 늘어난다 */
+.news-card-sum{font-size:14px;line-height:1.5;color:var(--text-sub);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.news-card:hover .news-card-sum,.news-card:focus-within .news-card-sum{display:block;-webkit-line-clamp:unset;overflow:visible}
+.news-ai{display:inline-block;margin-right:6px;padding:0 6px;border-radius:var(--radius-soft-sm);background:var(--brand-soft);color:var(--brand-text);font-size:11px;font-weight:700;line-height:18px;vertical-align:1px}
 .news-period{font-size:14px;margin-top:4px}
 .news-period b{margin-right:6px}
 .news-calc{align-self:flex-start;font-size:13px;font-weight:600;color:var(--brand-text)}
@@ -829,24 +832,33 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .news-page .dday{border-color:transparent;background:var(--brand-soft)}
 .news-page .dday.calm{background:var(--sunken)}
 .news-page .dday.urgent{background:var(--danger-soft);color:var(--danger)}
+/* 7일 안 마감은 주황(오늘 마감은 빨강) */
+.news-page .dday.soon{background:var(--warn-soft);color:var(--warn)}
 /* 소식 화면은 목록을 넓게: 저장함을 320px로 고정(홈의 .g84는 그대로). 1023px 이하는 한 단 */
 @media (min-width:1024px){.news-page .g84{grid-template-columns:minmax(0,1fr) 320px}}
-.news-rail{max-height:calc(100vh - 96px);overflow:auto}
-.news-rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+/* 저장함: 제목(박스 밖) + 박스. 간격 16px은 왼쪽 "전체 소식" 제목과 필터 박스 사이와 같아 두 박스의 윗변이 맞는다 */
+.news-rail{display:flex;flex-direction:column;gap:16px}
+.news-rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.news-saved-body{max-height:calc(100vh - 138px);overflow:auto}
 .news-saved-toggle{display:none}
+/* 조건에 맞는 소식이 없을 때: 문구와 [필터 지우기]를 가운데로 */
+.news-empty{align-items:center;text-align:center}
 .news-saved-empty{padding:8px 0}
-.news-saved-list{list-style:none;margin:0;padding:0}
-.news-saved-item{padding:12px 0;border-bottom:1px solid var(--line)}
+.news-saved-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+/* 저장한 소식 하나 = 박스 하나: 위 줄(마감 배지 왼쪽 · 빼기 X 오른쪽) → 제목 → 요약 → 공고문 보기 */
+.news-saved-item{padding:12px;border:1px solid var(--line);border-radius:var(--radius-soft-sm);background:var(--card)}
+.news-saved-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.news-saved-link{display:inline-block;margin-top:6px;font-size:13px;color:var(--brand-text);text-decoration:underline;text-underline-offset:2px}
 .news-saved-item.closed .news-saved-title{color:var(--text-muted)}
 .news-saved-title{font-size:14px;font-weight:700;line-height:1.45}
-.news-saved-acts{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}
-.news-saved-acts .spacer{flex:1}
-.news-remove{font-size:13px;color:var(--text-muted)}
+.news-remove{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--radius-soft-sm);background:none;color:var(--text-muted);cursor:pointer}
+.news-remove:hover{background:var(--sunken);color:var(--text)}
+.news-remove svg{width:14px;height:14px}
 @media (max-width:1023px){
-  .news-rail{order:-1;max-height:none}
+  .news-rail{order:-1}
+  .news-saved-body{max-height:none}
   .news-saved-toggle{display:inline-flex}
   .news-rail.collapsed .news-saved-body{display:none}
-  .news-rail.collapsed .news-rail-head{margin-bottom:0}
 }
 @media (max-width:1279px){
   .news-list{grid-template-columns:repeat(2,minmax(0,1fr))}

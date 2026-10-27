@@ -12,15 +12,17 @@ public final class NewsDtos {
 	private NewsDtos() {
 	}
 
-	/** GET /youth-news 응답. preview=true면 검수 전 초안까지 담은 로컬 미리보기(운영에서는 늘 false) */
-	public record NewsFeed(List<NewsItem> items, boolean preview) {
+	/** GET /youth-news 응답 */
+	public record NewsFeed(List<NewsItem> items) {
 	}
 
 	/**
 	 * regions: "NATIONWIDE" 또는 시도 이름 목록(["서울","경기"]).
 	 * category는 대표 분야(카드 배지), categories는 이 소식이 드는 분야 전부(탭·필터는 이것으로 거른다).
+	 * summary는 Gemini가 원문을 1~3문장으로 줄인 것(화면에 "AI 요약" 표시). 아직 없거나 검사에서 버렸으면 null.
+	 * benefit·action은 사람이 쓰던 항목이라 지금은 비어 있다(null).
 	 */
-	public record NewsItem(String id, NewsCategory category, List<NewsCategory> categories, String title, String benefit, Audience audience, Object regions,
+	public record NewsItem(String id, NewsCategory category, List<NewsCategory> categories, String title, String summary, String benefit, Audience audience, Object regions,
 			LocalDate applyStart, LocalDate applyDeadline, boolean alwaysOpen, String action, Source source, LocalDate postedAt,
 			List<String> keywords, CalcLink calcLink, LocalDate correctedAt, String slot) {
 	}
@@ -38,7 +40,7 @@ public final class NewsDtos {
 
 	/**
 	 * 수집한 정책 한 건(worker → news). 카드 초안을 만들 때 쓴다. 금액·기한은 원문 값만 넣고 만들어 내지 않는다.
-	 * benefit·action·audienceSummary는 원문 문장을 그대로 옮기지 않고 사람이 검수할 때 쓴다(01 §F4).
+	 * 요약(summary)은 여기서 만들지 않고, 저장한 뒤 worker가 원문(payload)으로 따로 만든다(SummaryTarget).
 	 * regions: null이면 원문에서 확인 못 함, 빈 목록이 아니라 "전국"이면 nationwide=true.
 	 * categories: 첫 번째가 대표 분야. 비어 있으면 기타(ETC)로 저장한다.
 	 * bizEnd: 원문의 사업기간 끝. 신청 날짜가 없고 상시도 아닌데 사업기간이 끝났으면 화면 목록에서 뺀다.
@@ -49,7 +51,15 @@ public final class NewsDtos {
 			LocalDate bizEnd) {
 	}
 
-	/** 수집 한 건을 저장한 결과. KEPT = 승인·반려된 소식이라 원문만 갱신하고 카드는 그대로 둠 */
+	/** 요약할 카드 한 건(news → worker). payload는 저장한 원문, contentHash는 그 원문의 hash(요약을 넣을 때 되돌려 준다) */
+	public record SummaryTarget(long id, String title, String payload, String contentHash) {
+	}
+
+	/** 요약 결과 한 건(worker → news). summary가 null이면 검사에서 버린 것 */
+	public record SummaryResult(long id, String contentHash, String summary) {
+	}
+
+	/** 수집 한 건을 저장한 결과. KEPT = 사람이 손댄(APPROVED·REJECTED) 소식이라 원문만 갱신하고 카드는 그대로 둠 */
 	public enum SaveOutcome {
 		CREATED, UPDATED, UNCHANGED, KEPT
 	}

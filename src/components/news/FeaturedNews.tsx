@@ -1,4 +1,4 @@
-// 오늘의 한 장: 편집자가 고른 소식 1개를 크게. 고르는 건 편집자(slot), 화면은 보여 주기만.
+// 오늘의 한 장: slot=MAIN인 소식 1개를 크게. 요약은 AI 요약이고 없으면 줄을 뺀다.
 import { categoryLabel, type YouthNews } from '@/data/news';
 import { ageText, regionText } from '@/lib/newsList';
 import { DeadlineBadge, NoticeLink, SaveButton, deadlineText } from './NewsBits';
@@ -18,7 +18,12 @@ export function FeaturedNews({ main, today, isSample, saved, onToggleSave }: Pro
         <h2 id="news-main-title" className="news-main-title">
           {main.title}
         </h2>
-        <p className="news-main-benefit">{main.benefit}</p>
+        {main.summary && (
+          <p className="news-main-benefit">
+            {!isSample && <span className="news-ai">AI 요약</span>}
+            {main.summary}
+          </p>
+        )}
         <p className="news-age">{ageText(main)}</p>
         <div className="toolbar" style={{ marginTop: 24 }}>
           <NoticeLink url={main.source.url} className="btn btn-primary btn-sm" />
@@ -33,7 +38,7 @@ export function FeaturedNews({ main, today, isSample, saved, onToggleSave }: Pro
           <div className="set-row">
             <dt className="k">누가</dt>
             <dd className="v">
-              {ageText(main)} · {main.audience.summary}
+              {main.audience.summary ? `${ageText(main)} · ${main.audience.summary}` : ageText(main)}
             </dd>
           </div>
           <div className="set-row">
@@ -45,8 +50,8 @@ export function FeaturedNews({ main, today, isSample, saved, onToggleSave }: Pro
             <dd className="v">{deadlineText(main)}</dd>
           </div>
           <div className="set-row">
-            <dt className="k">오늘 할 일</dt>
-            <dd className="v">{main.action}</dd>
+            <dt className="k">기관</dt>
+            <dd className="v">{main.source.org}</dd>
           </div>
         </dl>
       </div>

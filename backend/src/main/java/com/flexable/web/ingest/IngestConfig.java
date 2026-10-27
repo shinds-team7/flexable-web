@@ -17,6 +17,7 @@ import com.flexable.web.ingest.fake.FakeDisclosureSource;
 import com.flexable.web.ingest.fake.FakeInstrumentSource;
 import com.flexable.web.ingest.fake.FakePriceSource;
 import com.flexable.web.ingest.fake.FakeYouthPolicySource;
+import com.flexable.web.ingest.gemini.GeminiNewsSummarizer;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
 import com.flexable.web.ingest.kiwoom.KiwoomPriceSource;
 import com.flexable.web.ingest.kiwoom.KiwoomTokenClient;
@@ -85,6 +86,15 @@ public class IngestConfig {
 			case "none" -> new DartDisclosureSource(http, d.baseUrl(), null, d.callDelay()); // 키 없음 = 꺼짐
 			default -> throw new IllegalArgumentException("알 수 없는 MARKET_DISCLOSURE_SOURCE: " + props.disclosureSource());
 		};
+	}
+
+	/** 소식 요약. 묶음 요약은 응답이 길어 읽기 제한을 60초로 둔다. 키가 없으면 꺼진 채로 만들어진다. */
+	@Bean
+	NewsSummarizer newsSummarizer(IngestProperties props) {
+		IngestProperties.Gemini g = props.gemini();
+		JdkClientHttpRequestFactory f = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
+		f.setReadTimeout(Duration.ofSeconds(60));
+		return new GeminiNewsSummarizer(RestClient.builder().requestFactory(f).build(), g.baseUrl(), g.apiKey(), g.model());
 	}
 
 	@Bean

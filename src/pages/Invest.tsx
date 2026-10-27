@@ -441,7 +441,8 @@ function toCombined(items: { slot: Slot; p: PriceSeries; events: PriceEvent[] }[
     invested: [],
     legs,
     startIdx: 0,
-    events: [...byId.values()].flatMap((e) => {
+    // 여러 종목의 사건을 합치면 순서가 섞이므로 시작일순으로 둔다
+    events: [...byId.values()].sort((a, b) => a.startDate.localeCompare(b.startDate)).flatMap((e) => {
       const idx = dates.findIndex((dt) => dt >= e.startDate);
       if (idx < 0) return [];
       const leg = e.code == null ? -1 : items.findIndex((it) => it.p.id === e.code);

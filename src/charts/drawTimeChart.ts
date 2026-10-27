@@ -359,7 +359,8 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   const layer = h('div', { cls: 'pins' + (o.reveal ? ' pins-wait' : '') });
   const stems = o.reveal ? svg('g', { class: 'pins-wait' }, s) : s;
   wrap.append(layer);
-  const vis = EVENTS.filter((e) => e.idx >= from && e.idx <= to && e.idx > d.startIdx);
+  // 묶기 전에 날짜순으로 둔다. 여러 종목의 사건을 이어 붙이면 순서가 섞여, 묶음 범위·확대 범위가 거꾸로 잡혀 차트가 비었다
+  const vis = EVENTS.filter((e) => e.idx >= from && e.idx <= to && e.idx > d.startIdx).sort((a, b) => a.idx - b.idx);
   const lineFor = (e: ChartEvent) => (byStock ? (d.legs[e.leg ?? 0]?.values ?? d.total) : compare ? (norm[e.leg ?? 0] ?? norm[0]) : d.total);
   const groups: { x0: number; items: typeof EVENTS }[] = [];
   vis.forEach((e) => {
@@ -386,8 +387,8 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const y = Math.max(m.t - 16, Math.min(H - m.b + 6, kind === 'fall' ? yv + 22 : yv - 22));
     const cluster = items.length > 1;
     // 묶음을 누르면 확대: 앞뒤 여유를 두고, 이미 그만큼 확대돼 있으면 더 좁게. 같은 주에 겹쳐 확대로 풀 수 없으면 사건 고르기
-    const first = items[0].idx;
-    const last = items[items.length - 1].idx;
+    const first = Math.min(...items.map((e) => e.idx));
+    const last = Math.max(...items.map((e) => e.idx));
     const zoomTo = [
       [Math.max(0, first - 6), Math.min(N - 1, last + 8)],
       [Math.max(0, first - 2), Math.min(N - 1, last + 2)],

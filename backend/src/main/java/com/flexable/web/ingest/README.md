@@ -7,6 +7,12 @@
 - 실패 처리: 한 시장·한 종목이 실패해도 나머지는 계속한다. 다음 실행은 마지막 거래일 10일 전부터 다시 받아 빠진 날·정정을 채운다. 공시는 한 번에 `DART_MAX_CALLS`건까지 처리하고 나머지는 다음 실행에서 잇는다.
 - 아직 없는 것: 같은 작업의 중복 실행 방지는 프로세스 안 `synchronized`뿐이다(worker 여러 대·DB 작업 잠금 없음). 호출 단위 자동 재시도·실패 지점부터 이어 받기, 폐쇄망용 스냅숏 적재는 구현돼 있지 않다.
 
+## youth-collect · youth-summary (구현됨)
+청년 소식(`YouthNewsSyncJob`). 켜질 때 한 번(`YOUTH_SYNC_ON_START`)과 매일 06:00 KST(`YOUTH_SYNC_CRON`).
+- `youth-collect`: 온통청년 `getPlcy` 전체를 받아 `news.NewsService.saveCollected`로 원문·카드를 넣는다. 카드는 검수 없이 화면에 나간다(2026-10-26 결정).
+- `youth-summary`: 이어서 `NewsSummarizer`(구현 `gemini.GeminiNewsSummarizer`)로 요약하지 않았거나 원문이 바뀐 카드를 `GEMINI_BATCH_SIZE`건씩 묶어 요약한다. 한 번 실행에 `GEMINI_MAX_CALLS`번까지, 호출이 실패하면(한도 초과 등) 멈추고 다음 실행에 잇는다. 검사(원문에 없는 숫자·길이·금지어)를 통과하지 못한 요약은 `null`로 저장한다. `GEMINI_API_KEY`가 비어 있으면 건너뛴다.
+- 실행 기록: `ingest_runs`(job = `youth-collect`·`youth-summary`).
+
 ## savings-snapshot (구현됨)
 finlife `savingProductsSearch.json`(은행 020000 · 저축은행 030300)을 받아 `savings.SavingsCatalogService.replaceAll`로 반영한다. 매일 10:00(KST), 시작할 때 DB가 비어 있으면 한 번 바로.
 - 켜기: `SAVINGS_INGEST_ENABLED=true`(worker 프로필은 기본 켜짐). 인증키는 환경변수 `FINLIFE_API_KEY`로만 넣는다(저장소 공개, 키가 없으면 건너뜀).

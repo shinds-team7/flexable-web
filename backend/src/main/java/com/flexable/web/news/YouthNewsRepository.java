@@ -9,7 +9,5 @@ interface YouthNewsRepository extends JpaRepository<YouthNews, Long> {
 
 	Optional<YouthNews> findBySourceAndExternalId(String source, String externalId);
 
-	List<YouthNews> findByReviewStatusOrderByIdAsc(YouthNews.ReviewStatus status);
-
-	List<YouthNews> findByReviewStatusInOrderByIdAsc(List<YouthNews.ReviewStatus> statuses);
+	List<YouthNews> findByReviewStatusNotOrderByIdAsc(YouthNews.ReviewStatus status);
 }

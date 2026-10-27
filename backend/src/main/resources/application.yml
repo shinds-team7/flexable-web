@@ -107,8 +107,8 @@ app:
       # 한 번 실행에서 공시를 찾을 사건 수 상한(OpenDART 하루 20,000건 한도). 남은 사건은 다음 실행에 이어서
       max-calls: ${DART_MAX_CALLS:5000}
       call-delay: 100ms
-    # 청년 정책(소식 초안) 수집: youthcenter(온통청년 오픈API) | fake. 키가 비어 있으면 수집을 건너뛴다.
-    # 받은 정책은 초안(DRAFT)으로 저장하고, 화면에는 사람이 승인한 소식만 나간다(01 §F4)
+    # 청년 정책(소식) 수집: youthcenter(온통청년 오픈API) | fake. 키가 비어 있으면 수집을 건너뛴다.
+    # 받은 정책은 사람 검수 없이 화면에 나간다(2026-10-26 결정, 01 §F4)
     youth:
       source: ${YOUTH_POLICY_SOURCE:youthcenter}
       base-url: ${YOUTHCENTER_BASE_URL:https://www.youthcenter.go.kr}
@@ -117,6 +117,13 @@ app:
       cron: ${YOUTH_SYNC_CRON:0 0 6 * * *}
       page-size: 100
       call-delay: 200ms
+    # 소식 카드 요약(Gemini). 키가 비어 있으면 요약 없이 게시한다. 무료 등급 한도에 맞춰 묶음 크기·호출 수·간격을 조정한다
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-flash-lite-latest}
+      batch-size: ${GEMINI_BATCH_SIZE:20}
+      max-calls: ${GEMINI_MAX_CALLS:100}
+      call-delay: ${GEMINI_CALL_DELAY:7s}
   applink:
     # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
     mode: ${APP_LINK_MODE:http}

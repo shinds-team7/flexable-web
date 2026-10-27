@@ -15,9 +15,10 @@
 | `V10__savings.sql` | `savings_products`·`savings_rate_options`(savings): 금융감독원 finlife 적금 공시 복사본(상품·기간별 기본/최고 금리) |
 | `V11__savings_policies.sql` | `savings_policies`(savings): 온통청년 청년정책 중 적금·저축·통장 계열 |
 | `V12__savings_policy_region.sql` | `savings_policies.region`: 정책 지역(중앙부처는 '전국') |
-| `V13__youth_news.sql` | `youth_news_raw`(news: 청년 정책 수집 원문), `youth_news`(news: 소식 카드, 검수 상태) |
+| `V13__youth_news.sql` | `youth_news_raw`(news: 청년 정책 수집 원문), `youth_news`(news: 소식 카드, 상태 `DRAFT`·`REJECTED` 등) |
 | `V14__practice_datasets.sql` | `practice_datasets`(market: 사건 퀴즈 시뮬레이션용 종목별 업종·OHLC·공시 묶음. 사용자 세션·투자금·선택은 저장하지 않음) |
+| `V15__youth_news_summary.sql` | `youth_news.summary`·`summary_hash`·`summarized_at`(news: AI 요약과 요약할 때 본 원문 해시) |
 
-현재 테이블은 22개다(V1~V14). 프리셋·구독·결제·사건 설명 표는 아직 없다(03 §7은 계획 초안).
+현재 테이블은 22개다(V1~V15). 프리셋·구독·결제·사건 설명 표는 아직 없다(03 §7은 계획 초안).
 
 MySQL과 H2(MySQL 모드, 로컬·테스트) 양쪽에서 돌아야 한다. 테스트(`./gradlew test`)가 매번 처음부터 적용하고 `ddl-auto=validate`로 엔티티와 맞는지 본다.

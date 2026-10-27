@@ -61,6 +61,8 @@ import com.flexable.web.market.MarketService;
 import com.flexable.web.market.PracticeMarketService;
 import com.flexable.web.news.NewsCategory;
 import com.flexable.web.news.NewsDtos.PolicyDraft;
+import com.flexable.web.news.NewsDtos.SummaryResult;
+import com.flexable.web.news.NewsDtos.SummaryTarget;
 import com.flexable.web.news.NewsService;
 import com.jayway.jsonpath.JsonPath;
 
@@ -155,14 +157,18 @@ class ContractTest {
 		eventId = events.events("005930").stream().filter(e -> e.startDate().equals(jumpDate)).findFirst().orElseThrow().id();
 		events.saveEvidence(eventId, "DART", List.of(new EvidenceRow("DART", "20990101000001", "단일판매ㆍ공급계약체결", "삼성전자",
 				jumpDate, "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20990101000001", 3)));
-		// 청년 소식: 전국·계산 연결이 있는 카드와 지역 목록·빈 값이 많은 카드를 승인해 둔다
+		// 청년 소식(검수 없이 게시): 요약·계산 연결이 있는 전국 카드, 요약 없이 빈 값이 많은 지역 카드, 반려해서 빠지는 카드
 		news.saveCollected(new PolicyDraft("FAKE", "c-all", "{}", "전국 청년 저축 지원", List.of(NewsCategory.FINANCE, NewsCategory.CULTURE), 19, 34,
 				Boolean.TRUE, true, null, today.minusDays(1), today.plusDays(30), false, "○○부(예시)", "https://example.com/c-all", today,
 				today.minusDays(3), List.of("저축"), null));
 		news.saveCollected(new PolicyDraft("FAKE", "c-seoul", "{}", "서울 청년 월세 지원", List.of(NewsCategory.HOUSING), null, null, null,
 				false, List.of("서울"), null, null, true, "서울특별시(예시)", "https://example.com/c-seoul", today, null, List.of(), null));
-		jdbc.update("UPDATE youth_news SET review_status = 'APPROVED', benefit = '월 최대 10만 원', action = '신청서 내기' WHERE source = 'FAKE'");
-		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN', audience_summary = '소득 기준 있음' WHERE external_id = 'c-all'");
+		news.saveCollected(new PolicyDraft("FAKE", "c-rejected", "{}", "반려한 소식", List.of(NewsCategory.TAX), null, null, null,
+				true, null, null, null, true, "○○청(예시)", "https://example.com/c-rejected", today, null, List.of(), null));
+		jdbc.update("UPDATE youth_news SET review_status = 'REJECTED' WHERE external_id = 'c-rejected'");
+		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN' WHERE external_id = 'c-all'");
+		SummaryTarget all = news.summaryTargets(10).stream().filter(t -> t.title().equals("전국 청년 저축 지원")).findFirst().orElseThrow();
+		news.applySummaries(List.of(new SummaryResult(all.id(), all.contentHash(), "청년이 매달 저축하면 정부가 돈을 더 얹어 줘요.")));
 		// 사건 퀴즈 시뮬레이션: 가상 기업 예시 자료(테스트는 price-source=fake라 예시만 후보)
 		FakePracticeData.create(today).forEach(practice::save);
 	}
@@ -228,8 +234,11 @@ class ContractTest {
 		call(get("/api/v1/market/events/" + eventId), 200);
 		call(get("/api/v1/market/events/999999999"), 404);
 		MvcResult feed = call(get("/api/v1/youth-news"), 200);
-		// 카드 필드까지 검사되도록 승인한 두 건이 다 나와야 한다
-		assertThat((List<?>) JsonPath.read(feed.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items")).hasSize(2);
+		// 카드 필드까지 검사되도록 두 건이 다 나와야 한다: 요약이 있는 카드와 summary·benefit·action이 모두 null인 카드(반려한 것은 빠짐)
+		String feedBody = feed.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat((List<?>) JsonPath.read(feedBody, "$.items")).hasSize(2);
+		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary != null)]")).hasSize(1);
+		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary == null && @.benefit == null && @.action == null)]")).hasSize(1);
 		call(get("/api/v1/youth-news?age=25&region=서울&category=HOUSING"), 200);
 		call(get("/api/v1/youth-news?category=NOPE"), 400);
 	}

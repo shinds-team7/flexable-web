@@ -16,7 +16,10 @@ import jakarta.persistence.Table;
 
 import com.flexable.web.news.NewsDtos.PolicyDraft;
 
-/** 소식 카드(01 §F4). 수집하면 DRAFT로 만들고, 사람이 고치고 승인(APPROVED)한 것만 화면에 나간다. */
+/**
+ * 소식 카드(01 §F4). 수집하면 DRAFT로 만들고 사람 검수 없이 화면에 나간다(2026-10-26 결정). REJECTED만 화면에서 뺀다.
+ * summary는 worker가 Gemini로 만든 원문 요약이다(검사를 통과한 것만, 없으면 null).
+ */
 @Entity
 @Table(name = "youth_news")
 class YouthNews {
@@ -109,6 +112,15 @@ class YouthNews {
 	@Column(name = "corrected_at")
 	private LocalDate correctedAt;
 
+	@Column(length = 300)
+	private String summary;
+
+	@Column(name = "summary_hash", length = 64)
+	private String summaryHash;
+
+	@Column(name = "summarized_at")
+	private Instant summarizedAt;
+
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
@@ -167,6 +179,25 @@ class YouthNews {
 
 	void linkRaw(Long rawId) {
 		this.rawId = rawId;
+	}
+
+	/** 요약을 넣는다. summary가 null이면 검사에서 버린 것이고, hash는 남겨 같은 원문을 다시 요약하지 않는다. */
+	void applySummary(String summary, String hash, Instant now) {
+		this.summary = summary;
+		this.summaryHash = hash;
+		this.summarizedAt = now;
+	}
+
+	Long getRawId() {
+		return rawId;
+	}
+
+	String getSummary() {
+		return summary;
+	}
+
+	String getSummaryHash() {
+		return summaryHash;
 	}
 
 	private static String cut(String s, int max) {

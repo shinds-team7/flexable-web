@@ -1,6 +1,6 @@
-// 소식 카드: 마감 배지 · 공유/저장 → 제목 → 요약(얼마 아끼나) → 기간 → 공고문(오른쪽) → 정보 칩(분야·지역·나이·소득 기준·기관) · 예시 표시.
+// 소식 카드: 마감 배지 · 공유/저장 → 제목 → AI 요약(1~3문장, 없으면 줄 없음) → 기간 → 공고문(오른쪽) → 정보 칩(분야·지역·나이·소득 기준·기관) · 예시 표시.
 // 카드는 4줄(위 · 본문 · 공고문 · 아래)이고, 같은 줄의 카드끼리 공고문 버튼과 아래 구분선 높이를 맞춘다(subgrid).
-// 오늘 할 일은 당분간 카드에서 뺀다(데이터 필드 action은 유지).
+// 나에게 얼마·오늘 할 일은 사람이 쓰던 항목이라 지금은 카드에서 뺀다(2026-10-26 결정).
 import { Link } from 'react-router-dom';
 import { categoryLabel, newsCategories, type YouthNews } from '@/data/news';
 import { fmtMonthDay } from '@/lib/format';
@@ -22,7 +22,12 @@ export function NewsCard({ n, today, isSample, saved, onToggleSave, onToast }: P
       <div className="news-card-body">
         {n.correctedAt && <p className="news-corrected">{fmtMonthDay(n.correctedAt)} 정정</p>}
         <h3 id={`news-${n.id}`}>{n.title}</h3>
-        <p className="news-card-sum">{n.benefit}</p>
+        {n.summary && (
+          <p className="news-card-sum">
+            {!isSample && <span className="news-ai">AI 요약</span>}
+            {n.summary}
+          </p>
+        )}
         <p className="news-period">
           <b>기간</b> {periodText(n)}
         </p>

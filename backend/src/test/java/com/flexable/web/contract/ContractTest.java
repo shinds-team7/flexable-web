@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,7 +65,16 @@ import com.flexable.web.news.NewsDtos.PolicyDraft;
 import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
 import com.flexable.web.news.NewsService;
+import com.flexable.web.savings.SavingsCatalogService;
+import com.flexable.web.savings.SavingsCatalogService.OptionData;
+import com.flexable.web.savings.SavingsCatalogService.PolicyData;
+import com.flexable.web.savings.SavingsCatalogService.ProductData;
 import com.jayway.jsonpath.JsonPath;
+
+import io.swagger.v3.core.util.Json;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.parser.OpenAPIV3Parser;
+import io.swagger.v3.parser.core.models.ParseOptions;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -90,6 +100,8 @@ class ContractTest {
 	NewsService news;
 	@Autowired
 	PracticeMarketService practice;
+	@Autowired
+	SavingsCatalogService savings;
 	@Autowired
 	JdbcTemplate jdbc;
 	@MockitoBean
@@ -169,6 +181,20 @@ class ContractTest {
 		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN' WHERE external_id = 'c-all'");
 		SummaryTarget all = news.summaryTargets(10).stream().filter(t -> t.title().equals("전국 청년 저축 지원")).findFirst().orElseThrow();
 		news.applySummaries(List.of(new SummaryResult(all.id(), all.contentHash(), "청년이 매달 저축하면 정부가 돈을 더 얹어 줘요.")));
+		// 적금: 한도·우대가 있는 단리 상품, 한도 없는 복리 상품, 기본금리가 없어 목록에서 빠지는 상품. 정책은 빈 항목이 많은 것과 채운 것
+		savings.replaceAll(List.of(
+				new ProductData("0010001", "A", "BANK", "202610", "예시은행", "예시 적금", "영업점", "만기 후 이율", "우대 원문", "1", "실명의 개인",
+						"해당없음", 300_000L, "20261001", null, "202610011000",
+						List.of(new OptionData("S", "S", 12, new BigDecimal("3.50"), new BigDecimal("4.00")))),
+				new ProductData("0010002", "B", "SAVINGS_BANK", "202610", "예시저축은행", "복리 적금", "인터넷", null, null, null, null, null, null,
+						"20261001", null, "202610011000", List.of(new OptionData("M", "S", 12, new BigDecimal("3.80"), null))),
+				new ProductData("0010001", "C", "BANK", "202610", "예시은행", "금리 없는 적금", "영업점", null, null, "1", null, null, null,
+						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, null, new BigDecimal("2.00"))))));
+		savings.replacePolicies(List.of(
+				new PolicyData("P1", "청년 저축 지원(예시)", "설명", "지원 내용", "금융", "취약계층 및 금융지원", "○○부", "운영기관", "20261007 ~ 20261016", null,
+						null, null, "온라인 신청", null, null, "https://example.com", null, null, 19, 34, null, null, null, "2026-10-20 00:00:00", "전국"),
+				new PolicyData("P2", "빈 항목 정책(예시)", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+						null, 0, 0, null, null, null, "2026-10-20 00:00:00", null)));
 		// 사건 퀴즈 시뮬레이션: 가상 기업 예시 자료(테스트는 price-source=fake라 예시만 후보)
 		FakePracticeData.create(today).forEach(practice::save);
 	}
@@ -241,6 +267,64 @@ class ContractTest {
 		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary == null && @.benefit == null && @.action == null)]")).hasSize(1);
 		call(get("/api/v1/youth-news?age=25&region=서울&category=HOUSING"), 200);
 		call(get("/api/v1/youth-news?category=NOPE"), 400);
+	}
+
+	/** 목 서버(npm run mock:api)가 돌려주는 응답 example도 스펙에 맞아야 한다. 경로 변수가 없는 GET·PUT·POST의 200만 본다. */
+	@Test
+	void 목_서버_예시() throws Exception {
+		ParseOptions options = new ParseOptions();
+		options.setResolve(true);
+		options.setResolveFully(true);
+		OpenAPI api = new OpenAPIV3Parser()
+			.readContents(Files.readString(Path.of("..", "docs", "contracts", "web-api.yaml")), null, options)
+			.getOpenAPI();
+		int checked = 0;
+		for (var path : api.getPaths().entrySet()) {
+			if (path.getKey().contains("{")) {
+				continue;
+			}
+			for (var op : path.getValue().readOperationsMap().entrySet()) {
+				var ok = op.getValue().getResponses().get("200");
+				var media = ok == null || ok.getContent() == null ? null : ok.getContent().get("application/json");
+				if (media == null || media.getExample() == null) {
+					continue;
+				}
+				String body = Json.mapper().writeValueAsString(media.getExample());
+				ValidationReport report = VALIDATOR.validateResponse("/api/v1" + path.getKey(), Request.Method.valueOf(op.getKey().name()),
+						SimpleResponse.Builder.status(200).withContentType("application/json").withBody(body).build());
+				List<String> errors = report.getMessages().stream()
+					.filter(msg -> msg.getLevel() == ValidationReport.Level.ERROR)
+					.map(msg -> msg.getKey() + ": " + msg.getMessage())
+					.toList();
+				assertThat(errors).as("%s %s example", op.getKey(), path.getKey()).isEmpty();
+				checked++;
+			}
+		}
+		assertThat(checked).as("example이 있는 응답 수").isGreaterThanOrEqualTo(5);
+	}
+
+	@Test
+	void 적금() throws Exception {
+		MvcResult list = call(get("/api/v1/savings/products?monthly=78000&termMonths=12"), 200);
+		String body = list.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat((List<?>) JsonPath.read(body, "$.items")).hasSize(2);
+		assertThat((Integer) JsonPath.read(body, "$.noRateCount")).isEqualTo(1);
+		String id = JsonPath.read(body, "$.items[0].id");
+		call(get("/api/v1/savings/products?monthly=78000&termMonths=36"), 200); // 맞는 상품이 없으면 min·max가 null
+		call(get("/api/v1/savings/products?monthly=78000&termMonths=12&sort=MAX_RATE&direction=ASC&sectors=BANK&page=1&size=1"), 200);
+		call(get("/api/v1/savings/products?monthly=0&termMonths=12"), 400);
+		call(get("/api/v1/savings/products?monthly=78000&termMonths=12&sort=NOPE"), 400);
+		call(get("/api/v1/savings/companies"), 200);
+		call(get("/api/v1/savings/policies"), 200);
+		call(get("/api/v1/savings/policies?ids=P1"), 200);
+		call(get("/api/v1/savings/products/" + id + "?termMonths=12"), 200);
+		call(get("/api/v1/savings/products/" + id + "?termMonths=36"), 404);
+		call(get("/api/v1/savings/products/" + id + "?termMonths=12&reserveType=NOPE"), 400);
+		String sim = "{\"productId\":\"%s\",\"monthly\":78000,\"termMonths\":12,\"reserveType\":\"FIXED\",\"rateBasis\":\"%s\"}";
+		call(json(post("/api/v1/savings/simulate"), sim.formatted(id, "MAX")), 200);
+		call(json(post("/api/v1/savings/simulate"), sim.formatted(id, "BASE")), 200);
+		call(json(post("/api/v1/savings/simulate"), sim.formatted(id, "NOPE")), 400);
+		call(json(post("/api/v1/savings/simulate"), sim.formatted("999999", "BASE")), 404);
 	}
 
 	@Test

@@ -233,10 +233,13 @@ function Detail({ ev }: { ev: SimEvent }) {
       )}
       {d.scope === 'STOCK' && d.sources.length > 0 && <p className="meta">이 기간에 나온 공시예요. 주가가 움직인 원인이라는 뜻은 아니에요.</p>}
       <p className="meta" style={{ marginTop: 6 }}>
-        {d.scope === 'STOCK' ? '공시: 금융감독원 OpenDART · ' : ''}
-        <a href={d.newsSearchUrl} target="_blank" rel="noopener noreferrer">
-          그때 뉴스 검색 ↗
-        </a>
+        {d.scope === 'STOCK' ? '공시: 금융감독원 OpenDART' : ''}
+        {d.scope === 'STOCK' && d.newsSearchUrl ? ' · ' : ''}
+        {d.newsSearchUrl && (
+          <a href={d.newsSearchUrl} target="_blank" rel="noopener noreferrer">
+            그때 뉴스 검색 ↗
+          </a>
+        )}
       </p>
 
       <div className="disclaimer" style={{ marginTop: 16 }}>

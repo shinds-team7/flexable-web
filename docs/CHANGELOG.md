@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-10-27
+
+- [#PRNUM] 구현돼 있던 적금 API 5개(`/savings/products`·`/companies`·`/policies`·`/products/{id}`·`/simulate`)를 `web-api.yaml`에 추가하고 `ContractTest`가 응답을 검사한다. 응답은 구현 그대로이고 바뀐 동작은 없다. 목 서버용 `example`(시드머니·종목 목록·적금 목록·청년 소식)을 달고 테스트로 검사한다. 프론트 화면 타입을 생성 타입과 대조하는 `src/lib/contractChecks.ts`를 더했고, 그 과정에서 찾은 null 가능 필드(사건 상세 `name`·`newsSearchUrl`, 투자 결과 `sources[].note`)를 화면 타입에 반영했다 — 영향: 프론트·백엔드
+
 ## 2026-10-26
 
 - [#93] 청년 소식을 사람 검수 없이 자동 게시하고 Gemini로 1~3문장 AI 요약을 붙이기로 결정했다([결정](decisions/2026-10-26-youth-news-auto-publish.md)). 계약 `/youth-news`: `summary` 추가, `benefit`·`action` null 허용, `preview` 삭제. PRD F4 상태·Must를 바꿨다 — 영향: 프론트·백엔드

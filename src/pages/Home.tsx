@@ -73,9 +73,11 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
     }
     setBusy(true);
     try {
-      const { saved } = await setManual(n);
+      const { saved, appSync } = await setManual(n);
       setEditing(false);
-      setToast(saved ? `저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.` : `시드머니를 ${won(n)}원으로 바꿨어요. 체험 중이라 저장되지 않아요.`);
+      if (appSync?.status === 'applied') setToast(`저장했어요. 연동한 앱 시드머니도 ${won(n)}원으로 바뀌었어요.`);
+      else if (appSync?.status === 'failed') setToast(appSync.message ?? '앱에는 반영하지 못해 웹에만 저장했어요.');
+      else setToast(saved ? `저장했어요. 시드머니가 ${won(n)}원으로 바뀌었어요.` : `시드머니를 ${won(n)}원으로 바꿨어요. 체험 중이라 저장되지 않아요.`);
     } catch (err) {
       setError(errorText(err, '저장하지 못했어요. 잠시 뒤 다시 시도해 주세요.'));
     } finally {

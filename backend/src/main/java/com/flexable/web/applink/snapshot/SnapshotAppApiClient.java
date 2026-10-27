@@ -64,6 +64,20 @@ public class SnapshotAppApiClient implements AppApiClient {
 		return SEED;
 	}
 
+	/** 고정 값이라 저장하지 않는다. 받은 총액이 되도록 모아둔 돈만 바꾼 값을 돌려준다(반영한 돈 950,000보다 작으면 거절). */
+	@Override
+	public AppSeedMoney updateSeedMoney(String linkId, long total) {
+		require(linkId);
+		long saved = SEED.total() - SEED.base();
+		if (total < saved) {
+			throw new AppApiException(Kind.REJECTED, "앱에서 반영한 돈(" + String.format("%,d", saved) + "원)보다 작게 고칠 수 없어요");
+		}
+		return new AppSeedMoney(total, total - saved, SEED.monthlyGoal(), SEED.lastEntry(), OffsetDateTime.now(),
+				SEED.startedOn(), SEED.entries().stream()
+					.map(e -> new Entry(e.cycleEnd(), e.choice(), e.amount(), e.totalAfter() + total - SEED.total(), e.createdAt()))
+					.toList());
+	}
+
 	@Override
 	public void delete(String linkId) {
 		if (!links.remove(linkId)) {

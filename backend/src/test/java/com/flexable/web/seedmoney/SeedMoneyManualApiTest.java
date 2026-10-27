@@ -2,7 +2,11 @@ package com.flexable.web.seedmoney;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.endsWith;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -34,6 +38,8 @@ import com.flexable.web.applink.AppApiClient.AppProfile;
 import com.flexable.web.applink.AppApiClient.AppSeedMoney;
 import com.flexable.web.applink.AppApiClient.CreatedLink;
 import com.flexable.web.applink.AppApiClient.LastEntry;
+import com.flexable.web.applink.AppApiException;
+import com.flexable.web.applink.AppApiException.Kind;
 import com.jayway.jsonpath.JsonPath;
 
 /** PUT·DELETE /api/v1/me/seed-money/manual(decisions 2026-10-24 ②). 앱 서버는 AppApiClient를 바꿔 끼워 흉내 낸다. */
@@ -113,16 +119,58 @@ class SeedMoneyManualApiTest {
 		assertThat(rows()).isZero();
 	}
 
-	@Test
-	void manualIsServedNextToLinkedAppValueWithoutChangingIt() throws Exception {
+	private void linkApp() throws Exception {
 		mvc.perform(post("/api/v1/app-link").header("Authorization", "Bearer " + token)
 			.contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"K7M2Q9\"}")).andExpect(status().isCreated());
+	}
+
+	/** #83: 연동 회원이 고치면 앱에 반영하고, 성공하면 웹 직접 수정값을 지우고 앱이 돌려준 값을 쓴다. */
+	@Test
+	void linkedMemberEditIsAppliedToAppAndManualIsCleared() throws Exception {
+		linkApp();
+		when(app.updateSeedMoney(anyString(), eq(2_000_000L))).thenReturn(new AppSeedMoney(2_000_000, 1_050_000, 300_000,
+				new LastEntry(LocalDate.parse("2026-09-25"), "ALL", 950_000, AT), AT, LocalDate.parse("2026-06-26"), List.of()));
 		save(token, "{\"total\":2000000}").andExpect(status().isOk())
 			.andExpect(jsonPath("$.source").value("app"))
+			.andExpect(jsonPath("$.total").value(2_000_000))
+			.andExpect(jsonPath("$.base").value(1_050_000))
+			.andExpect(jsonPath("$.manual").isEmpty())
+			.andExpect(jsonPath("$.appSync.status").value("applied"));
+		verify(app).updateSeedMoney(anyString(), eq(2_000_000L));
+		assertThat(rows()).isZero();
+		lookup(token).andExpect(jsonPath("$.total").value(2_000_000)).andExpect(jsonPath("$.appSync").isEmpty());
+	}
+
+	/** 앱이 거절하거나 닿지 않으면 웹에만 저장하고 안내한다. 연동 값(앱 값)은 그대로다. */
+	@Test
+	void linkedMemberEditIsKeptOnWebWhenAppFails() throws Exception {
+		linkApp();
+		when(app.updateSeedMoney(anyString(), anyLong()))
+			.thenThrow(new AppApiException(Kind.REJECTED, "앱에서 반영한 돈(950,000원)보다 작게 고칠 수 없어요"));
+		save(token, "{\"total\":100000}").andExpect(status().isOk())
 			.andExpect(jsonPath("$.total").value(1_450_000))
-			.andExpect(jsonPath("$.manual.total").value(2_000_000));
-		mvc.perform(delete("/api/v1/app-link").header("Authorization", "Bearer " + token)).andExpect(status().isNoContent());
-		lookup(token).andExpect(jsonPath("$.source").value("none")).andExpect(jsonPath("$.manual.total").value(2_000_000));
+			.andExpect(jsonPath("$.manual.total").value(100_000))
+			.andExpect(jsonPath("$.appSync.status").value("failed"))
+			.andExpect(jsonPath("$.appSync.message").value("앱에서 반영한 돈(950,000원)보다 작게 고칠 수 없어요. 웹에만 저장했어요"));
+
+		reset(app);
+		when(app.updateSeedMoney(anyString(), anyLong())).thenThrow(new AppApiException(Kind.UNAVAILABLE));
+		save(token, "{\"total\":2000000}").andExpect(jsonPath("$.manual.total").value(2_000_000))
+			.andExpect(jsonPath("$.appSync.status").value("failed"))
+			.andExpect(jsonPath("$.appSync.message").exists());
+
+		// 앱에서 이미 해제된 연동이면 웹 연동을 정리하고 웹에만 저장한다.
+		reset(app);
+		when(app.updateSeedMoney(anyString(), anyLong())).thenThrow(new AppApiException(Kind.LINK_NOT_FOUND));
+		save(token, "{\"total\":3000000}").andExpect(jsonPath("$.source").value("none"))
+			.andExpect(jsonPath("$.manual.total").value(3_000_000))
+			.andExpect(jsonPath("$.appSync.status").value("failed"));
+	}
+
+	@Test
+	void unlinkedMemberEditStaysOnWebWithoutCallingApp() throws Exception {
+		save(token, "{\"total\":2000000}").andExpect(jsonPath("$.appSync").isEmpty());
+		verify(app, never()).updateSeedMoney(anyString(), anyLong());
 	}
 
 	@Test

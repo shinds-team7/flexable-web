@@ -77,7 +77,16 @@ public class RestAppApiClient implements AppApiClient {
 
 	@Override
 	public AppSeedMoney seedMoney(String linkId) {
-		SeedBody body = send(false, http.get().uri("/internal/v1/web-links/{linkId}/seed-money", linkId), SeedBody.class);
+		return toSeed(send(false, http.get().uri("/internal/v1/web-links/{linkId}/seed-money", linkId), SeedBody.class));
+	}
+
+	@Override
+	public AppSeedMoney updateSeedMoney(String linkId, long total) {
+		return toSeed(send(false, http.put().uri("/internal/v1/web-links/{linkId}/seed-money", linkId)
+			.contentType(MediaType.APPLICATION_JSON).body(Map.of("total", total)), SeedBody.class));
+	}
+
+	private static AppSeedMoney toSeed(SeedBody body) {
 		if (body == null || body.total() == null || body.base() == null || body.monthlyGoal() == null) {
 			throw new AppApiException(Kind.UNAVAILABLE);
 		}
@@ -125,6 +134,11 @@ public class RestAppApiClient implements AppApiClient {
 			// 코드 형식 오류(VALIDATION_FAILED)도 쓸 수 없는 코드로 안내한다. 처리되지 않았으므로 결과는 확실하다.
 			return new AppApiException(Kind.CODE_INVALID);
 		}
+		if (status == 400) {
+			// 코드 입력 외의 400은 앱이 값을 받지 않은 것(처리되지 않음). 앱의 안내 문구를 그대로 쓴다.
+			String detail = error == null || error.fields() == null ? null : error.fields().get("total");
+			return new AppApiException(Kind.REJECTED, detail != null ? detail : error == null ? null : error.message());
+		}
 		if (status == 404 && "LINK_NOT_FOUND".equals(code)) {
 			return new AppApiException(Kind.LINK_NOT_FOUND);
 		}
@@ -155,7 +169,7 @@ public class RestAppApiClient implements AppApiClient {
 		return new AppApiException(create ? Kind.RESULT_UNKNOWN : Kind.UNAVAILABLE);
 	}
 
-	record ErrorBody(String code, Long retryAfterSeconds) {
+	record ErrorBody(String code, String message, Map<String, String> fields, Long retryAfterSeconds) {
 	}
 
 	record ProfileBody(String email, String provider) {

@@ -18,6 +18,7 @@
 - **앱 서버 호출은 DB 트랜잭션 밖**에서 하고 저장·삭제만 짧은 트랜잭션으로 한다.
 - **연동 만들기**: 회원별 처리 중 표시(이중 클릭·동시 요청은 409 `APP_LINK_IN_PROGRESS`) + `user_id` 고유 키. 앱에 연동을 만든 뒤 웹 저장이 실패하면 앱 서버에 해제를 요청해 되돌린다(보상). 보낸 뒤 응답을 못 받으면(응답 시간 초과·5xx·응답 해석 실패) 코드가 쓰였는지 알 수 없으므로 **다시 보내지 않고** 502 `APP_LINK_RESULT_UNKNOWN`. 연결 자체를 못 했으면 처리되지 않은 것이라 503 `APP_UNAVAILABLE`.
 - **조회**: `GET /app-link`·`/me/seed-money`는 저장한 값만 읽는다(앱 서버 호출·DB 쓰기 없음). 마지막 확인에서 1분이 지났으면 `sync.due`이고, 화면이 `POST /app-link/refresh`로 앱 서버에서 다시 받는다. refresh도 1분 안이면 앱 서버를 부르지 않는다. 일일 확인은 시각과 관계없이 모두 다시 받는다. `LINK_NOT_FOUND`만 웹 연동 삭제로 이어진다(다른 404·5xx·시간 초과는 마지막 값을 `stale`로). `BUDGET_NOT_SET`은 연동 유지. 401·403(서비스 키 오류)은 ERROR 로그 + 사용자에게는 일시 장애로.
+- **웹 → 앱 시드머니(#83)**: `pushSeedMoney`가 `PUT /internal/v1/web-links/{linkId}/seed-money`로 웹에서 고친 총액을 보내고, 성공하면 받은 값으로 연동 값을 바꾼다. 실패(앱 거절 `REJECTED`·`BUDGET_NOT_SET`·장애)는 예외 대신 failed와 안내 문구로 돌려주고, `LINK_NOT_FOUND`면 웹 연동을 지운다. 웹 저장은 `seedmoney`가 한다.
 - **linkId 노출 금지**: 응답·로그·예외 메시지에 넣지 않는다. 요청 주소에 linkId가 들어가므로 HTTP 클라이언트 예외는 원인을 버리고 종류만 남긴다. HTTP 클라이언트 디버그 로그(`org.springframework.web.client`·`jdk.internal.httpclient`)를 운영에서 켜지 않는다.
 - 웹 회원당 코드 실패 10분 5회 제한은 메모리(api 한 대 기준, `common.AttemptLimiter`).
 - 웹 해제는 앱 서버에서 먼저 지우고 웹을 지운다. 앱 서버 장애면 연동을 남겨 다시 시도하게 한다. 저장된 값을 읽을 수 없으면(암호화 키 변경) 웹 쪽만 지운다. 탈퇴는 웹을 먼저 지우고 커밋 뒤 앱 서버 해제를 한 번 요청한다(실패해도 탈퇴는 끝남, 앱의 연동 목록에 남으면 앱에서 지울 수 있음).

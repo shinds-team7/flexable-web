@@ -386,7 +386,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const yv = Y(Number.isFinite(raw) ? raw : (norm.map((a) => a[ref.idx]).find(Number.isFinite) ?? 1));
     const y = Math.max(m.t - 16, Math.min(H - m.b + 6, kind === 'fall' ? yv + 22 : yv - 22));
     const cluster = items.length > 1;
-    // 묶음 색: 모두 오름이면 빨강, 모두 내림이면 파랑, 섞이면 검정(.pin.cluster). 구성은 툴팁·읽어 주기에 함께 적는다
+    // 묶음 핀은 한 색(.pin.cluster, 검정)이다. 오름·내림 구성은 툴팁·읽어 주기에 적는다
     const ups = items.filter((e) => e.kind === 'rise').length;
     const downs = items.filter((e) => e.kind === 'fall').length;
     const parts = [ups ? `오름 ${ups}` : '', downs ? `내림 ${downs}` : ''].filter(Boolean).join('·');

@@ -702,9 +702,7 @@ function PinKey() {
   const items: { cls: string; mark: string; text: string }[] = [
     { cls: 'rise', mark: '▲', text: '크게 오른 때' },
     { cls: 'fall', mark: '▼', text: '크게 내린 때' },
-    { cls: 'cluster rise', mark: '2', text: '가까운 사건 묶음 · 모두 오름' },
-    { cls: 'cluster fall', mark: '2', text: '모두 내림' },
-    { cls: 'cluster', mark: '3', text: '오름·내림 섞임' },
+    { cls: 'cluster', mark: '3', text: '가까운 사건 묶음(숫자는 사건 수, 누르면 확대)' },
   ];
   return (
     <ul className="ii-pin-key" aria-label="사건 핀 보는 법">

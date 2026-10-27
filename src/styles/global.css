@@ -214,7 +214,6 @@ button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--br
 .tm-legend i.base{color:var(--baseline)}
 .tm-chart-note{margin-top:6px}
 /* 묶음 핀(숫자)은 오르내림과 관계없이 한 모양. 빨강·파랑은 사건 하나(▲▼)에만 쓴다. 등락은 툴팁·사건 목록에서 본다 */
-.tm-result .pin.cluster .dot,.tm-result .pin.cluster.rise .dot,.tm-result .pin.cluster.fall .dot{background:var(--text);color:var(--card)}
 .tm-ev{margin-top:16px;padding:12px 16px;background:var(--sunken);border-radius:var(--radius-soft-sm)}
 .tm-ev .ev-list button:hover{background:var(--card)}
 .chart-foot.tm-foot{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
@@ -355,9 +354,8 @@ td.nw{white-space:nowrap}
 .pin.rise .dot{background:var(--rise)}
 .pin.fall .dot{background:var(--fall)}
 .pin.info .dot{background:var(--card);color:var(--text);border:1.5px solid var(--baseline)}
+/* 숫자 묶음 핀은 오름·내림 구성과 관계없이 한 색(본문 글자색). 빨강 ▲·파랑 ▼ 단일 핀과 헷갈리지 않게 한다. 구성은 툴팁에 적는다 */
 .pin.cluster .dot{width:22px;height:22px;background:var(--text);color:var(--card);font-size:12px;font-weight:800}
-.pin.cluster.rise .dot{background:var(--rise);color:var(--on-brand)}
-.pin.cluster.fall .dot{background:var(--fall);color:var(--on-brand)}
 .pin[aria-pressed="true"] .dot{box-shadow:0 0 0 2px var(--card),0 0 0 5px var(--text)}
 .tip{position:absolute;z-index:5;width:264px;background:var(--raised);border:1px solid var(--line);border-radius:var(--radius-soft-sm);box-shadow:var(--shadow-float);padding:12px 14px;font-size:13px;line-height:1.45;color:var(--text-sub);pointer-events:none}
 .tip .t-val{font-size:17px;font-weight:800;color:var(--text)}

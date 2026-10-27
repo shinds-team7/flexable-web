@@ -507,6 +507,80 @@ paths:
                   instrumentsAsOf: { type: string, format: date, nullable: true }
                   instruments: { type: integer }
                   empty: { type: boolean }
+  /market/instruments/{id}/prices:
+    get:
+      tags: [market]
+      summary: '구현 전 계약. 종목 일별 종가(화면 차트용, decisions/2026-10-26-invest-insight-redesign ④). 수집 대상 종목·최근 3년까지만'
+      description: |
+        - 기간은 마지막 거래일(dataAsOf)에서 개월 수만큼 거슬러 간 날 이후의 첫 거래일부터다. 3M=3, 6M=6, 1Y=12, 3Y=36개월.
+        - 일별 종가 하나만 준다(시가·고가·저가·거래량 없음). 다운로드·내보내기 용도로 쓰지 않는다.
+        - 수집 대상이 아니거나 시세가 없는 종목은 404.
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: '종목 코드' }
+        - { name: period, in: query, required: false, schema: { $ref: '#/components/schemas/PricePeriod' } }
+      responses:
+        '200':
+          description: 일별 종가
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PriceSeries' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /market/instruments/{id}/events:
+    get:
+      tags: [market]
+      summary: '구현 전 계약. 종목·기간의 사건 핀(종목 사건 + 시장 사건). 금액 필드 없음. 상세는 /market/events/{id}'
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string }, description: '종목 코드' }
+        - { name: period, in: query, required: false, schema: { $ref: '#/components/schemas/PricePeriod' } }
+      responses:
+        '200':
+          description: 사건 목록(시간순). 없으면 items 빈 목록
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PriceEvents' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /market/indices:
+    get:
+      tags: [market]
+      summary: '구현 전 계약. 상단 시장 띠(국내외 지수·금·환율 9칸). 수집 전이거나 성공한 값이 없는 칸은 items에서 빠진다'
+      description: |
+        - 순서는 KOSPI·KOSDAQ·NASDAQ100·SP500·DJIA·NIKKEI225·GOLD·USDKRW·JPYKRW로 고정한다. 등락률로 정렬하지 않는다(PRD §5).
+        - KOSPI·KOSDAQ: 키움 업종일봉(ka20006) 종합지수, unit=POINT(소수 2자리).
+        - NASDAQ100·SP500·DJIA·NIKKEI225: 한국투자증권 KIS Open API, unit=POINT. 수집은 #94이고 지원 범위·재표시 조건은 그 Issue에서 확인한다.
+        - GOLD: KRX 금시장 일별매매정보, unit=KRW_PER_GRAM(원 단위 정수).
+        - USDKRW·JPYKRW: KIS Open API, unit=KRW_PER_USD·KRW_PER_100JPY(소수 2자리).
+        - 대용 ETF로 대신하지 않는다. date는 칸마다의 기준일이며 해외 지수는 현지 거래일이다.
+        - changeRate = (value − prevValue) ÷ prevValue, 소수 4자리 내림.
+      security: []
+      responses:
+        '200':
+          description: 시장 띠(수집된 칸만)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IndexStrip' }
+  /market/industries:
+    get:
+      tags: [market]
+      summary: '구현 전 계약. 업종별 시가총액 상위 종목(키움 ka10099 upName, KIWOOM_UPNAME_V1). 테마 자동 분류 아님'
+      description: |
+        - 수집 대상(시장별 시가총액 상위 100) 안에서만 업종으로 묶는다. 업종 빈 값은 제외한다.
+        - 업종은 업종 안 시가총액 합이 큰 순, 업종 안 종목은 시가총액 순이다. 등락률로 정렬하지 않는다.
+        - 아직 업종을 수집하지 않았으면 items가 빈 목록.
+      security: []
+      parameters:
+        - { name: board, in: query, required: true, schema: { type: string, enum: [KOSPI, KOSDAQ] } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 10, default: 5 }, description: '업종마다 보여 줄 종목 수' }
+      responses:
+        '200':
+          description: 업종별 목록
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IndustryListing' }
+        '400': { $ref: '#/components/responses/Error' }
 
   /simulations/run:
     post:
@@ -1083,6 +1157,133 @@ components:
         confidence: { type: string, enum: [LOW, MEDIUM, HIGH] }
         noticeKey: { type: string, enum: [EVENT_EXPLAIN] }
         notice: { type: string }
+
+    PricePeriod:
+      type: string
+      enum: ['3M', '6M', '1Y', '3Y']
+      default: '3M'
+    SourceRow:
+      type: object
+      required: [name, note]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        note: { type: string, nullable: true }
+    PriceSeries:
+      type: object
+      required: [id, name, kind, period, startDate, endDate, dataAsOf, basis, points, sources, noticeKey, notice, isSample]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [STOCK, ETF] }
+        period: { $ref: '#/components/schemas/PricePeriod' }
+        startDate: { type: string, format: date, description: '실제 첫 거래일' }
+        endDate: { type: string, format: date }
+        dataAsOf: { type: string, format: date }
+        basis: { type: string, enum: [DAILY_ADJ_CLOSE], description: '수정주가 일별 종가' }
+        points:
+          type: array
+          items:
+            type: object
+            required: [date, close]
+            additionalProperties: false
+            properties:
+              date: { type: string, format: date }
+              close: { type: integer, format: int64, description: '원' }
+        sources: { type: array, items: { $ref: '#/components/schemas/SourceRow' } }
+        noticeKey: { type: string, enum: [PRICE_PAST] }
+        notice: { type: string }
+        isSample: { type: boolean }
+    PriceEvents:
+      type: object
+      required: [id, period, startDate, endDate, items, noticeKey]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        period: { $ref: '#/components/schemas/PricePeriod' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, code, scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline,
+              hasExplanation, sourceName, sourceCount, topSource, score]
+            additionalProperties: false
+            properties:
+              id: { type: integer, format: int64 }
+              code: { type: string, nullable: true }
+              scope: { type: string, enum: [STOCK, MARKET] }
+              startDate: { type: string, format: date }
+              endDate: { type: string, format: date }
+              windowDays: { type: integer }
+              direction: { type: string, enum: [RISE, FALL] }
+              returnRate: { type: number }
+              marketReturn: { type: number, nullable: true }
+              headline: { type: string }
+              hasExplanation: { type: boolean }
+              sourceName: { type: string, nullable: true }
+              sourceCount: { type: integer }
+              topSource: { type: string, nullable: true }
+              score: { type: number }
+        noticeKey: { type: string, enum: [EVENT_EXPLAIN] }
+    IndexStrip:
+      type: object
+      required: [items, sources, isSample]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [key, name, kind, unit, value, prevValue, change, changeRate, date, sourceName]
+            additionalProperties: false
+            properties:
+              key: { type: string, enum: [KOSPI, KOSDAQ, NASDAQ100, SP500, DJIA, NIKKEI225, GOLD, USDKRW, JPYKRW] }
+              name: { type: string, description: '화면 표시 이름(예: 코스피, S&P500, 금, 원/달러)' }
+              kind: { type: string, enum: [INDEX, COMMODITY, FX] }
+              unit: { type: string, enum: [POINT, KRW_PER_GRAM, KRW_PER_USD, KRW_PER_100JPY] }
+              value: { type: number, description: 'POINT·환율은 소수 2자리, KRW_PER_GRAM은 정수' }
+              prevValue: { type: number }
+              change: { type: number }
+              changeRate: { type: number, description: '소수 4자리 내림' }
+              date: { type: string, format: date, description: '이 칸의 기준일' }
+              sourceName: { type: string, description: '제공처 이름(키움증권·한국투자증권·한국거래소 등)' }
+        sources: { type: array, items: { $ref: '#/components/schemas/SourceRow' } }
+        isSample: { type: boolean }
+    IndustryListing:
+      type: object
+      required: [board, items, classificationVersion, classificationAsOf, sources, note, isSample]
+      additionalProperties: false
+      properties:
+        board: { type: string, enum: [KOSPI, KOSDAQ] }
+        items:
+          type: array
+          items:
+            type: object
+            required: [categoryCode, categoryName, totalMarketCap, instruments]
+            additionalProperties: false
+            properties:
+              categoryCode: { type: string, description: '내부 식별자(업종명 SHA-256 앞 24자리). 공식 업종 코드 아님' }
+              categoryName: { type: string }
+              totalMarketCap: { type: integer, format: int64, nullable: true }
+              instruments:
+                type: array
+                items:
+                  type: object
+                  required: [id, name, rank, marketCap]
+                  additionalProperties: false
+                  properties:
+                    id: { type: string }
+                    name: { type: string }
+                    rank: { type: integer, minimum: 1, description: '시장 전체 시가총액 순위' }
+                    marketCap: { type: integer, format: int64, nullable: true }
+        classificationVersion: { type: string, enum: [KIWOOM_UPNAME_V1] }
+        classificationAsOf: { type: string, format: date, nullable: true }
+        sources: { type: array, items: { $ref: '#/components/schemas/SourceRow' } }
+        note: { type: string, nullable: true, description: '현재 업종을 과거에 적용·수집 대상 안에서만 묶었다는 안내' }
+        isSample: { type: boolean }
 
     FundingMode:
       type: string

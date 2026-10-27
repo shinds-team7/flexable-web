@@ -42,3 +42,16 @@ export function useCountUp(target: number, { duration = 900, decimals = 0 }: { d
 
   return shown;
 }
+
+/** 움직임 줄이기 설정을 따라간다(설정을 바꾸면 다시 그린다). */
+export function useReducedMotion() {
+  const [reduced, setReduced] = useState(prefersReducedMotion);
+  useEffect(() => {
+    const mq = window.matchMedia?.(query);
+    if (!mq) return;
+    const on = () => setReduced(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return reduced;
+}

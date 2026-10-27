@@ -1050,3 +1050,63 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 /* 누를 수 있는 숫자 칸·카드는 살짝 떠오른다 */
 a.stat,a.card{transition:transform 160ms var(--ease),box-shadow 160ms var(--ease),border-color 160ms var(--ease)}
 a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-float);text-decoration:none}
+
+/* ───────── 투자 인사이트(/invest, decisions/2026-10-26-invest-insight-redesign) ───────── */
+.ii-sec + .ii-sec{margin-top:var(--density-gap)}
+/* 페이지를 내릴 때 영역이 한 번 나타난다(02 §7-3 예외, 나타남 280ms). 움직임 줄이기면 Reveal이 이 클래스를 붙이지 않는다 */
+.reveal-in{opacity:0;transform:translateY(12px);transition:opacity 280ms var(--ease),transform 280ms var(--ease)}
+.reveal-in.is-in{opacity:1;transform:none}
+
+/* 시장 띠: 오른쪽 → 왼쪽으로 흐르고, 마우스·포커스·[멈춤]·숨은 탭이면 멈춘다 */
+.ii-strip{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);box-shadow:var(--shadow-subtle);padding:12px 0 8px}
+.ii-strip-view{overflow:hidden;border-radius:var(--radius-soft-sm)}
+.ii-strip-view.still{overflow-x:auto;scrollbar-width:thin}
+.ii-strip-track{display:flex;width:max-content}
+.ii-strip-track.moving{animation:ii-marquee var(--ii-strip-dur,30s) linear infinite}
+.ii-strip-view:hover .ii-strip-track,.ii-strip-view:focus-within .ii-strip-track,.ii-strip-track.stopped{animation-play-state:paused}
+@keyframes ii-marquee{to{transform:translateX(-50%)}}
+.ii-strip-set{display:flex;list-style:none;margin:0;padding:0}
+.ii-strip-cell{display:flex;align-items:baseline;gap:8px;padding:6px 20px;border-right:1px solid var(--line);white-space:nowrap;font-size:14px;line-height:20px}
+.ii-strip-cell .nm{font-weight:600;color:var(--text-sub)}
+.ii-strip-cell b{font-size:16px;color:var(--text)}
+.ii-strip-cell .dt{font-size:12px;color:var(--text-muted)}
+.ii-strip-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 16px 0;flex-wrap:wrap}
+.ii-strip-foot .meta{margin:0;font-size:12px}
+.ii-strip-pause{gap:6px}
+.ii-strip-pause[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand);color:var(--brand-text)}
+
+/* 이름 첫 글자 아바타(로고 대신, 결정 ⑥) */
+.ii-avatar{display:inline-grid;place-items:center;width:28px;height:28px;flex:none;border-radius:var(--radius-soft-sm);background:var(--sunken);border:1px solid var(--line);color:var(--text-sub);font-size:13px;font-weight:700;line-height:1}
+.tm-list.ii-rank button{grid-template-columns:24px 28px minmax(0,1fr) auto}
+.tm-list.ii-rank button[aria-pressed="true"] .ii-avatar{background:var(--card);border-color:var(--brand);color:var(--brand-text)}
+
+/* 주가 차트: 하나면 큰 차트, 둘 이상이면 종목마다 축이 따로 있는 작은 차트 */
+.ii-chart-head{margin-bottom:16px}
+.ii-multiples{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.ii-card{min-width:0;position:relative;transition:opacity 140ms var(--ease)}
+.ii-multiples .ii-card{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px}
+.ii-card.refetching .chart-wrap{opacity:.45}
+.ii-card .tm-skel-chart{margin-top:12px}
+.ii-card-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ii-card-title{min-width:0;flex:1}
+.ii-card-title h3{font-size:16px;line-height:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ii-card-title .meta{margin:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ii-last{color:var(--text);font-size:15px}
+.ii-card-x{flex:none}
+
+/* 업종별 순위 */
+.ii-h2{font-size:18px;line-height:26px}
+.ii-ind > .toolbar{margin-bottom:16px;align-items:flex-start}
+.ii-ind-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.ii-ind-card{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px;min-width:0}
+.ii-ind-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+.ii-ind-head h3{font-size:15px;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ii-ind-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.ii-ind-list button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:6px 8px;border:1px solid transparent;border-radius:var(--radius-soft-sm);background:none;text-align:left;color:var(--text);font-size:14px;line-height:20px;transition:background-color 140ms var(--ease)}
+.ii-ind-list button:hover:not(:disabled){background:var(--sunken)}
+.ii-ind-list button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand)}
+.ii-ind-list button:disabled{opacity:.45;cursor:not-allowed}
+.ii-ind-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ii-ind-skel{height:220px;border-radius:var(--radius-soft-sm)}
+.ii-ind-foot{margin-top:16px}
+@media (max-width:767px){.ii-strip-cell{padding:6px 14px}.ii-multiples{grid-template-columns:1fr}}

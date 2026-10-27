@@ -1,5 +1,5 @@
 // 타임머신 차트(와이어프레임 drawTimeChart를 옮김). SVG 선 + HTML 버튼 사건 핀, 로빙 tabindex(←/→/Home/End).
-// 랜딩 예시(sampleChartData)와 주식 타임머신(서버 계산 결과)이 함께 쓴다. React에서는 TimeChart.tsx로 감싸서 쓴다.
+// 랜딩 예시(sampleChartData)와 투자 인사이트 주가 차트(mode 'price', 서버가 준 일별 종가)가 함께 쓴다. React에서는 TimeChart.tsx로 감싸서 쓴다.
 // 차트는 받은 값을 그리기만 한다(금액 계산 없음). ADR-4에서 타임머신은 visx로 다시 만들 수 있다. 그때까지 이 구현을 쓴다.
 import { arrow, fmtDate, fmtYM, krShort, niceTicks, pctTxt, signWon, won } from '@/lib/format';
 
@@ -60,11 +60,11 @@ export type ChartEvent = {
   period?: string;
 };
 export type ChartData = {
-  dates: Date[]; // 점마다 x축 날짜(주 시작일)
+  dates: Date[]; // 점마다 x축 날짜(주 시작일, price 모드는 거래일)
   heads?: string[]; // 툴팁 머리. 없으면 "YYYY.MM.DD 주"
   tipTitle?: string;
-  total: number[];
-  invested: number[];
+  total: number[]; // price 모드는 종가(원)
+  invested: number[]; // price 모드는 쓰지 않는다(빈 배열)
   legs: ChartLeg[];
   startIdx: number;
   events: ChartEvent[];
@@ -80,8 +80,11 @@ export type TimeChartOptions = {
   data: ChartData;
   from: number;
   to: number;
-  mode: 'total' | 'byStock';
+  /** total: 내 자산·넣은 돈, byStock: 종목별, price: 주가(원) 한 줄(세로축 = 종가) */
+  mode: 'total' | 'byStock' | 'price';
   height?: number;
+  /** 선이 왼쪽부터 그려진다(RevealClip과 같은 .reveal-rect). 움직임 줄이기면 global.css가 애니메이션을 끈다 */
+  reveal?: boolean;
   compact?: boolean;
   selectedId?: string | null;
   onHover?: () => void;
@@ -100,12 +103,13 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   const W = Math.max(280, wrap.clientWidth);
   const H = o.height || 400;
   const byStock = o.mode === 'byStock';
-  const m = { l: 56, r: byStock ? 128 : 16, t: 30, b: 44 };
+  const price = o.mode === 'price';
+  const m = { l: price ? 64 : 56, r: byStock ? 128 : 16, t: 30, b: 44 };
   const from = Math.max(o.from, d.startIdx);
   const to = Math.min(o.to, N - 1);
   const idx: number[] = [];
   for (let i = from; i <= to; i++) idx.push(i);
-  const lines = byStock ? d.legs.flatMap((l) => [l.values, l.invested]) : [d.total, d.invested];
+  const lines = byStock ? d.legs.flatMap((l) => [l.values, l.invested]) : price ? [d.total] : [d.total, d.invested];
   let lo = Infinity;
   let hi = -Infinity;
   idx.forEach((i) => lines.forEach((s) => ((lo = Math.min(lo, s[i])), (hi = Math.max(hi, s[i])))));
@@ -118,21 +122,36 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   const s = svg('svg', { width: W, height: H, role: 'img', 'aria-hidden': 'true' }, wrap) as SVGSVGElement;
   ticks.forEach((t) => {
     svg('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'grid-l' }, s);
-    svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', class: 'axis-t' }, s).textContent = krShort(t);
+    svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', class: 'axis-t' }, s).textContent = price ? won(t) : krShort(t);
   });
   const span = to - from;
+  // price 모드(거래일 점)는 달력 날짜 폭으로 눈금을 정한다: 2년 넘으면 해마다, 10개월 넘으면 석 달마다, 그 밖에는 달마다
+  const days = (WEEKS[to].getTime() - WEEKS[from].getTime()) / 86_400_000;
   idx.forEach((i) => {
     const w = WEEKS[i];
     const prev = WEEKS[i - 1];
     let lab: string | null = null;
-    if (span > 120) {
+    if (price) {
+      if (prev && days > 730 && w.getFullYear() !== prev.getFullYear()) lab = String(w.getFullYear());
+      else if (prev && days <= 730 && w.getMonth() !== prev.getMonth() && w.getMonth() % (days > 300 ? 3 : 1) === 0) lab = fmtYM(w);
+    } else if (span > 120) {
       if (prev && w.getFullYear() !== prev.getFullYear()) lab = String(w.getFullYear());
     } else if (prev && w.getMonth() !== prev.getMonth() && w.getMonth() % (span > 40 ? 3 : 1) === 0) lab = fmtYM(w);
     if (lab) svg('text', { x: X(i), y: H - m.b + 20, 'text-anchor': 'middle', class: 'axis-t' }, s).textContent = lab;
   });
   const path = (arr: number[]) => idx.map((i, k) => (k ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(arr[i]).toFixed(1)).join(' ');
   const uid = 'c' + Math.random().toString(36).slice(2, 8);
-  if (!byStock) {
+  // 선을 담는 곳. reveal이면 왼쪽부터 드러나는 clipPath 안에 그린다(축·격자·핀은 그대로)
+  let plot: Element = s;
+  if (o.reveal) {
+    const cp = svg('clipPath', { id: uid + 'r' }, svg('defs', {}, s));
+    svg('rect', { class: 'reveal-rect', x: 0, y: 0, width: W, height: H }, cp);
+    plot = svg('g', { 'clip-path': `url(#${uid}r)` }, s);
+  }
+  if (price) {
+    svg('path', { d: path(d.total), style: 'fill:none;stroke:var(--text);stroke-width:2;stroke-linejoin:round;stroke-linecap:round' }, plot);
+    svg('circle', { cx: X(to), cy: Y(d.total[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' }, plot);
+  } else if (!byStock) {
     const pr = d.invested;
     const tot = d.total;
     const princPath = path(pr);
@@ -142,27 +161,27 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const cpB = svg('clipPath', { id: uid + 'b' }, defs);
     svg('path', { d: princPath + ` L${X(to)} ${H} L${X(from)} ${H} Z` }, cpB);
     const band = path(tot) + ' ' + idx.slice().reverse().map((i) => 'L' + X(i).toFixed(1) + ' ' + Y(pr[i]).toFixed(1)).join(' ') + ' Z';
-    svg('path', { d: band, 'clip-path': `url(#${uid}a)`, style: 'fill:var(--rise-wash)' }, s);
-    svg('path', { d: band, 'clip-path': `url(#${uid}b)`, style: 'fill:var(--fall-wash)' }, s);
-    svg('path', { d: princPath, style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' }, s);
-    svg('path', { d: path(tot), style: 'fill:none;stroke:var(--text);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round' }, s);
-    svg('circle', { cx: X(to), cy: Y(tot[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' }, s);
+    svg('path', { d: band, 'clip-path': `url(#${uid}a)`, style: 'fill:var(--rise-wash)' },plot);
+    svg('path', { d: band, 'clip-path': `url(#${uid}b)`, style: 'fill:var(--fall-wash)' },plot);
+    svg('path', { d: princPath, style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' },plot);
+    svg('path', { d: path(tot), style: 'fill:none;stroke:var(--text);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round' },plot);
+    svg('circle', { cx: X(to), cy: Y(tot[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' },plot);
   } else {
     // 종목별 넣은 돈(비율이 다르면 줄마다 다르다): 그 종목 색 점선
-    d.legs.forEach((leg) => svg('path', { d: path(leg.invested), style: `fill:none;stroke:${leg.color};stroke-width:1.2;stroke-dasharray:4 4;opacity:.55` }, s));
+    d.legs.forEach((leg) => svg('path', { d: path(leg.invested), style: `fill:none;stroke:${leg.color};stroke-width:1.2;stroke-dasharray:4 4;opacity:.55` }, plot));
     const ends: { leg: ChartLeg; y: number; v: number }[] = [];
     // 표식 간격: 화면에 7개 안팎
     const step = Math.max(1, Math.ceil(idx.length / 7));
     d.legs.forEach((leg, j) => {
       const arr = leg.values;
       // 선이 겹치는 곳에서도 구분되게 바탕색 테두리를 먼저 깐다
-      svg('path', { d: path(arr), style: 'fill:none;stroke:var(--card);stroke-width:5;stroke-linejoin:round;opacity:.9' }, s);
-      svg('path', { d: path(arr), style: `fill:none;stroke:${leg.color};stroke-width:${j === 0 ? 2.5 : 2};stroke-linejoin:round` }, s);
+      svg('path', { d: path(arr), style: 'fill:none;stroke:var(--card);stroke-width:5;stroke-linejoin:round;opacity:.9' }, plot);
+      svg('path', { d: path(arr), style: `fill:none;stroke:${leg.color};stroke-width:${j === 0 ? 2.5 : 2};stroke-linejoin:round` }, plot);
       const shape = SERIES_MARKS[j % SERIES_MARKS.length];
       idx.forEach((i, k) => {
-        if (k % step === Math.floor(step / 2) && i !== to) seriesMark(shape, X(i), Y(arr[i]), leg.color, 3.5, s);
+        if (k % step === Math.floor(step / 2) && i !== to) seriesMark(shape, X(i), Y(arr[i]), leg.color, 3.5, plot);
       });
-      seriesMark(shape, X(to), Y(arr[to]), leg.color, 5, s);
+      seriesMark(shape, X(to), Y(arr[to]), leg.color, 5, plot);
       ends.push({ leg, y: Y(arr[to]), v: arr[to] });
     });
     // 끝 이름표는 서로 30px 넘게 떨어져 있을 때만 단다(겹치면 범례·툴팁으로 본다).
@@ -219,7 +238,9 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     tip.replaceChildren();
     if (d.tipTitle) tip.append(h('div', { cls: 't-title', text: d.tipTitle }));
     tip.append(h('div', { cls: 'meta', text: d.heads?.[k] ?? fmtDate(WEEKS[k]) + ' 주' }));
-    if (!byStock) {
+    if (price) {
+      tip.append(h('div', { cls: 't-val num', text: won(d.total[k]) + '원' }));
+    } else if (!byStock) {
       const v = d.total[k];
       const p = d.invested[k];
       const gap = v - p;

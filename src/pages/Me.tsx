@@ -81,7 +81,7 @@ export default function Me() {
             <div className="set-row">
               <div>
                 <p className="k">사용법 다시 보기</p>
-                <p className="v">주식 타임머신에서 조건·차트·핀·근거를 차례로 짚어 줘요.</p>
+                <p className="v">투자 인사이트에서 시장 띠·종목 고르기·기간과 차트·사건 핀을 차례로 짚어 줘요.</p>
               </div>
               <Link className="btn btn-line btn-sm" to="/invest?tour=1">
                 사용법 보기

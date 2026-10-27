@@ -138,7 +138,7 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         </form>
       ) : (
         <div className="hero-acts">
-          <Link className="btn btn-primary btn-sm" to="/invest">
+          <Link className="btn btn-primary btn-sm" to="/simulation">
             투자 시뮬레이션 해 보기
           </Link>
           <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
@@ -226,7 +226,7 @@ function WhatIf({ seed }: { seed: SeedMoney }) {
   // TODO(BE): 서버 계산 결과로 바꾼다(클라이언트 재계산 금지, ADR-3). 아래는 예시 값.
   const base = seed.manual ?? seed.confirmed;
   const rows = [
-    { to: '/invest', lbl: '예시 대표지수 ETF', val: Math.floor(base * 1.098), dl: '▲ 9.8%', more: '타임머신 열기' },
+    { to: '/simulation', lbl: '예시 대표지수 ETF', val: Math.floor(base * 1.098), dl: '▲ 9.8%', more: '투자 시뮬레이션 열기' },
     { to: '/savings', lbl: '은행 평균 적금(한국은행)', val: Math.floor(base * 1.032), dl: '▲ 3.2%', more: '적금 모아보기 열기' },
   ];
   return (
@@ -430,7 +430,7 @@ export default function Home() {
                   <button className="btn btn-primary" onClick={() => seed.refetch()}>
                     다시 불러오기
                   </button>
-                  <Link className="btn btn-line" to="/invest">
+                  <Link className="btn btn-line" to="/simulation">
                     직접 금액으로
                   </Link>
                 </div>

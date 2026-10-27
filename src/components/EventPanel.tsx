@@ -1,4 +1,5 @@
-// 투자 시뮬레이션의 사건 목록·상세(와이어프레임 "레일: 사건"을 옮김). 핀을 누르거나 목록에서 고르면 상세를 보여 준다.
+// 투자 인사이트의 사건 목록·상세(와이어프레임 "레일: 사건"을 옮김). 핀을 누르거나 목록에서 고르면 상세를 보여 준다.
+// "이때 내 돈"은 사건에 금액 필드(valueBefore 등)가 있을 때만 보인다. 투자 인사이트 사건(PriceEvent)에는 없다.
 // 수치는 모두 서버 값이고(03 C-9·C-10) 여기서는 문장으로만 바꾼다. "무슨 일"은 서버 문장(설명 전에는 수치로 만든 사실 문장)을 그대로 쓴다.
 import { useState } from 'react';
 import { useEventDetail, type SimEvent } from '@/data/market';
@@ -12,9 +13,13 @@ export const eventPeriod = (e: Pick<SimEvent, 'startDate' | 'endDate'>) =>
 const updown = (x: number) => (x >= 0 ? 'up' : 'down');
 const moveTxt = (x: number) => `${arrow(x)} ${pctTxt(x)}`;
 
+type Money = 'valueBefore' | 'valueAfter' | 'contributionInWindow' | 'valueChange';
+/** 패널이 받는 사건. 금액 필드는 있을 때만 쓴다 */
+export type PanelEvent = Omit<SimEvent, Money | 'noticeKey'> & Partial<Pick<SimEvent, Money>>;
+
 type Props = {
   /** 차트에 보이는 기간의 사건, 시작일 순 */
-  events: SimEvent[];
+  events: PanelEvent[];
   /** 종목 코드 → 이름 */
   names: Record<string, string>;
   selectedId: number | null;
@@ -152,7 +157,7 @@ export function EventPanel({ events: all, names, selectedId, onSelect, focusIds,
 }
 
 /** 상세 API로 받는 부분: 무슨 일·시장 반응·그 뒤에는·근거·고지 */
-function Detail({ ev }: { ev: SimEvent }) {
+function Detail({ ev }: { ev: PanelEvent }) {
   const q = useEventDetail(ev.id);
   if (q.isPending) return <p className="sub" style={{ marginTop: 16 }}>그때 자료를 불러오는 중이에요…</p>;
   if (q.isError) {

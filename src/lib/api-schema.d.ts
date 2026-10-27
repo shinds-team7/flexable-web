@@ -1203,10 +1203,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 구현 전 계약. 지수 띠(코스피·코스닥 지수, 나스닥100 추종 국내 ETF). 아직 수집 전인 칸은 value가 null
-         * @description - 코스피·코스닥은 키움 업종일봉(ka20006)의 종합지수, unit=POINT(소수 2자리).
-         *     - 나스닥 칸은 국내 상장 나스닥100 추종 ETF이고 name은 ETF 실제 이름, unit=KRW(원 단위 정수).
-         *     - changeRate = (value − prevValue) ÷ prevValue, 소수 4자리 내림. 등락률로 정렬하지 않는다(PRD §5).
+         * 구현 전 계약. 상단 시장 띠(국내외 지수·금·환율 9칸). 수집 전이거나 성공한 값이 없는 칸은 items에서 빠진다
+         * @description - 순서는 KOSPI·KOSDAQ·NASDAQ100·SP500·DJIA·NIKKEI225·GOLD·USDKRW·JPYKRW로 고정한다. 등락률로 정렬하지 않는다(PRD §5).
+         *     - KOSPI·KOSDAQ: 키움 업종일봉(ka20006) 종합지수, unit=POINT(소수 2자리).
+         *     - NASDAQ100·SP500·DJIA·NIKKEI225: 한국투자증권 KIS Open API, unit=POINT. 수집은 별도 Issue이고 지원 범위·재표시 조건은 그 Issue에서 확인한다.
+         *     - GOLD: KRX 금시장 일별매매정보, unit=KRW_PER_GRAM(원 단위 정수).
+         *     - USDKRW·JPYKRW: KIS Open API, unit=KRW_PER_USD·KRW_PER_100JPY(소수 2자리).
+         *     - 대용 ETF로 대신하지 않는다. date는 칸마다의 기준일이며 해외 지수는 현지 거래일이다.
+         *     - changeRate = (value − prevValue) ÷ prevValue, 소수 4자리 내림.
          */
         get: {
             parameters: {
@@ -1217,7 +1221,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description 지수 띠 */
+                /** @description 시장 띠(수집된 칸만) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1934,21 +1938,26 @@ export interface components {
         IndexStrip: {
             items: {
                 /** @enum {string} */
-                key: "KOSPI" | "KOSDAQ" | "NASDAQ100_ETF";
-                /** @description 화면 표시 이름. NASDAQ100_ETF는 ETF 실제 이름 */
+                key: "KOSPI" | "KOSDAQ" | "NASDAQ100" | "SP500" | "DJIA" | "NIKKEI225" | "GOLD" | "USDKRW" | "JPYKRW";
+                /** @description 화면 표시 이름(예: 코스피, S&P500, 금, 원/달러) */
                 name: string;
                 /** @enum {string} */
-                kind: "INDEX" | "ETF";
+                kind: "INDEX" | "COMMODITY" | "FX";
                 /** @enum {string} */
-                unit: "POINT" | "KRW";
-                /** @description POINT는 소수 2자리, KRW는 정수 */
-                value: number | null;
-                prevValue: number | null;
-                change: number | null;
+                unit: "POINT" | "KRW_PER_GRAM" | "KRW_PER_USD" | "KRW_PER_100JPY";
+                /** @description POINT·환율은 소수 2자리, KRW_PER_GRAM은 정수 */
+                value: number;
+                prevValue: number;
+                change: number;
                 /** @description 소수 4자리 내림 */
-                changeRate: number | null;
-                /** Format: date */
-                date: string | null;
+                changeRate: number;
+                /**
+                 * Format: date
+                 * @description 이 칸의 기준일
+                 */
+                date: string;
+                /** @description 제공처 이름(키움증권·한국투자증권·한국거래소 등) */
+                sourceName: string;
             }[];
             sources: components["schemas"]["SourceRow"][];
             isSample: boolean;

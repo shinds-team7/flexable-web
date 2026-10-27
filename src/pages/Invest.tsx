@@ -34,6 +34,8 @@ import { ApiError, errorText } from '@/lib/api';
 import { fmtDate, krShort, won } from '@/lib/format';
 
 const MAX_PICKS = 3;
+/** 주가 선 아래 그라데이션 면. 피드백으로 시험 중이라 넣을지 말지 정할 때까지 여기서 끄고 켠다 */
+const SHOW_AREA = true;
 /** 시가총액 순위는 먼저 이만큼만 보이고 [더 보기]로 나머지를 연다(긴 목록 스크롤 줄이기) */
 const FIRST_ROWS = 20;
 const BOARDS: { v: Board; label: string }[] = [
@@ -661,6 +663,7 @@ function ChartCard({
         from={zoom ? zoom.from : 0}
         to={zoom ? zoom.to : N - 1}
         mode="price"
+        area={SHOW_AREA}
         height={height}
         compact={small}
         revealKey={`${inst.id}:${p.period}`}

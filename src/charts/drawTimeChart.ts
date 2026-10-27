@@ -85,6 +85,8 @@ export type TimeChartOptions = {
   height?: number;
   /** 선이 왼쪽부터 그려진다(RevealClip과 같은 .reveal-rect). 사건 핀은 선을 다 그린 뒤 나타난다(.pins-wait). 움직임 줄이기면 global.css가 애니메이션을 끈다 */
   reveal?: boolean;
+  /** price 모드: 선 아래를 브랜드 색으로 채우고 바닥으로 갈수록 연하게(그라데이션). reveal이면 선을 다 그린 뒤 나타난다(.area-wait) */
+  area?: boolean;
   compact?: boolean;
   selectedId?: string | null;
   onHover?: () => void;
@@ -149,6 +151,18 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     plot = svg('g', { 'clip-path': `url(#${uid}r)` }, s);
   }
   if (price) {
+    if (o.area) {
+      // 선 아래 면. 위(선의 가장 높은 곳)는 브랜드 색 18%, 바닥은 투명. 선보다 뒤에 깔고, 선 그리기 clip 밖이라 따로 나타난다
+      const grad = svg('linearGradient', { id: uid + 'g', x1: 0, y1: 0, x2: 0, y2: 1 }, svg('defs', {}, s));
+      svg('stop', { offset: '0%', style: 'stop-color:var(--brand);stop-opacity:.18' }, grad);
+      svg('stop', { offset: '100%', style: 'stop-color:var(--brand);stop-opacity:0' }, grad);
+      const area = svg('path', {
+        d: path(d.total) + ` L${X(to).toFixed(1)} ${H - m.b} L${X(from).toFixed(1)} ${H - m.b} Z`,
+        style: `fill:url(#${uid}g);stroke:none;pointer-events:none`,
+        ...(o.reveal ? { class: 'area-wait' } : {}),
+      });
+      s.insertBefore(area, plot === s ? null : plot);
+    }
     svg('path', { d: path(d.total), style: 'fill:none;stroke:var(--text);stroke-width:2;stroke-linejoin:round;stroke-linecap:round' }, plot);
     svg('circle', { cx: X(to), cy: Y(d.total[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' }, plot);
   } else if (!byStock) {

@@ -18,7 +18,7 @@ export function TimeChart({
   optsRef.current = opts;
   const afterRef = useRef(afterDraw);
   afterRef.current = afterDraw;
-  const { data, from, to, mode, height, compact, selectedId } = opts;
+  const { data, from, to, mode, height, compact, selectedId, area } = opts;
   const revealed = useRef<{ key?: string; at: number }>({ at: 0 });
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export function TimeChart({
     const ro = new ResizeObserver(draw);
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [data, from, to, mode, height, compact, selectedId, revealKey]);
+  }, [data, from, to, mode, height, compact, selectedId, area, revealKey]);
 
   return <div ref={ref} className="chart-wrap" role="group" aria-label={label} style={style} />;
 }

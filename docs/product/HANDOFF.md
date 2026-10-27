@@ -1,20 +1,24 @@
 # 웹 개발 인수인계
 
-2026-10-27 갱신. 구현 상태는 `main`의 `0151809`(#96 홈 영상·#97 머지) 기준으로 코드·계약·마이그레이션과 GitHub Issue·PR을 대조했다. 운영 반영과 실제 데이터 확인은 별도로 적는다. **앱 연동 실기기 통합 확인은 10-26 리드 확인으로 완료 처리했다.** 이번 문서 정리에서 실기기 검증을 다시 수행한 것은 아니다.
+2026-10-27 갱신. 구현 상태는 `main`의 `d2ce523`(#90 투자 인사이트 스펙·#99 키움 호출 간격 머지) 기준으로 코드·계약·마이그레이션과 GitHub Issue·PR을 대조했다. 운영 반영과 실제 데이터 확인은 별도로 적는다. **앱 연동 실기기 통합 확인은 10-26 리드 확인으로 완료 처리했다.** 이번 문서 정리에서 실기기 검증을 다시 수행한 것은 아니다.
 
 개발 기준은 [PRD](../PRD.md)·[정책](../policies.md)·[웹 API 계약](../contracts/web-api.yaml)·[변경 이력](../CHANGELOG.md)·[결정 기록](../decisions/README.md)이다. 이 문서에 남은 제안이나 Issue만으로 정책·계약을 바꾸지 않는다.
 
 ## 10-28 이어서 할 것(10-27 퇴근 시점)
 
 - [ ] **웹 #103 강제 push**: 10-27 저녁 main에 #90(투자 인사이트 스펙)·#99(키움 호출 간격)가 머지되어 #103이 충돌했다. 로컬 `feat-seed-money-app-sync`는 최신 main에 rebase를 마쳤다(`docs/decisions/README.md` 색인 충돌만 정리, ContractTest·SeedMoneyManualApiTest·RestAppApiClientTest 통과). 강제 push가 권한에서 막혀 원격에는 아직 올리지 못했다. `git push --force-with-lease origin feat-seed-money-app-sync`를 사람이 실행하거나 허용한다
+  - 10-27 저녁 재확인: 원격 #103은 여전히 `f97cb52`(충돌 상태)이고, `orca/flexable-web`에는 rebase한 로컬 브랜치·worktree가 없다. rebase한 폴더를 못 찾으면 최신 main에 다시 rebase한 뒤 강제 push한다
 - [ ] #101·#106·#108·#110은 10-27 기준 main과 git 충돌이 없다. 다만 여러 PR이 `docs/CHANGELOG.md`에 `## 2026-10-27`을 새로 만들므로, 머지할 때 같은 날짜 아래로 합친다
-- [ ] #90은 10-27 머지됐다. 이제 #89 구현을 시작할 수 있다(rhkrqkq)
+- [ ] #90은 10-27 머지됐다. rhkrqkq가 결정 ③·④·⑧ 수정 스펙 PR [#102](https://github.com/shinds-team7/flexable-web/pull/102)(차트 하나로 합치기·표로 보기 삭제·시장 띠 멈춤 버튼 삭제, spec-change, CI 통과)를 올렸고, 구현은 `feat-invest-insight-impl` 브랜치에 있다. #102 머지 뒤 `Closes #89` 구현 PR이 올라온다. 리드 검토가 필요하다
+- [ ] **#98과 #110이 겹친다**: 둘 다 PRD 사건 퀴즈 상태·정책 §5 제목("구현 전 계약" 삭제)·`2026-10-26-investment-practice` 상태·`practice` 태그 설명을 고친다. #98은 base가 아직 머지된 `feat-invest-insight-redesign`이다. #98에만 있는 것(`tests/policy/practice.json` `IMPLEMENTED`·`tests/policy/README.md` 표, 결정 기록 "현재 구현" 상자, README 경로 표 `/simulation` 행)을 #110에 옮기고 #98을 닫을지, #98 base를 main으로 바꿔 먼저 머지하고 #110을 rebase할지 정한다
+- [ ] [#104](https://github.com/shinds-team7/flexable-web/issues/104) 적금 모아보기 첫 진입 시 첫 상품 상세가 펼쳐지는 문제: Issue만 있고 담당·PR이 없다. `Savings.tsx`의 `openId` 처음 값 `undefined`(첫 상품 펼침)를 `null`로 바꾸는 작은 수정이다
+- [x] #99(키움 일봉 호출을 종목 사이에도 띄워 429 막기) 10-27 머지. solpa worker 반영 대상에 들어간다
 - [ ] solpa 반영 결과(현재 커밋·Flyway 버전·요약 로그)를 받아 아래 solpa 절에 적는다
-- 로컬 작업 폴더(git worktree): `../flexable-web-contract`(#106), `../flexable-web-appcheck`(#108), `../flexable-web-docs`(#110), 앱 `../flexable-app-83`(앱 #189). PR이 머지되면 `git worktree remove`로 지운다
+- 로컬 작업 폴더(git worktree): `../flexable-web-contract`(#106), `../flexable-web-appcheck`(#108), `../flexable-web-docs`(#110), 앱 `../flexable-app-83`(앱 #189). PR이 머지되면 `git worktree remove`로 지운다. 10-27 저녁 `orca/flexable-web`의 `git worktree list`에는 없다(다른 폴더·PC에서 만든 것이면 그쪽에서 정리)
 
 
 1. 최신 main을 받은 뒤 CHANGELOG와 변경 문서를 읽고, 스펙 변경이 머지됐으면 적용할 차이부터 정리한다.
-2. 투자 인사이트 스펙 PR #90은 10-27 머지됐다. 이제 #89 구현을 시작한다. #89·#94 담당은 `rhkrqkq`이며, #89가 시장 띠 응답 틀과 국내 지수를 먼저 만들고 #94가 해외 지수·환율·금을 추가한다.
+2. 투자 인사이트 스펙 PR #90은 10-27 머지됐고, 구현 리뷰 피드백을 반영한 수정 스펙 #102가 리뷰 대기다. #89·#94 담당은 `rhkrqkq`이며, #89가 시장 띠 응답 틀과 국내 지수를 먼저 만들고 #94가 해외 지수·환율·금을 추가한다.
 3. #48(청년 소식 자동 게시·AI 요약)은 #93으로 main에 머지됐다. solpa 반영(V15·`GEMINI_API_KEY`)과 남은 확인은 아래 각 절을 따른다.
 4. 홈 히어로 고양이 영상은 #96(Issue #95)으로 main에 머지됐다. 남은 것은 사용자가 만드는 새 영상으로 교체하는 일과 Safari·Firefox 재생 확인이다.
 5. 기존 앱 연동 실기기 확인은 완료다. #83(웹 수정 → 앱 쓰기)은 10-27에 구현 PR을 올렸다(아래 표). #89 개편, F7 기획·F3 범위 결정은 아래 조건에 따라 이어간다.
@@ -28,9 +32,11 @@
 | [#101](https://github.com/shinds-team7/flexable-web/pull/101) | 홈 소식을 `GET /youth-news` 마감 임박순 3건으로, '이 돈을 굴렸다면?' 카드 제거 | #103과 같은 `Home.tsx`·`home.ts`를 고친다. 나중 쪽이 충돌 정리 |
 | [#106](https://github.com/shinds-team7/flexable-web/pull/106) | 적금 API 5개 계약 추가, 화면 타입 대조(`src/lib/contractChecks.ts`), 목 서버 example. spec-change | 대조 중 찾은 null 가능 필드 3개를 화면 타입에 반영 |
 | [#108](https://github.com/shinds-team7/flexable-web/pull/108) | 앱 웹 연동 계약 사본·대조 테스트·사본 비교 CI `app-contract`(필수 아님). spec-change | 앱 #189가 머지되면 `app-contract`가 실패한다 → 사본 갱신과 PUT 예시 추가 |
-| [#110](https://github.com/shinds-team7/flexable-web/pull/110) | 문서 구현 상태 현행화, 화면 결정 기록(기간 칩 5년·플러스 월간 기본·섞어보기 메뉴 제거). spec-change | — |
+| [#110](https://github.com/shinds-team7/flexable-web/pull/110) | 문서 구현 상태 현행화, 화면 결정 기록(기간 칩 5년·플러스 월간 기본·섞어보기 메뉴 제거). spec-change | #98과 같은 문단을 고친다(위 10-28 할 일) |
+| [#98](https://github.com/shinds-team7/flexable-web/pull/98) | 사건 퀴즈 문서 상태를 구현됨으로(PRD·정책 §5·결정 기록·계약·`practice.json`·README 경로 표). spec-change | base가 머지된 #90 브랜치. #110과 겹침 |
+| [#102](https://github.com/shinds-team7/flexable-web/pull/102)(rhkrqkq) | 투자 인사이트 결정 ③·④·⑧ 수정. spec-change | 머지 뒤 #89 구현 PR |
 
-#103·#106·#108·#110이 모두 `docs/CHANGELOG.md`에 `## 2026-10-27` 제목을 새로 만든다. 두 번째로 머지하는 PR부터는 같은 날짜 아래로 합친다.
+#98·#102·#103·#106·#108·#110이 모두 `docs/CHANGELOG.md`에 `## 2026-10-27` 제목을 새로 만든다. 두 번째로 머지하는 PR부터는 같은 날짜 아래로 합친다.
 
 웹 빌드의 500kB 초과 번들 경고는 남아 있다.
 
@@ -40,7 +46,7 @@
 |---|---|---|
 | 웹 계정·앱 연동(F0) | 이메일·카카오·Google 로그인, 선택 동의·연동·해제·주기별 기록·일일 재확인 구현(#33 등) | 기존 앱 연동 실기기 확인은 완료. 웹에서 앱으로 시드머니를 쓰는 기능은 별도 #83 |
 | 홈 시드머니 | 웹 백엔드를 쓰는 로그인 회원은 `PUT·DELETE /api/v1/me/seed-money/manual`로 저장·되돌리기, 앱 값보다 직접 수정값 우선(#55, V9) | 앱 반영 #83(웹 #103·앱 #189 리뷰 대기), 새 히어로 영상 교체. '굴렸다면' 카드 제거는 #101 |
-| 투자 인사이트(`/invest`, 기존 F1) | 종목·ETF 최대 3개, 납입 방식 3종, 서버 계산·주별 평가액·사건 핀·DART 근거·첫 방문 안내(F5) 구현 | 주가 차트·지수·랭킹 중심 개편 #89는 스펙부터 |
+| 투자 인사이트(`/invest`, 기존 F1) | 종목·ETF 최대 3개, 납입 방식 3종, 서버 계산·주별 평가액·사건 핀·DART 근거·첫 방문 안내(F5) 구현 | 주가 차트·지수·랭킹 중심 개편 #89: 스펙 #90 머지, 수정 스펙 #102 리뷰 대기, 구현은 rhkrqkq 브랜치 |
 | 사건 퀴즈 투자 시뮬레이션(`/simulation`) | #86 스펙·#88 구현 머지. 업종 선택·OHLC 캔들·사건 예상·정수 주 가상 매매·결과·30분 메모리 세션, `/practice/*`, V14 | 실제 키움 업종·OHLC·공시 자료 준비와 운영 검증 |
 | 일반 적금(F2) | #53 머지. finlife 공시 수집·DB 조회·서버 만기 계산·비교, V10~V12 | 운영 적재·갱신·화면 확인. 계약 반영은 #106 리뷰 대기 |
 | 청년정책 안내 / 청년미래적금(F2) | 온통청년 적금·저축·통장 계열 정책 조회는 구현. **청년미래적금 계산 카드는 고정 예시**(`UNVERIFIED`, 월 78,000원 기본 조건) | 공식 근거·기여금 계산 차이 확인, 정책 계산 계약·서버 구현 |
@@ -62,7 +68,7 @@
 
 ## 남은 개발 작업과 완료 조건
 
-10-27 재확인 시 열린 개발 Issue는 #83·#89·#94이며, 투자 인사이트 스펙 PR #90은 최신 main과 충돌 없이 미머지 상태다. #48은 #93 머지로 닫혔다. 이번 문서 갱신은 #91로 추적한다. 아래에서 담당 미정은 GitHub assignee가 없는 상태다. 문서에만 남은 작업은 착수할 때 Issue를 만든다.
+10-27 저녁 재확인 시 열린 개발 Issue는 #83·#89·#94·#104이며, 투자 인사이트 스펙 PR #90은 10-27 머지됐다. #48은 #93 머지로 닫혔다. 이번 문서 갱신은 #91로 추적한다. 아래에서 담당 미정은 GitHub assignee가 없는 상태다. 문서에만 남은 작업은 착수할 때 Issue를 만든다.
 
 ### 청년 소식 자동 게시·AI 요약 후속 — #48(#93 머지) / seon00
 
@@ -85,16 +91,17 @@
 
 ### 투자 인사이트 개편 — #89 / rhkrqkq
 
-정본: [Issue #89](https://github.com/shinds-team7/flexable-web/issues/89). [스펙 PR #90](https://github.com/shinds-team7/flexable-web/pull/90)은 10-27 리드 승인 기록이 있고 현재 최신 main과 충돌 없이 미머지 상태다. 최종 CI·리드 확인 뒤 머지한다. 현재 main의 PRD·[분리 결정](../decisions/2026-10-26-investment-practice.md)은 기존 `/invest` 화면·계산 유지다. **개편은 스펙 PR 승인·머지 전까지 구현 기준이 아니다.**
+정본: [Issue #89](https://github.com/shinds-team7/flexable-web/issues/89). [스펙 PR #90](https://github.com/shinds-team7/flexable-web/pull/90)은 10-27 머지됐다([결정 기록](../decisions/2026-10-26-invest-insight-redesign.md)). 구현 리뷰 피드백으로 결정 ③·④·⑧을 고치는 [#102](https://github.com/shinds-team7/flexable-web/pull/102)가 리뷰 대기이고, 구현은 `feat-invest-insight-impl` 브랜치에 있다. **#102가 머지되기 전에는 ③·④·⑧은 #90 내용이 기준이다.**
 
-- [ ] 스펙 PR: PRD F1·결정 기록·02 움직임 규칙·CHANGELOG, 종목 주가·기간별 사건·지수 조회 계약을 먼저 바꾼다.
-- [ ] #90 최신 제안 검토: 시장 띠는 코스피·코스닥·나스닥100·S&P500·다우존스·니케이225·금·원/달러·원/엔(100엔) 9칸이다. 국내 지수는 키움 `ka20006`으로 #89에서 수집하고, 나머지는 #94에서 실제 값을 받는다. 대용 ETF로 바꾸지 않으며 수집 성공 값이 없는 칸은 제외한다. 업종(`upName`)·이름 첫 글자 아바타·종목별 작은 차트·새 F5·스크롤/시장 띠 모션도 스펙 PR의 검토 대상이다.
+- [x] 스펙 PR #90: PRD F1·결정 기록·02 움직임 규칙·CHANGELOG, 종목 주가·기간별 사건·지수 조회 계약
+- [ ] 수정 스펙 #102 리드 검토·머지(차트 하나로 합쳐 첫날 종가 기준 맞춤, 표로 보기 삭제, 시장 띠 멈춤 버튼 삭제)
+- [ ] #90 내용 구현 확인: 시장 띠는 코스피·코스닥·나스닥100·S&P500·다우존스·니케이225·금·원/달러·원/엔(100엔) 9칸이다. 국내 지수는 키움 `ka20006`으로 #89에서 수집하고, 나머지는 #94에서 실제 값을 받는다. 대용 ETF로 바꾸지 않으며 수집 성공 값이 없는 칸은 제외한다. 업종(`upName`)·이름 첫 글자 아바타·종목별 작은 차트·새 F5·스크롤/시장 띠 모션도 스펙 PR의 검토 대상이다.
 - [ ] 주가 축·종목별 기본 3개월·3M/6M/1Y/3Y, 지수 띠·시가총액/분류별 목록·모션 구현. 금액·납입 방식 UI는 개편 범위가 승인된 뒤 뺀다.
 - [ ] 완료: 계약·조회 테스트, 기간 전환·핀 상세·F5·키보드·다크·움직임 줄이기 확인. 기존 `POST /simulations/run` 계산·응답과 `/simulation`은 유지한다.
 
 ### 시장 띠 데이터 수집 — #94 / rhkrqkq
 
-[Issue #94](https://github.com/shinds-team7/flexable-web/issues/94)는 #90 스펙에 맞춰 해외 지수 4종·환율 2종·금의 실제 일별 값을 보충하는 작업이다. 현재 main에는 이 계약·수집 기능이 없으므로 #90 머지 뒤 구현한다.
+[Issue #94](https://github.com/shinds-team7/flexable-web/issues/94)는 #90 스펙에 맞춰 해외 지수 4종·환율 2종·금의 실제 일별 값을 보충하는 작업이다. #90은 머지됐지만 수집 기능은 아직 main에 없다.
 
 - [ ] #89가 `GET /market/indices` 응답 틀·코스피·코스닥을 먼저 구현하고, #94가 칸을 추가한다. 응답 조립 파일이 겹치므로 담당 안에서 구현 순서를 맞춘다.
 - [ ] KIS의 해외 지수·환율 지원 범위·필드·한도, KRX 금시장 API 이용 신청·종목 코드, 화면 재표시 조건과 키 발급 담당을 확인한다. 원/엔을 KIS에서 못 받으면 대안 제공처 사용 여부를 정한다.
@@ -228,6 +235,6 @@
 - 10-24: 시세 제공처·현재 구현 문서·체험 방침을 맞추고, #55 직접 수정 서버 저장과 V9를 추가했다. 시드머니 방침 개정의 7일 전 고지는 해커톤 시연이라는 리드 결정으로 고려하지 않았다. AWS 이전 고지 계획과는 별개다.
 - 10-25: 개발 기준 문서·정책 fixture·OpenAPI·타입 생성·목 서버·PR 규칙과 main 보호를 도입했다. 보호 규칙은 PR·필수 CI·CODEOWNERS 경로 리드 승인, 관리자 우회 허용으로 기록돼 있다.
 - 10-26: #53·#47·#84(앱 쓰기 할 일)·#86·#88·#60·#62 머지, 기존 앱 연동 실기기 확인 완료(리드 확인). 이 문서의 현재 상태·남은 일로 합쳤다.
-- 10-27: #93(#48 청년 소식 자동 게시·Gemini 요약, V15) 머지, 투자 인사이트 스펙 #90 리드 승인, #96 홈 히어로 고양이 영상·#97 머지.
+- 10-27: #93(#48 청년 소식 자동 게시·Gemini 요약, V15) 머지, #96 홈 히어로 고양이 영상·#97 머지, 투자 인사이트 스펙 #90·키움 호출 간격 #99 머지. #98·#101~#110 PR 올라옴.
 
 세부 과거 기록은 [갱신 전 HANDOFF(`26c1bae`)](https://github.com/shinds-team7/flexable-web/blob/26c1baeb6a8e1a8e4986bef0a5699d64ac4acc37/docs/product/HANDOFF.md)에 보존돼 있다. 지난 날짜·머지·과거 체크박스만으로 배포나 실제 데이터 검증을 완료 처리하지 않는다.

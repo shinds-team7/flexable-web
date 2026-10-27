@@ -580,18 +580,36 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .form-error{font-size:13px;color:var(--danger)}
 
-/* 홈 히어로: 핵심 숫자는 가운데 굵게, 캐릭터는 오른쪽 위 작게 */
-.home-hero{position:relative;text-align:center;padding:36px var(--density-pad) 0;overflow:hidden}
-.hero-label{display:flex;justify-content:center;align-items:center;gap:6px;font-weight:600;color:var(--text-sub)}
+/* 홈 히어로: 고양이 채굴 영상이 카드 전체(영상 배경색으로 이어 칠함), 글자는 위 레이어 — 시드머니는 왼쪽 위, 안내는 오른쪽 아래 */
+.home-hero{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;gap:24px;min-height:300px;text-align:left;background:var(--color-hero-scene)}
+.hero-scene{position:absolute;top:calc(50% - 20px);left:calc(44% + 130px);height:min(100%,280px);width:auto;max-width:none;transform:translate(-50%,-50%);pointer-events:none;
+  /* 영상 오른쪽 배경이 카드 배경보다 살짝 진해 경계선이 보인다 → 가장자리를 투명하게 녹인다 */
+  -webkit-mask-image:linear-gradient(to right,transparent,#000 10%,#000 90%,transparent),linear-gradient(to bottom,transparent,#000 10%,#000 90%,transparent);
+  -webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to right,transparent,#000 10%,#000 90%,transparent),linear-gradient(to bottom,transparent,#000 10%,#000 90%,transparent);
+  mask-composite:intersect}
+.hero-copy,.hero-foot{position:relative;z-index:1;--text:var(--color-hero-ink);--text-sub:var(--color-hero-ink-sub);--text-muted:var(--color-hero-ink-muted);--card:var(--color-hero-surface);--sunken:var(--color-hero-subtle);--line:var(--color-hero-line);--color-border-strong:var(--color-hero-line);color:var(--text)}
+.hero-label{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;font-weight:600;color:var(--text-sub)}
+.hero-edit{padding:0;background:none;border:0;font-size:13px;font-weight:500;color:var(--text-muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.hero-edit:hover{color:var(--text-sub)}
 .home-hero .hero-num{margin-top:4px}
 .home-hero .sub{margin-top:6px}
-.hero-acts{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:20px}
-.seed-edit{display:flex;flex-direction:column;gap:12px;max-width:320px;margin:20px auto 0;text-align:left}
-.seed-edit-acts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+/* 시드머니 수정: 숫자 자리에 입력 창을 띄운다. 취소·저장은 창 오른쪽 위 */
+.seed-inline{display:inline-flex;flex-direction:column;gap:6px;margin-top:4px;min-width:240px}
+.seed-inline-acts{display:flex;justify-content:flex-end;gap:6px}
+.seed-inline-box{display:flex;align-items:center;padding:8px 14px;border:1px solid var(--color-border-strong);border-radius:var(--radius-soft-sm);background:var(--card);font-size:28px;line-height:36px;font-weight:800;letter-spacing:-.02em}
+.seed-inline-box:focus-within{border-color:var(--brand)}
+.seed-inline-box small{margin-left:auto;padding-left:6px;font-size:18px;font-weight:700}
+/* 입력 너비를 글자 길이에 맞춘다: 안 보이는 같은 글자로 칸 너비를 잡고 입력을 그 위에 겹친다 */
+.seed-inline-field{display:inline-grid}
+.seed-inline-field::after{content:attr(data-value) " ";grid-area:1/1;visibility:hidden;white-space:pre}
+.seed-inline-input{grid-area:1/1;width:100%;min-width:0;padding:0;border:0;background:none;color:var(--text);font:inherit;letter-spacing:inherit}
+.seed-inline-input:focus{outline:none}
+.seed-inline .form-error{margin-top:6px}
 .input-affix{position:relative}
 .input-affix .input{padding-right:40px;text-align:right;font-size:17px;font-weight:700}
 .input-affix .unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-sub);font-weight:600;pointer-events:none}
-.hero-foot{display:flex;justify-content:center;gap:4px 16px;flex-wrap:wrap;margin:24px calc(-1 * var(--density-pad)) 0;padding:14px var(--density-pad);border-top:1px solid var(--line)}
+.hero-foot{display:flex;flex-direction:column;align-items:flex-end;gap:2px;align-self:flex-end;text-align:right;white-space:nowrap}
 .profile{position:absolute;top:16px;right:16px;margin:0;display:flex;flex-direction:column;align-items:center;gap:2px}
 .profile img{width:64px;height:64px;object-fit:contain}
 .profile figcaption{font-size:12px;font-weight:700;color:var(--text-sub);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -607,7 +625,10 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 /* 준비 중 화면 */
 .wip{max-width:700px}
 @media (max-width:767px){
-  .home-hero{padding-top:20px}
+  /* 좁은 폭: 글자 → 장면 → 안내 순서로 쌓는다 */
+  .home-hero{min-height:0;gap:12px}
+  .hero-scene{position:static;order:1;width:100%;height:auto;transform:none}
+  .hero-foot{order:2;white-space:normal}
   .profile{position:static;margin:0 auto 8px}
 }
 

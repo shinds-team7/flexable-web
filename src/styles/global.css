@@ -389,8 +389,6 @@ caption{text-align:left;font-size:13px;color:var(--text-muted);padding-bottom:8p
 .ev-detail h4{font-size:14px;margin:18px 0 6px}
 .ev-detail p,.ev-detail li{font-size:14px;color:var(--text-sub)}
 .ev-detail ul{margin:0;padding-left:18px}
-.ev-money{background:var(--sunken);border-radius:var(--radius-soft-sm);padding:12px 14px;margin-top:12px;font-size:14px}
-.ev-money b{font-size:17px}
 .fact{display:flex;gap:8px;align-items:flex-start;margin-top:6px}
 .fact .tag{flex:none;margin-top:1px}
 .locked-row{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px dashed var(--line);border-radius:var(--radius-soft-sm);padding:10px 12px;margin-top:8px;font-size:13px;color:var(--text-sub)}

@@ -1,10 +1,10 @@
 // 투자 인사이트의 사건 목록·상세(와이어프레임 "레일: 사건"을 옮김). 핀을 누르거나 목록에서 고르면 상세를 보여 준다.
-// "이때 내 돈"은 사건에 금액 필드(valueBefore 등)가 있을 때만 보인다. 투자 인사이트 사건(PriceEvent)에는 없다.
+// 금액 계산은 투자 시뮬레이션(/simulation)이 맡아 이 패널에는 "이때 내 돈" 같은 금액 칸이 없다(decisions/2026-10-26-invest-insight-redesign ②).
 // 수치는 모두 서버 값이고(03 C-9·C-10) 여기서는 문장으로만 바꾼다. "무슨 일"은 서버 문장(설명 전에는 수치로 만든 사실 문장)을 그대로 쓴다.
 import { useState } from 'react';
 import { useEventDetail, type SimEvent } from '@/data/market';
 import { errorText } from '@/lib/api';
-import { arrow, pctTxt, signWon, won } from '@/lib/format';
+import { arrow, pctTxt } from '@/lib/format';
 
 const dot = (iso: string) => iso.replaceAll('-', '.');
 /** 2025.04.07 – 04.11, 하루면 2025.04.07 */
@@ -13,9 +13,8 @@ export const eventPeriod = (e: Pick<SimEvent, 'startDate' | 'endDate'>) =>
 const updown = (x: number) => (x >= 0 ? 'up' : 'down');
 const moveTxt = (x: number) => `${arrow(x)} ${pctTxt(x)}`;
 
-type Money = 'valueBefore' | 'valueAfter' | 'contributionInWindow' | 'valueChange';
-/** 패널이 받는 사건. 금액 필드는 있을 때만 쓴다 */
-export type PanelEvent = Omit<SimEvent, Money | 'noticeKey'> & Partial<Pick<SimEvent, Money>>;
+/** 패널이 받는 사건(금액 필드 없음) */
+export type PanelEvent = Omit<SimEvent, 'valueBefore' | 'valueAfter' | 'contributionInWindow' | 'valueChange' | 'noticeKey'>;
 
 type Props = {
   /** 차트에 보이는 기간의 사건, 시작일 순 */
@@ -125,24 +124,6 @@ export function EventPanel({ events: all, names, selectedId, onSelect, focusIds,
           </>
         )}
       </p>
-      <div className="ev-money">
-        <span className="meta" style={{ display: 'block' }}>
-          이때 내 돈{sel.scope === 'MARKET' ? '(고른 종목 전체)' : ''}
-        </span>
-        {sel.valueBefore != null && sel.valueAfter != null && sel.valueChange != null ? (
-          <>
-            <span className="num">{won(sel.valueBefore)}원 → </span>
-            <b className="num">{won(sel.valueAfter)}원</b>
-            <span className={'num ' + updown(sel.valueChange)} style={{ fontWeight: 700 }}>
-              {' '}
-              ({signWon(sel.valueChange)})
-            </span>
-            {!!sel.contributionInWindow && <span className="meta" style={{ display: 'block' }}>그사이 넣은 {won(sel.contributionInWindow)}원은 빼고 셌어요</span>}
-          </>
-        ) : (
-          <span>이때는 아직 넣기 전이에요.</span>
-        )}
-      </div>
       <Detail ev={sel} />
       <div className="ev-nav">
         <button className="btn btn-line btn-sm" type="button" disabled={k <= 0} onClick={() => go(k - 1)}>

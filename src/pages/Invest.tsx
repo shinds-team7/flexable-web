@@ -575,9 +575,21 @@ function ChartCard({
   onPickMany: (ids: number[]) => void;
 }) {
   // 다른 종목·기간의 이전 값이 남아 있으면(placeholder) 이 종목 차트로 치지 않는다
-  const p = q.data && q.data.id === inst.id ? q.data : null;
+  const fresh = q.data && q.data.id === inst.id ? q.data : null;
   const pe = pinsQ.data;
-  const chart = useMemo(() => (p ? toChart(p, pe && pe.id === p.id && pe.period === p.period ? pe.items : []) : null), [p, pe]);
+  // 주가와 사건이 둘 다 온 뒤에 한 번만 그린다. 사건이 늦게 와서 다시 그리면 왼쪽부터 그리던 선이 끊기고 핀이 먼저 보였다.
+  // 사건 조회가 실패하면 핀 없이 그린다. 기간을 바꾸는 동안에는 직전에 그린 차트를 흐리게 둔다
+  const pinsSettled = !!fresh && ((pe != null && pe.id === fresh.id && pe.period === fresh.period) || pinsQ.isError);
+  const ready = useMemo(
+    () => (fresh && pinsSettled ? { p: fresh, chart: toChart(fresh, pe && pe.id === fresh.id && pe.period === fresh.period ? pe.items : []) } : null),
+    [fresh, pinsSettled, pe],
+  );
+  const lastReady = useRef(ready);
+  if (ready) lastReady.current = ready;
+  const shown = ready ?? lastReady.current;
+  const p = shown?.p ?? null;
+  const chart = shown?.chart ?? null;
+  const busy = q.isFetching || !ready;
   // 묶음 핀을 눌러 확대한 구간. 기간·종목이 바뀌면 푼다
   const [zoom, setZoom] = useState<{ from: number; to: number } | null>(null);
   useEffect(() => setZoom(null), [p]);
@@ -605,7 +617,7 @@ function ChartCard({
     </div>
   );
 
-  if (q.isError && !p) {
+  if (q.isError && !fresh && !p) {
     const e = q.error;
     const offline = e instanceof TypeError || (e instanceof ApiError && (e.status === 502 || e.status === 504));
     return (
@@ -641,7 +653,7 @@ function ChartCard({
 
   const N = chart.dates.length;
   return (
-    <div className={'ii-card' + (q.isFetching ? ' refetching' : '')} aria-busy={q.isFetching}>
+    <div className={'ii-card' + (busy ? ' refetching' : '')} aria-busy={busy}>
       {header}
       <TimeChart
         label={`${inst.name} ${PERIODS.find((x) => x.v === period)!.label} 일별 종가(원). 사건 핀은 화살표 키로 옮겨 다닐 수 있어요`}

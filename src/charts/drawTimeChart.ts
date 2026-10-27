@@ -83,7 +83,7 @@ export type TimeChartOptions = {
   /** total: 내 자산·넣은 돈, byStock: 종목별, price: 주가(원) 한 줄(세로축 = 종가) */
   mode: 'total' | 'byStock' | 'price';
   height?: number;
-  /** 선이 왼쪽부터 그려진다(RevealClip과 같은 .reveal-rect). 움직임 줄이기면 global.css가 애니메이션을 끈다 */
+  /** 선이 왼쪽부터 그려진다(RevealClip과 같은 .reveal-rect). 사건 핀은 선을 다 그린 뒤 나타난다(.pins-wait). 움직임 줄이기면 global.css가 애니메이션을 끈다 */
   reveal?: boolean;
   compact?: boolean;
   selectedId?: string | null;
@@ -270,7 +270,9 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   });
 
   // 사건 핀(HTML 버튼). 24px 안에 붙은 핀은 묶음, 8묶음이 넘으면 큰 움직임 순으로 8개만.
-  const layer = h('div', { cls: 'pins' });
+  // reveal이면 핀과 핀을 잇는 선을 선 그리기가 끝난 뒤에 보인다(그 전에는 숨겨서 누르거나 포커스할 수 없다)
+  const layer = h('div', { cls: 'pins' + (o.reveal ? ' pins-wait' : '') });
+  const stems = o.reveal ? svg('g', { class: 'pins-wait' }, s) : s;
   wrap.append(layer);
   const vis = EVENTS.filter((e) => e.idx >= from && e.idx <= to && e.idx > d.startIdx);
   const lineFor = (e: ChartEvent) => (byStock ? (d.legs[e.leg ?? 0]?.values ?? d.total) : d.total);
@@ -308,7 +310,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     b.style.left = x + 'px';
     b.style.top = y + 'px';
     b.append(h('span', { cls: 'dot', 'aria-hidden': 'true', text: cluster ? String(items.length) : kind === 'rise' ? '▲' : kind === 'fall' ? '▼' : 'i' }));
-    svg('line', { x1: x, x2: x, y1: yv, y2: y + (y > yv ? -9 : 9), style: 'stroke:var(--text-muted);stroke-width:1;pointer-events:none' }, s);
+    svg('line', { x1: x, x2: x, y1: yv, y2: y + (y > yv ? -9 : 9), style: 'stroke:var(--text-muted);stroke-width:1;pointer-events:none' }, stems);
     if (cluster) {
       b.setAttribute(
         'aria-label',

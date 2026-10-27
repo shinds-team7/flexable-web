@@ -7,6 +7,8 @@ export function placePinNote(wrap: HTMLElement, text = '핀에 마우스를 올�
   const note = document.createElement('div');
   note.className = 'handnote';
   note.textContent = text;
+  // 핀이 선 그리기 뒤에 나타나면(.pins-wait) 메모도 같이 늦춘다
+  if (pin.closest('.pins-wait')) note.classList.add('pins-wait');
   wrap.append(note);
   note.style.left = Math.max(0, parseFloat(pin.style.left) - note.offsetWidth - 14) + 'px';
   note.style.top = Math.max(0, parseFloat(pin.style.top) - note.offsetHeight - 6) + 'px';

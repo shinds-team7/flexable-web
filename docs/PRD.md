@@ -36,7 +36,7 @@
 
 제안 단계(팀 동의 전, 개발 기준 아님): 분산 투자 시안(`/diversify`, PR #60), 움직임 효과(PR #62), 강사 피드백(광고·출석 포인트·캐릭터, [HANDOFF](product/HANDOFF.md) 10-25).
 
-추가 스펙(구현 전): 기존 F1 `/invest`는 **투자 인사이트**로 메뉴 이름을 바꾼다. 화면은 [개편 결정](decisions/2026-10-26-invest-insight-redesign.md)에 따라 주가를 보는 화면으로 바꾸고, `POST /simulations/run` 계산·응답은 유지한다. 신규 `/simulation`은 업종별 무작위 종목, 과거 일봉 캔들 재생, 공시 시점의 방향 예상·가상 매매 선택을 제공한다. [분리 결정과 데이터 보충 계획](decisions/2026-10-26-investment-practice.md), [정책 §5](policies.md#5-사건-퀴즈-투자-시뮬레이션구현-전-계약), 계약의 `/practice/*`가 제안 기준이다. **아직 화면·API·OHLC·업종 수집은 구현되지 않았다.**
+추가 스펙: 기존 F1 `/invest`는 **투자 인사이트**로 메뉴 이름을 바꿨다(#88). 화면은 [개편 결정](decisions/2026-10-26-invest-insight-redesign.md)에 따라 주가를 보는 화면으로 바꾸고(구현 전), `POST /simulations/run` 계산·응답은 유지한다. 신규 `/simulation`(투자 시뮬레이션)은 업종별 무작위 종목, 과거 일봉 캔들 재생, 공시 시점의 방향 예상·가상 매매 선택을 제공하며 #88로 구현했다. [분리 결정](decisions/2026-10-26-investment-practice.md), [정책 §5](policies.md#5-사건-퀴즈-투자-시뮬레이션), 계약의 `/practice/*`가 기준이다. 예시 자료로 화면·API를 검증했고, 실제 키움 업종·OHLC·공시 자료의 운영 검증은 아직이다.
 
 ## 4. 개발 범위
 

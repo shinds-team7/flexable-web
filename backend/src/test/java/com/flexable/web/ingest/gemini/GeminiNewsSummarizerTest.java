@@ -66,6 +66,10 @@ class GeminiNewsSummarizerTest {
 		assertThat(GeminiNewsSummarizer.check("월 최대 20만 원을 24개월 지원해요.", src)).isNull();
 		assertThat(GeminiNewsSummarizer.check("최대 20만 원이에요.", "청년 지원 / 월 최대 20만원")).isNotNull();
 		assertThat(GeminiNewsSummarizer.check("월 최대 200,000원을 12개월 지원해요.", src)).isEqualTo("월 최대 200,000원을 12개월 지원해요.");
+		// 요약의 "12만"은 120000으로만 본다. 원문의 숫자를 서로 바꿔 끼운 요약은 버린다
+		String unitSrc = "청년 지원 / 월 최대 20만 원, 12개월 지원";
+		assertThat(GeminiNewsSummarizer.check("월 최대 12만 원을 20개월 지원해요.", unitSrc)).isNull();
+		assertThat(GeminiNewsSummarizer.check("월 최대 20만 원을 12개월 지원해요.", unitSrc)).isNotNull();
 		assertThat(GeminiNewsSummarizer.check("  월세를  지원해요.  ", src)).isEqualTo("월세를 지원해요.");
 		assertThat(GeminiNewsSummarizer.check("이 정책을 추천해요.", src)).isNull();
 		assertThat(GeminiNewsSummarizer.check("가".repeat(161), src)).isNull();

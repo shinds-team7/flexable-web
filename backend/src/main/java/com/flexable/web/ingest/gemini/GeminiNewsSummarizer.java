@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedSet;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -167,6 +168,8 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 	/**
 	 * 요약 검사. 통과하면 다듬은 요약, 아니면 null(카드에 요약 줄 없이 나간다).
 	 * 160자·3문장 이내, 금지어 없음, 요약에 나온 숫자가 모두 원문(정책명 포함)에 있어야 한다(금액을 지어내는 것을 막는다).
+	 * 원문 숫자는 맨 숫자와 환산값을 둘 다 받아 주고, 요약 숫자에 단위가 붙으면 환산값으로만 맞춘다
+	 * (요약의 "12만"이 원문의 "12개월"에 걸리지 않게).
 	 */
 	static String check(String summary, String source) {
 		if (summary == null) {
@@ -178,8 +181,8 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 		}
 		Set<String> known = new LinkedHashSet<>();
 		numbers(source == null ? "" : source).forEach(known::addAll);
-		for (Set<String> n : numbers(s)) {
-			if (n.stream().noneMatch(known::contains)) {
+		for (SequencedSet<String> n : numbers(s)) {
+			if (!known.contains(n.getLast())) {
 				return null;
 			}
 		}
@@ -197,10 +200,10 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 
 	/**
 	 * 글 속 숫자마다 그 숫자로 볼 수 있는 값들. 단위(억·만·천)가 붙으면 곱한 값도 넣어 같은 금액끼리 맞춰 본다
-	 * ("20만" → {20, 200000}, "200,000" → {200000}). 끝의 마침표는 문장 끝이라 뗀다.
+	 * ("20만" → {20, 200000}, "200,000" → {200000}). 마지막 값이 환산값(단위가 없으면 맨 숫자)이다. 끝의 마침표는 문장 끝이라 뗀다.
 	 */
-	static List<Set<String>> numbers(String s) {
-		List<Set<String>> out = new ArrayList<>();
+	static List<SequencedSet<String>> numbers(String s) {
+		List<SequencedSet<String>> out = new ArrayList<>();
 		Matcher m = NUMBER.matcher(s);
 		while (m.find()) {
 			String n = m.group().replace(",", "");
@@ -211,7 +214,7 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 				continue;
 			}
 			BigDecimal v = new BigDecimal(n);
-			Set<String> values = new LinkedHashSet<>();
+			SequencedSet<String> values = new LinkedHashSet<>();
 			values.add(v.stripTrailingZeros().toPlainString());
 			String rest = s.substring(m.end()).stripLeading();
 			BigDecimal unit = rest.startsWith("억") ? BigDecimal.valueOf(100_000_000L)

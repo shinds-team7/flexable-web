@@ -163,8 +163,9 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
       });
       s.insertBefore(area, plot === s ? null : plot);
     }
-    svg('path', { d: path(d.total), style: 'fill:none;stroke:var(--text);stroke-width:2;stroke-linejoin:round;stroke-linecap:round' }, plot);
-    svg('circle', { cx: X(to), cy: Y(d.total[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' }, plot);
+    // 선·끝점은 아래 면과 같은 브랜드 색(차트 계열 1번)
+    svg('path', { d: path(d.total), style: 'fill:none;stroke:var(--brand);stroke-width:2;stroke-linejoin:round;stroke-linecap:round' }, plot);
+    svg('circle', { cx: X(to), cy: Y(d.total[to]), r: 4.5, style: 'fill:var(--brand);stroke:var(--card);stroke-width:2' }, plot);
   } else if (!byStock) {
     const pr = d.invested;
     const tot = d.total;
@@ -213,7 +214,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
 
   // 크로스헤어·툴팁
   const cross = svg('line', { y1: m.t, y2: H - m.b, style: 'stroke:var(--text-muted);stroke-width:1', visibility: 'hidden' }, s);
-  const dot = svg('circle', { r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2', visibility: 'hidden' }, s);
+  const dot = svg('circle', { r: 4.5, style: `fill:var(${price ? '--brand' : '--text'});stroke:var(--card);stroke-width:2`, visibility: 'hidden' }, s);
   // 종목별 보기: 마우스 위치의 종목마다 표식
   const legDots = byStock ? d.legs.map(() => svg('g', { visibility: 'hidden', style: 'pointer-events:none' }, s)) : [];
   const hit = svg('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, style: 'fill:transparent' }, s);

@@ -99,7 +99,7 @@ function toChart(p: PriceSeries, events: PriceEvent[]): ChartData {
     tipTitle: '일별 종가(수정주가)',
     total: closes,
     invested: [],
-    legs: [{ name: p.name, color: 'var(--text)', values: closes, invested: [] }],
+    legs: [{ name: p.name, color: 'var(--brand)', values: closes, invested: [] }],
     startIdx: 0,
     events: events.flatMap((e) => {
       const idx = p.points.findIndex((pt) => pt.date >= e.startDate);

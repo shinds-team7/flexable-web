@@ -18,6 +18,10 @@ import { fmtMonthDay, upDown, won } from '@/lib/format';
 /** 서버 SeedMoneyDtos.MAX_MANUAL_TOTAL과 같다(10억 원) */
 const MAX_MANUAL = 1_000_000_000;
 
+/** 히어로 배경 장면(H.264·소리 없음). 움직임 줄이기를 켠 사용자에게는 첫 프레임만 보여 준다 */
+const SCENE_VIDEO = '/videos/cat-mine.mp4';
+const SCENE_POSTER = '/videos/cat-mine.jpg';
+
 const RANGES = [
   { r: 6, label: '6개월' },
   { r: 12, label: '1년' },
@@ -35,6 +39,7 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [toast, setToast] = useState('');
   const amount = manual ?? seed.confirmed;
+  const [still] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
 
   useEffect(() => {
     if (!toast) return;
@@ -51,6 +56,9 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
     setError('');
     setDraft(raw === '' ? '' : String(Number(raw)));
   };
+
+  const draftText = draft === '' ? '' : won(Number(draft));
+  const cancel = () => (setEditing(false), setError(''));
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -92,65 +100,73 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
 
   return (
     <div className="card card-hero home-hero">
-      <p className="hero-label">
-        내 시드머니 {seed.isSample && <span className="tag-ex">예시</span>}
-        {manual != null && <span className="tag">직접 입력</span>}
-      </p>
-      <p className="hero-num num">
-        <RollingNumber value={amount} />
-        <small>원</small>
-      </p>
-      {seed.current != null && (
-        <p className="sub">
-          이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
-        </p>
-      )}
-      {editing ? (
-        <form className="seed-edit" onSubmit={save} noValidate>
-          <div className="field">
-            <label htmlFor="seedAmount">시드머니</label>
-            <div className="input-affix">
-              <input
-                id="seedAmount"
-                className="input num"
-                inputMode="numeric"
-                autoComplete="off"
-                value={draft === '' ? '' : won(Number(draft))}
-                onChange={(e) => change(e.target.value)}
-                aria-invalid={!!error}
-                aria-describedby="seedAmountHelp"
-                autoFocus
-              />
-              <span className="unit">원</span>
-            </div>
-            <p id="seedAmountHelp" className={error ? 'form-error' : 'meta'}>
-              {error || '앱 기록 대신 이 금액을 상단 칩·투자 시뮬레이션에서도 써요.'}
-            </p>
-          </div>
-          <div className="seed-edit-acts">
-            <button type="button" className="btn btn-line btn-sm" onClick={() => (setEditing(false), setError(''))}>
-              취소
-            </button>
-            <button className="btn btn-primary btn-sm" disabled={busy}>
-              {busy ? '저장 중…' : '저장'}
-            </button>
-          </div>
-        </form>
+      {still ? (
+        <img className="hero-scene" src={SCENE_POSTER} alt="" />
       ) : (
-        <div className="hero-acts">
-          <Link className="btn btn-primary btn-sm" to="/invest">
-            투자 시뮬레이션 해 보기
-          </Link>
-          <button type="button" className="btn btn-line btn-sm" onClick={() => setEditing(true)}>
-            수정하기
-          </button>
-          {manual != null && (
+        <video className="hero-scene" src={SCENE_VIDEO} poster={SCENE_POSTER} autoPlay muted loop playsInline preload="auto" aria-hidden="true" />
+      )}
+      <div className="hero-copy">
+        <div className="hero-label">
+          내 시드머니
+          {manual != null && <span className="tag">직접 입력</span>}
+          {!editing && (
+            <button type="button" className="hero-edit" onClick={() => (setDraft(String(amount)), setEditing(true))}>
+              수정하기
+            </button>
+          )}
+          {!editing && manual != null && (
             <button type="button" className="btn btn-text" onClick={() => setConfirmReset(true)}>
               기록 기준으로 되돌리기
             </button>
           )}
         </div>
-      )}
+        {editing ? (
+          // 숫자 자리에 그대로 입력 창을 띄운다(따로 폼을 펼치지 않음)
+          <form className="seed-inline" onSubmit={save} noValidate>
+            <div className="seed-inline-acts">
+              <button type="button" className="btn btn-line btn-sm" onClick={cancel}>
+                취소
+              </button>
+              <button className="btn btn-primary btn-sm" disabled={busy}>
+                {busy ? '저장 중…' : '저장'}
+              </button>
+            </div>
+            <span className="seed-inline-box num">
+              <span className="seed-inline-field" data-value={draftText}>
+                <input
+                  className="seed-inline-input"
+                  size={1}
+                  aria-label="시드머니"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  value={draftText}
+                  onChange={(e) => change(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Escape' && cancel()}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'seedAmountError' : undefined}
+                  autoFocus
+                />
+              </span>
+              <small>원</small>
+            </span>
+            {error && (
+              <p id="seedAmountError" className="form-error" role="alert">
+                {error}
+              </p>
+            )}
+          </form>
+        ) : (
+          <p className="hero-num num">
+            <RollingNumber value={amount} />
+            <small>원</small>
+          </p>
+        )}
+        {seed.current != null && (
+          <p className="sub">
+            이번 주기 남기는 중 <b className="num">{won(seed.current)}원</b> · 확정 전
+          </p>
+        )}
+      </div>
       <div className="hero-foot">
         {seed.todaySaved != null && <span className="meta">오늘 아낀 돈 {won(seed.todaySaved)}원</span>}
         {seed.asOf ? (

@@ -1,5 +1,5 @@
 // 투자 인사이트(/invest). 시장 띠·종목의 지난 주가·사건 핀·시가총액·업종별 순위를 본다(decisions/2026-10-26-invest-insight-redesign).
-// 위는 흐르는 시장 띠(국내외 지수·금·환율 중 수집된 칸), 왼쪽(#tmConditions)은 시가총액 순위(종목 고르기), 오른쪽은 주가 차트, 아래는 업종별 순위.
+// 위는 흐르는 시장 띠(국내외 지수·금·환율 중 수집된 칸), 왼쪽(#tmConditions)은 종목 순위([시가총액 | 업종별] 탭, 종목 고르기), 오른쪽은 주가 차트.
 // 차트의 세로축은 주가(원)다. 금액을 넣어 보는 계산은 투자 시뮬레이션(/simulation)이 맡고 이 화면에는 없다. 종가·사건·순위는 모두 서버 값이다(ADR-3).
 // 종목을 하나 고르면 큰 차트, 둘 이상(최대 3개)이면 종목마다 축이 따로 있는 작은 차트를 나란히 둔다. 핀을 누르면 공통 상세 패널 하나가 열린다.
 // 첫 방문(F5)이면 안내 모달 1장([차트 보기])과 투자 성향 선택(아직 안 골랐을 때)을 먼저 띄우고, 닫은 뒤 시가총액 1위·3개월 차트를 그린다.
@@ -34,6 +34,8 @@ import { ApiError, errorText } from '@/lib/api';
 import { fmtDate, krShort, won } from '@/lib/format';
 
 const MAX_PICKS = 3;
+/** 시가총액 순위는 먼저 이만큼만 보이고 [더 보기]로 나머지를 연다(긴 목록 스크롤 줄이기) */
+const FIRST_ROWS = 20;
 const BOARDS: { v: Board; label: string }[] = [
   { v: 'KOSPI', label: '코스피' },
   { v: 'KOSDAQ', label: '코스닥' },
@@ -56,7 +58,7 @@ const TOUR: CoachStep[] = [
   {
     target: () => document.querySelector<HTMLElement>('.tm-stocks'),
     title: '종목은 여기서 골라요',
-    body: '시가총액 순위예요. 최대 3개까지 고르면 종목마다 차트가 하나씩 생겨요.',
+    body: '시가총액 순위와 업종별 순위를 탭으로 바꿔 봐요. 최대 3개까지 고르면 종목마다 차트가 하나씩 생겨요.',
   },
   {
     target: () => document.querySelector<HTMLElement>('.ii-chart-head') ?? document.querySelector<HTMLElement>('.ii-charts'),
@@ -139,7 +141,7 @@ export default function Invest() {
   const [pinHint, setPinHint] = useState(false);
   const [tourOn, setTourOn] = useState(false);
   const [sp, setSp] = useSearchParams();
-  const chartsRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<'cap' | 'industry'>('cap');
 
   // 훅 수를 고정하려고 최대 3칸을 늘 부른다(빈 칸은 부르지 않음)
   const ids = [0, 1, 2].map((k) => picked[k]?.id ?? null);
@@ -174,10 +176,10 @@ export default function Invest() {
     setSp({}, { replace: true });
   }, [sp, setSp, firstReady]);
 
-  const focusList = () => requestAnimationFrame(() => searchRef.current?.focus());
-  const pickFromIndustry = (i: Instrument) => {
-    toggle(i);
-    requestAnimationFrame(() => chartsRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+  // [+ 종목 추가]: 시가총액 탭의 검색칸으로. 업종별 탭이었으면 탭을 바꾼 뒤 그려지고 나서 옮긴다
+  const focusList = () => {
+    setView('cap');
+    requestAnimationFrame(() => requestAnimationFrame(() => searchRef.current?.focus()));
   };
 
   return (
@@ -201,11 +203,11 @@ export default function Invest() {
 
         <Reveal order={1} className="ii-sec">
           <div className="sim no-rail">
-            <aside className="col" id="tmConditions" aria-label="시가총액 순위">
-              <StockList board={board} setBoard={setBoard} listing={listing} picked={picked} onToggle={toggle} searchRef={searchRef} />
+            <aside className="col" id="tmConditions" aria-label="종목 순위">
+              <StockList view={view} setView={setView} board={board} setBoard={setBoard} listing={listing} picked={picked} onToggle={toggle} searchRef={searchRef} />
             </aside>
 
-            <div className="col" ref={chartsRef}>
+            <div className="col">
               <Charts
                 picked={picked}
                 period={period}
@@ -220,10 +222,6 @@ export default function Invest() {
             </div>
           </div>
         </Reveal>
-
-        <Reveal order={2} as="section" className="ii-sec">
-          <IndustryRanking picked={picked} onPick={pickFromIndustry} />
-        </Reveal>
       </div>
       {firstVisit.state === 'show' && <IntroDialog onStart={startFirst} />}
       {tourOn && <CoachTour steps={TOUR} onClose={() => setTourOn(false)} />}
@@ -232,6 +230,8 @@ export default function Invest() {
 }
 
 function StockList({
+  view,
+  setView,
   board,
   setBoard,
   listing,
@@ -239,6 +239,8 @@ function StockList({
   onToggle,
   searchRef,
 }: {
+  view: 'cap' | 'industry';
+  setView: (v: 'cap' | 'industry') => void;
   board: Board;
   setBoard: (b: Board) => void;
   listing: ReturnType<typeof useBoard>;
@@ -251,11 +253,17 @@ function StockList({
   const term = q.trim().toLowerCase();
   const shown = term ? items.filter((i) => i.name.toLowerCase().includes(term) || i.id.toLowerCase().includes(term)) : items;
   const full = picked.length >= MAX_PICKS;
-  // 시장이나 검색어가 바뀌면 목록을 맨 위(1위)부터 다시 보여 준다
+  const [more, setMore] = useState(false);
+  const [indBoard, setIndBoard] = useState<'KOSPI' | 'KOSDAQ'>('KOSPI');
+  const industries = useIndustries(indBoard, view === 'industry');
+  // 찾는 중이면 맞는 종목을 모두, 아니면 먼저 FIRST_ROWS위까지
+  const visible = term || more ? shown : shown.slice(0, FIRST_ROWS);
+  // 시장이나 검색어가 바뀌면 목록을 맨 위(1위)부터 다시 보여 주고 접는다
   const listRef = useRef<HTMLOListElement>(null);
   useEffect(() => {
     listRef.current?.scrollTo({ top: 0 });
-  }, [board, term]);
+  }, [board, term, view]);
+  useEffect(() => setMore(false), [board]);
 
   const clear = () => {
     setQ('');
@@ -266,11 +274,27 @@ function StockList({
     <form className="card cond-full tm-stocks" aria-label="종목 고르기" onSubmit={(e) => e.preventDefault()}>
       <div className="tm-stocks-head">
         <div>
-          <h2 className="tm-stocks-title">시가총액 순위</h2>
-          <p className="meta">
-            상위 {items.length || 100}개 · 눌러서 차트에 최대 {MAX_PICKS}개
-          </p>
+          <h2 className="tm-stocks-title">종목 순위</h2>
+          <p className="meta">눌러서 차트에 최대 {MAX_PICKS}개</p>
         </div>
+        <div className="seg fill ii-view" role="group" aria-label="순위 보기">
+          <button type="button" aria-pressed={view === 'cap'} onClick={() => setView('cap')}>
+            시가총액
+          </button>
+          <button type="button" aria-pressed={view === 'industry'} onClick={() => setView('industry')}>
+            업종별
+          </button>
+        </div>
+        {view === 'industry' ? (
+          <div className="seg fill" role="group" aria-label="업종 시장">
+            {(['KOSPI', 'KOSDAQ'] as const).map((b) => (
+              <button key={b} type="button" aria-pressed={indBoard === b} onClick={() => setIndBoard(b)}>
+                {b === 'KOSPI' ? '코스피' : '코스닥'}
+              </button>
+            ))}
+          </div>
+        ) : (
+        <>
         <div className="seg fill" role="group" aria-label="시장">
           {BOARDS.map((b) => (
             <button key={b.v} type="button" aria-pressed={board === b.v} onClick={() => setBoard(b.v)}>
@@ -309,9 +333,15 @@ function StockList({
             </>
           )}
         </p>
+        </>
+        )}
         {full && <p className="tm-note">3개를 모두 골랐어요. 바꾸려면 하나를 빼 주세요.</p>}
       </div>
 
+      {view === 'industry' ? (
+        <IndustryGroups q={industries} board={indBoard} picked={picked} onToggle={onToggle} />
+      ) : (
+      <>
       <div className="tm-stocks-body">
         {listing.isPending && (
           <ul className="tm-list" aria-hidden="true">
@@ -340,7 +370,7 @@ function StockList({
         )}
         {shown.length > 0 && (
           <ol ref={listRef} className="tm-list ii-rank" aria-label={`${BOARDS.find((b) => b.v === board)!.label} 시가총액 순`}>
-            {shown.map((i) => {
+            {visible.map((i) => {
               const on = picked.some((p) => p.id === i.id);
               return (
                 <li key={i.id}>
@@ -363,6 +393,13 @@ function StockList({
                 </li>
               );
             })}
+            {!term && shown.length > FIRST_ROWS && (
+              <li className="ii-more">
+                <button type="button" className="btn btn-line btn-sm" aria-expanded={more} onClick={() => setMore(!more)}>
+                  {more ? `${FIRST_ROWS}위까지만 보기` : `${FIRST_ROWS + 1}~${shown.length}위 더 보기`}
+                </button>
+              </li>
+            )}
           </ol>
         )}
       </div>
@@ -372,6 +409,8 @@ function StockList({
           {listing.data.source} · {listing.data.dataAsOf && `${listing.data.dataAsOf.replaceAll('-', '.')} 기준 `}시가총액{listing.data.note ? '(상장주식수 × 종가 어림값)' : ''} 순
           {listing.data.note && <span className="tm-block">{listing.data.note}</span>}
         </p>
+      )}
+      </>
       )}
     </form>
   );
@@ -700,80 +739,86 @@ function MonthEndTable({ series }: { series: PriceSeries[] }) {
   );
 }
 
-/** 업종별 순위: 키움 업종명(upName) 단위로 시가총액 상위 종목. 테마 자동 분류가 아니다(결정 ⑦). */
-function IndustryRanking({ picked, onPick }: { picked: Instrument[]; onPick: (i: Instrument) => void }) {
-  const [board, setBoard] = useState<'KOSPI' | 'KOSDAQ'>('KOSPI');
-  const q = useIndustries(board);
+/** 업종별 순위(왼쪽 패널 탭): 키움 업종명(upName) 단위로 시가총액 상위 종목. 테마 자동 분류가 아니다(결정 ⑦). 첫 업종만 펼쳐 둔다. */
+function IndustryGroups({
+  q,
+  board,
+  picked,
+  onToggle,
+}: {
+  q: ReturnType<typeof useIndustries>;
+  board: 'KOSPI' | 'KOSDAQ';
+  picked: Instrument[];
+  onToggle: (i: Instrument) => void;
+}) {
   const full = picked.length >= MAX_PICKS;
   const d = q.data;
-
   return (
-    <div className="card ii-ind">
-      <div className="toolbar">
-        <div>
-          <h2 className="ii-h2">업종별 시가총액 순위</h2>
-          <p className="meta">업종 안 시가총액 합이 큰 업종부터, 업종마다 상위 5개예요. 누르면 위 차트에 넣어요.</p>
-        </div>
-        <span className="spacer" />
-        <div className="seg" role="group" aria-label="업종 시장">
-          {(['KOSPI', 'KOSDAQ'] as const).map((b) => (
-            <button key={b} type="button" aria-pressed={board === b} onClick={() => setBoard(b)}>
-              {b === 'KOSPI' ? '코스피' : '코스닥'}
+    <>
+      <div className="tm-stocks-body ii-groups-body">
+        {q.isPending && (
+          <ul className="tm-list" aria-hidden="true">
+            {Array.from({ length: 6 }, (_, k) => (
+              <li key={k} className="skel tm-skel-row" />
+            ))}
+          </ul>
+        )}
+        {q.isError && (
+          <div className="tm-list-state">
+            <p className="meta">{errorText(q.error)}</p>
+            <button type="button" className="btn btn-line btn-sm" onClick={() => q.refetch()}>
+              다시 시도
             </button>
-          ))}
-        </div>
+          </div>
+        )}
+        {d && d.items.length === 0 && <p className="tm-list-state meta">아직 업종을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
+        {d && d.items.length > 0 && (
+          <ol className="ii-groups" aria-label={`${board === 'KOSPI' ? '코스피' : '코스닥'} 업종, 시가총액 합 순`}>
+            {d.items.map((g, k) => (
+              <li key={g.categoryCode}>
+                <details className="ii-group" open={k === 0}>
+                  <summary>
+                    <span className="nm">{g.categoryName}</span>
+                    <span className="meta num">
+                      {g.totalMarketCap != null && `합 ${capText(g.totalMarketCap)} · `}
+                      {g.instruments.length}개
+                    </span>
+                  </summary>
+                  <ol className="ii-ind-list" aria-label={`${g.categoryName} 시가총액 순`}>
+                    {g.instruments.map((i) => {
+                      const on = picked.some((p) => p.id === i.id);
+                      return (
+                        <li key={i.id}>
+                          <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onToggle(asInstrument(board, i))} title={on ? '차트에서 빼기' : '차트에 넣기'}>
+                            <Avatar name={i.name} />
+                            <span className="nm">{i.name}</span>
+                            {on ? (
+                              <span className="cap on">
+                                <Icon id="i-check" size={14} />
+                                차트
+                              </span>
+                            ) : (
+                              <span className="meta num">{i.rank}위</span>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </details>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
-
-      {q.isPending && (
-        <div className="ii-ind-grid" aria-hidden="true">
-          {[0, 1, 2].map((k) => (
-            <div key={k} className="skel ii-ind-skel" />
-          ))}
-        </div>
-      )}
-      {q.isError && (
-        <div className="tm-list-state">
-          <p className="meta">{errorText(q.error)}</p>
-          <button type="button" className="btn btn-line btn-sm" onClick={() => q.refetch()}>
-            다시 시도
-          </button>
-        </div>
-      )}
-      {d && d.items.length === 0 && <p className="tm-list-state meta">아직 업종을 모으지 않았어요. 시세 수집(worker)이 한 번 돌면 보여요.</p>}
       {d && d.items.length > 0 && (
-        <ol className="ii-ind-grid">
-          {d.items.map((g) => (
-            <li key={g.categoryCode} className="ii-ind-card">
-              <div className="ii-ind-head">
-                <h3>{g.categoryName}</h3>
-                {g.totalMarketCap != null && <span className="meta num">합 {capText(g.totalMarketCap)}</span>}
-              </div>
-              <ol className="ii-ind-list" aria-label={`${g.categoryName} 시가총액 순`}>
-                {g.instruments.map((i) => {
-                  const on = picked.some((p) => p.id === i.id);
-                  return (
-                    <li key={i.id}>
-                      <button type="button" aria-pressed={on} disabled={!on && full} onClick={() => onPick(asInstrument(board, i))} title={on ? '차트에서 빼기' : '차트에 넣기'}>
-                        <Avatar name={i.name} />
-                        <span className="nm">{i.name}</span>
-                        <span className="meta num">{i.rank}위</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </li>
-          ))}
-        </ol>
-      )}
-      {d && d.items.length > 0 && (
-        <p className="meta ii-ind-foot">
+        <p className="meta tm-stocks-foot">
           {d.isSample && <span className="tag-ex">예시</span>} 업종: {d.sources.map((s) => `${s.name}(${s.note})`).join(' · ')}
-          {d.classificationAsOf && ` · ${d.classificationAsOf.replaceAll('-', '.')} 기준`} · 순위는 시장 전체 시가총액 순위
+          {d.classificationAsOf && ` · ${d.classificationAsOf.replaceAll('-', '.')} 기준`}. 업종마다 상위 5개, 순위는 시장 전체 시가총액 순위예요.
           {d.note && <span className="tm-block">{d.note}</span>}
         </p>
       )}
-    </div>
+    </>
   );
 }
 

@@ -100,6 +100,11 @@ export const usePriceEvents = (id: string | null, period: PricePeriod) =>
 /** 상단 시장 띠. 수집된 칸만 온다 */
 export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: () => api<IndexStrip>('/market/indices'), staleTime: 10 * 60_000 });
 
-/** 업종별 시가총액 상위 종목(키움 upName). 업종마다 5개 */
-export const useIndustries = (board: 'KOSPI' | 'KOSDAQ') =>
-  useQuery({ queryKey: ['market', 'industries', board], queryFn: () => api<IndustryListing>(`/market/industries?board=${board}&limit=5`), staleTime: 30 * 60_000 });
+/** 업종별 시가총액 상위 종목(키움 upName). 업종마다 5개. enabled가 false면(업종별 탭을 열기 전) 부르지 않는다 */
+export const useIndustries = (board: 'KOSPI' | 'KOSDAQ', enabled = true) =>
+  useQuery({
+    queryKey: ['market', 'industries', board],
+    queryFn: () => api<IndustryListing>(`/market/industries?board=${board}&limit=5`),
+    enabled,
+    staleTime: 30 * 60_000,
+  });

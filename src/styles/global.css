@@ -1094,19 +1094,25 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .ii-last{color:var(--text);font-size:15px}
 .ii-card-x{flex:none}
 
-/* 업종별 순위 */
-.ii-h2{font-size:18px;line-height:26px}
-.ii-ind > .toolbar{margin-bottom:16px;align-items:flex-start}
-.ii-ind-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-.ii-ind-card{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px;min-width:0}
-.ii-ind-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
-.ii-ind-head h3{font-size:15px;line-height:22px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 종목 순위 패널: [시가총액 | 업종별] 탭. 시가총액은 먼저 20위까지, 업종은 접고 펴는 묶음 */
+.tm-list .ii-more{display:flex;justify-content:center;padding:8px 0 4px}
+.tm-list .ii-more button{width:auto;display:inline-flex}
+.ii-groups-body{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--color-border-strong) transparent;overscroll-behavior:contain}
+.ii-groups{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ii-group{border:1px solid var(--line);border-radius:var(--radius-soft-sm)}
+.ii-group > summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer;list-style:none;border-radius:var(--radius-soft-sm)}
+.ii-group > summary::-webkit-details-marker{display:none}
+.ii-group > summary::after{content:"▸";color:var(--text-muted);font-size:12px;transition:transform 140ms var(--ease)}
+.ii-group[open] > summary::after{transform:rotate(90deg)}
+.ii-group > summary:hover{background:var(--sunken)}
+.ii-group > summary .nm{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ii-group > summary .meta{font-size:12px;margin:0;white-space:nowrap}
+.ii-group .ii-ind-list{padding:0 4px 6px}
 .ii-ind-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .ii-ind-list button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:6px 8px;border:1px solid transparent;border-radius:var(--radius-soft-sm);background:none;text-align:left;color:var(--text);font-size:14px;line-height:20px;transition:background-color 140ms var(--ease)}
 .ii-ind-list button:hover:not(:disabled){background:var(--sunken)}
 .ii-ind-list button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand)}
 .ii-ind-list button:disabled{opacity:.45;cursor:not-allowed}
 .ii-ind-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ii-ind-skel{height:220px;border-radius:var(--radius-soft-sm)}
-.ii-ind-foot{margin-top:16px}
+.ii-ind-list .cap.on{display:inline-flex;align-items:center;gap:4px;color:var(--brand-text);font-weight:700;font-size:12px}
 @media (max-width:767px){.ii-strip-cell{padding:6px 14px}.ii-multiples{grid-template-columns:1fr}}

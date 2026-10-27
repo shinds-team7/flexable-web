@@ -118,9 +118,9 @@
 
 검사: `GoalApiTest`, 정본 [goal-ai.md](product/goal-ai.md).
 
-## 5. 사건 퀴즈 투자 시뮬레이션(구현 전 계약)
+## 5. 사건 퀴즈 투자 시뮬레이션
 
-기존 §2는 투자 인사이트의 계산으로 그대로 유지한다. 아래 규칙은 신규 `/simulation` 전용이며 아직 구현되지 않았다. 결정·데이터 준비·세션 수명은 [결정 기록](decisions/2026-10-26-investment-practice.md)을 따른다. 테스트 입력 정본은 `tests/policy/practice.json`이고, 이를 실행하는 `PracticePolicyTest`는 구현 PR의 완료 조건이다.
+기존 §2는 투자 인사이트의 계산으로 그대로 유지한다. 아래 규칙은 신규 `/simulation` 전용이며 #88로 구현됐다. 결정·데이터 준비·세션 수명은 [결정 기록](decisions/2026-10-26-investment-practice.md)을 따른다. 테스트 입력 정본은 `tests/policy/practice.json`이고, 이를 실행하는 것은 `PracticePolicyTest`다.
 
 - 투자금: 10,000~100,000,000원 정수. 추가 입금·차입·공매도 없음. 배당·수수료·세금 제외. 수량은 정수 주다.
 - 최초 매수: 첫 봉 시가에서 `floor(floor(투자금 × 50 / 100) / 시가)`주. 현금은 투자금에서 실제 매수 대금을 뺀 값이다. 0주도 허용한다.

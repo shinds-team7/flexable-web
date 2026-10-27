@@ -22,7 +22,7 @@ tags:
   - name: market
   - name: simulation
   - name: practice
-    description: '구현 전 계약. 사건 퀴즈 투자 시뮬레이션. 기존 simulation과 별도이며 policies §5 적용'
+    description: '사건 퀴즈 투자 시뮬레이션(#88 구현). 기존 simulation과 별도이며 policies §5 적용'
   - name: youth-news
   - name: health
 

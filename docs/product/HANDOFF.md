@@ -185,12 +185,20 @@ solpa에 새로 들어가는 것(#50 이후 `backend/src/main`·`deploy/`·방�
 - [ ] **방향 정하기**: 설명을 바탕으로 무엇을 유지하고 무엇을 바꿀지 정해 [decisions](decisions.md)에 남긴다. 그 전까지 `/goal` 화면·API·방침 문구는 고치지 않는다
 - [ ] 바꾸는 범위가 정해지면 goal-ai.md 계약부터 고치고, 개인정보 처리(저장 항목·OpenAI 전송)가 바뀌면 같은 PR에서 방침 제2·4·6조와 privacy-web을 고친다
 
-## 2026-10-26(월) 할 일: 홈 히어로 카드 배경 영상
+## 2026-10-26(월) 할 일: 홈 히어로 카드 배경 영상 — 10-27 #96으로 완료
 
-홈 시드머니 카드(`.home-hero`, [Home.tsx](../../src/pages/Home.tsx) `SeedHero`)를 고양이 채굴 영상으로 **가득 채우고 반복 재생**, 숫자·버튼 같은 글자는 영상의 빈 곳으로 옮긴다(사용자 결정). 10-23에는 영상 변환까지만 했고 화면 코드는 아직 손대지 않았다.
+홈 시드머니 카드(`.home-hero`, [Home.tsx](../../src/pages/Home.tsx) `SeedHero`)를 고양이 채굴 영상으로 **가득 채우고 반복 재생**, 숫자·버튼 같은 글자는 영상 위 레이어에 둔다(사용자 결정). 10-27 [#96](https://github.com/shinds-team7/flexable-web/pull/96)(Issue #95)으로 main에 병합했다.
 
 끝난 것(10-23):
 - [x] 원본(`cat-mine.mp4`, 1280×720·2초·HEVC·소리 있음·790KB)을 H.264·소리 없음·faststart로 다시 만들어 `public/videos/cat-mine.mp4`(199KB)에 두고, 첫 프레임 poster `public/videos/cat-mine.jpg`를 뽑았다. HEVC는 Firefox·일부 Windows Chrome에서 재생되지 않아 바꿨다
+
+끝난 것(10-26~27, #96):
+- [x] 배치: 카드를 영상 배경색 토큰 `--color-hero-scene`(#E8F0FB)으로 칠하고 영상(`.hero-scene`)은 카드 높이에 맞춰(최대 280px) 가운데보다 오른쪽(`left: calc(44% + 130px)`, `top: calc(50% - 20px)`)에 둔다. 왼쪽 위에 「내 시드머니」·[수정하기](연한 회색 밑줄 글자)·숫자, 오른쪽 아래에 안내 문구 한 줄(고양이와 겹쳐도 됨). 투자 시뮬레이션 버튼과 카드의 「예시」 태그는 뺐다(사용자 결정, PR "새로 내린 결정"에 기록. 체험 배너·상단 칩의 「예시」는 남음). `.profile` 캐릭터는 쓰지 않는다
+- [x] 시드머니 수정: 숫자 자리에 입력 창(28px)을 띄우고 취소·저장은 창 오른쪽 위, Enter 저장·Esc 취소. 「앱 기록 대신 이 금액을…」 안내 줄은 지우고 오류 문구만 남겼다
+- [x] 다크 모드: `.hero-copy`·`.hero-foot` 안에서 글자·면·선 변수를 `--color-hero-*` 라이트 값으로 다시 정의
+- [x] 영상 오른쪽 배경(230,238,252)이 카드(232,240,251)보다 살짝 진해 생기던 세로선을 가장자리 10% 마스크로 녹였다
+- [x] 움직임 줄이기면 영상 대신 poster 이미지, 767px 이하는 글자 → 장면 → 안내 순으로 쌓기
+- [x] 확인: 모의 API로 데스크톱 라이트·다크·390px 폭·수정 창, `npm run typecheck`·`npm run build`, CI 통과
 
 알아 둔 것:
 - 영상 배경은 거의 단색 연하늘 `#E8F0FB`(가장자리 4곳 실측 `232,240,251`). 카드는 라이트 `#FFF`·다크 `#141922`라 다르다
@@ -199,14 +207,9 @@ solpa에 새로 들어가는 것(#50 이후 `backend/src/main`·`deploy/`·방�
 - 첫·마지막 프레임 차이가 있어(PSNR 28dB) 2초마다 살짝 튀어 보일 수 있다
 
 남은 것:
-- [ ] **배치 정하기(먼저)**: 다음 중 하나. ① 카드 배경을 영상 배경색으로 칠하고 영상은 `object-fit:contain; object-position:right`로 오른쪽에 붙이고 글자는 왼쪽 정렬(경계가 안 보여 카드 전체가 영상처럼 보임, 높이 거의 그대로) ② 카드에 `aspect-ratio:16/9` 정도를 줘 높이를 늘리고 `cover`로 깔기(데스크톱 약 470px로 커짐) ③ 영상 좌우를 배경색으로 늘려(패딩) 카드 비율에 맞춘 파일을 다시 만들기. 오른쪽 위 캐릭터(`.profile`)를 둘지도 같이 정한다
-- [ ] 영상 배경색을 `tokens.css`에 토큰으로 추가(예: `--color-hero-scene:#E8F0FB`). 색은 토큰으로만 쓴다
-- [ ] **다크 모드**: 영상은 밝은 그대로라 카드 안 글자색(`--text`·`--text-sub`·`--text-muted`·`.btn-line` 등)을 라이트 값으로 고정해야 읽힌다. `.home-hero` 안에서 변수를 라이트 값으로 다시 정의하는 방식이 가장 간단하다. `.hero-foot`의 위 선(`--line`)도 영상 위에서 보이는지 본다
-- [ ] 태그: `<video src="/videos/cat-mine.mp4" poster="/videos/cat-mine.jpg" autoPlay muted loop playsInline preload="auto" aria-hidden="true">`(모바일 Safari 자동 재생에 `muted`·`playsInline` 필요). `position:absolute; inset:0`, 글자는 `position:relative; z-index:1`
-- [ ] 움직임 줄이기: `@media (prefers-reduced-motion: reduce)`이면 영상을 숨기거나 멈추고 poster만 보여 준다
-- [ ] 모바일(767px 이하): 카드가 세로로 길어지므로 글자 위·장면 아래로 쌓는 배치를 따로 본다
+- [ ] 새 영상(사용자 제작 중, 카드를 꽉 채우는 비율)이 오면 `cat-mine.mp4`·`.jpg`를 바꾸고 `.hero-scene` 위치·크기를 다시 맞춘다. H.264·소리 없음·faststart, 배경은 단색 `#E8F0FB`로 균일하게(균일하면 가장자리 마스크를 뺄 수 있다)
 - [ ] 반복 이음새가 거슬리면 앞뒤를 잘라 맞추거나 크로스페이드로 이어 붙여 다시 만든다(원본은 사용자 PC 다운로드 폴더)
-- [ ] 확인: 라이트·다크·모바일 폭에서 화면을 보고, `npm run typecheck`·`npm run build`
+- [ ] 확인 못 한 것: Safari·Firefox 실제 재생, 아주 넓은 창(1707px 이상)에서 고양이가 오른쪽으로 더 가는 정도
 
 ## 2026-10-26(월) 할 일: 시드머니 수정하기 → 연동 사용자면 앱에도 반영
 

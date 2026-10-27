@@ -550,7 +550,7 @@ paths:
       description: |
         - 순서는 KOSPI·KOSDAQ·NASDAQ100·SP500·DJIA·NIKKEI225·GOLD·USDKRW·JPYKRW로 고정한다. 등락률로 정렬하지 않는다(PRD §5).
         - KOSPI·KOSDAQ: 키움 업종일봉(ka20006) 종합지수, unit=POINT(소수 2자리).
-        - NASDAQ100·SP500·DJIA·NIKKEI225: 한국투자증권 KIS Open API, unit=POINT. 수집은 별도 Issue이고 지원 범위·재표시 조건은 그 Issue에서 확인한다.
+        - NASDAQ100·SP500·DJIA·NIKKEI225: 한국투자증권 KIS Open API, unit=POINT. 수집은 #94이고 지원 범위·재표시 조건은 그 Issue에서 확인한다.
         - GOLD: KRX 금시장 일별매매정보, unit=KRW_PER_GRAM(원 단위 정수).
         - USDKRW·JPYKRW: KIS Open API, unit=KRW_PER_USD·KRW_PER_100JPY(소수 2자리).
         - 대용 ETF로 대신하지 않는다. date는 칸마다의 기준일이며 해외 지수는 현지 거래일이다.

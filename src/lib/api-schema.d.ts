@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 구현 예정: 준비된 업종과 후보 종목 수 */
+        /** 준비된 업종과 후보 종목 수 */
         get: {
             parameters: {
                 query?: never;
@@ -59,7 +59,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음
+         * 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음
          * @description 동일 startId와 동일 입력은 세션 생존 중 같은 시작 응답. 같은 ID·다른 입력은 409. 종료·만료 후 같은 ID는 새 실행이다. 성공 응답은 no-store. 동시 재전송도 세션 하나만 생성한다.
          */
         post: {
@@ -115,7 +115,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 구현 예정: 현재까지의 상태만 재조회(no-store) */
+        /** 현재까지의 상태만 재조회(no-store) */
         post: {
             parameters: {
                 query?: never;
@@ -158,7 +158,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 다음 멈춤까지 진행(no-store)
+         * 다음 멈춤까지 진행(no-store)
          * @description RUNNING에서만 진행. 다음 사건이 나오는 거래일 또는 마지막 봉까지 한 번에 진행하고 version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환
          */
         post: {
@@ -204,7 +204,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 현재 사건의 방향 예상과 가상 매매 선택(no-store)
+         * 현재 사건의 방향 예상과 가상 매매 선택(no-store)
          * @description AWAITING_DECISION의 eventId만 허용. 선택을 기록하고 RUNNING으로 바꾸며 version 증가. 봉은 아직 진행하지 않고 다음 step에서 시가 체결
          */
         post: {
@@ -264,7 +264,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 구현 예정: 세션 즉시 삭제. 없는 토큰·반복 종료도 204 */
+        /** 세션 즉시 삭제. 없는 토큰·반복 종료도 204 */
         post: {
             parameters: {
                 query?: never;

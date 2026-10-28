@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: |
     웹 서버(flexable-web backend `applink.AppApiClient`) → 앱 서버 `/internal/v1/web-links/*` 계약. 이 파일이 정본이다.
-    - 사용자가 앱에서 받은 연동 코드를 웹에 넣으면 웹 서버가 연동을 만들고, 이후 `linkId`로 회원 정보·확정 시드머니를 읽는다.
+    - 사용자가 앱에서 받은 연동 코드를 웹에 넣으면 웹 서버가 연동을 만들고, 이후 `linkId`로 회원 정보·확정 시드머니를 읽는다. 웹에서 고친 시드머니 총액은 `PUT .../seed-money`로 앱에 반영한다(2026-10-27).
     - 헤더 `X-Service-Key`로 인증한다(서버 환경 변수 `WEB_LINK_SERVICE_KEYS`). 사용자 토큰으로는 열리지 않고 CORS를 열지 않는다.
     - 백엔드 `contract.ContractTest`가 실제 응답을 이 스펙으로 검사한다(정의되지 않은 필드·상태 코드도 실패).
     - **웹 백엔드가 기대하는 계약이다. 바꿀 때는 이 파일을 먼저 고치는 PR(`spec-change`)을 올리고 웹 저장소에도 알린다.**
@@ -66,6 +66,29 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SeedMoney' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      summary: 웹에서 고친 시드머니 총액 반영(모아둔 돈 = 총액 − 반영한 돈 합)
+      description: |
+        웹 홈 [수정하기]로 연동 회원이 총액을 고치면 웹 서버가 부른다. 앱은 모아둔 돈(seedBase)만 바꾸고 반영 기록·예산 계산은 그대로 둔다.
+        총액이 반영한 돈 합보다 작으면 400 VALIDATION_FAILED(`fields.total`). 응답은 GET과 같다(바뀐 base·total, updatedAt은 저장 시각).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [total]
+              properties:
+                total: { type: integer, format: int64, minimum: 0, maximum: 999999999999, description: '고친 시드머니 총액(원)' }
+      responses:
+        '200':
+          description: 반영한 뒤 시드머니
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SeedMoney' }
+        '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
   /web-links/{linkId}:
@@ -141,7 +164,7 @@ components:
             choice: { $ref: '#/components/schemas/SeedChoice' }
             amount: { type: integer, format: int64 }
             createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time, description: '마지막 반영 또는 예산 설정 저장 중 늦은 시각' }
+        updatedAt: { type: string, format: date-time, description: '마지막 반영, 예산 설정 저장, 웹에서 고친 시각 중 가장 늦은 시각' }
         startedOn: { type: string, format: date, nullable: true, description: '첫 하루 예산 기록일. 없으면 null' }
         entries:
           type: array

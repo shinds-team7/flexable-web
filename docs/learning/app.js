@@ -111,8 +111,8 @@
       <section class="sec">
         <h2>바로 가기</h2>
         <div class="grid2">
-          <a class="card" href="#flows" style="text-decoration:none;color:inherit"><h3>요청 흐름 7개</h3><p class="muted">종목 목록 · 로그인 · 소셜 로그인 · 시드머니 저장 · 앱 연동 · 시뮬레이션 · worker</p></a>
-          <a class="card" href="#db" style="text-decoration:none;color:inherit"><h3>ERD와 테이블 사전</h3><p class="muted">표 12개, 한 행의 뜻, 가상 행, JOIN 예제</p></a>
+          <a class="card" href="#flows" style="text-decoration:none;color:inherit"><h3>요청 흐름 12개</h3><p class="muted">종목 목록 · 로그인 · 소셜 로그인 · 시드머니 저장 · 앱 연동 · 다시 받기 · 금액 계산 API · worker · 투자 인사이트 · 적금 · 청년 소식 · 사건 퀴즈</p></a>
+          <a class="card" href="#db" style="text-decoration:none;color:inherit"><h3>ERD와 테이블 사전</h3><p class="muted">표 19개, 한 행의 뜻, 가상 행, JOIN 예제</p></a>
           <a class="card" href="#explain.1" style="text-decoration:none;color:inherit"><h3>설명 모드</h3><p class="muted">멘토 설명 순서로 같은 내용을 한 장씩</p></a>
         </div>
       </section>
@@ -323,14 +323,14 @@
         const m = c.match(/^((?:PK|FK|UQ)(?:·(?:PK|FK|UQ))*) (.*)$/);
         return `<text class="col" x="${b.x + 10}" y="${b.y + 46 + i * 18}">${m ? `<tspan class="pk">${esc(m[1])}</tspan> ${esc(m[2])}` : esc(c)}</text>`;
       }).join('');
-      const layer = t.group === '앱 연동' ? 'app' : t.group === '시세' ? 'db' : t.group === '수집 기록' ? 'worker' : 'browser';
+      const layer = { '앱 연동': 'app', '시세': 'db', '수집 기록': 'worker', '적금': 'api', '소식': 'ext' }[t.group] || 'browser';
       return `<g class="nodebox${name === tableSel ? ' on' : ''}" data-table="${name}" tabindex="0" role="button" aria-label="${name} 표" style="--c:var(--l-${layer})">
         <rect class="b" x="${b.x}" y="${b.y}" width="${W}" height="${h(b.cols.length)}" rx="8"/>
         <text x="${b.x + 10}" y="${b.y + 20}" font-size="13" font-weight="700" font-family="var(--mono)">${name}</text>
         <line x1="${b.x}" x2="${b.x + W}" y1="${b.y + 28}" y2="${b.y + 28}" stroke="var(--line)"/>${lines}</g>`;
     }).join('');
     const edges = E.edges.map((e, i) => `<path class="edge" id="erd-e${i}" d="${e[3]}" marker-end="url(#arr2)"/><text class="elab erdlab" data-e="${i}" text-anchor="middle">${esc(e[2])}</text>`).join('');
-    return `<div class="diag erd"><svg viewBox="0 0 1140 600" role="img" aria-label="웹 DB ERD">
+    return `<div class="diag erd"><svg viewBox="0 0 1140 1050" role="img" aria-label="웹 DB ERD">
       <defs><marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--fg3)"/></marker></defs>
       ${groups}${boxes}${edges}</svg></div>
       <p class="muted" style="font-size:.85rem">화살표는 자식 표(FK) → 부모 표(PK). 표기는 자식 : 부모의 개수. ${esc(G.outOfScopeTables)}</p>`;
@@ -440,7 +440,7 @@
     n = Math.max(1, Math.min(n, S.length));
     const s = S[n - 1];
     let body = '';
-    if (s.kind === 'intro') body = `<p class="lead">앱에서 모은 시드머니로 지난 주식·적금을 실험해 보고, 목표를 세우고, 청년 금융 소식을 보는 데스크톱 웹. 아래는 코드 기준 구현 상태다.</p>${statusTable({ done: ['구현', 'test'], sample: ['화면·예시만', 'infer'], plan: ['계획만', 'plan'], out: ['범위 밖', 'plan'], demo: ['시연', 'code'] })}`;
+    if (s.kind === 'intro') body = `<p class="lead">앱에서 모은 시드머니로 지난 주식·적금을 실험해 보고, 사건 퀴즈로 연습하고, 목표를 세우고, 청년 금융 소식을 보는 데스크톱 웹. 아래는 코드 기준 구현 상태다.</p>${statusTable({ done: ['구현', 'test'], sample: ['화면·예시만', 'infer'], plan: ['계획만', 'plan'], out: ['범위 밖', 'plan'], demo: ['시연', 'code'] })}`;
     if (s.kind === 'map') body = mapBlock();
     if (s.kind === 'flow') body = `<p class="lead">${esc(G.flows[s.flow].summary)}</p>${flowPlayer(s.flow, 0, true)}`;
     if (s.kind === 'erd') body = erdBlock() + `<div id="tdwrap">${tableDetail(tableSel)}</div>`;

@@ -77,7 +77,7 @@ class EventNewsServiceTest {
 		assertThat(news.isSample()).isFalse();
 		assertThat(news.sourceName()).isEqualTo("네이버 뉴스 검색");
 		// 지난 사건(30일 넘음)은 날짜를 넣은 정확도순 세 번만, 날짜순은 부르지 않는다
-		assertThat(search.queries).containsExactly("삼성전자 3월 10일/SIM", "삼성전자 주가 3월 10일/SIM", "삼성전자 3월 12일/SIM");
+		assertThat(search.queries).containsExactly("삼성전자 주가 3월 10일/SIM", "삼성전자 3월 10일/SIM", "삼성전자 주가 3월 12일/SIM");
 	}
 
 	@Test
@@ -102,7 +102,7 @@ class EventNewsServiceTest {
 		EventNews news = service(100).news(2L).orElseThrow();
 		assertThat(news.status()).isEqualTo("OK");
 		assertThat(news.items()).isEmpty();
-		assertThat(search.queries).containsExactly("코스피 10월 20일/SIM", "코스피 지수 10월 20일/SIM", "코스피 10월 22일/SIM", "코스피/DATE");
+		assertThat(search.queries).containsExactly("10월 20일 마감시황/SIM", "10월 20일 증시/SIM", "10월 22일 마감시황/SIM", "코스피/DATE");
 	}
 
 	@Test
@@ -129,7 +129,7 @@ class EventNewsServiceTest {
 	@Test
 	void 앞_검색이_찾은_기사가_있으면_뒤_검색이_실패해도_찾은_것을_보인다() {
 		search.answer = q -> {
-			if (q.contains(" 주가 ")) {
+			if (!q.startsWith("삼성전자 주가 ")) {
 				throw new NewsSearch.Unavailable("NAVER 500 SE99", false);
 			}
 			return List.of(at("사건 중", "https://a.example.com/1", "2026-03-11T09:00:00"));
@@ -169,7 +169,10 @@ class EventNewsServiceTest {
 	void 하루짜리_사건은_세_번째에_방향을_넣는다() {
 		assertThat(EventNewsService.plan("삼성전자", false, LocalDate.of(2026, 7, 31), LocalDate.of(2026, 7, 31), "RISE", false))
 			.extracting(EventNewsService.Query::text)
-			.containsExactly("삼성전자 7월 31일", "삼성전자 주가 7월 31일", "삼성전자 7월 31일 급등");
+			.containsExactly("삼성전자 주가 7월 31일", "삼성전자 7월 31일", "삼성전자 7월 31일 급등");
+		assertThat(EventNewsService.plan("코스피", true, LocalDate.of(2026, 9, 14), LocalDate.of(2026, 9, 14), "FALL", false))
+			.extracting(EventNewsService.Query::text)
+			.containsExactly("9월 14일 마감시황", "9월 14일 증시", "9월 14일 코스피 마감");
 	}
 
 	@Test

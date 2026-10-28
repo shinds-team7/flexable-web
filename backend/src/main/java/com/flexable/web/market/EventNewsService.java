@@ -125,15 +125,27 @@ public class EventNewsService {
 	}
 
 	/**
-	 * 검색 순서(5건이 차면 멈춘다): ① "이름 M월 D일"(시작일) ② "이름 지수|주가 M월 D일" ③ 여러 날이면 "이름 M월 D일"(마지막 날),
-	 * 하루면 "이름 M월 D일 급등|급락" ④ 최근 사건이면 "이름" 날짜순.
+	 * 검색 순서(5건이 차면 멈춘다, 2026-10-28 실제 호출로 고름).
+	 * 종목 사건: ① "이름 주가 M월 D일"(시작일, 종목 사건 18개 모두에서 찾음) ② "이름 M월 D일" ③ 여러 날이면 "이름 주가 M월 D일"(마지막 날),
+	 * 하루면 "이름 M월 D일 급등|급락".
+	 * 시장 사건: ① "M월 D일 마감시황"(시작일, "코스피 M월 D일"로 못 찾던 사건 5개 모두에서 찾음) ② "M월 D일 증시" ③ 여러 날이면
+	 * "M월 D일 마감시황"(마지막 날), 하루면 "M월 D일 코스피 마감".
+	 * 최근 사건이면 ④ "이름" 날짜순.
 	 */
 	static List<Query> plan(String name, boolean market, LocalDate start, LocalDate end, String direction, boolean recent) {
 		List<Query> plan = new ArrayList<>();
-		plan.add(new Query(name + " " + day(start), Sort.SIM));
-		plan.add(new Query(name + (market ? " 지수 " : " 주가 ") + day(start), Sort.SIM));
-		plan.add(new Query(end.equals(start) ? name + " " + day(start) + " " + ("RISE".equals(direction) ? "급등" : "급락") : name + " " + day(end),
-				Sort.SIM));
+		boolean oneDay = end.equals(start);
+		if (market) {
+			plan.add(new Query(day(start) + " 마감시황", Sort.SIM));
+			plan.add(new Query(day(start) + " 증시", Sort.SIM));
+			plan.add(new Query(oneDay ? day(start) + " " + name + " 마감" : day(end) + " 마감시황", Sort.SIM));
+		}
+		else {
+			plan.add(new Query(name + " 주가 " + day(start), Sort.SIM));
+			plan.add(new Query(name + " " + day(start), Sort.SIM));
+			plan.add(new Query(oneDay ? name + " " + day(start) + " " + ("RISE".equals(direction) ? "급등" : "급락") : name + " 주가 " + day(end),
+					Sort.SIM));
+		}
 		if (recent) {
 			plan.add(new Query(name, Sort.DATE));
 		}

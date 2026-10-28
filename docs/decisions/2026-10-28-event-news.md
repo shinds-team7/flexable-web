@@ -1,6 +1,6 @@
 # 투자 인사이트 사건 상세에 그때 뉴스 기사(네이버 뉴스 검색 중계)
 
-- 날짜: 2026-10-28 · 결정한 사람: 사용자(rhkrqkq) · 관련: Issue(투자 시뮬레이션 공시 무렵 뉴스), 브랜치 `feat-simulation-news`
+- 날짜: 2026-10-28 · 결정한 사람: 사용자(rhkrqkq) · 관련: Issue #121, 브랜치 `feat-simulation-news`
 - 상태: 이 PR로 제안·구현. 실제 키로 하는 호출 확인은 사람이 서버 환경 변수에 키를 넣은 뒤 한다.
 - 영향: 웹 프론트(`/invest` 사건 상세), 웹 백엔드(market·신규 `newssearch`), API 계약. 투자 시뮬레이션(`/simulation`)·앱·시연은 범위 밖이다.
 - 기준: [투자 인사이트 개편 결정](2026-10-26-invest-insight-redesign.md), 03 §4-2(네이버 검색 API 행), 04 §8, 05 §4, web-api.yaml `/market/events/*`.

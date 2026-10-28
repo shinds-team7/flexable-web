@@ -23,6 +23,8 @@ tags:
   - name: simulation
   - name: practice
     description: '사건 퀴즈 투자 시뮬레이션(#88 구현). 기존 simulation과 별도이며 policies §5 적용'
+  - name: savings
+    description: '적금 비교(F2). 로그인 없이 쓴다. finlife 공시·온통청년 정책을 DB에서 읽고 만기 금액은 서버가 계산(내림)'
   - name: youth-news
   - name: health
 
@@ -473,6 +475,15 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BoardListing' }
+              example:
+                board: KOSPI
+                source: 키움 REST(예시)
+                note: null
+                dataAsOf: '2026-10-24'
+                items:
+                  - { id: '005930', name: 삼성전자, market: KOSPI, kind: STOCK, board: KOSPI, rank: 1, marketCap: 500000000000000 }
+                  - { id: '000660', name: SK하이닉스, market: KOSPI, kind: STOCK, board: KOSPI, rank: 2, marketCap: 150000000000000 }
+                  - { id: '373220', name: LG에너지솔루션, market: KOSPI, kind: STOCK, board: KOSPI, rank: 3, marketCap: 90000000000000 }
         '400': { $ref: '#/components/responses/Error' }
   /market/events/{id}:
     get:
@@ -622,6 +633,130 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 
+  /savings/products:
+    get:
+      tags: [savings]
+      summary: 조건에 맞는 적금 목록과 세후 이자(서버 계산). 금리가 없는 상품은 noRateCount로만 센다
+      parameters:
+        - { name: monthly, in: query, required: true, schema: { type: integer, format: int64, minimum: 1 } }
+        - { name: termMonths, in: query, required: true, schema: { type: integer, minimum: 1, maximum: 120 } }
+        - { name: sort, in: query, schema: { type: string, enum: [BASE_RATE, MAX_RATE, TERM], default: BASE_RATE } }
+        - { name: direction, in: query, schema: { type: string, enum: [ASC, DESC], default: DESC } }
+        - { name: reserveType, in: query, schema: { $ref: '#/components/schemas/ReserveType' } }
+        - { name: sectors, in: query, description: '쉼표 구분', schema: { type: string, default: 'BANK,SAVINGS_BANK' } }
+        - { name: companies, in: query, description: '쉼표 구분 금융회사 이름. 비우면 전체', schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 10 } }
+      responses:
+        '200':
+          description: 적금 목록(items는 요청한 쪽만, total·min·max는 조건 전체 기준)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsProductList' }
+              example:
+                items:
+                  - id: '1'
+                    company: 예시은행
+                    name: 예시 청년 적금
+                    sector: BANK
+                    baseRate: 3.5
+                    maxRate: 4.5
+                    termMonths: 12
+                    reserveType: FIXED
+                    interestType: SIMPLE
+                    disclosureMonth: 2026-10
+                    maxLimit: 500000
+                    joinMember: 만 19~34세 개인
+                    joinDeny: 제한 없음
+                    openToAll: true
+                    disclosureUrl: https://finlife.fss.or.kr
+                    dataAsOf: '2026-10-24'
+                    result: { principal: 936000, interestPreTax: 17745, tax: 2732, interestAfterTax: 15013, maturityAmount: 951013, excludedAmount: 0, rateBasis: BASE }
+                total: 1
+                page: 1
+                size: 10
+                minInterestAfterTax: 15013
+                maxInterestAfterTax: 15013
+                noRateCount: 0
+                disclosureMonth: 2026-10
+                dataAsOf: '2026-10-24'
+                notice: 공시 금리로 계산한 추정이에요. 은행 계산과 조금 다를 수 있고 우대조건은 직접 확인해야 해요.
+                isSample: true
+        '400': { $ref: '#/components/responses/Error' }
+  /savings/companies:
+    get:
+      tags: [savings]
+      summary: 공시가 있는 금융회사(가나다순)
+      responses:
+        '200':
+          description: 금융회사 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [name, sector]
+                  additionalProperties: false
+                  properties:
+                    name: { type: string }
+                    sector: { $ref: '#/components/schemas/SavingsSector' }
+  /savings/policies:
+    get:
+      tags: [savings]
+      summary: 청년정책(적금·저축·통장 계열, 이름순). 금리가 없어 계산하지 않는다
+      parameters:
+        - { name: ids, in: query, description: '쉼표 구분 정책번호. 비우면 전체', schema: { type: string } }
+      responses:
+        '200':
+          description: 정책 목록
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SavingsPolicy' }
+  /savings/products/{id}:
+    get:
+      tags: [savings]
+      summary: 상품 상세(그 기간·적립 방식의 가장 높은 기본금리 줄)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: termMonths, in: query, required: true, schema: { type: integer } }
+        - { name: reserveType, in: query, schema: { $ref: '#/components/schemas/ReserveType' } }
+      responses:
+        '200':
+          description: 상품 상세
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsProductDetail' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /savings/simulate:
+    post:
+      tags: [savings]
+      summary: 한 상품의 만기 계산과 달마다 쌓인 금액(서버 계산, 세금 15.4% 내림)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, monthly, termMonths, reserveType, rateBasis]
+              properties:
+                productId: { type: string }
+                monthly: { type: integer, format: int64, minimum: 1 }
+                termMonths: { type: integer, minimum: 1, maximum: 120 }
+                reserveType: { $ref: '#/components/schemas/ReserveType' }
+                rateBasis: { $ref: '#/components/schemas/RateBasis' }
+      responses:
+        '200':
+          description: 계산 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavingsSimulation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+
   /youth-news:
     get:
       tags: [youth-news]
@@ -643,6 +778,44 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/YouthNewsFeed' }
+              example:
+                items:
+                  - id: '1'
+                    category: FINANCE
+                    categories: [FINANCE]
+                    title: 청년 저축 지원(예시)
+                    summary: 매달 저축하면 정부가 돈을 더 얹어 줘요.
+                    benefit: null
+                    audience: { summary: null, ageMin: 19, ageMax: 34, incomeLimit: true }
+                    regions: NATIONWIDE
+                    applyStart: '2026-10-01'
+                    applyDeadline: '2026-11-30'
+                    alwaysOpen: false
+                    action: null
+                    source: { org: ○○부(예시), url: 'https://www.youthcenter.go.kr', asOf: '2026-10-27' }
+                    postedAt: '2026-10-20'
+                    keywords: [저축]
+                    calcLink: null
+                    correctedAt: null
+                    slot: null
+                  - id: '2'
+                    category: HOUSING
+                    categories: [HOUSING]
+                    title: 청년 월세 지원(예시)
+                    summary: null
+                    benefit: null
+                    audience: { summary: null, ageMin: null, ageMax: null, incomeLimit: null }
+                    regions: [서울]
+                    applyStart: null
+                    applyDeadline: null
+                    alwaysOpen: true
+                    action: null
+                    source: { org: 서울특별시(예시), url: 'https://www.youthcenter.go.kr', asOf: '2026-10-27' }
+                    postedAt: null
+                    keywords: []
+                    calcLink: null
+                    correctedAt: null
+                    slot: null
         '400': { $ref: '#/components/responses/Error' }
 
   /health:
@@ -697,6 +870,20 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/SeedMoneyResponse' }
+          example:
+            source: app
+            status: available
+            total: 1450000
+            base: 500000
+            monthlyGoal: 300000
+            startedOn: '2026-06-26'
+            updatedAt: '2026-09-25T20:10:00+09:00'
+            entries:
+              - { cycleEnd: '2026-07-25', choice: GOAL, amount: 300000, totalAfter: 800000, createdAt: '2026-07-24T20:05:00+09:00' }
+              - { cycleEnd: '2026-08-25', choice: MANUAL, amount: 0, totalAfter: 800000, createdAt: '2026-08-24T21:00:00+09:00' }
+              - { cycleEnd: '2026-09-25', choice: ALL, amount: 650000, totalAfter: 1450000, createdAt: '2026-09-25T20:10:00+09:00' }
+            sync: { status: fresh, syncedAt: '2026-10-27T09:00:00+09:00', due: false }
+            manual: null
     AppLink:
       description: 앱 연동 상태
       content:
@@ -1401,6 +1588,136 @@ components:
       additionalProperties: false
       properties:
         items: { type: array, items: { $ref: '#/components/schemas/YouthNewsItem' } }
+    ReserveType: { type: string, enum: [FIXED, FREE], default: FIXED, description: 'FIXED 정액적립식, FREE 자유적립식' }
+    RateBasis: { type: string, enum: [BASE, MAX] }
+    SavingsSector: { type: string, enum: [BANK, SAVINGS_BANK] }
+    SavingsResult:
+      type: object
+      required: [principal, interestPreTax, tax, interestAfterTax, maturityAmount, excludedAmount, rateBasis]
+      additionalProperties: false
+      properties:
+        principal: { type: integer, format: int64 }
+        interestPreTax: { type: integer, format: int64 }
+        tax: { type: integer, format: int64 }
+        interestAfterTax: { type: integer, format: int64 }
+        maturityAmount: { type: integer, format: int64 }
+        excludedAmount: { type: integer, format: int64, description: '월 한도를 넘어 넣지 못한 돈 합' }
+        rateBasis: { $ref: '#/components/schemas/RateBasis' }
+    SavingsProduct:
+      type: object
+      required: [id, company, name, sector, baseRate, maxRate, termMonths, reserveType, interestType, disclosureMonth, maxLimit, joinMember, joinDeny, openToAll, disclosureUrl, dataAsOf, result]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        company: { type: string }
+        name: { type: string }
+        sector: { $ref: '#/components/schemas/SavingsSector' }
+        baseRate: { type: number, description: '연 %' }
+        maxRate: { type: number, description: '연 %, 우대 포함. 공시가 없거나 기본보다 낮으면 기본금리' }
+        termMonths: { type: integer }
+        reserveType: { $ref: '#/components/schemas/ReserveType' }
+        interestType: { type: string, enum: [SIMPLE, COMPOUND] }
+        disclosureMonth: { type: string, description: 'YYYY-MM' }
+        maxLimit: { type: integer, format: int64, nullable: true, description: '월 납입 한도. 없으면 null' }
+        joinMember: { type: string }
+        joinDeny: { type: string, enum: ['제한 없음', '서민 전용', '일부 제한', '확인 필요'] }
+        openToAll: { type: boolean, nullable: true }
+        disclosureUrl: { type: string }
+        dataAsOf: { type: string, format: date }
+        result: { $ref: '#/components/schemas/SavingsResult' }
+    SavingsProductDetail:
+      type: object
+      required: [id, company, name, sector, baseRate, maxRate, termMonths, reserveType, interestType, disclosureMonth, maxLimit, joinMember, joinDeny, openToAll, disclosureUrl, dataAsOf, specialConditionText]
+      additionalProperties: false
+      description: SavingsProduct에서 result 대신 우대조건 원문
+      properties:
+        id: { type: string }
+        company: { type: string }
+        name: { type: string }
+        sector: { $ref: '#/components/schemas/SavingsSector' }
+        baseRate: { type: number }
+        maxRate: { type: number }
+        termMonths: { type: integer }
+        reserveType: { $ref: '#/components/schemas/ReserveType' }
+        interestType: { type: string, enum: [SIMPLE, COMPOUND] }
+        disclosureMonth: { type: string }
+        maxLimit: { type: integer, format: int64, nullable: true }
+        joinMember: { type: string }
+        joinDeny: { type: string, enum: ['제한 없음', '서민 전용', '일부 제한', '확인 필요'] }
+        openToAll: { type: boolean, nullable: true }
+        disclosureUrl: { type: string }
+        dataAsOf: { type: string, format: date }
+        specialConditionText: { type: string }
+    SavingsProductList:
+      type: object
+      required: [items, total, page, size, minInterestAfterTax, maxInterestAfterTax, noRateCount, disclosureMonth, dataAsOf, notice, isSample]
+      additionalProperties: false
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/SavingsProduct' } }
+        total: { type: integer }
+        page: { type: integer }
+        size: { type: integer }
+        minInterestAfterTax: { type: integer, format: int64, nullable: true }
+        maxInterestAfterTax: { type: integer, format: int64, nullable: true }
+        noRateCount: { type: integer, description: '조건에 맞지만 기본금리가 없어 뺀 상품 수' }
+        disclosureMonth: { type: string, description: 'YYYY-MM. 상품이 없으면 빈 문자열' }
+        dataAsOf: { type: string, format: date }
+        notice: { type: string }
+        isSample: { type: boolean }
+    SavingsPolicy:
+      type: object
+      required: [id, name, summary, support, category, agency, operator, applyPeriod, bizPeriod, minAge, maxAge, applyMethod, screening, documents, applyUrl, refUrl, etc, incomeNote, qualification, restriction, region, dataAsOf]
+      additionalProperties: false
+      description: 온통청년 원문. 비어 있는 항목은 null
+      properties:
+        id: { type: string }
+        name: { type: string }
+        summary: { type: string, nullable: true }
+        support: { type: string, nullable: true }
+        category: { type: string, nullable: true }
+        agency: { type: string, nullable: true }
+        operator: { type: string, nullable: true }
+        applyPeriod: { type: string, nullable: true }
+        bizPeriod: { type: string, nullable: true }
+        minAge: { type: integer, nullable: true }
+        maxAge: { type: integer, nullable: true }
+        applyMethod: { type: string, nullable: true }
+        screening: { type: string, nullable: true }
+        documents: { type: string, nullable: true }
+        applyUrl: { type: string, nullable: true }
+        refUrl: { type: string, nullable: true }
+        etc: { type: string, nullable: true }
+        incomeNote: { type: string, nullable: true }
+        qualification: { type: string, nullable: true }
+        restriction: { type: string, nullable: true }
+        region: { type: string, nullable: true }
+        dataAsOf: { type: string, format: date }
+    SavingsSimulation:
+      type: object
+      required: [principal, interestPreTax, tax, interestAfterTax, maturityAmount, excludedAmount, rateBasis, series, assumptions, notice, isSample]
+      additionalProperties: false
+      properties:
+        principal: { type: integer, format: int64 }
+        interestPreTax: { type: integer, format: int64 }
+        tax: { type: integer, format: int64 }
+        interestAfterTax: { type: integer, format: int64 }
+        maturityAmount: { type: integer, format: int64 }
+        excludedAmount: { type: integer, format: int64 }
+        rateBasis: { $ref: '#/components/schemas/RateBasis' }
+        series:
+          type: array
+          description: 1개월부터 termMonths까지 달마다 넣은 돈과 쌓인 세전 이자
+          items:
+            type: object
+            required: [month, principal, interestPreTax]
+            additionalProperties: false
+            properties:
+              month: { type: integer }
+              principal: { type: integer, format: int64 }
+              interestPreTax: { type: integer, format: int64 }
+        assumptions: { type: array, items: { type: string } }
+        notice: { type: string }
+        isSample: { type: boolean }
     YouthNewsItem:
       type: object
       required: [id, category, categories, title, summary, benefit, audience, regions, applyStart, applyDeadline, alwaysOpen, action, source,

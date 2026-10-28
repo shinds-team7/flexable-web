@@ -2761,7 +2761,8 @@ export interface components {
                  *         "syncedAt": "2026-10-27T09:00:00+09:00",
                  *         "due": false
                  *       },
-                 *       "manual": null
+                 *       "manual": null,
+                 *       "appSync": null
                  *     }
                  */
                 "application/json": components["schemas"]["SeedMoneyResponse"];

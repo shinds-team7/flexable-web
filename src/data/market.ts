@@ -59,7 +59,7 @@ export type EvidenceSource = { type: string; externalId: string; title: string; 
 export type EventDetail = {
   id: number;
   code: string | null;
-  name: string;
+  name: string | null; // 시장 사건이면 null
   scope: 'STOCK' | 'MARKET';
   startDate: string;
   endDate: string;
@@ -69,7 +69,7 @@ export type EventDetail = {
   marketReaction: { returnRate: number; marketReturn: number | null; volumeRatio: number | null; weekReturn: number | null };
   afterwards: { d30: number | null; d365: number | null };
   sources: EvidenceSource[];
-  newsSearchUrl: string;
+  newsSearchUrl: string | null; // 검색어를 만들 수 없으면 null
   whatHappened: string | null;
   aiGenerated: boolean;
   confidence: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -94,7 +94,7 @@ export type SimulationResult = {
   assumptions: string[];
   noticeKey: string;
   notice: string;
-  sources: { name: string; note: string }[];
+  sources: { name: string; note: string | null }[];
 };
 
 /** 시장별 시가총액 상위 종목(서버 설정, 기본 100개) */

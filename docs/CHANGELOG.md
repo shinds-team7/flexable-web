@@ -7,6 +7,7 @@
 ## 2026-10-27
 
 - [#108] 앱 웹 연동 계약 사본 `docs/contracts/vendor/web-link-api.yaml`과 대조 테스트 `AppSpecFixtureTest`(앱 스펙에 맞는 응답을 웹 클라이언트가 읽는지, 웹 요청이 스펙에 맞는지), 사본이 앱 원본과 같은지 보는 CI `app-contract`(필수 아님)를 추가했다. 계약 내용은 바뀌지 않았다 — 영향: 백엔드(앱이 연동 계약을 바꾸면 사본·클라이언트 갱신)
+- [#106] 구현돼 있던 적금 API 5개(`/savings/products`·`/companies`·`/policies`·`/products/{id}`·`/simulate`)를 `web-api.yaml`에 추가하고 `ContractTest`가 응답을 검사한다. 응답은 구현 그대로이고 바뀐 동작은 없다. 목 서버용 `example`(시드머니·종목 목록·적금 목록·청년 소식)을 달고 테스트로 검사한다. 프론트 화면 타입을 생성 타입과 대조하는 `src/lib/contractChecks.ts`를 더했고, 그 과정에서 찾은 null 가능 필드(사건 상세 `name`·`newsSearchUrl`, 투자 결과 `sources[].note`)를 화면 타입에 반영했다 — 영향: 프론트·백엔드
 - [#110] 문서의 구현 상태를 2026-10-27 `main`에 맞췄다: PRD F2(일반 적금 구현)·머지된 #60·#62·사건 퀴즈(#88 구현), 정책 §5 제목(링크 앵커 변경)·상태, 사건 퀴즈 결정 기록 상태와 "현재 구현"(자료는 `practice_datasets` 묶음 저장, 운영 검증 전), 계약 `practice` 태그 설명·`/practice/*` 요약의 "구현 예정" 제거, `practice.json` 상태 `IMPLEMENTED`, README 경로 표 `/invest`·`/simulation`·상단 메뉴(#98을 합침), backend README 패키지 표, 03 C-12·마이그레이션 V15, product README ADR-6. 결정 기록 없이 바뀐 화면 세 가지(기간 칩 5년, 플러스 월간 기본, 섞어보기 메뉴 제거)를 [결정](decisions/2026-10-27-screen-defaults.md)으로 남겼다. 규칙·계약 내용은 바뀌지 않았다 — 영향: 전체(읽는 문서)
 
 ## 2026-10-26

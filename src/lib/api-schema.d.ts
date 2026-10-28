@@ -713,7 +713,12 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** 직접 고친 시드머니 저장(0~10억 원 정수, 덮어쓰기) */
+        /**
+         * 직접 고친 시드머니 저장(0~10억 원 정수). 앱 연동 회원이면 앱에도 반영
+         * @description 연동 회원이면 앱 서버(`PUT /internal/v1/web-links/{linkId}/seed-money`)에 총액을 보낸다. 성공하면 웹의 직접 수정값을 지우고
+         *     앱이 돌려준 값으로 연동 값을 바꾼다(`appSync.status=applied`, `manual=null`). 실패하면 웹에만 저장하고(`manual` 있음)
+         *     `appSync.status=failed`와 안내 문구를 준다. 연동하지 않았으면 웹에만 저장하고 `appSync=null`. 규칙은 docs/policies.md §1
+         */
         put: {
             parameters: {
                 query?: never;
@@ -2020,6 +2025,13 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
             } | null;
+            /** @description PUT /me/seed-money/manual에서 앱 연동 회원일 때만. GET·연동 안 한 회원은 null */
+            appSync: {
+                /** @enum {string} */
+                status: "applied" | "failed";
+                /** @description failed일 때 화면 안내 문구 */
+                message: string | null;
+            } | null;
         };
         AppLink: {
             /** @description false면 화면이 [앱 연동하기]를 숨긴다 */
@@ -2749,7 +2761,8 @@ export interface components {
                  *         "syncedAt": "2026-10-27T09:00:00+09:00",
                  *         "due": false
                  *       },
-                 *       "manual": null
+                 *       "manual": null,
+                 *       "appSync": null
                  *     }
                  */
                 "application/json": components["schemas"]["SeedMoneyResponse"];

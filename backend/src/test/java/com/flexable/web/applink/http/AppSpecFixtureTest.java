@@ -166,6 +166,34 @@ class AppSpecFixtureTest {
 	}
 
 	@Test
+	void updatesSeedMoneyAgainstAppSpec() {
+		String path = "/web-links/" + LINK_ID + "/seed-money";
+		reply("PUT", path, 200, """
+				{"total":1200000,"base":900000,"monthlyGoal":300000,"lastEntry":null,
+				 "updatedAt":"2026-10-27T12:00:00+09:00","startedOn":null,"entries":[]}""");
+		AppSeedMoney seed = api.updateSeedMoney(LINK_ID, 1_200_000);
+		assertThat(seed.total()).isEqualTo(1_200_000);
+		assertThat(seed.base()).isEqualTo(900_000);
+		assertThat(sent).singleElement().satisfies(request -> assertThat(request.getMethod()).isEqualTo(Request.Method.PUT));
+
+		reply("PUT", path, 400, """
+				{"code":"VALIDATION_FAILED","message":"입력한 내용을 확인해 주세요",
+				 "fields":{"total":"앱에서 반영한 돈보다 작게 고칠 수 없어요"}}""");
+		try {
+			api.updateSeedMoney(LINK_ID, 1);
+			throw new AssertionError("예외가 나야 합니다");
+		}
+		catch (AppApiException e) {
+			assertThat(e.kind()).isEqualTo(Kind.REJECTED);
+			assertThat(e.detail()).isEqualTo("앱에서 반영한 돈보다 작게 고칠 수 없어요");
+		}
+		reply("PUT", path, 404, """
+				{"code":"BUDGET_NOT_SET","message":"초기 예산을 먼저 설정해 주세요"}""");
+		assertThat(kindOf(() -> api.updateSeedMoney(LINK_ID, 1))).isEqualTo(Kind.BUDGET_NOT_SET);
+		assertRequestsMatchSpec();
+	}
+
+	@Test
 	void errorsAreReadByCode() {
 		reply("POST", "/web-links", 400, """
 				{"code":"LINK_CODE_INVALID","message":"코드를 확인해 주세요"}""");

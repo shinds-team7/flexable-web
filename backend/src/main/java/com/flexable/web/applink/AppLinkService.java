@@ -152,6 +152,67 @@ public class AppLinkService {
 		return removed;
 	}
 
+	/** 웹에서 고친 시드머니를 앱에 반영한 결과. applied면 앱 값이 바뀌었고, failed면 웹에만 남겨야 한다. */
+	public record SeedPush(boolean linked, boolean applied, String message) {
+
+		static final SeedPush NOT_LINKED = new SeedPush(false, false, null);
+
+		static SeedPush failed(String message) {
+			return new SeedPush(true, false, message);
+		}
+	}
+
+	static final String PUSH_FAILED = "앱에는 반영하지 못해 웹에만 저장했어요. 잠시 후 다시 저장해 주세요";
+
+	/**
+	 * 연동 회원이 웹에서 고친 시드머니 총액을 앱에 반영한다(#83). 성공하면 앱이 돌려준 값으로 연동 값을 바꾼다.
+	 * 앱 서버 호출은 트랜잭션 밖에서 하고, 실패해도 예외를 던지지 않고 failed로 돌려준다(웹 저장은 호출한 쪽이 한다).
+	 */
+	public SeedPush pushSeedMoney(long userId, long total) {
+		if (!busy.add(userId)) {
+			return SeedPush.failed(PUSH_FAILED);
+		}
+		try {
+			AppLink link = links.findByUserId(userId).orElse(null);
+			if (link == null) {
+				return SeedPush.NOT_LINKED;
+			}
+			long rowId = link.getId();
+			AppSeedMoney seed;
+			try {
+				seed = app.updateSeedMoney(cipher.decrypt(link.getLinkIdCipher()), total);
+			}
+			catch (IllegalStateException e) {
+				log.error("연동 정보를 읽지 못해 앱에 반영하지 못함(APP_LINK_ENCRYPTION_KEY 확인): linkRow={}", rowId);
+				return SeedPush.failed(PUSH_FAILED);
+			}
+			catch (AppApiException e) {
+				return switch (e.kind()) {
+					case LINK_NOT_FOUND -> {
+						tx.executeWithoutResult(s -> links.deleteRow(rowId));
+						log.info("앱에서 해제된 연동을 정리함: linkRow={}", rowId);
+						yield SeedPush.failed("앱 연동이 해제돼 웹에만 저장했어요");
+					}
+					case BUDGET_NOT_SET -> SeedPush.failed("앱에서 예산을 먼저 설정해야 앱에 반영돼요. 웹에만 저장했어요");
+					case REJECTED -> SeedPush.failed(e.detail() != null ? e.detail() + ". 웹에만 저장했어요" : PUSH_FAILED);
+					default -> {
+						logFailure(e, "시드머니 반영");
+						yield SeedPush.failed(PUSH_FAILED);
+					}
+				};
+			}
+			if (seed == null) {
+				return SeedPush.failed(PUSH_FAILED);
+			}
+			Instant now = clock.instant();
+			tx.executeWithoutResult(s -> links.findById(rowId).ifPresent(l -> l.seedReceived(seed, now)));
+			return new SeedPush(true, true, null);
+		}
+		finally {
+			busy.remove(userId);
+		}
+	}
+
 	/** 웹에서 해제. 앱 서버에서 먼저 지우고, 실패하면(장애) 연동을 그대로 두어 다시 시도할 수 있게 한다. 연동이 없으면 아무것도 하지 않는다. */
 	public void unlink(long userId) {
 		if (!busy.add(userId)) {

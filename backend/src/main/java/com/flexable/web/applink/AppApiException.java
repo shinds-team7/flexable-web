@@ -12,6 +12,8 @@ public class AppApiException extends RuntimeException {
 		LINK_NOT_FOUND,
 		/** 404 BUDGET_NOT_SET: 앱 예산 설정 전(연동은 유지) */
 		BUDGET_NOT_SET,
+		/** 400(코드 입력 외): 앱이 값을 받지 않음. detail에 앱의 안내 문구 */
+		REJECTED,
 		/** 429: 앱 서버 전체 시도 제한 */
 		RATE_LIMITED,
 		/** 401·403: 서비스 키 설정 오류 */
@@ -26,15 +28,30 @@ public class AppApiException extends RuntimeException {
 
 	private final Kind kind;
 	private final long retryAfterSeconds;
+	private final String detail;
 
 	public AppApiException(Kind kind) {
 		this(kind, 0);
 	}
 
 	public AppApiException(Kind kind, long retryAfterSeconds) {
+		this(kind, retryAfterSeconds, null);
+	}
+
+	public AppApiException(Kind kind, String detail) {
+		this(kind, 0, detail);
+	}
+
+	private AppApiException(Kind kind, long retryAfterSeconds, String detail) {
 		super(kind.name(), null, false, false);
 		this.kind = kind;
 		this.retryAfterSeconds = retryAfterSeconds;
+		this.detail = detail;
+	}
+
+	/** 앱이 준 사용자 안내 문구(REJECTED만). 없으면 null */
+	public String detail() {
+		return detail;
 	}
 
 	public Kind kind() {

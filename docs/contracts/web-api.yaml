@@ -344,7 +344,11 @@ paths:
   /me/seed-money/manual:
     put:
       tags: [seed-money]
-      summary: 직접 고친 시드머니 저장(0~10억 원 정수, 덮어쓰기)
+      summary: 직접 고친 시드머니 저장(0~10억 원 정수). 앱 연동 회원이면 앱에도 반영
+      description: |
+        연동 회원이면 앱 서버(`PUT /internal/v1/web-links/{linkId}/seed-money`)에 총액을 보낸다. 성공하면 웹의 직접 수정값을 지우고
+        앱이 돌려준 값으로 연동 값을 바꾼다(`appSync.status=applied`, `manual=null`). 실패하면 웹에만 저장하고(`manual` 있음)
+        `appSync.status=failed`와 안내 문구를 준다. 연동하지 않았으면 웹에만 저장하고 `appSync=null`. 규칙은 docs/policies.md §1
       requestBody:
         required: true
         content:
@@ -884,6 +888,7 @@ components:
               - { cycleEnd: '2026-09-25', choice: ALL, amount: 650000, totalAfter: 1450000, createdAt: '2026-09-25T20:10:00+09:00' }
             sync: { status: fresh, syncedAt: '2026-10-27T09:00:00+09:00', due: false }
             manual: null
+            appSync: null
     AppLink:
       description: 앱 연동 상태
       content:
@@ -1090,7 +1095,7 @@ components:
         due: { type: boolean, description: '다시 받을 때가 됨(화면이 POST /app-link/refresh)' }
     SeedMoneyResponse:
       type: object
-      required: [source, status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync, manual]
+      required: [source, status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync, manual, appSync]
       additionalProperties: false
       properties:
         source: { type: string, enum: [app, none] }
@@ -1113,6 +1118,15 @@ components:
           properties:
             total: { type: integer, format: int64 }
             updatedAt: { type: string, format: date-time }
+        appSync:
+          nullable: true
+          description: PUT /me/seed-money/manual에서 앱 연동 회원일 때만. GET·연동 안 한 회원은 null
+          type: object
+          required: [status, message]
+          additionalProperties: false
+          properties:
+            status: { type: string, enum: [applied, failed] }
+            message: { type: string, nullable: true, description: 'failed일 때 화면 안내 문구' }
 
     AppLink:
       type: object

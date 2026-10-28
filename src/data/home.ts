@@ -31,7 +31,11 @@ export type SeedMoneyResponse = {
   entries: SeedEntry[] | null;
   sync: { status: 'fresh' | 'stale'; syncedAt: string; due: boolean } | null;
   manual: { total: number; updatedAt: string } | null;
+  appSync: AppSync | null;
 };
+
+/** PUT manual에서 앱 연동 회원의 앱 반영 결과(#83). applied면 앱 값이 바뀌고 직접 수정값은 지워진다. */
+export type AppSync = { status: 'applied' | 'failed'; message: string | null };
 
 export type MarketIndex = { code: 'KOSPI' | 'KOSDAQ'; name: string; value: number; change: number; changeRate: number };
 export type MarketIndices = { asOf: string; source: string; items: MarketIndex[]; isSample: boolean };
@@ -114,21 +118,26 @@ export function useSeedMoney() {
 /**
  * 시드머니 직접 고치기(null이면 앱 기록 기준으로 되돌림). 로그인 회원은 PUT·DELETE /api/v1/me/seed-money/manual로 저장하고,
  * 비로그인 체험은 이 탭에서만 바꾼다. 저장이 끝나면 상단 칩·홈·투자 화면이 같은 값을 쓴다. saved: 서버에 저장했는지.
+ * appSync: 앱 연동 회원이면 앱 반영 결과(성공하면 앱 값이 바뀌어 직접 수정값이 없어진다).
  */
 export function useSetSeedManual() {
   const qc = useQueryClient();
   const member = useSession().status === 'member';
-  return async (n: number | null): Promise<{ saved: boolean }> => {
+  return async (n: number | null): Promise<{ saved: boolean; appSync: AppSync | null }> => {
     const saved = savesOnServer(member);
+    let appSync: AppSync | null = null;
     if (saved) {
       if (n == null) await api<void>('/me/seed-money/manual', { method: 'DELETE' });
-      else await api<SeedMoneyResponse>('/me/seed-money/manual', { method: 'PUT', json: { total: n } });
+      else appSync = (await api<SeedMoneyResponse>('/me/seed-money/manual', { method: 'PUT', json: { total: n } })).appSync;
     } else {
       localManual = n;
     }
-    qc.setQueriesData<SeedMoney>({ queryKey: ['seed-money', member] }, (old) => (old ? { ...old, manual: n } : old));
+    const applied = appSync?.status === 'applied' && n != null;
+    qc.setQueriesData<SeedMoney>({ queryKey: ['seed-money', member] }, (old) =>
+      old ? (applied ? { ...old, confirmed: n, manual: null } : { ...old, manual: n }) : old,
+    );
     if (saved) void qc.invalidateQueries({ queryKey: ['seed-money', member] });
-    return { saved };
+    return { saved, appSync };
   };
 }
 export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: fetchIndices, staleTime: 5 * 60_000 });

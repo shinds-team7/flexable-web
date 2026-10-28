@@ -24,6 +24,12 @@ public interface AppApiClient {
 	/** GET /internal/v1/web-links/{linkId}/seed-money. 앱 예산 설정 전이면 BUDGET_NOT_SET */
 	AppSeedMoney seedMoney(String linkId);
 
+	/**
+	 * PUT /internal/v1/web-links/{linkId}/seed-money. 웹에서 고친 총액을 앱에 반영하고 반영 뒤 값을 받는다(앱이 모아둔 돈을 맞춤).
+	 * 앱이 거절하면(반영한 돈보다 작음 등) REJECTED와 앱의 안내 문구, 앱 예산 설정 전이면 BUDGET_NOT_SET
+	 */
+	AppSeedMoney updateSeedMoney(String linkId, long total);
+
 	/** DELETE /internal/v1/web-links/{linkId} */
 	void delete(String linkId);
 

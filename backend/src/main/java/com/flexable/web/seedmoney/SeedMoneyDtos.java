@@ -32,21 +32,31 @@ public final class SeedMoneyDtos {
 		}
 	}
 
+	/** PUT manual에서 연동 회원의 앱 반영 결과. status: applied·failed, message는 failed일 때 안내 문구. */
+	public record AppSync(String status, String message) {
+	}
+
 	/**
 	 * GET /api/v1/me/seed-money. source: app(앱 연동 값) 또는 none(연동 없음, 앱 값 필드는 null).
 	 * status·금액·entries는 앱 연동 응답의 seedMoney와 같다(available일 때만 금액이 있음). 그래프는 (startedOn, base) 다음에 (cycleEnd, totalAfter)를 잇는다.
-	 * manual: 웹에서 직접 고친 값(없으면 null). 연동 여부와 관계없이 있으면 우선한다. 앱 값(total 등)은 바꾸지 않고 그대로 둔다.
+	 * manual: 웹에서 직접 고친 값(없으면 null). 연동 여부와 관계없이 있으면 우선한다. 연동 회원은 앱 반영에 실패했을 때만 남는다.
+	 * appSync: PUT manual에서 연동 회원일 때만 있다(GET은 null).
 	 */
 	public record SeedMoneyResponse(String source, String status, Long total, Long base, Long monthlyGoal,
-			LocalDate startedOn, OffsetDateTime updatedAt, List<Entry> entries, Sync sync, Manual manual) {
+			LocalDate startedOn, OffsetDateTime updatedAt, List<Entry> entries, Sync sync, Manual manual, AppSync appSync) {
 
 		static SeedMoneyResponse of(AppLinkResponse link, Manual manual) {
 			if (!link.linked()) {
-				return new SeedMoneyResponse("none", null, null, null, null, null, null, null, null, manual);
+				return new SeedMoneyResponse("none", null, null, null, null, null, null, null, null, manual, null);
 			}
 			var s = link.seedMoney();
 			return new SeedMoneyResponse("app", s.status(), s.total(), s.base(), s.monthlyGoal(), s.startedOn(),
-					s.updatedAt(), s.entries(), link.sync(), manual);
+					s.updatedAt(), s.entries(), link.sync(), manual, null);
+		}
+
+		SeedMoneyResponse with(AppSync appSync) {
+			return new SeedMoneyResponse(source, status, total, base, monthlyGoal, startedOn, updatedAt, entries, sync,
+					manual, appSync);
 		}
 	}
 }

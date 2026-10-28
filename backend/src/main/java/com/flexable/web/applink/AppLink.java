@@ -112,6 +112,11 @@ public class AppLink {
 	void synced(AppProfile profile, AppSeedMoney seed, Instant now) {
 		this.appEmail = profile.email();
 		this.appProvider = profile.provider();
+		seedReceived(seed, now);
+	}
+
+	/** 앱이 준 시드머니로 바꾼다(null = 앱 예산 설정 전). 웹에서 고친 값을 앱에 반영한 뒤에도 쓴다. */
+	void seedReceived(AppSeedMoney seed, Instant now) {
 		if (seed == null) {
 			this.seedState = SEED_BUDGET_NOT_SET;
 			this.seedTotal = null;

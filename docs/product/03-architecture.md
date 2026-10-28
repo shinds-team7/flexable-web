@@ -622,7 +622,7 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 - 응답 `comparisons[]`에 `{key, name, series[{date, value}]}`로 준다(디자인 A1).
 
 ### C-12. 적금·정책 적금
-> 미구현(서버). `/savings` 화면은 프론트 고정 예시 결과다.
+> 현재 구현: 일반 적금(정액·자유적립 단리·월복리, 세금 15.4% 내림)은 서버가 계산한다(`savings.SavingsCalculator`, #53). 정책 적금(청년미래적금)은 서버 계산이 없고 화면이 고정 예시 결과를 쓴다.
 - **정액적립식 단리**(n개월, 월 P, 연이율 r): k회차(1..n) 이자 I_k = floor(P × r × (n−k+1) ÷ 12), 세전 = Σ I_k.
 - **정액적립식 월복리:** I_k = floor(P × ((1 + r/12)^(n−k+1) − 1)).
 - **자유적립식:** 납입 일정(직접 입력 또는 지금 저축 속도)을 회차별로 위 공식에.
@@ -645,7 +645,7 @@ z_t   = abn_t / σ_t,  vr_t = V_t / median(V_{t-20..t-1})
 
 ## 7. DB 스키마 초안 (Flyway V6~)
 
-> 현재 구현: 웹 DB는 앱 테이블을 재사용하지 않는 별도 DB이고, 실제 마이그레이션은 V1~V9이다([migration README](../../backend/src/main/resources/db/migration/README.md)). 아래 표의 V6~V13 번호는 실제 V6(`app_link_entries`)·V7(방침 근거)·V8(`goals` 등)과 **겹치므로 쓰지 않는다**. 실제로 있는 시장 표는 계획과 다르다: `instruments`(code·name·board·market·kind·market_cap·cap_rank·featured_reason·source·source_note·data_as_of·corp_code, `listed_at`·`delisted_at`·`featured` 없음), `daily_prices`(close·volume·source·collected_at, `adjustment_factor` 없음), `market_events`(+`market_return`·`z_score`·`volume_ratio`·`evidence_checked_at`, `instrument_id` NOT NULL, 시장 사건은 대용 ETF에 붙임), `event_sources`(+`external_id`·`weight`). `user_settings`는 V1에 있고 `manual_total`·`manual_monthly_pace`는 없다. 직접 고친 시드머니는 V9 `seed_money_manual`(user_id·total·updated_at)에 따로 둔다. `goals`는 [goal-ai.md](goal-ai.md) 구조다. 나머지(사건 설명·적금·프리셋·공유·소식·구독·결제·리마인더·지표·`corporate_actions`)는 아직 없는 계획이다.
+> 현재 구현: 웹 DB는 앱 테이블을 재사용하지 않는 별도 DB이고, 실제 마이그레이션은 V1~V15이다(2026-10-27)([migration README](../../backend/src/main/resources/db/migration/README.md)). 아래 표의 V6~V13 번호는 실제 V6(`app_link_entries`)·V7(방침 근거)·V8(`goals` 등)과 **겹치므로 쓰지 않는다**. 실제로 있는 시장 표는 계획과 다르다: `instruments`(code·name·board·market·kind·market_cap·cap_rank·featured_reason·source·source_note·data_as_of·corp_code, `listed_at`·`delisted_at`·`featured` 없음), `daily_prices`(close·volume·source·collected_at, `adjustment_factor` 없음), `market_events`(+`market_return`·`z_score`·`volume_ratio`·`evidence_checked_at`, `instrument_id` NOT NULL, 시장 사건은 대용 ETF에 붙임), `event_sources`(+`external_id`·`weight`). `user_settings`는 V1에 있고 `manual_total`·`manual_monthly_pace`는 없다. 직접 고친 시드머니는 V9 `seed_money_manual`(user_id·total·updated_at)에 따로 둔다. `goals`는 [goal-ai.md](goal-ai.md) 구조다. 나머지(사건 설명·적금·프리셋·공유·소식·구독·결제·리마인더·지표·`corporate_actions`)는 아직 없는 계획이다.
 
 마이그레이션 번호는 제안이다. 실제 저장소 최신 버전은 구현 직전 확인해 충돌 없는 다음 번호로 바꾼다. 기존 users·거래·예산 테이블은 재사용하고 여기에는 추가 테이블만 적는다. 금액 BIGINT, 수량 DECIMAL(28,8), 비율 DECIMAL, 날짜 DATE, 시각 UTC DATETIME(6), 정산·화면 날짜는 Asia/Seoul 기준.
 

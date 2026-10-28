@@ -21,7 +21,8 @@ import com.flexable.web.market.NewsSearch.Sort;
 
 /**
  * 사건 무렵 뉴스 기사(decisions/2026-10-28-event-news). 상세를 열 때 검색을 불러 그대로 돌려주고 저장·캐시하지 않는다.
- * 검색에 날짜 조건이 없어 검색어를 바꿔 최대 3번 부르고, 발행 시각이 사건 시작 3일 전 ~ 마지막 날 3일 뒤(KST)인 기사만 남긴다.
+ * 검색에 날짜 조건이 없어 검색어에 사건 날짜("10월 12일")를 넣어 최대 4번 부르고, 발행 시각이 사건 시작 3일 전 ~ 마지막 날 3일 뒤(KST)인
+ * 기사만 남긴다. "종목명 급등" 같은 날짜 없는 정확도순 검색은 지난 사건에서 범위 안 기사를 거의 찾지 못했다(2026-10-28 실제 호출 확인).
  * 하루(KST) 호출 수를 세어 상한을 넘거나 429를 받으면 그날은 더 부르지 않는다. 실패하면 UNAVAILABLE이고 사건 상세는 영향이 없다.
  */
 @Service
@@ -78,12 +79,8 @@ public class EventNewsService {
 			return Optional.of(result(id, from, to, UNAVAILABLE, List.of()));
 		}
 
-		List<Query> plan = new ArrayList<>();
-		plan.add(new Query(name + " " + ("RISE".equals(e.getDirection()) ? "급등" : "급락"), Sort.SIM));
-		plan.add(new Query(name + " 주가", Sort.SIM));
-		if (!e.getEndDate().isBefore(LocalDate.now(clock.withZone(EventService.SEOUL)).minusDays(RECENT_DAYS))) {
-			plan.add(new Query(name, Sort.DATE));
-		}
+		List<Query> plan = plan(name, market, e.getStartDate(), e.getEndDate(), e.getDirection(),
+				!e.getEndDate().isBefore(LocalDate.now(clock.withZone(EventService.SEOUL)).minusDays(RECENT_DAYS)));
 		Map<String, Article> picked = new LinkedHashMap<>();
 		boolean failed = false;
 		for (Query q : plan) {
@@ -127,6 +124,27 @@ public class EventNewsService {
 		return Optional.of(result(id, from, to, OK, items));
 	}
 
+	/**
+	 * 검색 순서(5건이 차면 멈춘다): ① "이름 M월 D일"(시작일) ② "이름 지수|주가 M월 D일" ③ 여러 날이면 "이름 M월 D일"(마지막 날),
+	 * 하루면 "이름 M월 D일 급등|급락" ④ 최근 사건이면 "이름" 날짜순.
+	 */
+	static List<Query> plan(String name, boolean market, LocalDate start, LocalDate end, String direction, boolean recent) {
+		List<Query> plan = new ArrayList<>();
+		plan.add(new Query(name + " " + day(start), Sort.SIM));
+		plan.add(new Query(name + (market ? " 지수 " : " 주가 ") + day(start), Sort.SIM));
+		plan.add(new Query(end.equals(start) ? name + " " + day(start) + " " + ("RISE".equals(direction) ? "급등" : "급락") : name + " " + day(end),
+				Sort.SIM));
+		if (recent) {
+			plan.add(new Query(name, Sort.DATE));
+		}
+		return plan;
+	}
+
+	/** 2026-10-12 → "10월 12일" */
+	private static String day(LocalDate d) {
+		return d.getMonthValue() + "월 " + d.getDayOfMonth() + "일";
+	}
+
 	private EventNews result(long id, LocalDate from, LocalDate to, String status, List<NewsItem> items) {
 		boolean sample = search.sample();
 		return new EventNews(id, from, to, status, items, sample ? SAMPLE_SOURCE : SOURCE, NOTICE, sample);
@@ -156,6 +174,6 @@ public class EventNewsService {
 		}
 	}
 
-	private record Query(String text, Sort sort) {
+	record Query(String text, Sort sort) {
 	}
 }

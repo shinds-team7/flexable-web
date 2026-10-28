@@ -26,8 +26,9 @@ import com.flexable.web.market.MarketService;
  * 시세 수집(worker). 1) 시장별 시가총액 상위 목록을 받아 바꾸고 2) 그 종목들의 일봉을 받아 저장한다.
  * 처음에는 backfillYears 전 그 달 1일보다 일주일 앞부터(화면의 "5년 전"이 그 달 1일부터 계산하므로), 이후에는 마지막 거래일
  * recheckDays 전부터 다시 받아 지연 등록·정정을 반영한다(05 §3). 예전 규칙(정확히 N년 전부터)으로 받아 앞부분이 빈 종목은 한 번 다시 채운다.
- * 한 시장·한 종목이 실패해도 나머지는 계속하고, 실행 결과는 ingest_runs에 남긴다. 끝나면 사건 탐지·공시 근거(MarketEventJob),
- * 시장 띠(IndexSyncJob), 업종·시뮬레이션 자료(PracticeSyncJob)를 이어 돌린다.
+ * 한 시장·한 종목이 실패해도 나머지는 계속하고, 실행 결과는 ingest_runs에 남긴다. 시장 띠(IndexSyncJob)는 몇 칸뿐이라 맨 먼저 돌려
+ * 처음 띄운 worker에서도 일봉 백필을 기다리지 않고 띠가 보이게 한다. 시세 수집 뒤에는 사건 탐지·공시 근거(MarketEventJob),
+ * 업종·시뮬레이션 자료(PracticeSyncJob)를 이어 돌린다.
  */
 @Component
 @Profile("worker")
@@ -74,11 +75,16 @@ public class MarketSyncJob implements ApplicationRunner {
 		runAll();
 	}
 
-	/** 시세 수집 → 사건 탐지·공시 근거 → 시장 띠 → 업종·시뮬레이션 자료. 시세가 일부 실패해도 받은 것으로 이어 간다. */
+	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
 	void runAll() {
+		try {
+			indexJob.runOnce();
+		}
+		catch (RuntimeException e) {
+			log.warn("시장 띠 수집 실패: {}", e.getMessage());
+		}
 		runOnce();
 		eventJob.runOnce();
-		indexJob.runOnce();
         if (practice != null) practice.runOnce();
 	}
 

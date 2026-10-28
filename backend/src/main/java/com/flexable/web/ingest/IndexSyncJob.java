@@ -15,7 +15,7 @@ import com.flexable.web.market.MarketInsightService;
 
 /**
  * 시장 띠 수집(worker). 소스가 받을 수 있는 칸마다 처음에는 INITIAL_DAYS 전부터, 이후에는 마지막 거래일 recheckDays 전부터 다시 받아 정정을 반영한다.
- * 한 칸이 실패해도 나머지는 계속하고, 실패한 칸은 마지막 성공 값을 그대로 둔다. MarketSyncJob이 시세 수집 뒤에 부른다.
+ * 한 칸이 실패해도 나머지는 계속하고, 실패한 칸은 마지막 성공 값을 그대로 둔다. MarketSyncJob이 시세 수집보다 먼저 부른다(몇 칸뿐이라 금방 끝난다).
  */
 @Component
 @Profile("worker")

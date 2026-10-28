@@ -41,9 +41,9 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `market` | 종목·일별 시세·사건 | `common` |
 | `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
-| `savings` | 적금 상품·금리. 코드 없음 | `common` |
-| `simulation` | 투자 시뮬레이션 계산(적금·섞어보기 계산·프리셋은 아직 없음) | `market`, `savings`, `seedmoney` |
-| `news` | 청년 금융 소식. 코드 없음 | `common` |
+| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 없음 | `common` |
+| `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |
+| `news` | 청년 금융 소식: 온통청년 수집 카드 자동 게시·AI 요약 저장·`GET /youth-news`(#47·#93) | `common` |
 | `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |
 | `engagement` | 목표·AI 안내·사용량, 공유·지표 이벤트(미구현) | `simulation`, `user`, `seedmoney`, `ai` |
 | `ai` | OpenAI 목표 안내 클라이언트(식별자·자유 입력 이름 미전송) | `common` |

@@ -1,6 +1,7 @@
 package com.flexable.web.ingest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -59,5 +60,31 @@ class KiwoomPriceSourceTest {
 				new DailyBar(LocalDate.parse("2026-10-14"), 232000, null),
 				new DailyBar(LocalDate.parse("2026-10-15"), 210000, null),
 				new DailyBar(LocalDate.parse("2026-10-16"), 215500, null)), got);
+	}
+
+	@Test
+	void 종목이_바뀌어도_호출_사이를_띄운다() {
+		RestClient.Builder builder = RestClient.builder();
+		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+		RestClient http = builder.build();
+		Clock clock = Clock.fixed(Instant.parse("2026-10-20T00:00:00Z"), ZoneOffset.UTC);
+		KiwoomPriceSource p = new KiwoomPriceSource(http, "https://kw.test",
+				new KiwoomTokenClient(http, "https://kw.test", "app", "secret", clock), Duration.ofMillis(200));
+
+		server.expect(requestTo("https://kw.test/oauth2/token"))
+			.andRespond(withSuccess("{\"token\":\"T1\",\"expires_dt\":\"20261021090000\",\"return_code\":0}", MediaType.APPLICATION_JSON));
+		for (int i = 0; i < 3; i++) {
+			server.expect(requestTo("https://kw.test/api/dostk/chart"))
+				.andRespond(withSuccess("{\"return_code\":0,\"stk_dt_pole_chart_qry\":[{\"dt\":\"20261016\",\"cur_prc\":\"100\"}]}",
+						MediaType.APPLICATION_JSON));
+		}
+
+		long start = System.nanoTime();
+		for (String code : List.of("005930", "000660", "035420")) {
+			p.dailyBars(code, LocalDate.parse("2026-10-16"), LocalDate.parse("2026-10-16"));
+		}
+		server.verify();
+		// 세 번 부르면 사이 간격 두 번(최소 400ms)
+		assertTrue(Duration.ofNanos(System.nanoTime() - start).toMillis() >= 400);
 	}
 }

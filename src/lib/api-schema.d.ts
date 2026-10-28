@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 구현 예정: 준비된 업종과 후보 종목 수 */
+        /** 준비된 업종과 후보 종목 수 */
         get: {
             parameters: {
                 query?: never;
@@ -59,7 +59,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음
+         * 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음
          * @description 동일 startId와 동일 입력은 세션 생존 중 같은 시작 응답. 같은 ID·다른 입력은 409. 종료·만료 후 같은 ID는 새 실행이다. 성공 응답은 no-store. 동시 재전송도 세션 하나만 생성한다.
          */
         post: {
@@ -115,7 +115,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 구현 예정: 현재까지의 상태만 재조회(no-store) */
+        /** 현재까지의 상태만 재조회(no-store) */
         post: {
             parameters: {
                 query?: never;
@@ -158,7 +158,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 다음 멈춤까지 진행(no-store)
+         * 다음 멈춤까지 진행(no-store)
          * @description RUNNING에서만 진행. 다음 사건이 나오는 거래일 또는 마지막 봉까지 한 번에 진행하고 version은 1 증가. 문제에서 멈추거나 끝났으면 409. 같은 commandId·같은 본문 재전송은 원래 응답을 반환
          */
         post: {
@@ -204,7 +204,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 구현 예정: 현재 사건의 방향 예상과 가상 매매 선택(no-store)
+         * 현재 사건의 방향 예상과 가상 매매 선택(no-store)
          * @description AWAITING_DECISION의 eventId만 허용. 선택을 기록하고 RUNNING으로 바꾸며 version 증가. 봉은 아직 진행하지 않고 다음 step에서 시가 체결
          */
         post: {
@@ -264,7 +264,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 구현 예정: 세션 즉시 삭제. 없는 토큰·반복 종료도 204 */
+        /** 세션 즉시 삭제. 없는 토큰·반복 종료도 204 */
         post: {
             parameters: {
                 query?: never;
@@ -1013,6 +1013,43 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
+                        /**
+                         * @example {
+                         *       "board": "KOSPI",
+                         *       "source": "키움 REST(예시)",
+                         *       "note": null,
+                         *       "dataAsOf": "2026-10-24",
+                         *       "items": [
+                         *         {
+                         *           "id": "005930",
+                         *           "name": "삼성전자",
+                         *           "market": "KOSPI",
+                         *           "kind": "STOCK",
+                         *           "board": "KOSPI",
+                         *           "rank": 1,
+                         *           "marketCap": 500000000000000
+                         *         },
+                         *         {
+                         *           "id": "000660",
+                         *           "name": "SK하이닉스",
+                         *           "market": "KOSPI",
+                         *           "kind": "STOCK",
+                         *           "board": "KOSPI",
+                         *           "rank": 2,
+                         *           "marketCap": 150000000000000
+                         *         },
+                         *         {
+                         *           "id": "373220",
+                         *           "name": "LG에너지솔루션",
+                         *           "market": "KOSPI",
+                         *           "kind": "STOCK",
+                         *           "board": "KOSPI",
+                         *           "rank": 3,
+                         *           "marketCap": 90000000000000
+                         *         }
+                         *       ]
+                         *     }
+                         */
                         "application/json": components["schemas"]["BoardListing"];
                     };
                 };
@@ -1109,6 +1146,188 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/market/instruments/{id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 구현 전 계약. 종목 일별 종가(화면 차트용, decisions/2026-10-26-invest-insight-redesign ④). 수집 대상 종목·최근 3년까지만
+         * @description - 기간은 마지막 거래일(dataAsOf)에서 개월 수만큼 거슬러 간 날 이후의 첫 거래일부터다. 3M=3, 6M=6, 1Y=12, 3Y=36개월.
+         *     - 일별 종가 하나만 준다(시가·고가·저가·거래량 없음). 다운로드·내보내기 용도로 쓰지 않는다.
+         *     - 수집 대상이 아니거나 시세가 없는 종목은 404.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    period?: components["schemas"]["PricePeriod"];
+                };
+                header?: never;
+                path: {
+                    /** @description 종목 코드 */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 일별 종가 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PriceSeries"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/instruments/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 구현 전 계약. 종목·기간의 사건 핀(종목 사건 + 시장 사건). 금액 필드 없음. 상세는 /market/events/{id} */
+        get: {
+            parameters: {
+                query?: {
+                    period?: components["schemas"]["PricePeriod"];
+                };
+                header?: never;
+                path: {
+                    /** @description 종목 코드 */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 사건 목록(시간순). 없으면 items 빈 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PriceEvents"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/indices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 구현 전 계약. 상단 시장 띠(국내외 지수·금·환율 9칸). 수집 전이거나 성공한 값이 없는 칸은 items에서 빠진다
+         * @description - 순서는 KOSPI·KOSDAQ·NASDAQ100·SP500·DJIA·NIKKEI225·GOLD·USDKRW·JPYKRW로 고정한다. 등락률로 정렬하지 않는다(PRD §5).
+         *     - KOSPI·KOSDAQ: 키움 업종일봉(ka20006) 종합지수, unit=POINT(소수 2자리).
+         *     - NASDAQ100·SP500·DJIA·NIKKEI225: 한국투자증권 KIS Open API, unit=POINT. 수집은 #94이고 지원 범위·재표시 조건은 그 Issue에서 확인한다.
+         *     - GOLD: KRX 금시장 일별매매정보, unit=KRW_PER_GRAM(원 단위 정수).
+         *     - USDKRW·JPYKRW: KIS Open API, unit=KRW_PER_USD·KRW_PER_100JPY(소수 2자리).
+         *     - 대용 ETF로 대신하지 않는다. date는 칸마다의 기준일이며 해외 지수는 현지 거래일이다.
+         *     - changeRate = (value − prevValue) ÷ prevValue, 소수 4자리 내림.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 시장 띠(수집된 칸만) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IndexStrip"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/market/industries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 구현 전 계약. 업종별 시가총액 상위 종목(키움 ka10099 upName, KIWOOM_UPNAME_V1). 테마 자동 분류 아님
+         * @description - 수집 대상(시장별 시가총액 상위 100) 안에서만 업종으로 묶는다. 업종 빈 값은 제외한다.
+         *     - 업종은 업종 안 시가총액 합이 큰 순, 업종 안 종목은 시가총액 순이다. 등락률로 정렬하지 않는다.
+         *     - 아직 업종을 수집하지 않았으면 items가 빈 목록.
+         */
+        get: {
+            parameters: {
+                query: {
+                    board: "KOSPI" | "KOSDAQ";
+                    /** @description 업종마다 보여 줄 종목 수 */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 업종별 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IndustryListing"];
+                    };
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/simulations/run": {
         parameters: {
             query?: never;
@@ -1175,6 +1394,268 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/savings/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 조건에 맞는 적금 목록과 세후 이자(서버 계산). 금리가 없는 상품은 noRateCount로만 센다 */
+        get: {
+            parameters: {
+                query: {
+                    monthly: number;
+                    termMonths: number;
+                    sort?: "BASE_RATE" | "MAX_RATE" | "TERM";
+                    direction?: "ASC" | "DESC";
+                    reserveType?: components["schemas"]["ReserveType"];
+                    /** @description 쉼표 구분 */
+                    sectors?: string;
+                    /** @description 쉼표 구분 금융회사 이름. 비우면 전체 */
+                    companies?: string;
+                    page?: number;
+                    size?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 적금 목록(items는 요청한 쪽만, total·min·max는 조건 전체 기준) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "items": [
+                         *         {
+                         *           "id": "1",
+                         *           "company": "예시은행",
+                         *           "name": "예시 청년 적금",
+                         *           "sector": "BANK",
+                         *           "baseRate": 3.5,
+                         *           "maxRate": 4.5,
+                         *           "termMonths": 12,
+                         *           "reserveType": "FIXED",
+                         *           "interestType": "SIMPLE",
+                         *           "disclosureMonth": "2026-10",
+                         *           "maxLimit": 500000,
+                         *           "joinMember": "만 19~34세 개인",
+                         *           "joinDeny": "제한 없음",
+                         *           "openToAll": true,
+                         *           "disclosureUrl": "https://finlife.fss.or.kr",
+                         *           "dataAsOf": "2026-10-24",
+                         *           "result": {
+                         *             "principal": 936000,
+                         *             "interestPreTax": 17745,
+                         *             "tax": 2732,
+                         *             "interestAfterTax": 15013,
+                         *             "maturityAmount": 951013,
+                         *             "excludedAmount": 0,
+                         *             "rateBasis": "BASE"
+                         *           }
+                         *         }
+                         *       ],
+                         *       "total": 1,
+                         *       "page": 1,
+                         *       "size": 10,
+                         *       "minInterestAfterTax": 15013,
+                         *       "maxInterestAfterTax": 15013,
+                         *       "noRateCount": 0,
+                         *       "disclosureMonth": "2026-10",
+                         *       "dataAsOf": "2026-10-24",
+                         *       "notice": "공시 금리로 계산한 추정이에요. 은행 계산과 조금 다를 수 있고 우대조건은 직접 확인해야 해요.",
+                         *       "isSample": true
+                         *     }
+                         */
+                        "application/json": components["schemas"]["SavingsProductList"];
+                    };
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/savings/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 공시가 있는 금융회사(가나다순) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 금융회사 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            name: string;
+                            sector: components["schemas"]["SavingsSector"];
+                        }[];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/savings/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 청년정책(적금·저축·통장 계열, 이름순). 금리가 없어 계산하지 않는다 */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description 쉼표 구분 정책번호. 비우면 전체 */
+                    ids?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 정책 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavingsPolicy"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/savings/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 상품 상세(그 기간·적립 방식의 가장 높은 기본금리 줄) */
+        get: {
+            parameters: {
+                query: {
+                    termMonths: number;
+                    reserveType?: components["schemas"]["ReserveType"];
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 상품 상세 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavingsProductDetail"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/savings/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 한 상품의 만기 계산과 달마다 쌓인 금액(서버 계산, 세금 15.4% 내림) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        productId: string;
+                        /** Format: int64 */
+                        monthly: number;
+                        termMonths: number;
+                        reserveType: components["schemas"]["ReserveType"];
+                        rateBasis: components["schemas"]["RateBasis"];
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavingsSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/youth-news": {
         parameters: {
             query?: never;
@@ -1211,6 +1692,78 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
+                        /**
+                         * @example {
+                         *       "items": [
+                         *         {
+                         *           "id": "1",
+                         *           "category": "FINANCE",
+                         *           "categories": [
+                         *             "FINANCE"
+                         *           ],
+                         *           "title": "청년 저축 지원(예시)",
+                         *           "summary": "매달 저축하면 정부가 돈을 더 얹어 줘요.",
+                         *           "benefit": null,
+                         *           "audience": {
+                         *             "summary": null,
+                         *             "ageMin": 19,
+                         *             "ageMax": 34,
+                         *             "incomeLimit": true
+                         *           },
+                         *           "regions": "NATIONWIDE",
+                         *           "applyStart": "2026-10-01",
+                         *           "applyDeadline": "2026-11-30",
+                         *           "alwaysOpen": false,
+                         *           "action": null,
+                         *           "source": {
+                         *             "org": "○○부(예시)",
+                         *             "url": "https://www.youthcenter.go.kr",
+                         *             "asOf": "2026-10-27"
+                         *           },
+                         *           "postedAt": "2026-10-20",
+                         *           "keywords": [
+                         *             "저축"
+                         *           ],
+                         *           "calcLink": null,
+                         *           "correctedAt": null,
+                         *           "slot": null
+                         *         },
+                         *         {
+                         *           "id": "2",
+                         *           "category": "HOUSING",
+                         *           "categories": [
+                         *             "HOUSING"
+                         *           ],
+                         *           "title": "청년 월세 지원(예시)",
+                         *           "summary": null,
+                         *           "benefit": null,
+                         *           "audience": {
+                         *             "summary": null,
+                         *             "ageMin": null,
+                         *             "ageMax": null,
+                         *             "incomeLimit": null
+                         *           },
+                         *           "regions": [
+                         *             "서울"
+                         *           ],
+                         *           "applyStart": null,
+                         *           "applyDeadline": null,
+                         *           "alwaysOpen": true,
+                         *           "action": null,
+                         *           "source": {
+                         *             "org": "서울특별시(예시)",
+                         *             "url": "https://www.youthcenter.go.kr",
+                         *             "asOf": "2026-10-27"
+                         *           },
+                         *           "postedAt": null,
+                         *           "keywords": [],
+                         *           "calcLink": null,
+                         *           "correctedAt": null,
+                         *           "slot": null
+                         *         }
+                         *       ]
+                         *     }
+                         */
                         "application/json": components["schemas"]["YouthNewsFeed"];
                     };
                 };
@@ -1690,6 +2243,136 @@ export interface components {
             noticeKey: "EVENT_EXPLAIN";
             notice: string;
         };
+        /**
+         * @default 3M
+         * @enum {string}
+         */
+        PricePeriod: "3M" | "6M" | "1Y" | "3Y";
+        SourceRow: {
+            name: string;
+            note: string | null;
+        };
+        PriceSeries: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "STOCK" | "ETF";
+            period: components["schemas"]["PricePeriod"];
+            /**
+             * Format: date
+             * @description 실제 첫 거래일
+             */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+            /** Format: date */
+            dataAsOf: string;
+            /**
+             * @description 수정주가 일별 종가
+             * @enum {string}
+             */
+            basis: "DAILY_ADJ_CLOSE";
+            points: {
+                /** Format: date */
+                date: string;
+                /**
+                 * Format: int64
+                 * @description 원
+                 */
+                close: number;
+            }[];
+            sources: components["schemas"]["SourceRow"][];
+            /** @enum {string} */
+            noticeKey: "PRICE_PAST";
+            notice: string;
+            isSample: boolean;
+        };
+        PriceEvents: {
+            id: string;
+            period: components["schemas"]["PricePeriod"];
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+            items: {
+                /** Format: int64 */
+                id: number;
+                code: string | null;
+                /** @enum {string} */
+                scope: "STOCK" | "MARKET";
+                /** Format: date */
+                startDate: string;
+                /** Format: date */
+                endDate: string;
+                windowDays: number;
+                /** @enum {string} */
+                direction: "RISE" | "FALL";
+                returnRate: number;
+                marketReturn: number | null;
+                headline: string;
+                hasExplanation: boolean;
+                sourceName: string | null;
+                sourceCount: number;
+                topSource: string | null;
+                score: number;
+            }[];
+            /** @enum {string} */
+            noticeKey: "EVENT_EXPLAIN";
+        };
+        IndexStrip: {
+            items: {
+                /** @enum {string} */
+                key: "KOSPI" | "KOSDAQ" | "NASDAQ100" | "SP500" | "DJIA" | "NIKKEI225" | "GOLD" | "USDKRW" | "JPYKRW";
+                /** @description 화면 표시 이름(예: 코스피, S&P500, 금, 원/달러) */
+                name: string;
+                /** @enum {string} */
+                kind: "INDEX" | "COMMODITY" | "FX";
+                /** @enum {string} */
+                unit: "POINT" | "KRW_PER_GRAM" | "KRW_PER_USD" | "KRW_PER_100JPY";
+                /** @description POINT·환율은 소수 2자리, KRW_PER_GRAM은 정수 */
+                value: number;
+                prevValue: number;
+                change: number;
+                /** @description 소수 4자리 내림 */
+                changeRate: number;
+                /**
+                 * Format: date
+                 * @description 이 칸의 기준일
+                 */
+                date: string;
+                /** @description 제공처 이름(키움증권·한국투자증권·한국거래소 등) */
+                sourceName: string;
+            }[];
+            sources: components["schemas"]["SourceRow"][];
+            isSample: boolean;
+        };
+        IndustryListing: {
+            /** @enum {string} */
+            board: "KOSPI" | "KOSDAQ";
+            items: {
+                /** @description 내부 식별자(업종명 SHA-256 앞 24자리). 공식 업종 코드 아님 */
+                categoryCode: string;
+                categoryName: string;
+                /** Format: int64 */
+                totalMarketCap: number | null;
+                instruments: {
+                    id: string;
+                    name: string;
+                    /** @description 시장 전체 시가총액 순위 */
+                    rank: number;
+                    /** Format: int64 */
+                    marketCap: number | null;
+                }[];
+            }[];
+            /** @enum {string} */
+            classificationVersion: "KIWOOM_UPNAME_V1";
+            /** Format: date */
+            classificationAsOf: string | null;
+            sources: components["schemas"]["SourceRow"][];
+            /** @description 현재 업종을 과거에 적용·수집 대상 안에서만 묶었다는 안내 */
+            note: string | null;
+            isSample: boolean;
+        };
         /** @enum {string} */
         FundingMode: "LUMP_SUM" | "SPLIT" | "PACE";
         RunResponse: {
@@ -1800,6 +2483,157 @@ export interface components {
         YouthNewsFeed: {
             items: components["schemas"]["YouthNewsItem"][];
         };
+        /**
+         * @description FIXED 정액적립식, FREE 자유적립식
+         * @default FIXED
+         * @enum {string}
+         */
+        ReserveType: "FIXED" | "FREE";
+        /** @enum {string} */
+        RateBasis: "BASE" | "MAX";
+        /** @enum {string} */
+        SavingsSector: "BANK" | "SAVINGS_BANK";
+        SavingsResult: {
+            /** Format: int64 */
+            principal: number;
+            /** Format: int64 */
+            interestPreTax: number;
+            /** Format: int64 */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** Format: int64 */
+            maturityAmount: number;
+            /**
+             * Format: int64
+             * @description 월 한도를 넘어 넣지 못한 돈 합
+             */
+            excludedAmount: number;
+            rateBasis: components["schemas"]["RateBasis"];
+        };
+        SavingsProduct: {
+            id: string;
+            company: string;
+            name: string;
+            sector: components["schemas"]["SavingsSector"];
+            /** @description 연 % */
+            baseRate: number;
+            /** @description 연 %, 우대 포함. 공시가 없거나 기본보다 낮으면 기본금리 */
+            maxRate: number;
+            termMonths: number;
+            reserveType: components["schemas"]["ReserveType"];
+            /** @enum {string} */
+            interestType: "SIMPLE" | "COMPOUND";
+            /** @description YYYY-MM */
+            disclosureMonth: string;
+            /**
+             * Format: int64
+             * @description 월 납입 한도. 없으면 null
+             */
+            maxLimit: number | null;
+            joinMember: string;
+            /** @enum {string} */
+            joinDeny: "제한 없음" | "서민 전용" | "일부 제한" | "확인 필요";
+            openToAll: boolean | null;
+            disclosureUrl: string;
+            /** Format: date */
+            dataAsOf: string;
+            result: components["schemas"]["SavingsResult"];
+        };
+        /** @description SavingsProduct에서 result 대신 우대조건 원문 */
+        SavingsProductDetail: {
+            id: string;
+            company: string;
+            name: string;
+            sector: components["schemas"]["SavingsSector"];
+            baseRate: number;
+            maxRate: number;
+            termMonths: number;
+            reserveType: components["schemas"]["ReserveType"];
+            /** @enum {string} */
+            interestType: "SIMPLE" | "COMPOUND";
+            disclosureMonth: string;
+            /** Format: int64 */
+            maxLimit: number | null;
+            joinMember: string;
+            /** @enum {string} */
+            joinDeny: "제한 없음" | "서민 전용" | "일부 제한" | "확인 필요";
+            openToAll: boolean | null;
+            disclosureUrl: string;
+            /** Format: date */
+            dataAsOf: string;
+            specialConditionText: string;
+        };
+        SavingsProductList: {
+            items: components["schemas"]["SavingsProduct"][];
+            total: number;
+            page: number;
+            size: number;
+            /** Format: int64 */
+            minInterestAfterTax: number | null;
+            /** Format: int64 */
+            maxInterestAfterTax: number | null;
+            /** @description 조건에 맞지만 기본금리가 없어 뺀 상품 수 */
+            noRateCount: number;
+            /** @description YYYY-MM. 상품이 없으면 빈 문자열 */
+            disclosureMonth: string;
+            /** Format: date */
+            dataAsOf: string;
+            notice: string;
+            isSample: boolean;
+        };
+        /** @description 온통청년 원문. 비어 있는 항목은 null */
+        SavingsPolicy: {
+            id: string;
+            name: string;
+            summary: string | null;
+            support: string | null;
+            category: string | null;
+            agency: string | null;
+            operator: string | null;
+            applyPeriod: string | null;
+            bizPeriod: string | null;
+            minAge: number | null;
+            maxAge: number | null;
+            applyMethod: string | null;
+            screening: string | null;
+            documents: string | null;
+            applyUrl: string | null;
+            refUrl: string | null;
+            etc: string | null;
+            incomeNote: string | null;
+            qualification: string | null;
+            restriction: string | null;
+            region: string | null;
+            /** Format: date */
+            dataAsOf: string;
+        };
+        SavingsSimulation: {
+            /** Format: int64 */
+            principal: number;
+            /** Format: int64 */
+            interestPreTax: number;
+            /** Format: int64 */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** Format: int64 */
+            maturityAmount: number;
+            /** Format: int64 */
+            excludedAmount: number;
+            rateBasis: components["schemas"]["RateBasis"];
+            /** @description 1개월부터 termMonths까지 달마다 넣은 돈과 쌓인 세전 이자 */
+            series: {
+                month: number;
+                /** Format: int64 */
+                principal: number;
+                /** Format: int64 */
+                interestPreTax: number;
+            }[];
+            assumptions: string[];
+            notice: string;
+            isSample: boolean;
+        };
         YouthNewsItem: {
             id: string;
             category: components["schemas"]["NewsCategory"];
@@ -1890,6 +2724,46 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                /**
+                 * @example {
+                 *       "source": "app",
+                 *       "status": "available",
+                 *       "total": 1450000,
+                 *       "base": 500000,
+                 *       "monthlyGoal": 300000,
+                 *       "startedOn": "2026-06-26",
+                 *       "updatedAt": "2026-09-25T20:10:00+09:00",
+                 *       "entries": [
+                 *         {
+                 *           "cycleEnd": "2026-07-25",
+                 *           "choice": "GOAL",
+                 *           "amount": 300000,
+                 *           "totalAfter": 800000,
+                 *           "createdAt": "2026-07-24T20:05:00+09:00"
+                 *         },
+                 *         {
+                 *           "cycleEnd": "2026-08-25",
+                 *           "choice": "MANUAL",
+                 *           "amount": 0,
+                 *           "totalAfter": 800000,
+                 *           "createdAt": "2026-08-24T21:00:00+09:00"
+                 *         },
+                 *         {
+                 *           "cycleEnd": "2026-09-25",
+                 *           "choice": "ALL",
+                 *           "amount": 650000,
+                 *           "totalAfter": 1450000,
+                 *           "createdAt": "2026-09-25T20:10:00+09:00"
+                 *         }
+                 *       ],
+                 *       "sync": {
+                 *         "status": "fresh",
+                 *         "syncedAt": "2026-10-27T09:00:00+09:00",
+                 *         "due": false
+                 *       },
+                 *       "manual": null
+                 *     }
+                 */
                 "application/json": components["schemas"]["SeedMoneyResponse"];
             };
         };

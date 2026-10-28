@@ -20,7 +20,7 @@ export type SeedMoney = {
 };
 
 /** GET /api/v1/me/seed-money(backend/README.md "API") */
-type SeedMoneyResponse = {
+export type SeedMoneyResponse = {
   source: 'app' | 'none';
   status: 'available' | 'budget_not_set' | 'not_received' | null;
   total: number | null;

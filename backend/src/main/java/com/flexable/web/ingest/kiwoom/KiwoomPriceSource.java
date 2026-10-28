@@ -16,6 +16,7 @@ import com.flexable.web.ingest.PriceSource;
 /**
  * 키움 REST 주식일봉차트조회(ka10081). 수정주가(upd_stkpc_tp=1)로 base_dt부터 과거로 받는다.
  * 응답이 최신 날짜부터 오므로 from보다 앞선 날짜가 나오거나 cont-yn이 N이 될 때까지 next-key로 이어 받는다.
+ * ka10081은 초당 5건 한도라, 페이지뿐 아니라 종목이 바뀌어도 모든 호출 사이를 pageDelay만큼 띄운다(시세·시뮬레이션 수집이 같은 인스턴스를 쓴다).
  */
 public class KiwoomPriceSource implements PriceSource {
 
@@ -26,6 +27,8 @@ public class KiwoomPriceSource implements PriceSource {
 	private final String baseUrl;
 	private final KiwoomTokenClient tokens;
 	private final Duration pageDelay;
+	/** 마지막 ka10081 호출 시각(System.nanoTime). 0이면 아직 부르지 않음 */
+	private long lastCall;
 
 	public KiwoomPriceSource(RestClient http, String baseUrl, KiwoomTokenClient tokens, Duration pageDelay) {
 		this.http = http;
@@ -44,9 +47,7 @@ public class KiwoomPriceSource implements PriceSource {
 		List<DailyBar> out = new ArrayList<>();
 		String nextKey = null;
 		for (int page = 0; page < MAX_PAGES; page++) {
-			if (page > 0) {
-				pause();
-			}
+			pace();
 			String key = nextKey;
 			ResponseEntity<Map<String, Object>> res = http.post()
 				.uri(baseUrl + "/api/dostk/chart")
@@ -118,16 +119,21 @@ public class KiwoomPriceSource implements PriceSource {
 		}
 	}
 
-	private void pause() {
+	/** 직전 호출에서 pageDelay가 지나지 않았으면 남은 만큼 기다린다. */
+	private synchronized void pace() {
 		if (pageDelay.isZero()) {
 			return;
 		}
-		try {
-			Thread.sleep(pageDelay);
+		long wait = lastCall == 0 ? 0 : lastCall + pageDelay.toNanos() - System.nanoTime();
+		if (wait > 0) {
+			try {
+				Thread.sleep(Duration.ofNanos(wait));
+			}
+			catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IllegalStateException("interrupted", e);
+			}
 		}
-		catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw new IllegalStateException("interrupted", e);
-		}
+		lastCall = System.nanoTime();
 	}
 }

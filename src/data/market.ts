@@ -70,8 +70,9 @@ export const useEventDetail = (id: number | null) =>
 export type PricePeriod = components['schemas']['PricePeriod'];
 /** 화면 차트용 일별 종가(수정주가). 시가·고가·저가·거래량은 없다(decisions/2026-10-26-invest-insight-redesign ④) */
 export type PriceSeries = components['schemas']['PriceSeries'];
-/** 사건 핀(금액 필드 없음). 상세는 useEventDetail */
-export type PriceEvent = components['schemas']['PriceEvents']['items'][number];
+/** 기간의 사건 핀 목록(금액 필드 없음). 상세는 useEventDetail */
+export type PriceEvents = components['schemas']['PriceEvents'];
+export type PriceEvent = PriceEvents['items'][number];
 export type IndexStrip = components['schemas']['IndexStrip'];
 export type IndexItem = IndexStrip['items'][number];
 export type IndustryListing = components['schemas']['IndustryListing'];
@@ -91,7 +92,7 @@ export const usePrices = (id: string | null, period: PricePeriod) =>
 export const usePriceEvents = (id: string | null, period: PricePeriod) =>
   useQuery({
     queryKey: ['market', 'price-events', id, period],
-    queryFn: () => api<components['schemas']['PriceEvents']>(`/market/instruments/${encodeURIComponent(id!)}/events?period=${period}`),
+    queryFn: () => api<PriceEvents>(`/market/instruments/${encodeURIComponent(id!)}/events?period=${period}`),
     enabled: id != null,
     retry: false,
     staleTime: 30 * 60_000,

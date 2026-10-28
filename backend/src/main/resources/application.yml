@@ -66,6 +66,15 @@ app:
         client-id: ${GOOGLE_CLIENT_ID:}
         client-secret: ${GOOGLE_CLIENT_SECRET:}
   cors-origins: ${CORS_ORIGINS:http://localhost:5173}
+  # 사건 무렵 뉴스(NAVER API HUB 뉴스 검색, decisions/2026-10-28-event-news). api가 사건 상세 요청 중 부르는 외부 호출 예외(04 §8 ④).
+  # 결과는 저장·캐시하지 않는다. naver | fake(예시 기사). 키가 비어 있으면 뉴스 칸만 UNAVAILABLE. 키는 환경변수로만 넣는다
+  news-search:
+    source: ${NEWS_SEARCH_SOURCE:naver}
+    base-url: ${NAVER_API_HUB_BASE_URL:https://naverapihub.apigw.ntruss.com}
+    key-id: ${NAVER_API_HUB_KEY_ID:}
+    key: ${NAVER_API_HUB_KEY:}
+    # 서버가 하루(KST)에 부를 상한(하루 한도 25,000회보다 낮게)
+    daily-cap: ${NAVER_NEWS_DAILY_CAP:20000}
   market:
     # 시장(코스피·코스닥·ETF)마다 시가총액 상위 몇 종목을 목록에 보여 주고 계산·수집할지
     top-limit: ${MARKET_TOP_LIMIT:100}

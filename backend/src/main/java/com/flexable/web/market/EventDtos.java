@@ -1,6 +1,7 @@
 package com.flexable.web.market;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /** 사건·근거를 market 밖(ingest, 이후 API)으로 주고받는 값. */
@@ -79,6 +80,18 @@ public final class EventDtos {
 
 	private static String dot(LocalDate d) {
 		return d.toString().replace('-', '.');
+	}
+
+	/**
+	 * 사건 무렵 뉴스(GET /market/events/{id}/news, decisions/2026-10-28-event-news). from~to는 기사 발행일 범위(KST, 포함).
+	 * status: OK | UNAVAILABLE(키 없음·호출 실패·하루 한도). 저장하지 않고 요청마다 검색한 결과다.
+	 */
+	public record EventNews(long eventId, LocalDate from, LocalDate to, String status, List<NewsItem> items, String sourceName,
+			String notice, boolean isSample) {
+	}
+
+	/** 기사 한 건: 원문 제목·원문 링크·언론사 주소(원문 링크 호스트, 없으면 null)·발행 시각(+09:00). */
+	public record NewsItem(String title, String url, String publisher, OffsetDateTime publishedAt) {
 	}
 
 	/** 한 종목 탐지 결과: 저장(새로·갱신)한 수와 지운 수. */

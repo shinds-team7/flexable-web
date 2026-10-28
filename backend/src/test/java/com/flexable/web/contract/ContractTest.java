@@ -269,6 +269,13 @@ class ContractTest {
 		call(get("/api/v1/market/status"), 200);
 		call(get("/api/v1/market/events/" + eventId), 200);
 		call(get("/api/v1/market/events/999999999"), 404);
+		// 사건 무렵 뉴스: 테스트는 예시 소스(fake). 기간 밖 예시 기사는 빠지고 저장하지 않으므로 no-store
+		MvcResult news = call(get("/api/v1/market/events/" + eventId + "/news"), 200);
+		String newsBody = news.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat((List<?>) JsonPath.read(newsBody, "$.items")).hasSize(2);
+		assertThat((Boolean) JsonPath.read(newsBody, "$.isSample")).isTrue();
+		assertThat(news.getResponse().getHeader(HttpHeaders.CACHE_CONTROL)).contains("no-store");
+		call(get("/api/v1/market/events/999999999/news"), 404);
 		for (String period : List.of("3M", "6M", "1Y", "3Y")) {
 			call(get("/api/v1/market/instruments/005930/prices?period=" + period), 200);
 		}

@@ -546,8 +546,9 @@ type Kind = 'FINANCE' | 'POLICY';
 
 function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareLimit: number; initialPolicy: boolean }) {
   const [kind, setKind] = useState<Kind>('FINANCE'); // 금융상품(적금) / 정책상품. 둘 중 하나만 보여 준다
-  const [amountMode, setAmountMode] = useState<'pace' | 'manual'>('pace');
-  const [draft, setDraft] = useState(String(pace));
+  const hasPace = pace > 0;
+  const [amountMode, setAmountMode] = useState<'pace' | 'manual'>(hasPace ? 'pace' : 'manual');
+  const [draft, setDraft] = useState(hasPace ? String(pace) : '');
   const [term, setTerm] = useState<SavingsTerm>(12);
   const [reserveType, setReserveType] = useState<ReserveType>('FIXED');
   const sectors: Sector[] = ['BANK', 'SAVINGS_BANK'];
@@ -578,7 +579,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
       page: 1,
       size: ALL_SIZE,
     },
-    finance,
+    finance && monthly > 0,
   );
   const items = list.data?.items ?? [];
   const picked = cmp;
@@ -604,8 +605,8 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
   };
   const toggleOpen = (id: string) => setOpenId(expandedId === id ? null : id);
   const reset = () => {
-    setAmountMode('pace');
-    setDraft(String(pace));
+    setAmountMode(hasPace ? 'pace' : 'manual');
+    setDraft(hasPace ? String(pace) : '');
   };
 
   return (
@@ -630,8 +631,8 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
               </span>
               <div className="toolbar" style={{ gap: 8, flexWrap: 'nowrap' }}>
                 <div className="seg" role="group" aria-label="매달 넣을 돈">
-                  <button type="button" aria-pressed={amountMode === 'pace'} onClick={() => setAmountMode('pace')}>
-                    평균 {won(pace)}원
+                  <button type="button" disabled={!hasPace} aria-pressed={amountMode === 'pace'} onClick={() => setAmountMode('pace')}>
+                    {hasPace ? `평균 ${won(pace)}원` : '저축 속도 없음'}
                   </button>
                   <button type="button" aria-pressed={amountMode === 'manual'} onClick={() => setAmountMode('manual')}>
                     직접 입력
@@ -712,7 +713,12 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
           <p className="meta">우대조건은 상품 상세에서 원문을 확인하세요. 계산에 넣지 않아요.</p>
           <div className="sv-main">
             <div className="col">
-              {list.isPending ? (
+              {monthly <= 0 ? (
+                <div className="empty-box">
+                  <h3>매달 넣을 돈을 입력해 주세요</h3>
+                  <p className="sub">1,000원 이상 입력하면 같은 조건으로 적금 상품을 비교할 수 있어요.</p>
+                </div>
+              ) : list.isPending ? (
                 <Loading h={320} />
               ) : list.isError ? (
                 <ErrorCard error={list.error} onRetry={() => list.refetch()} onReset={reset} />
@@ -809,7 +815,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
                   <Notice text={list.data.notice} />
                 </>
               )}
-              {policyOn && <PolicySection monthly={monthly} term={term} />}
+              {policyOn && monthly > 0 && <PolicySection monthly={monthly} term={term} />}
             </div>
 
             <div className="sv-rail">

@@ -29,6 +29,10 @@
 
 **남은 확인(운영자)**: ① 대한상공회의소의 정확한 기관명·재수탁·VM 스냅숏/백업 여부와 보관 기간(아카데미에 문의) ② 위탁 관계 문서(목적 외 처리 금지·안전조치·종료 시 파기)를 아카데미와 주고받을 수 있는지 ③ 오늘 solpa에서 만든 시험 계정 정리 ④ 문의 메일 30일 삭제 습관 ⑤ 만 14세 미만 가입 제한을 화면 문구 말고 확인 절차로 둘지.
 
+## 0-4. 2026-10-27 웹에서 고친 시드머니를 앱에 반영(#83)
+
+연동 회원이 홈 [수정하기]로 고친 총액을 웹 서버가 앱 서버(`PUT /internal/v1/web-links/{linkId}/seed-money`, 서비스 키)로 보낸다. 웹 → 앱 방향 전송이 처음 생겨 제2조 2(앱 연동 목적에 "웹에서 고친 시드머니를 앱에 반영"), 제3조(웹이 앱으로 보내는 정보에 고친 금액), 제4조(직접 고친 시드머니: 앱에 반영되면 웹에 따로 보관하지 않음, 실패할 때만 보관)를 고치고 변경 이력에 적었다. 새 수집 항목은 없고(금액은 이미 처리하는 항목), 앱은 같은 운영자다. 앱 방침 §4의 웹 연동 목적 문구는 앱 저장소 PR(flexable-app #189)에서 리드가 정한다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
+
 ## 0-3. 2026-10-24 시드머니 직접 수정 저장
 
 홈 [수정하기]를 회원 계정에 저장하게 바꿔(decisions 2026-10-24 ②) 제2조 1항에 "시드머니 직접 수정"(금액·수정 일시, 계약 이행 근거), 제4조에 보유 기간(되돌리기·탈퇴까지, 마지막 값만)을 넣고 변경 이력에 적었다. 외부 전송·위탁은 없다(목표 안내의 OpenAI 전송 대상도 아님). 기능과 같은 날 시행한다. 실서비스가 아닌 해커톤 시연 서비스라 제13조 시행 7일 전 고지 절차는 적용하지 않는다(사용자 결정 2026-10-24).
@@ -61,7 +65,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 시작일·주기별 반영 기록 | `app_links.seed_started_on`, `app_link_entries`(V6: 주기 종료일·방법·금액·반영 후 합계·반영 일시). 조회마다 통째로 바꾸고 연동 행 삭제 시 함께 삭제(FK CASCADE) |
 | 동의·가입 일시, 가입 방법 | `users.terms_agreed_at`·`created_at`, `user_identities.provider`. `privacy_agreed_at`은 10-21 전 가입자만(V7) |
 | 화면 설정 | `user_settings`(theme·seen_tours·disclaimer_ack_at) |
-| 시드머니 직접 수정(10-24) | `seed_money_manual`(seedmoney, V9: user_id·total·updated_at). `PUT·DELETE /api/v1/me/seed-money/manual`. 되돌리기(DELETE)·탈퇴(`SeedMoneyService.onWithdraw`, FK CASCADE) 때 삭제, 다시 고치면 덮어써 마지막 값만 |
+| 시드머니 직접 수정(10-24) | `seed_money_manual`(seedmoney, V9: user_id·total·updated_at). `PUT·DELETE /api/v1/me/seed-money/manual`. 되돌리기(DELETE)·탈퇴(`SeedMoneyService.onWithdraw`, FK CASCADE) 때 삭제, 다시 고치면 덮어써 마지막 값만. 10-27(#83): 연동 회원은 `AppLinkService.pushSeedMoney`로 앱에 금액을 보내고, 반영되면 행을 지운다(실패할 때만 저장) |
 | 연동 일시·마지막 조회 일시 | `app_links.created_at`·`synced_at`·`checked_at` |
 | 서버 오류 기록의 회원 번호 | `AppLinkService` 경고·오류 로그의 `userId`(이메일·linkId는 남기지 않음) |
 | 웹 서버 접속 기록 | `deploy/vm/nginx.conf` `log_format web_access`: IP(앞단 프록시 주소일 수 있음)·일시·메서드·경로(쿼리 제외)·응답 코드·크기·브라우저 정보 |

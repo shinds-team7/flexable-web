@@ -140,6 +140,33 @@ class RestAppApiClientTest {
 		assertThat(seen.get(seen.size() - 1)).startsWith("DELETE /internal/v1/web-links/" + LINK_ID + " key=");
 	}
 
+	/** 앱 web-link-api.yaml PUT seed-money: 총액을 보내고 반영 뒤 값을 받는다. 400은 앱의 안내 문구와 함께 REJECTED. */
+	@Test
+	void updatesSeedMoneyAndCarriesRejection() {
+		reply(200, """
+				{"total":1200000,"base":900000,"monthlyGoal":300000,"lastEntry":null,
+				 "updatedAt":"2026-10-27T12:00:00+09:00","startedOn":null,"entries":[]}""");
+		AppSeedMoney seed = client().updateSeedMoney(LINK_ID, 1_200_000);
+		assertThat(seed.total()).isEqualTo(1_200_000);
+		assertThat(seed.base()).isEqualTo(900_000);
+		assertThat(seen).singleElement().asString()
+			.startsWith("PUT /internal/v1/web-links/" + LINK_ID + "/seed-money key=" + KEY)
+			.contains("\"total\":1200000");
+
+		reply(400, """
+				{"code":"VALIDATION_FAILED","message":"입력한 내용을 확인해 주세요","fields":{"total":"앱에서 반영한 돈(300,000원)보다 작게 고칠 수 없어요"}}""");
+		try {
+			client().updateSeedMoney(LINK_ID, 1);
+			throw new AssertionError("예외가 나야 합니다");
+		}
+		catch (AppApiException e) {
+			assertThat(e.kind()).isEqualTo(Kind.REJECTED);
+			assertThat(e.detail()).isEqualTo("앱에서 반영한 돈(300,000원)보다 작게 고칠 수 없어요");
+		}
+		reply(404, "{\"code\":\"BUDGET_NOT_SET\",\"message\":\"x\"}");
+		assertThat(kindOf(() -> client().updateSeedMoney(LINK_ID, 1))).isEqualTo(Kind.BUDGET_NOT_SET);
+	}
+
 	/** 앱 docs/API.md 예시: 시작일과 주기별 반영 기록(오름차순, 0원 반영 포함)을 그대로 읽는다. */
 	@Test
 	void readsStartDateAndEntries() {

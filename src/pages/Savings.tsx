@@ -555,7 +555,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
   const [sort, setSort] = useState<SavingsSort>('BASE_RATE');
   const [companyNames, setCompanyNames] = useState<string[]>([]); // 비어 있으면 전체
   const [cmp, setCmp] = useState<Picked[]>([]);
-  const [openId, setOpenId] = useState<string | null | undefined>(undefined); // undefined = 아직 안 눌러서 첫 상품이 펼쳐진 상태, null = 모두 접음
+  const [openId, setOpenId] = useState<string | null>(null);
   const [lockMsg, setLockMsg] = useState('');
   const [region, setRegion] = useState(''); // 정책상품 지역. '' = 전체, '전국' = 중앙부처
   const [withCentral, setWithCentral] = useState(false); // 지역을 고른 채로 중앙부처 정책도 함께 볼지
@@ -583,7 +583,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
   const items = list.data?.items ?? [];
   const picked = cmp;
   const total = list.data?.total ?? 0;
-  const expandedId = openId === undefined ? (items[0]?.id ?? null) : openId;
+  const expandedId = openId;
 
   // 계산 조건이 바뀌면 비교 목록을 비운다(이전 조건으로 계산한 값이라서)
   const companyKey = companyNames.join('|');

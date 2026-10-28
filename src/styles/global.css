@@ -214,7 +214,6 @@ button.tm-chip-add:hover:not(:disabled){border-color:var(--brand);color:var(--br
 .tm-legend i.base{color:var(--baseline)}
 .tm-chart-note{margin-top:6px}
 /* 묶음 핀(숫자)은 오르내림과 관계없이 한 모양. 빨강·파랑은 사건 하나(▲▼)에만 쓴다. 등락은 툴팁·사건 목록에서 본다 */
-.tm-result .pin.cluster .dot,.tm-result .pin.cluster.rise .dot,.tm-result .pin.cluster.fall .dot{background:var(--text);color:var(--card)}
 .tm-ev{margin-top:16px;padding:12px 16px;background:var(--sunken);border-radius:var(--radius-soft-sm)}
 .tm-ev .ev-list button:hover{background:var(--card)}
 .chart-foot.tm-foot{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
@@ -355,9 +354,8 @@ td.nw{white-space:nowrap}
 .pin.rise .dot{background:var(--rise)}
 .pin.fall .dot{background:var(--fall)}
 .pin.info .dot{background:var(--card);color:var(--text);border:1.5px solid var(--baseline)}
+/* 숫자 묶음 핀은 오름·내림 구성과 관계없이 한 색(본문 글자색). 빨강 ▲·파랑 ▼ 단일 핀과 헷갈리지 않게 한다. 구성은 툴팁에 적는다 */
 .pin.cluster .dot{width:22px;height:22px;background:var(--text);color:var(--card);font-size:12px;font-weight:800}
-.pin.cluster.rise .dot{background:var(--rise);color:var(--on-brand)}
-.pin.cluster.fall .dot{background:var(--fall);color:var(--on-brand)}
 .pin[aria-pressed="true"] .dot{box-shadow:0 0 0 2px var(--card),0 0 0 5px var(--text)}
 .tip{position:absolute;z-index:5;width:264px;background:var(--raised);border:1px solid var(--line);border-radius:var(--radius-soft-sm);box-shadow:var(--shadow-float);padding:12px 14px;font-size:13px;line-height:1.45;color:var(--text-sub);pointer-events:none}
 .tip .t-val{font-size:17px;font-weight:800;color:var(--text)}
@@ -389,8 +387,6 @@ caption{text-align:left;font-size:13px;color:var(--text-muted);padding-bottom:8p
 .ev-detail h4{font-size:14px;margin:18px 0 6px}
 .ev-detail p,.ev-detail li{font-size:14px;color:var(--text-sub)}
 .ev-detail ul{margin:0;padding-left:18px}
-.ev-money{background:var(--sunken);border-radius:var(--radius-soft-sm);padding:12px 14px;margin-top:12px;font-size:14px}
-.ev-money b{font-size:17px}
 .fact{display:flex;gap:8px;align-items:flex-start;margin-top:6px}
 .fact .tag{flex:none;margin-top:1px}
 .locked-row{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px dashed var(--line);border-radius:var(--radius-soft-sm);padding:10px 12px;margin-top:8px;font-size:13px;color:var(--text-sub)}
@@ -1065,9 +1061,87 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 /* 선 그래프가 왼쪽부터 그려진다 */
 .reveal-rect{transform-box:fill-box;transform-origin:left center;animation:reveal 900ms var(--ease) backwards}
 @keyframes reveal{from{transform:scaleX(0)}}
+/* 사건 핀은 선 그리기(.reveal-rect)가 끝난 뒤 나타난다. 그 전에는 visibility로 숨겨 누르거나 포커스할 수 없다 */
+/* 선 아래 면은 선 그리기 뒤에 위에서 아래로 펼쳐진다(자르기 상자를 위쪽 기준으로 늘림) */
+.area-grow{transform-box:fill-box;transform-origin:center top;animation:area-grow 600ms var(--ease) 900ms backwards}
+@keyframes area-grow{from{transform:scaleY(0)}}
+.pins-wait{animation:after-reveal 280ms var(--ease) 900ms backwards}
+@keyframes after-reveal{from{opacity:0;visibility:hidden}}
 /* 진행 막대가 0에서 자란다 */
 .goal-track span{transform-origin:left center;animation:bar-grow 900ms var(--ease) backwards 200ms}
 @keyframes bar-grow{from{transform:scaleX(0)}}
 /* 누를 수 있는 숫자 칸·카드는 살짝 떠오른다 */
 a.stat,a.card{transition:transform 160ms var(--ease),box-shadow 160ms var(--ease),border-color 160ms var(--ease)}
 a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-float);text-decoration:none}
+
+/* ───────── 투자 인사이트(/invest, decisions/2026-10-26-invest-insight-redesign) ───────── */
+.ii-sec + .ii-sec{margin-top:var(--density-gap)}
+/* 페이지를 내릴 때 영역이 한 번 나타난다(02 §7-3 예외, 나타남 280ms). 움직임 줄이기면 Reveal이 이 클래스를 붙이지 않는다 */
+.reveal-in{opacity:0;transform:translateY(12px);transition:opacity 280ms var(--ease),transform 280ms var(--ease)}
+.reveal-in.is-in{opacity:1;transform:none}
+
+/* 시장 띠: 오른쪽 → 왼쪽으로 흐르고, 마우스·포커스·숨은 탭이면 멈춘다 */
+.ii-strip{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);box-shadow:var(--shadow-subtle);padding:12px 0 8px}
+.ii-strip-view{overflow:hidden;border-radius:var(--radius-soft-sm)}
+.ii-strip-view.still{overflow-x:auto;scrollbar-width:thin}
+.ii-strip-track{display:flex;width:max-content}
+.ii-strip-track.moving{animation:ii-marquee var(--ii-strip-dur,30s) linear infinite}
+.ii-strip-view:hover .ii-strip-track,.ii-strip-view:focus-within .ii-strip-track,.ii-strip-track.stopped{animation-play-state:paused}
+@keyframes ii-marquee{to{transform:translateX(-50%)}}
+.ii-strip-set{display:flex;list-style:none;margin:0;padding:0}
+.ii-strip-cell{display:flex;align-items:baseline;gap:8px;padding:6px 20px;border-right:1px solid var(--line);white-space:nowrap;font-size:14px;line-height:20px}
+.ii-strip-cell .nm{font-weight:600;color:var(--text-sub)}
+.ii-strip-cell b{font-size:16px;color:var(--text)}
+.ii-strip-cell .dt{font-size:12px;color:var(--text-muted)}
+.ii-strip-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 16px 0;flex-wrap:wrap}
+.ii-strip-foot .meta{margin:0;font-size:12px}
+
+/* 이름 첫 글자 아바타(로고 대신, 결정 ⑥) */
+.ii-avatar{display:inline-grid;place-items:center;width:28px;height:28px;flex:none;border-radius:var(--radius-soft-sm);background:var(--sunken);border:1px solid var(--line);color:var(--text-sub);font-size:13px;font-weight:700;line-height:1}
+.tm-list.ii-rank button{grid-template-columns:24px 28px minmax(0,1fr) auto}
+.tm-list.ii-rank button[aria-pressed="true"] .ii-avatar{background:var(--card);border-color:var(--brand);color:var(--brand-text)}
+
+/* 주가 차트: 하나. 위에 기간, 그 아래 범례(종목마다 표식·이름·마지막 종가) */
+.ii-chart-head{margin-bottom:12px}
+.ii-legend{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-wrap:wrap;gap:6px 20px}
+.ii-legend li{display:flex;align-items:center;gap:8px;min-width:0}
+.ii-legend .nm{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.ii-legend .meta{margin:0;white-space:nowrap}
+.ii-legend .tm-chip-x{width:24px;height:24px}
+.ii-last{color:var(--text);font-size:15px}
+.ii-card{min-width:0;position:relative;transition:opacity 140ms var(--ease)}
+.ii-card.refetching .chart-wrap{opacity:.45}
+.ii-charts .tm-error{margin:8px 0}
+/* 사건 핀 범례: 차트 핀(.pin .dot)과 같은 모양을 제자리에 그린다 */
+.ii-pin-key{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--text-sub)}
+.ii-pin-key li{display:flex;align-items:center;gap:6px}
+.pin.ii-pin-sample{position:static;width:auto;height:auto;margin:0;pointer-events:none}
+.pin.ii-pin-sample:hover .dot{transform:none}
+/* 주가 선은 천천히 고르게 그린다. 공통 --ease(앞에서 몰아 드러냄)로는 900ms도 순식간에 지나가 보였다. 움직임 줄이기면 global 규칙이 끈다 */
+.ii-charts .reveal-rect{animation-duration:1600ms;animation-timing-function:cubic-bezier(.45,.05,.35,1)}
+/* 선(1.6초) → 선 아래 면이 위에서 아래로 펼쳐짐(0.6초) → 사건 핀 순서로 나타난다 */
+.ii-charts .area-grow{animation-delay:1600ms}
+.ii-charts .pins-wait{animation-delay:2100ms}
+
+/* 종목 순위 패널: [시가총액 | 업종별] 탭. 시가총액은 먼저 20위까지, 업종은 접고 펴는 묶음 */
+.tm-list .ii-more{display:flex;justify-content:center;padding:8px 0 4px}
+.tm-list .ii-more button{width:auto;display:inline-flex}
+.ii-groups-body{overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--color-border-strong) transparent;overscroll-behavior:contain}
+.ii-groups{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ii-group{border:1px solid var(--line);border-radius:var(--radius-soft-sm)}
+.ii-group > summary{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer;list-style:none;border-radius:var(--radius-soft-sm)}
+.ii-group > summary::-webkit-details-marker{display:none}
+.ii-group > summary::after{content:"▸";color:var(--text-muted);font-size:12px;transition:transform 140ms var(--ease)}
+.ii-group[open] > summary::after{transform:rotate(90deg)}
+.ii-group > summary:hover{background:var(--sunken)}
+.ii-group > summary .nm{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ii-group > summary .meta{font-size:12px;margin:0;white-space:nowrap}
+.ii-group .ii-ind-list{padding:0 4px 6px}
+.ii-ind-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.ii-ind-list button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:6px 8px;border:1px solid transparent;border-radius:var(--radius-soft-sm);background:none;text-align:left;color:var(--text);font-size:14px;line-height:20px;transition:background-color 140ms var(--ease)}
+.ii-ind-list button:hover:not(:disabled){background:var(--sunken)}
+.ii-ind-list button[aria-pressed="true"]{background:var(--brand-soft);border-color:var(--brand)}
+.ii-ind-list button:disabled{opacity:.45;cursor:not-allowed}
+.ii-ind-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ii-ind-list .cap.on{display:inline-flex;align-items:center;gap:4px;color:var(--brand-text);font-weight:700;font-size:12px}
+@media (max-width:767px){.ii-strip-cell{padding:6px 14px}}

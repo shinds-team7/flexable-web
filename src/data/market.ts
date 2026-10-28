@@ -1,6 +1,7 @@
-// 투자 시뮬레이션 데이터. 웹 백엔드(backend/)의 market·simulation API를 부른다. 시세는 worker가 모아 DB에 둔 것이다. 금액은 모두 서버 계산값이다(ADR-3).
+// 투자 인사이트 데이터. 웹 백엔드(backend/)의 market API를 부른다. 시세는 worker가 모아 DB에 둔 것이다. 금액·등락률은 모두 서버 값이다(ADR-3).
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import type { components } from '@/lib/api-schema';
 
 export type Board = 'KOSPI' | 'KOSDAQ' | 'ETF';
 /** rank: 그 시장 시가총액 순위(1부터). marketCap: 원(어림값일 수 있음) */
@@ -8,28 +9,9 @@ export type Instrument = { id: string; name: string; market: string | null; kind
 /** note: 기본 소스 대신 대체 소스를 쓴 이유 등. worker가 아직 모으지 않았으면 items가 비고 source·dataAsOf가 null */
 export type BoardListing = { board: Board; items: Instrument[]; source: string | null; note: string | null; dataAsOf: string | null };
 
-export type FundingMode = 'LUMP_SUM' | 'SPLIT' | 'PACE';
-export type SimulationRequest = {
-  startDate: string; // YYYY-MM-01
-  // LUMP_SUM은 totalAmount 한 번, SPLIT·PACE는 monthlyAmount를 매달 일정하게
-  funding: { mode: FundingMode; totalAmount?: number; monthlyAmount?: number };
-  legs: { instrumentId: string; weight?: number }[]; // weight 0~1(0.35=35%), 합 1. 비우면 서버가 같은 비율로 나눈다
-};
-
-export type SimPoint = {
-  weekStart: string;
-  date: string | null; // 그 주 마지막 거래일
-  tradingDays: number;
-  total: number;
-  invested: number; // 누적 넣은 돈
-  contributed: number; // 이 주에 넣은 돈
-  profit: number;
-  returnRate: number;
-  legs: { id: string; close: number | null; value: number; invested: number }[];
-};
 /**
  * 기간 안 급변동 사건(서버 탐지, 03 C-8). code는 종목 사건의 종목(시장 사건이면 null). 수익률은 비율(0.05 = 5%).
- * 이때 내 돈: valueBefore(시작 전날) → valueAfter(마지막 날), valueChange = after − before − 그 사이 넣은 돈. 아직 넣기 전이면 null.
+ * 이때 내 돈(valueBefore 등)은 POST /simulations/run 응답에만 있고, 투자 인사이트 사건(PriceEvent)에는 없다.
  */
 export type SimEvent = {
   id: number;
@@ -77,26 +59,6 @@ export type EventDetail = {
   notice: string;
 };
 
-export type SimulationResult = {
-  resolvedInput: { startDate: string; endDate: string; mode: FundingMode };
-  contributionCount: number;
-  monthlyAmount: number;
-  totalInvested: number;
-  finalValue: number;
-  profit: number;
-  returnRate: number;
-  engineVersion: string;
-  dataAsOf: string;
-  seriesBasis: 'WEEK_LAST_CLOSE';
-  legs: { id: string; name: string; kind: string; weight: number; invested: number; finalValue: number }[];
-  series: SimPoint[];
-  events: SimEvent[];
-  assumptions: string[];
-  noticeKey: string;
-  notice: string;
-  sources: { name: string; note: string | null }[];
-};
-
 /** 시장별 시가총액 상위 종목(서버 설정, 기본 100개) */
 export const useBoard = (board: Board) =>
   useQuery({ queryKey: ['market', 'instruments', board], queryFn: () => api<BoardListing>(`/market/instruments?board=${board}`), staleTime: 30 * 60_000 });
@@ -105,13 +67,45 @@ export const useBoard = (board: Board) =>
 export const useEventDetail = (id: number | null) =>
   useQuery({ queryKey: ['market', 'event', id], queryFn: () => api<EventDetail>(`/market/events/${id}`), enabled: id != null, staleTime: 30 * 60_000 });
 
-/** req가 null이면 부르지 않는다. "결과 보기"를 누를 때만 req를 바꾼다. */
-export const useSimulation = (req: SimulationRequest | null) =>
+export type PricePeriod = components['schemas']['PricePeriod'];
+/** 화면 차트용 일별 종가(수정주가). 시가·고가·저가·거래량은 없다(decisions/2026-10-26-invest-insight-redesign ④) */
+export type PriceSeries = components['schemas']['PriceSeries'];
+/** 기간의 사건 핀 목록(금액 필드 없음). 상세는 useEventDetail */
+export type PriceEvents = components['schemas']['PriceEvents'];
+export type PriceEvent = PriceEvents['items'][number];
+export type IndexStrip = components['schemas']['IndexStrip'];
+export type IndexItem = IndexStrip['items'][number];
+export type IndustryListing = components['schemas']['IndustryListing'];
+
+/** 종목 일별 종가. id가 null이면 부르지 않는다. 기간을 바꾸는 동안 이전 차트를 둔다 */
+export const usePrices = (id: string | null, period: PricePeriod) =>
   useQuery({
-    queryKey: ['simulation', req],
-    queryFn: () => api<SimulationResult>('/simulations/run', { method: 'POST', json: req }),
-    enabled: req != null,
+    queryKey: ['market', 'prices', id, period],
+    queryFn: () => api<PriceSeries>(`/market/instruments/${encodeURIComponent(id!)}/prices?period=${period}`),
+    enabled: id != null,
     retry: false,
-    staleTime: 10 * 60_000,
+    staleTime: 30 * 60_000,
     placeholderData: keepPreviousData,
+  });
+
+/** 같은 기간의 사건 핀(종목 사건 + 시장 사건) */
+export const usePriceEvents = (id: string | null, period: PricePeriod) =>
+  useQuery({
+    queryKey: ['market', 'price-events', id, period],
+    queryFn: () => api<PriceEvents>(`/market/instruments/${encodeURIComponent(id!)}/events?period=${period}`),
+    enabled: id != null,
+    retry: false,
+    staleTime: 30 * 60_000,
+  });
+
+/** 상단 시장 띠. 수집된 칸만 온다 */
+export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: () => api<IndexStrip>('/market/indices'), staleTime: 10 * 60_000 });
+
+/** 업종별 시가총액 상위 종목(키움 upName). 업종마다 5개. enabled가 false면(업종별 탭을 열기 전) 부르지 않는다 */
+export const useIndustries = (board: 'KOSPI' | 'KOSDAQ', enabled = true) =>
+  useQuery({
+    queryKey: ['market', 'industries', board],
+    queryFn: () => api<IndustryListing>(`/market/industries?board=${board}&limit=5`),
+    enabled,
+    staleTime: 30 * 60_000,
   });

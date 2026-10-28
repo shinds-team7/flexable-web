@@ -14,10 +14,12 @@ import org.springframework.web.client.RestClient;
 
 import com.flexable.web.ingest.dart.DartDisclosureSource;
 import com.flexable.web.ingest.fake.FakeDisclosureSource;
+import com.flexable.web.ingest.fake.FakeIndexSource;
 import com.flexable.web.ingest.fake.FakeInstrumentSource;
 import com.flexable.web.ingest.fake.FakePriceSource;
 import com.flexable.web.ingest.fake.FakeYouthPolicySource;
 import com.flexable.web.ingest.gemini.GeminiNewsSummarizer;
+import com.flexable.web.ingest.kiwoom.KiwoomIndexSource;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
 import com.flexable.web.ingest.kiwoom.KiwoomPriceSource;
 import com.flexable.web.ingest.kiwoom.KiwoomTokenClient;
@@ -63,6 +65,16 @@ public class IngestConfig {
 		return switch (props.priceSource()) {
 			case "kiwoom" -> new KiwoomPriceSource(http, props.kiwoom().baseUrl(), tokens, props.kiwoom().pageDelay());
 			case "fake" -> new FakePriceSource();
+			default -> throw new IllegalArgumentException("알 수 없는 MARKET_PRICE_SOURCE: " + props.priceSource());
+		};
+	}
+
+	/** 시장 띠(코스피·코스닥). 시세 소스와 같은 제공처를 쓴다(kiwoom → 업종일봉 ka20006, fake → 가짜 지수). */
+	@Bean
+	IndexSource indexSource(IngestProperties props, KiwoomTokenClient tokens) {
+		return switch (props.priceSource()) {
+			case "kiwoom" -> new KiwoomIndexSource(http, props.kiwoom().baseUrl(), tokens);
+			case "fake" -> new FakeIndexSource();
 			default -> throw new IllegalArgumentException("알 수 없는 MARKET_PRICE_SOURCE: " + props.priceSource());
 		};
 	}

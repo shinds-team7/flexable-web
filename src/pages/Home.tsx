@@ -433,7 +433,7 @@ export default function Home() {
                   <button className="btn btn-primary" onClick={() => seed.refetch()}>
                     다시 불러오기
                   </button>
-                  <Link className="btn btn-line" to="/invest">
+                  <Link className="btn btn-line" to="/simulation">
                     직접 금액으로
                   </Link>
                 </div>

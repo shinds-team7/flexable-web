@@ -146,7 +146,7 @@ export function InvestorTypeDetail() {
   if (!t) return <Navigate to="/type" replace />;
 
   const more: LinkCardItem[] = [
-    { to: '/invest', title: '투자 인사이트', desc: '지난 기록에 종목을 넣어 보고, 그때 무슨 일이 있었는지 사건으로 짚어 봐요.' },
+    { to: '/invest', title: '투자 인사이트', desc: '시장 흐름과 종목의 지난 주가를 보고, 그때 무슨 일이 있었는지 사건으로 짚어 봐요.' },
     { to: '/diversify', title: '분산 투자', desc: '가진 종목이 어느 업종·자산에 몰려 있는지, 같이 덜 움직인 쪽은 어디인지 봐요.' },
     ...(SIMULATION_PATH ? [{ to: SIMULATION_PATH, title: '투자 시뮬레이션', desc: '시간이 흐르며 생기는 사건마다 직접 판단하고, 내 돈이 어떻게 바뀌는지 봐요.' }] : []),
   ];

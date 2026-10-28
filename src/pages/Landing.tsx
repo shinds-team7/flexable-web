@@ -111,8 +111,8 @@ export default function Landing() {
 
         <div className="feat">
           <div>
-            <h2>주식 타임머신</h2>
-            <p>"2020년 1월에 넣었다면 지금 얼마?"를 내 시드머니로 계산해요. 그래프의 ▲▼ 핀에 마우스를 올리면 그때 무슨 일이 있었는지, 누르면 왜 움직였는지 알려줘요.</p>
+            <h2>투자 인사이트</h2>
+            <p>지수·금·환율 흐름과 시가총액 상위 종목의 지난 주가를 한눈에 봐요. 그래프의 ▲▼ 핀에 마우스를 올리면 그때 무슨 일이 있었는지, 누르면 그때 나온 공시를 보여 줘요.</p>
             <Link className="btn btn-soft" to={demo}>
               예시로 해보기
             </Link>
@@ -122,7 +122,6 @@ export default function Landing() {
             <div className="bar-ph" style={{ width: '70%', height: 18 }} />
             <svg viewBox="0 0 300 90" style={{ width: '100%', height: 'auto' }}>
               <polyline points="0,70 40,62 60,80 90,55 130,40 160,58 200,35 240,45 300,20" fill="none" strokeWidth="2" style={{ stroke: 'var(--text)' }} />
-              <line x1="0" y1="66" x2="300" y2="66" strokeDasharray="4 4" style={{ stroke: 'var(--baseline)' }} />
               <circle cx="60" cy="80" r="6" style={{ fill: 'var(--fall)' }} />
               <circle cx="90" cy="40" r="6" style={{ fill: 'var(--rise)' }} />
             </svg>

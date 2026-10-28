@@ -1,5 +1,5 @@
 // 타임머신 차트(와이어프레임 drawTimeChart를 옮김). SVG 선 + HTML 버튼 사건 핀, 로빙 tabindex(←/→/Home/End).
-// 랜딩 예시(sampleChartData)와 주식 타임머신(서버 계산 결과)이 함께 쓴다. React에서는 TimeChart.tsx로 감싸서 쓴다.
+// 랜딩 예시(sampleChartData)와 투자 인사이트 주가 차트(mode 'price', 서버가 준 일별 종가)가 함께 쓴다. React에서는 TimeChart.tsx로 감싸서 쓴다.
 // 차트는 받은 값을 그리기만 한다(금액 계산 없음). ADR-4에서 타임머신은 visx로 다시 만들 수 있다. 그때까지 이 구현을 쓴다.
 import { arrow, fmtDate, fmtYM, krShort, niceTicks, pctTxt, signWon, won } from '@/lib/format';
 
@@ -26,7 +26,7 @@ function h(tag: string, props: Props = {}, ...kids: (Node | string | null)[]) {
   return e;
 }
 
-/** 차트 한 줄(종목). values·invested는 점마다 원 단위. */
+/** 차트 한 줄(종목). values·invested는 점마다 원 단위. compare 모드에서 그날 시세가 없으면 values에 NaN. */
 export type ChartLeg = { name: string; color: string; values: number[]; invested: number[] };
 
 /**
@@ -60,11 +60,11 @@ export type ChartEvent = {
   period?: string;
 };
 export type ChartData = {
-  dates: Date[]; // 점마다 x축 날짜(주 시작일)
+  dates: Date[]; // 점마다 x축 날짜(주 시작일, price 모드는 거래일)
   heads?: string[]; // 툴팁 머리. 없으면 "YYYY.MM.DD 주"
   tipTitle?: string;
-  total: number[];
-  invested: number[];
+  total: number[]; // price 모드는 종가(원)
+  invested: number[]; // price 모드는 쓰지 않는다(빈 배열)
   legs: ChartLeg[];
   startIdx: number;
   events: ChartEvent[];
@@ -80,8 +80,17 @@ export type TimeChartOptions = {
   data: ChartData;
   from: number;
   to: number;
-  mode: 'total' | 'byStock';
+  /**
+   * total: 내 자산·넣은 돈, byStock: 종목별, price: 주가(원) 한 줄(세로축 = 종가),
+   * compare: 여러 종목 주가를 한 차트에. 가격대가 달라도 흐름을 견줄 수 있게 보이는 기간 첫날 종가를 같은 높이에 맞춰 그린다.
+   * 이 비율은 선 높이에만 쓰고 숫자로 보이지 않는다(수익률은 서버 계산, ADR-3). 세로축 눈금 대신 "첫날" 기준선, 툴팁·끝 이름표는 실제 종가(원).
+   */
+  mode: 'total' | 'byStock' | 'price' | 'compare';
   height?: number;
+  /** 선이 왼쪽부터 그려진다(RevealClip과 같은 .reveal-rect). 사건 핀은 선을 다 그린 뒤 나타난다(.pins-wait). 움직임 줄이기면 global.css가 애니메이션을 끈다 */
+  reveal?: boolean;
+  /** price 모드: 선 아래를 브랜드 색으로 채우고 바닥으로 갈수록 연하게(그라데이션). reveal이면 선을 다 그린 뒤 위에서 아래로 펼쳐진다(.area-grow) */
+  area?: boolean;
   compact?: boolean;
   selectedId?: string | null;
   onHover?: () => void;
@@ -100,15 +109,28 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   const W = Math.max(280, wrap.clientWidth);
   const H = o.height || 400;
   const byStock = o.mode === 'byStock';
-  const m = { l: 56, r: byStock ? 128 : 16, t: 30, b: 44 };
+  const price = o.mode === 'price';
+  const compare = o.mode === 'compare';
+  const m = { l: price ? 64 : compare ? 44 : 56, r: byStock || compare ? 128 : 16, t: 30, b: 44 };
   const from = Math.max(o.from, d.startIdx);
   const to = Math.min(o.to, N - 1);
   const idx: number[] = [];
   for (let i = from; i <= to; i++) idx.push(i);
-  const lines = byStock ? d.legs.flatMap((l) => [l.values, l.invested]) : [d.total, d.invested];
+  // compare: 종목마다 보이는 기간의 첫 시세를 1로 둔 높이(그리기 전용)
+  const norm = compare
+    ? d.legs.map((l) => {
+        const base = idx.map((i) => l.values[i]).find((v) => Number.isFinite(v) && v > 0) ?? NaN;
+        return l.values.map((v) => v / base);
+      })
+    : [];
+  const lines = byStock ? d.legs.flatMap((l) => [l.values, l.invested]) : compare ? norm : price ? [d.total] : [d.total, d.invested];
   let lo = Infinity;
   let hi = -Infinity;
-  idx.forEach((i) => lines.forEach((s) => ((lo = Math.min(lo, s[i])), (hi = Math.max(hi, s[i])))));
+  idx.forEach((i) =>
+    lines.forEach((s) => {
+      if (Number.isFinite(s[i])) (lo = Math.min(lo, s[i])), (hi = Math.max(hi, s[i]));
+    }),
+  );
   const pad = (hi - lo) * 0.12 || hi * 0.1;
   const ticks = niceTicks(Math.max(0, lo - pad), hi + pad, o.compact ? 3 : 4);
   const y0 = ticks[0];
@@ -118,21 +140,100 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   const s = svg('svg', { width: W, height: H, role: 'img', 'aria-hidden': 'true' }, wrap) as SVGSVGElement;
   ticks.forEach((t) => {
     svg('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: 'grid-l' }, s);
-    svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', class: 'axis-t' }, s).textContent = krShort(t);
+    if (!compare) svg('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', class: 'axis-t' }, s).textContent = price ? won(t) : krShort(t);
   });
+  if (compare) {
+    // 세로 높이는 가격이 아니다. 모든 종목이 함께 출발하는 첫날 높이만 기준선으로 보인다
+    svg('line', { x1: m.l, x2: W - m.r, y1: Y(1), y2: Y(1), style: 'stroke:var(--baseline);stroke-width:1;stroke-dasharray:4 4' }, s);
+    svg('text', { x: m.l - 6, y: Y(1) + 4, 'text-anchor': 'end', class: 'axis-t' }, s).textContent = '첫날';
+  }
   const span = to - from;
+  // price 모드(거래일 점)는 달력 날짜 폭으로 눈금을 정한다: 2년 넘으면 해마다, 10개월 넘으면 석 달마다, 그 밖에는 달마다
+  const days = (WEEKS[to].getTime() - WEEKS[from].getTime()) / 86_400_000;
   idx.forEach((i) => {
     const w = WEEKS[i];
     const prev = WEEKS[i - 1];
     let lab: string | null = null;
-    if (span > 120) {
+    if (price || compare) {
+      if (prev && days > 730 && w.getFullYear() !== prev.getFullYear()) lab = String(w.getFullYear());
+      else if (prev && days <= 730 && w.getMonth() !== prev.getMonth() && w.getMonth() % (days > 300 ? 3 : 1) === 0) lab = fmtYM(w);
+    } else if (span > 120) {
       if (prev && w.getFullYear() !== prev.getFullYear()) lab = String(w.getFullYear());
     } else if (prev && w.getMonth() !== prev.getMonth() && w.getMonth() % (span > 40 ? 3 : 1) === 0) lab = fmtYM(w);
     if (lab) svg('text', { x: X(i), y: H - m.b + 20, 'text-anchor': 'middle', class: 'axis-t' }, s).textContent = lab;
   });
   const path = (arr: number[]) => idx.map((i, k) => (k ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(arr[i]).toFixed(1)).join(' ');
+  /** 시세가 없는 날(NaN)은 건너뛰고 다음 날부터 새로 잇는다(늦게 상장한 종목 등) */
+  const pathGaps = (arr: number[]) => {
+    let pen = false;
+    return idx
+      .map((i) => {
+        if (!Number.isFinite(arr[i])) return ((pen = false), '');
+        const c = (pen ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(arr[i]).toFixed(1);
+        pen = true;
+        return c;
+      })
+      .join(' ');
+  };
+  /** 끝 이름표는 서로 30px 넘게 떨어져 있을 때만 단다(겹치면 범례·툴팁으로 본다). v는 실제 값(원) */
+  const endLabels = (ends: { leg: ChartLeg; y: number; v: number }[]) => {
+    const ys = ends.map((e) => e.y).sort((a, b) => a - b);
+    if (!ys.every((y, i) => i === 0 || y - ys[i - 1] >= 30)) return;
+    ends.forEach((e) => {
+      svg('text', { x: X(to) + 10, y: e.y - 2, class: 'axis-t', style: 'fill:var(--text);font-weight:600' }, s).textContent = e.leg.name;
+      svg('text', { x: X(to) + 10, y: e.y + 14, class: 'axis-t' }, s).textContent = won(e.v) + '원';
+    });
+  };
   const uid = 'c' + Math.random().toString(36).slice(2, 8);
-  if (!byStock) {
+  // 선을 담는 곳. reveal이면 왼쪽부터 드러나는 clipPath 안에 그린다(축·격자·핀은 그대로)
+  let plot: Element = s;
+  if (o.reveal) {
+    const cp = svg('clipPath', { id: uid + 'r' }, svg('defs', {}, s));
+    svg('rect', { class: 'reveal-rect', x: 0, y: 0, width: W, height: H }, cp);
+    plot = svg('g', { 'clip-path': `url(#${uid}r)` }, s);
+  }
+  if (price) {
+    if (o.area) {
+      // 선 아래 면. 위(선의 가장 높은 곳)는 브랜드 색 18%, 바닥은 투명. 선보다 뒤에 깐다.
+      // reveal이면 위쪽에 붙은 자르기 상자가 아래로 늘어나, 진한 위쪽부터 바닥 쪽으로 펼쳐진다(선 그리기가 끝난 뒤)
+      const defs = svg('defs', {}, s);
+      const grad = svg('linearGradient', { id: uid + 'g', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+      svg('stop', { offset: '0%', style: 'stop-color:var(--brand);stop-opacity:.18' }, grad);
+      svg('stop', { offset: '100%', style: 'stop-color:var(--brand);stop-opacity:0' }, grad);
+      const area = svg('path', {
+        d: path(d.total) + ` L${X(to).toFixed(1)} ${H - m.b} L${X(from).toFixed(1)} ${H - m.b} Z`,
+        style: `fill:url(#${uid}g);stroke:none;pointer-events:none`,
+      });
+      let layerEl: Element = area;
+      if (o.reveal) {
+        const cp = svg('clipPath', { id: uid + 'a' }, defs);
+        svg('rect', { class: 'area-grow', x: 0, y: 0, width: W, height: H - m.b }, cp);
+        layerEl = svg('g', { 'clip-path': `url(#${uid}a)` });
+        layerEl.appendChild(area);
+      }
+      s.insertBefore(layerEl, plot === s ? null : plot);
+    }
+    // 선·끝점은 아래 면과 같은 브랜드 색(차트 계열 1번)
+    svg('path', { d: path(d.total), style: 'fill:none;stroke:var(--brand);stroke-width:2;stroke-linejoin:round;stroke-linecap:round' }, plot);
+    svg('circle', { cx: X(to), cy: Y(d.total[to]), r: 4.5, style: 'fill:var(--brand);stroke:var(--card);stroke-width:2' }, plot);
+  } else if (compare) {
+    const ends: { leg: ChartLeg; y: number; v: number }[] = [];
+    const step = Math.max(1, Math.ceil(idx.length / 7));
+    d.legs.forEach((leg, j) => {
+      const arr = norm[j];
+      svg('path', { d: pathGaps(arr), style: 'fill:none;stroke:var(--card);stroke-width:5;stroke-linejoin:round;opacity:.9' }, plot);
+      svg('path', { d: pathGaps(arr), style: `fill:none;stroke:${leg.color};stroke-width:${j === 0 ? 2.5 : 2};stroke-linejoin:round;stroke-linecap:round` }, plot);
+      const shape = SERIES_MARKS[j % SERIES_MARKS.length];
+      idx.forEach((i, k) => {
+        if (k % step === Math.floor(step / 2) && i !== to && Number.isFinite(arr[i])) seriesMark(shape, X(i), Y(arr[i]), leg.color, 3.5, plot);
+      });
+      if (Number.isFinite(arr[to])) {
+        seriesMark(shape, X(to), Y(arr[to]), leg.color, 5, plot);
+        ends.push({ leg, y: Y(arr[to]), v: leg.values[to] });
+      }
+    });
+    endLabels(ends);
+  } else if (!byStock) {
     const pr = d.invested;
     const tot = d.total;
     const princPath = path(pr);
@@ -142,37 +243,30 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const cpB = svg('clipPath', { id: uid + 'b' }, defs);
     svg('path', { d: princPath + ` L${X(to)} ${H} L${X(from)} ${H} Z` }, cpB);
     const band = path(tot) + ' ' + idx.slice().reverse().map((i) => 'L' + X(i).toFixed(1) + ' ' + Y(pr[i]).toFixed(1)).join(' ') + ' Z';
-    svg('path', { d: band, 'clip-path': `url(#${uid}a)`, style: 'fill:var(--rise-wash)' }, s);
-    svg('path', { d: band, 'clip-path': `url(#${uid}b)`, style: 'fill:var(--fall-wash)' }, s);
-    svg('path', { d: princPath, style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' }, s);
-    svg('path', { d: path(tot), style: 'fill:none;stroke:var(--text);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round' }, s);
-    svg('circle', { cx: X(to), cy: Y(tot[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' }, s);
+    svg('path', { d: band, 'clip-path': `url(#${uid}a)`, style: 'fill:var(--rise-wash)' },plot);
+    svg('path', { d: band, 'clip-path': `url(#${uid}b)`, style: 'fill:var(--fall-wash)' },plot);
+    svg('path', { d: princPath, style: 'fill:none;stroke:var(--baseline);stroke-width:1.5;stroke-dasharray:4 4' },plot);
+    svg('path', { d: path(tot), style: 'fill:none;stroke:var(--text);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round' },plot);
+    svg('circle', { cx: X(to), cy: Y(tot[to]), r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2' },plot);
   } else {
     // 종목별 넣은 돈(비율이 다르면 줄마다 다르다): 그 종목 색 점선
-    d.legs.forEach((leg) => svg('path', { d: path(leg.invested), style: `fill:none;stroke:${leg.color};stroke-width:1.2;stroke-dasharray:4 4;opacity:.55` }, s));
+    d.legs.forEach((leg) => svg('path', { d: path(leg.invested), style: `fill:none;stroke:${leg.color};stroke-width:1.2;stroke-dasharray:4 4;opacity:.55` }, plot));
     const ends: { leg: ChartLeg; y: number; v: number }[] = [];
     // 표식 간격: 화면에 7개 안팎
     const step = Math.max(1, Math.ceil(idx.length / 7));
     d.legs.forEach((leg, j) => {
       const arr = leg.values;
       // 선이 겹치는 곳에서도 구분되게 바탕색 테두리를 먼저 깐다
-      svg('path', { d: path(arr), style: 'fill:none;stroke:var(--card);stroke-width:5;stroke-linejoin:round;opacity:.9' }, s);
-      svg('path', { d: path(arr), style: `fill:none;stroke:${leg.color};stroke-width:${j === 0 ? 2.5 : 2};stroke-linejoin:round` }, s);
+      svg('path', { d: path(arr), style: 'fill:none;stroke:var(--card);stroke-width:5;stroke-linejoin:round;opacity:.9' }, plot);
+      svg('path', { d: path(arr), style: `fill:none;stroke:${leg.color};stroke-width:${j === 0 ? 2.5 : 2};stroke-linejoin:round` }, plot);
       const shape = SERIES_MARKS[j % SERIES_MARKS.length];
       idx.forEach((i, k) => {
-        if (k % step === Math.floor(step / 2) && i !== to) seriesMark(shape, X(i), Y(arr[i]), leg.color, 3.5, s);
+        if (k % step === Math.floor(step / 2) && i !== to) seriesMark(shape, X(i), Y(arr[i]), leg.color, 3.5, plot);
       });
-      seriesMark(shape, X(to), Y(arr[to]), leg.color, 5, s);
+      seriesMark(shape, X(to), Y(arr[to]), leg.color, 5, plot);
       ends.push({ leg, y: Y(arr[to]), v: arr[to] });
     });
-    // 끝 이름표는 서로 30px 넘게 떨어져 있을 때만 단다(겹치면 범례·툴팁으로 본다).
-    const ys = ends.map((e) => e.y).sort((a, b) => a - b);
-    if (ys.every((y, i) => i === 0 || y - ys[i - 1] >= 30)) {
-      ends.forEach((e) => {
-        svg('text', { x: X(to) + 10, y: e.y - 2, class: 'axis-t', style: 'fill:var(--text);font-weight:600' }, s).textContent = e.leg.name;
-        svg('text', { x: X(to) + 10, y: e.y + 14, class: 'axis-t' }, s).textContent = won(e.v) + '원';
-      });
-    }
+    endLabels(ends);
   }
   const sel = EVENTS.find((e) => e.id === o.selectedId);
   if (sel && sel.idx >= from && sel.idx <= to)
@@ -180,9 +274,9 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
 
   // 크로스헤어·툴팁
   const cross = svg('line', { y1: m.t, y2: H - m.b, style: 'stroke:var(--text-muted);stroke-width:1', visibility: 'hidden' }, s);
-  const dot = svg('circle', { r: 4.5, style: 'fill:var(--text);stroke:var(--card);stroke-width:2', visibility: 'hidden' }, s);
+  const dot = svg('circle', { r: 4.5, style: `fill:var(${price ? '--brand' : '--text'});stroke:var(--card);stroke-width:2`, visibility: 'hidden' }, s);
   // 종목별 보기: 마우스 위치의 종목마다 표식
-  const legDots = byStock ? d.legs.map(() => svg('g', { visibility: 'hidden', style: 'pointer-events:none' }, s)) : [];
+  const legDots = byStock || compare ? d.legs.map(() => svg('g', { visibility: 'hidden', style: 'pointer-events:none' }, s)) : [];
   const hit = svg('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, style: 'fill:transparent' }, s);
   const tip = h('div', { cls: 'tip', hidden: '' });
   wrap.append(tip);
@@ -212,14 +306,26 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     cross.setAttribute('x1', String(X(k)));
     cross.setAttribute('x2', String(X(k)));
     cross.setAttribute('visibility', 'visible');
+    const multi = byStock || compare;
     const mainArr = byStock ? (d.legs[0]?.values ?? d.total) : d.total;
     dot.setAttribute('cx', String(X(k)));
-    dot.setAttribute('cy', String(Y(mainArr[k])));
-    dot.setAttribute('visibility', byStock ? 'hidden' : 'visible');
+    if (!multi) dot.setAttribute('cy', String(Y(mainArr[k])));
+    dot.setAttribute('visibility', multi ? 'hidden' : 'visible');
     tip.replaceChildren();
     if (d.tipTitle) tip.append(h('div', { cls: 't-title', text: d.tipTitle }));
     tip.append(h('div', { cls: 'meta', text: d.heads?.[k] ?? fmtDate(WEEKS[k]) + ' 주' }));
-    if (!byStock) {
+    if (price) {
+      tip.append(h('div', { cls: 't-val num', text: won(d.total[k]) + '원' }));
+    } else if (compare) {
+      legDots.forEach((g, j) => {
+        g.replaceChildren();
+        const v = norm[j][k];
+        if (!Number.isFinite(v)) return g.setAttribute('visibility', 'hidden');
+        seriesMark(SERIES_MARKS[j % SERIES_MARKS.length], X(k), Y(v), d.legs[j].color, 5, g);
+        g.setAttribute('visibility', 'visible');
+      });
+      d.legs.forEach((leg) => tip.append(row(leg.color, leg.name, Number.isFinite(leg.values[k]) ? won(leg.values[k]) + '원' : '시세 없음', true)));
+    } else if (!byStock) {
       const v = d.total[k];
       const p = d.invested[k];
       const gap = v - p;
@@ -239,7 +345,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
         tip.append(h('div', { cls: 't-row meta' }, h('span', { text: '　넣은 돈' }), h('span', { cls: 'num', text: won(leg.invested[k]) + '원' })));
       });
     }
-    placeTip(X(k), byStock ? m.t + 40 : Y(mainArr[k]));
+    placeTip(X(k), multi ? m.t + 40 : Y(mainArr[k]));
   });
   hit.addEventListener('pointerleave', () => {
     legDots.forEach((g) => g.setAttribute('visibility', 'hidden'));
@@ -249,10 +355,13 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
   });
 
   // 사건 핀(HTML 버튼). 24px 안에 붙은 핀은 묶음, 8묶음이 넘으면 큰 움직임 순으로 8개만.
-  const layer = h('div', { cls: 'pins' });
+  // reveal이면 핀과 핀을 잇는 선을 선 그리기가 끝난 뒤에 보인다(그 전에는 숨겨서 누르거나 포커스할 수 없다)
+  const layer = h('div', { cls: 'pins' + (o.reveal ? ' pins-wait' : '') });
+  const stems = o.reveal ? svg('g', { class: 'pins-wait' }, s) : s;
   wrap.append(layer);
-  const vis = EVENTS.filter((e) => e.idx >= from && e.idx <= to && e.idx > d.startIdx);
-  const lineFor = (e: ChartEvent) => (byStock ? (d.legs[e.leg ?? 0]?.values ?? d.total) : d.total);
+  // 묶기 전에 날짜순으로 둔다. 여러 종목의 사건을 이어 붙이면 순서가 섞여, 묶음 범위·확대 범위가 거꾸로 잡혀 차트가 비었다
+  const vis = EVENTS.filter((e) => e.idx >= from && e.idx <= to && e.idx > d.startIdx).sort((a, b) => a.idx - b.idx);
+  const lineFor = (e: ChartEvent) => (byStock ? (d.legs[e.leg ?? 0]?.values ?? d.total) : compare ? (norm[e.leg ?? 0] ?? norm[0]) : d.total);
   const groups: { x0: number; items: typeof EVENTS }[] = [];
   vis.forEach((e) => {
     const x = X(e.idx);
@@ -272,12 +381,19 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const kinds = new Set(items.map((e) => e.kind));
     const kind = kinds.size === 1 ? [...kinds][0] : 'mixed';
     const ref = items[Math.floor(items.length / 2)];
-    const yv = Y(lineFor(ref)[ref.idx]);
+    // compare에서 그 종목이 그날 시세가 없으면(늦게 상장 등) 다른 종목 선에 붙인다
+    const raw = lineFor(ref)[ref.idx];
+    const yv = Y(Number.isFinite(raw) ? raw : (norm.map((a) => a[ref.idx]).find(Number.isFinite) ?? 1));
     const y = Math.max(m.t - 16, Math.min(H - m.b + 6, kind === 'fall' ? yv + 22 : yv - 22));
     const cluster = items.length > 1;
+    // 묶음 핀은 한 색(.pin.cluster, 검정)이다. 오름·내림 구성은 툴팁·읽어 주기에 적는다
+    const ups = items.filter((e) => e.kind === 'rise').length;
+    const downs = items.filter((e) => e.kind === 'fall').length;
+    const parts = [ups ? `오름 ${ups}` : '', downs ? `내림 ${downs}` : ''].filter(Boolean).join('·');
+    const mix = parts ? `(${parts})` : '';
     // 묶음을 누르면 확대: 앞뒤 여유를 두고, 이미 그만큼 확대돼 있으면 더 좁게. 같은 주에 겹쳐 확대로 풀 수 없으면 사건 고르기
-    const first = items[0].idx;
-    const last = items[items.length - 1].idx;
+    const first = Math.min(...items.map((e) => e.idx));
+    const last = Math.max(...items.map((e) => e.idx));
     const zoomTo = [
       [Math.max(0, first - 6), Math.min(N - 1, last + 8)],
       [Math.max(0, first - 2), Math.min(N - 1, last + 2)],
@@ -287,11 +403,11 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     b.style.left = x + 'px';
     b.style.top = y + 'px';
     b.append(h('span', { cls: 'dot', 'aria-hidden': 'true', text: cluster ? String(items.length) : kind === 'rise' ? '▲' : kind === 'fall' ? '▼' : 'i' }));
-    svg('line', { x1: x, x2: x, y1: yv, y2: y + (y > yv ? -9 : 9), style: 'stroke:var(--text-muted);stroke-width:1;pointer-events:none' }, s);
+    svg('line', { x1: x, x2: x, y1: yv, y2: y + (y > yv ? -9 : 9), style: 'stroke:var(--text-muted);stroke-width:1;pointer-events:none' }, stems);
     if (cluster) {
       b.setAttribute(
         'aria-label',
-        `사건 ${items.length}개 묶음, ${fmtYM(WEEKS[first])}부터 ${fmtYM(WEEKS[last])}. ${canZoom ? '누르면 이 기간을 확대해요' : '누르면 사건을 골라 볼 수 있어요'}`,
+        `사건 ${items.length}개 묶음${mix}, ${fmtYM(WEEKS[first])}부터 ${fmtYM(WEEKS[last])}. ${canZoom ? '누르면 이 기간을 확대해요' : '누르면 사건을 골라 볼 수 있어요'}`,
       );
     } else {
       const c = ref.change;
@@ -302,7 +418,7 @@ export function drawTimeChart(wrap: HTMLElement, o: TimeChartOptions) {
     const show = () => {
       tip.replaceChildren();
       if (cluster) {
-        tip.append(h('div', { cls: 't-title', text: `사건 ${items.length}개가 가까이 있어요` }));
+        tip.append(h('div', { cls: 't-title', text: `사건 ${items.length}개가 가까이 있어요${mix}` }));
         items.forEach((e) => {
           const c = e.change;
           tip.append(h('div', { cls: 't-row' }, h('span', { text: `${fmtYM(WEEKS[e.idx])} ${e.title}` }), h('b', { cls: 'num ' + cls(c.p), text: `${arrow(c.p)}${pctTxt(c.p)}` })));

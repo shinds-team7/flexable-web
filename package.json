@@ -13,6 +13,7 @@
     "typecheck": "tsc -b && npm --prefix mobile-demo run typecheck",
     "gen:api": "openapi-typescript docs/contracts/web-api.yaml -o src/lib/api-schema.d.ts",
     "check:api": "npm run gen:api && git diff --exit-code -- src/lib/api-schema.d.ts",
+    "sync:app-contract": "curl -fsSL https://raw.githubusercontent.com/shinds-team7/flexable-app/main/docs/contracts/web-link-api.yaml -o docs/contracts/vendor/web-link-api.yaml",
     "mock:api": "npx --yes @stoplight/prism-cli@5.16.0 mock -p 4010 docs/contracts/web-api.yaml",
     "preview": "vite preview"
   },

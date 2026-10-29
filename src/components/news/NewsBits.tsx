@@ -68,9 +68,10 @@ export function ShareButton({ n, onDone }: { n: Pick<YouthNews, 'title' | 'summa
   );
 }
 
-export function NoticeLink({ url, className, arrow = true }: { url: string; className?: string; arrow?: boolean }) {
+export function NoticeLink({ url, className, arrow = true, title }: { url: string; className?: string; arrow?: boolean; title?: string }) {
+  if (!url.trim()) return <span className="meta">공고문 링크 없음</span>;
   return (
-    <a className={className} href={url} target="_blank" rel="noreferrer">
+    <a className={className} href={url} target="_blank" rel="noreferrer" aria-label={title ? `${title} 공고문 보기 (새 창)` : undefined}>
       공고문 보기{arrow && ' ↗'}
       <span className="sr-only">(새 창)</span>
     </a>

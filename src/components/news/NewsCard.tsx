@@ -1,4 +1,5 @@
 // 소식 카드: 마감 배지 · 공유/저장 → 제목 → AI 요약(1~3문장, 없으면 줄 없음) → 기간 → 공고문(오른쪽) → 정보 칩(분야·지역·나이·소득 기준·기관) · 예시 표시.
+// 공고문 링크의 클릭 영역을 카드 전체로 넓히고, 저장·공유·계산 링크는 그 위에서 따로 동작한다.
 // 카드는 4줄(위 · 본문 · 공고문 · 아래)이고, 같은 줄의 카드끼리 공고문 버튼과 아래 구분선 높이를 맞춘다(subgrid).
 // 나에게 얼마·오늘 할 일은 사람이 쓰던 항목이라 지금은 카드에서 뺀다(2026-10-26 결정).
 import { Link } from 'react-router-dom';
@@ -38,7 +39,7 @@ export function NewsCard({ n, today, isSample, saved, onToggleSave, onToast }: P
         )}
       </div>
       <div className="news-card-cta">
-        <NoticeLink url={n.source.url} className="btn btn-line btn-sm news-notice" arrow={false} />
+        <NoticeLink url={n.source.url} className="btn btn-line btn-sm news-notice" arrow={false} title={n.title} />
       </div>
       <div className="news-card-foot">
         <ul className="news-chips" aria-label="분야·지역·대상·기관">

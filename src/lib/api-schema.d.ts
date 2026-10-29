@@ -1071,7 +1071,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 사건 상세(설명 전에는 수치로 만든 사실 문장, aiGenerated=false) */
+        /**
+         * 사건 상세(whatHappened는 수치로 만든 사실 문장, aiGenerated=false. AI 개요는 aiSummary)
+         * @description - aiSummary: worker가 미리 만들어 저장한 AI 개요(decisions/2026-10-29-event-ai-summary). 요청 중에 AI를 부르지 않는다.
+         *     - 아직 만들지 않았거나 키가 없거나 검사에서 탈락했거나 운영자가 공개를 멈췄으면 null이다. 나머지 필드는 그대로다.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -2279,9 +2283,24 @@ export interface components {
             };
             sources: components["schemas"]["EvidenceRow"][];
             newsSearchUrl: string | null;
+            /** @description 수치로 만든 사실 문장(기간·등락률·시장 비교·공시 수). AI가 쓰지 않는다 */
             whatHappened: string;
             whyItMoved: Record<string, never>[];
+            /** @description whatHappened를 AI가 썼는지. 지금은 늘 false(AI 개요는 aiSummary로 따로 준다) */
             aiGenerated: boolean;
+            /** @description AI 개요(Gemini, 1~3문장). 입력에 없는 숫자·원인 단정·권유·전망 표현이 있으면 버려서 null. 화면에 "AI 요약" 표시, isSample이면 "예시" */
+            aiSummary: {
+                text: string;
+                /** @description 만든 모델 이름. 예시 작성기면 sample */
+                model: string;
+                /**
+                 * Format: date-time
+                 * @description 만든 시각(+09:00)
+                 */
+                generatedAt: string;
+                /** @description 키 없이 예시 작성기(EVENT_OVERVIEW_SOURCE=fake)가 쓴 문장 */
+                isSample: boolean;
+            } | null;
             /** @enum {string} */
             confidence: "LOW" | "MEDIUM" | "HIGH";
             /** @enum {string} */

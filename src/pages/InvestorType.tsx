@@ -1,7 +1,8 @@
-// 내 투자 성향(/type, /type/:id). 사용자가 성향을 직접 고르면 패시브(지수 ETF) : 액티브(고른 종목) 비율과,
+// 내 투자 성향(/type 시작, /type/test 질문 10개, /type/choose 직접 고르기, /type/:id). 질문 결과는 참고이고 성향은 사용자가 정한다.
+// 사용자가 성향을 정하면 패시브(지수 ETF) : 액티브(고른 종목) 비율과,
 // 그 성향이 흔히 고르는 상품 유형·그 유형의 실제 상품(시세 API), 어느 계좌에 담는지를 보여 준다. 기획: docs/product/proposal-investor-type.md
 // 비율별 지난 3년 결과·계좌 예시는 고정 예시 값이고(ADR-3), 상품 목록만 시세 API를 그대로 쓴다. 예·적금은 이 화면에서 다루지 않는다.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { LinkCards, Notice, PRODUCT_CARD, ProtoNote, SIM_PAST, type LinkCardItem } from '@/components/Proto';
@@ -19,6 +20,8 @@ import {
   monthLabel,
   ratioOf,
   setInvestorType,
+  TYPE_QUESTIONS,
+  typeFromAnswers,
   useInvestorType,
   type InvestorType,
   type InvestorTypeId,
@@ -119,7 +122,135 @@ export function TypeChoices({ onPick, compact = false }: { onPick: (id: Investor
   );
 }
 
+/** /type: 성향 알아보기 시작. [테스트 시작] → /type/test, [건너뛰기] → /type/choose */
 export function InvestorTypes() {
+  const mine = findType(useInvestorType() ?? undefined);
+  return (
+    <section className="page col">
+      <ProtoNote />
+      {mine && (
+        <div className="card it-start it-mine">
+          <span className="meta">지금 내 성향</span>
+          <h2 className="it-h2">
+            {mine.name} · {mine.oneLine}
+          </h2>
+          <MixBar t={mine} />
+          <div className="toolbar">
+            <Link className="btn btn-primary" to={`/type/${mine.id}`}>
+              {mine.name} 보러 가기
+            </Link>
+          </div>
+        </div>
+      )}
+      <div className="card it-start">
+        <h1 className="page-title">내 투자 성향 알아보기</h1>
+        <p className="page-desc">
+          질문 {TYPE_QUESTIONS.length}개에 답하면 안정형·균형형·성장형 중 어디에 가까운지 알려 드려요. 결과는 참고용이고, 성향은 직접 정해요.
+        </p>
+        <div className="toolbar">
+          <Link className="btn btn-primary" to="/type/test">
+            테스트 시작
+          </Link>
+          <Link className="btn btn-line" to="/type/choose">
+            건너뛰기
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** /type/test: 한 화면에 한 문항. 답을 고르면 다음 문항, 다 답하면 결과(참고). 답은 저장하지 않는다 */
+export function InvestorTypeTest() {
+  const nav = useNavigate();
+  const [answers, setAnswers] = useState<number[]>([]);
+  const total = TYPE_QUESTIONS.length;
+  const step = answers.length;
+  // 문항이 바뀌면 누른 버튼이 사라지므로 새 질문(또는 결과) 제목으로 포커스를 옮긴다. 처음 들어올 때는 옮기지 않는다
+  const headRef = useRef<HTMLHeadingElement>(null);
+  const prevStep = useRef(step);
+  useEffect(() => {
+    if (prevStep.current !== step) headRef.current?.focus();
+    prevStep.current = step;
+  }, [step]);
+
+  if (step === total) {
+    const t = findType(typeFromAnswers(answers))!;
+    return (
+      <section className="page col">
+        <ProtoNote />
+        <div className="card it-start">
+          <span className="meta">답변으로 보면</span>
+          <h1 className="page-title it-focus" ref={headRef} tabIndex={-1}>
+            {t.name}에 가까워요
+          </h1>
+          <b className="it-one">{t.oneLine}</b>
+          <MixBar t={t} />
+          <div className="toolbar">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setInvestorType(t.id);
+                nav(`/type/${t.id}`);
+              }}
+            >
+              {t.name}으로 정하기
+            </button>
+            <Link className="btn btn-line" to="/type/choose">
+              다른 성향 보기
+            </Link>
+            <button type="button" className="btn-text" onClick={() => setAnswers([])}>
+              다시 하기
+            </button>
+          </div>
+          <p className="meta">참고용이에요. 성향은 직접 정하고, 언제든 바꿀 수 있어요.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const { q, a } = TYPE_QUESTIONS[step];
+  return (
+    <section className="page col">
+      <ProtoNote />
+      <div className="card it-start">
+        <div className="row-between">
+          <span className="meta num">
+            {step + 1} / {total}
+          </span>
+          <Link className="btn-text" to="/type/choose">
+            건너뛰기
+          </Link>
+        </div>
+        <div className="it-progress" role="progressbar" aria-label="진행" aria-valuemin={0} aria-valuemax={total} aria-valuenow={step}>
+          <i style={{ width: `${(step / total) * 100}%` }} />
+        </div>
+        <h1 className="it-q it-focus" ref={headRef} tabIndex={-1}>
+          <span className="sr-only">
+            {step + 1}번째 질문.{' '}
+          </span>
+          {q}
+        </h1>
+        <div className="it-answers">
+          {a.map((label, i) => (
+            <button key={label} type="button" className="card it-answer" onClick={() => setAnswers([...answers, i])}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {step > 0 && (
+          <button type="button" className="btn-text" onClick={() => setAnswers(answers.slice(0, -1))}>
+            ← 이전
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** /type/choose: 세 성향 중 직접 고르기 */
+export function InvestorTypePick() {
   const nav = useNavigate();
   return (
     <section className="page col">
@@ -127,6 +258,11 @@ export function InvestorTypes() {
       <div className="page-head">
         <h1 className="page-title">나는 어떤 투자자에 가까울까요?</h1>
         <p className="page-desc">성향은 시장 전체에 꾸준히 넣는 패시브와, 직접 골라 넣는 액티브를 어떤 비율로 섞는지로 나눴어요. 직접 골라 주세요. 언제든 바꿀 수 있어요.</p>
+        <div className="toolbar">
+          <Link className="btn btn-line btn-sm" to="/type/test">
+            질문으로 다시 알아보기
+          </Link>
+        </div>
       </div>
       <TypeChoices
         onPick={(id) => {
@@ -173,7 +309,7 @@ export function InvestorTypeDetail() {
               내 성향으로 정하기
             </button>
           )}
-          <Link className="btn-text" to="/type">
+          <Link className="btn-text" to="/type/choose">
             세 성향 다시 보기
           </Link>
         </div>

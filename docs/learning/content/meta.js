@@ -37,7 +37,7 @@ G.map = {
     { id: 'browser', layer: 'browser', x: 380, y: 18, w: 240, h: 64, name: '사용자 브라우저', sub: 'React SPA · src/',
       runs: '빌드된 JS가 브라우저에서 실행된다. 화면 이동(React Router)은 서버에 묻지 않고 브라우저 안에서 한다. 데이터가 필요할 때만 fetch로 /api/v1/...을 부른다.',
       where: ['src/main.tsx가 시작점', 'src/App.tsx가 주소 → 화면 표', 'src/lib/api.ts가 모든 API 요청의 입구'],
-      refs: [R("src/main.tsx", "createRoot(", 13), R("src/App.tsx", "createBrowserRouter([", 22), R("src/lib/api.ts", "export async function api<T>", 48)], ev: ['code'] },
+      refs: [R("src/main.tsx", "createRoot(", 13), R("src/App.tsx", "createBrowserRouter([", 23), R("src/lib/api.ts", "export async function api<T>", 48)], ev: ['code'] },
     { id: 'vercel', layer: 'proxy', x: 40, y: 150, w: 250, h: 64, name: 'Vercel (정적 파일)', sub: 'main 머지 시 자동 배포',
       runs: '빌드 결과(dist/)만 내려 준다. 서버 코드는 없다. 빌드할 때 VITE_API_URL이 앱 서버를 가리키게 설정돼 있어서, 이 배포본의 로그인은 앱 계정으로 되고 웹 백엔드 API(시세·시뮬레이션·앱 연동)는 없다(README 기재).',
       where: ['vercel.json: 설치·빌드 명령, /m과 나머지 주소를 index.html로 rewrite', 'VITE_API_URL 값은 Vercel 프로젝트 설정에 있어 저장소로는 확인할 수 없다'],

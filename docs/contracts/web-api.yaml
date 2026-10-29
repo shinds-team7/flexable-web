@@ -1380,7 +1380,7 @@ components:
         aiSummary:
           type: object
           nullable: true
-          description: 'AI 개요(1~3문장). 주가 문장은 Gemini가 쓰고, 공시 문장은 서버가 입력 공시 제목으로 붙인다. AI 문장에 입력에 없는 숫자·원인 단정·권유·전망·공시·사건 주장이 있으면 버려서 null. 화면에 "AI 요약" 표시, isSample이면 "예시"'
+          description: 'AI 개요(1~3문장). 주가 문장은 Gemini가 쓰고, 공시 문장은 서버가 입력 공시 제목으로 붙인다. AI 문장의 숫자가 칸마다·부호까지 입력과 다르거나, 원인 단정·권유·전망·공시·사건 주장이 있으면 버려서 null. 화면에 "AI 요약" 표시, isSample이면 "예시"'
           required: [text, model, generatedAt, isSample]
           additionalProperties: false
           properties:

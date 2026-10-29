@@ -11,7 +11,7 @@ import com.flexable.web.market.EventDtos.OverviewTarget;
 
 /**
  * 키 없이 쓰는 예시 개요(EVENT_OVERVIEW_SOURCE=fake). 입력 값으로 정해진 틀의 문장을 만들고 isSample로 저장한다.
- * 화면은 "AI 요약" 대신 "예시"로 보인다. Gemini와 같은 검사를 거친다(길면 뒤 문장부터 뺀다).
+ * 화면은 "AI 요약" 대신 "예시"로 보인다. Gemini와 같이 주가 문장만 만들고, 같은 검사가 공시 문장을 붙인다(길면 뒤 문장부터 뺀다).
  */
 public class FakeEventOverviewWriter implements EventOverviewWriter {
 
@@ -38,10 +38,7 @@ public class FakeEventOverviewWriter implements EventOverviewWriter {
 			parts.add("거래량은 평소의 " + in.volumeRatio() + "였어요.");
 		}
 		if (market) {
-			parts.add("특정 회사 공시와 연결하지 않은 시장 전체 움직임이에요.");
-		}
-		else if (!in.disclosures().isEmpty()) {
-			parts.add("이 기간에 " + in.disclosures().getFirst() + " 공시가 있었어요.");
+			parts.add("특정 회사가 아닌 시장 전체 움직임이에요.");
 		}
 		while (!parts.isEmpty()) {
 			String checked = GeminiEventOverviewWriter.check(String.join(" ", parts), in);

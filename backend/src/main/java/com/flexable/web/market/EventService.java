@@ -35,7 +35,8 @@ public class EventService {
 	/** 사건 마지막 날 뒤 며칠까지는 늦게 올라오는 공시를 다시 찾아본다. */
 	static final int EVIDENCE_RECHECK_DAYS = 3;
 	/** AI 개요 입력 형식·작성 규칙을 바꾸면 올린다. 지문에 들어가 모든 개요를 다시 만든다. */
-	static final String OVERVIEW_VERSION = "overview-v1";
+	/** overview-v2: 공시 문장을 AI 대신 서버가 입력 제목으로 붙인다 */
+	static final String OVERVIEW_VERSION = "overview-v2";
 	/** AI 개요 입력에서 시장 사건의 이름(whatHappened와 같은 말) */
 	static final String MARKET_NAME = "시장 전체(코스피200 추종 ETF)";
 	private static final int OVERVIEW_SCAN_CHUNK = 200;

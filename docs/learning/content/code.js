@@ -6,7 +6,7 @@ G.code = [
     keys: [R("src/main.tsx", "new QueryClient(", 11), R("src/main.tsx", "<SessionProvider>", 16)] },
   { id: 'fe-app', layer: 'browser', path: 'src/App.tsx', role: '주소 → 화면 컴포넌트 표. 모든 화면이 Layout(상단 바) 안에 들어간다. 자리만 있는 화면은 Placeholder.',
     calledBy: 'main.tsx', calls: 'pages/*',
-    keys: [R("src/App.tsx", "createBrowserRouter([", 22)] },
+    keys: [R("src/App.tsx", "createBrowserRouter([", 23)] },
   { id: 'fe-api', layer: 'browser', path: 'src/lib/api.ts', role: '모든 API 요청의 입구. 주소 앞부분(BASE), 토큰 헤더, JSON 변환, 오류를 ApiError로 바꾸기, 401 처리.',
     calledBy: 'src/data/*, src/auth/*, 일부 pages', calls: 'fetch(), localStorage',
     keys: [R("src/lib/api.ts", "const BASE =", 2), R("src/lib/api.ts", "export async function api<T>", 48), R("src/lib/api.ts", "export class ApiError", 5)] },

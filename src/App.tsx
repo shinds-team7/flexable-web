@@ -3,6 +3,7 @@ import { Layout } from '@/components/Layout';
 import BillingResult from '@/pages/BillingResult';
 import Diversify from '@/pages/Diversify';
 import GoalPage from '@/pages/Goal';
+import GoalDemo from '@/pages/GoalDemo';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
 import { InvestorTypeDetail, InvestorTypes } from '@/pages/InvestorType';
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
       { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
       { path: '/home', element: <Home /> },
       { path: '/goal', element: <GoalPage /> },
+      { path: '/goal/demo', element: <GoalDemo /> },
       { path: '/me', element: <Me /> },
       { path: '/privacy', element: <Privacy /> },
       {

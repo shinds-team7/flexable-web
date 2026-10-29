@@ -11,7 +11,7 @@
 
 ## 2026-10-28
 
-- [#PR] 투자 인사이트 사건 상세에 그때 뉴스 기사를 붙이기로 결정했다([결정](decisions/2026-10-28-event-news.md)). 네이버 검색 API 특약(저장·캐싱 금지)에 맞춰 worker 수집·저장 대신 api가 상세를 열 때 NAVER API HUB 뉴스 검색을 중계한다(04 §8 예외 ④, 03 §4-2 판단 변경). 검색에 날짜 조건이 없어 검색어에 사건 날짜를 넣어 최대 4번 부르고 발행일로 거른다. 계약: `GET /market/events/{id}/news`·`EventNews` 추가. 투자 시뮬레이션·사건 퀴즈 결정은 바뀌지 않는다. 환경 변수 `NAVER_API_HUB_KEY_ID`·`NAVER_API_HUB_KEY`·`NEWS_SEARCH_SOURCE`·`NAVER_NEWS_DAILY_CAP` — 영향: 프론트·백엔드
+- [#122] 투자 인사이트 사건 상세에 그때 뉴스 기사를 붙이기로 결정했다([결정](decisions/2026-10-28-event-news.md)). 네이버 검색 API 특약(저장·캐싱 금지)에 맞춰 worker 수집·저장 대신 api가 상세를 열 때 NAVER API HUB 뉴스 검색을 중계한다(04 §8 예외 ④, 03 §4-2 판단 변경). 검색에 날짜 조건이 없어 검색어에 사건 날짜를 넣어 최대 4번 부르고 발행일로 거른다. 계약: `GET /market/events/{id}/news`·`EventNews` 추가. 투자 시뮬레이션·사건 퀴즈 결정은 바뀌지 않는다. 환경 변수 `NAVER_API_HUB_KEY_ID`·`NAVER_API_HUB_KEY`·`NEWS_SEARCH_SOURCE`·`NAVER_NEWS_DAILY_CAP` — 영향: 프론트·백엔드
 - [#125] 투자 성향을 질문 10개로 알아보는 테스트를 더했다([결정](decisions/2026-10-26-investor-type.md) 변경 기록). "질문지로 판정하지 않는다"를 "결과는 참고로 보여 주고 사용자가 [정하기]로 저장한다"로 바꿨고, 건너뛰고 직접 고르기는 그대로다. 답은 저장하지 않는다(방침 변경 없음). PRD F10 경로에 `/type/test`·`/type/choose`를 더했다. 계약은 바뀌지 않는다 — 영향: 프론트·시연
 
 ## 2026-10-27

@@ -92,7 +92,7 @@ G.units = [
   ],
   openCode: [
     { r: R("src/data/market.ts", "export const useBoard", 63), why: '화면이 서버를 부르는 hook. queryKey와 캐시 시간.' },
-    { r: R("backend/src/main/java/com/flexable/web/market/MarketController.java", "MarketDtos.BoardListing instruments(", 32), why: '주소 → 메서드 연결.' },
+    { r: R("backend/src/main/java/com/flexable/web/market/MarketController.java", "MarketDtos.BoardListing instruments(", 36), why: '주소 → 메서드 연결.' },
     { r: R("backend/src/main/java/com/flexable/web/market/MarketService.java", "public BoardListing board(Board board)", 42), why: '트랜잭션과 DTO 변환.' },
     { r: R("backend/src/main/java/com/flexable/web/market/InstrumentRepository.java", "findByBoardAndCapRankNotNullOrderByCapRankAsc", 12), why: '메서드 이름만으로 질의가 만들어지는 예.' },
   ],
@@ -105,7 +105,7 @@ G.units = [
       refs: [R("src/data/market.ts", "export const useBoard", 63), R("src/main.tsx", "new QueryClient(", 11)] },
     { q: 'MarketService가 Instrument 엔티티를 그대로 반환하지 않고 InstrumentView로 바꾸는 이유 두 가지는?',
       a: '① 패키지 규칙: 엔티티는 market 패키지 밖에서 쓰지 못한다(PackageDependencyTest). ② open-in-view가 꺼져 있어 트랜잭션이 끝난 뒤 엔티티를 다루면 지연 로딩이 실패할 수 있고, API 모양을 표 구조와 떼어 둘 수 있다. ①은 코드 규칙, ②는 설정에서 읽어 낸 이유다(추론).',
-      refs: [R("backend/src/test/java/com/flexable/web/architecture/PackageDependencyTest.java", "entitiesAndRepositoriesStayInTheirPackage", 85), R("backend/src/main/resources/application.yml", "open-in-view: false", 15)] },
+      refs: [R("backend/src/test/java/com/flexable/web/architecture/PackageDependencyTest.java", "entitiesAndRepositoriesStayInTheirPackage", 87), R("backend/src/main/resources/application.yml", "open-in-view: false", 15)] },
   ],
   next: 'u3',
 },
@@ -394,7 +394,7 @@ G.units = [
     { kind: 'ours', h: '계약을 먼저 쓰고 구현이 따라간 사례',
       body: [
         '조회 4종(`prices`·`events`·`indices`·`industries`)은 먼저 `web-api.yaml`에 "구현 전"으로 들어갔고, 구현 PR이 `ContractTest`(실제 응답을 스펙으로 검사)와 `contractChecks.ts`(화면 타입 대조)에 같은 4종을 더했다. 화면 타입은 이번에 손으로 쓰지 않고 `components["schemas"]` 생성 타입을 그대로 쓴다. `/simulations/run` 응답은 화면이 안 쓰게 되어 `contractChecks.ts`에서 대조를 뺐다.',
-      ], refs: [R("src/data/market.ts", "export type PriceSeries", 72), R("src/lib/contractChecks.ts", "투자 인사이트(#89)", 35), R("backend/src/test/java/com/flexable/web/contract/ContractTest.java", "계약 테스트: 실제 응답", 85)], ev: ['code', 'test'] },
+      ], refs: [R("src/data/market.ts", "export type PriceSeries", 80), R("src/lib/contractChecks.ts", "투자 인사이트(#89)", 35), R("backend/src/test/java/com/flexable/web/contract/ContractTest.java", "계약 테스트: 실제 응답", 85)], ev: ['code', 'test'] },
   ],
   canExplain: [
     '/invest(투자 인사이트)와 /simulation(투자 시뮬레이션)이 각각 무엇을 하고 어떤 API를 쓰는지',
@@ -405,7 +405,7 @@ G.units = [
   ],
   openCode: [
     { r: R("backend/src/main/java/com/flexable/web/market/MarketInsightService.java", "public PriceSeries prices(String code, PricePeriod period)", 71), why: '기간 안 종가만 읽어 응답으로.' },
-    { r: R("backend/src/main/java/com/flexable/web/market/MarketController.java", "private static PricePeriod period(String code)", 72), why: '기간 코드 검사.' },
+    { r: R("backend/src/main/java/com/flexable/web/market/MarketController.java", "private static PricePeriod period(String code)", 86), why: '기간 코드 검사.' },
     { r: R("backend/src/main/java/com/flexable/web/ingest/IndexSyncJob.java", "public synchronized MarketSyncJob.Result runOnce()", 42), why: '칸마다 받고, 실패해도 계속.' },
     { r: R("src/pages/Invest.tsx", "function toCombined(", 427), why: '여러 종목을 첫날 높이로 맞춰 차트 데이터로.' },
     { r: R("backend/src/test/java/com/flexable/web/market/MarketInsightServiceTest.java", "class MarketInsightServiceTest", 25), why: '조회 4종을 DB로 검사.' },
@@ -413,7 +413,7 @@ G.units = [
   quiz: [
     { q: '`period=2Y`로 prices를 부르면?',
       a: '`PricePeriod.parse`가 비어 있어 `ApiException.invalid("period", …)` → 400 `VALIDATION_FAILED`("기간은 3M·6M·1Y·3Y 중에서 골라 주세요")다. 화면은 이 네 값만 보낸다.',
-      refs: [R("backend/src/main/java/com/flexable/web/market/MarketController.java", "private static PricePeriod period(String code)", 72)] },
+      refs: [R("backend/src/main/java/com/flexable/web/market/MarketController.java", "private static PricePeriod period(String code)", 86)] },
     { q: '시가총액 100위 밖 종목으로 prices를 부르면? 시세를 아직 안 모은 종목이면?',
       a: '둘 다 404다. `selectable`이 시가총액 순위가 있고 상위 `topLimit` 안인 종목만 허용해 "고를 수 없는 종목이에요", 마지막 거래일이 없으면 "…시세를 아직 모으지 않았어요"다. worker가 한 번도 안 돈 서버에서도 같은 이유로 404가 된다.',
       refs: [R("backend/src/main/java/com/flexable/web/market/MarketInsightService.java", "private Instrument selectable(String code)", 171)] },
@@ -440,7 +440,7 @@ G.units = [
       body: [
         '웹 API는 키움·KRX·DART·금융감독원(finlife)·온통청년·Gemini를 부르지 않는다. 사용자 요청 중에 느린 외부 API를 부르지 않고, 외부 제공처의 이용 한도를 사용자 수와 떼어 두려는 구조로 읽힌다(추론). 문서(04 §8)와 코드 주석에 "외부 호출은 worker만"이 규칙으로 적혀 있다. 다만 적금 공시 수집(`SavingsSnapshotJob`)은 `app.ingest.savings.enabled=true`(worker 프로필은 기본 켜짐, `SAVINGS_INGEST_ENABLED`)일 때만 만들어져서 설정에 따라 api 프로세스에서도 켤 수 있다.',
         'HTTP 클라이언트를 쓸 수 있는 패키지는 applink·ingest·auth(와 범위 밖 ai)로 제한되고, `PackageDependencyTest`가 검사한다.',
-      ], refs: [R("backend/src/test/java/com/flexable/web/architecture/PackageDependencyTest.java", "httpClientsOnlyInApplinkIngestAuthOrAi", 76), R("backend/src/main/java/com/flexable/web/market/MarketService.java", "외부 API는 부르지 않는다", 22)], ev: ['code', 'test', 'infer'] },
+      ], refs: [R("backend/src/test/java/com/flexable/web/architecture/PackageDependencyTest.java", "httpClientsOnlyInApplinkIngestAuthOrAi", 77), R("backend/src/main/java/com/flexable/web/market/MarketService.java", "외부 API는 부르지 않는다", 22)], ev: ['code', 'test', 'infer'] },
     { kind: 'ours', h: '소스를 바꿔 끼우는 구조',
       body: [
         '`PriceSource`·`InstrumentSource`·`DisclosureSource`는 인터페이스다. `IngestConfig`가 설정값(`MARKET_PRICE_SOURCE` 등)에 따라 kiwoom·krx·dart·fake 구현 중 하나를 Bean으로 만든다. 테스트는 fake를 쓰고, 실제 소스의 응답 해석은 가짜 HTTP 서버로 검사한다(KiwoomPriceSourceTest 등). 실제 키움·KRX 서버 호출은 저장소 테스트에서 하지 않는다.',

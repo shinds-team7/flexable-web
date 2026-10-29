@@ -18,7 +18,7 @@ G.code = [
     keys: [R("src/auth/oauth.ts", "export async function startOAuth(", 29), R("src/auth/oauth.ts", "export async function exchangeCode(", 38)] },
   { id: 'fe-market', layer: 'browser', path: 'src/data/market.ts', role: '투자 인사이트의 서버 데이터 hook과 응답 타입. 종목 목록·일별 종가·사건 핀·시장 띠·업종별 순위·사건 상세. 응답 타입은 계약에서 만든 생성 타입(components["schemas"])을 쓴다.',
     calledBy: 'pages/Invest.tsx, components/EventPanel.tsx', calls: 'lib/api',
-    keys: [R("src/data/market.ts", "export const useBoard", 63), R("src/data/market.ts", "export const usePrices", 81), R("src/data/market.ts", "export const usePriceEvents", 92), R("src/data/market.ts", "export const useIndices", 102), R("src/data/market.ts", "export const useEventDetail", 67)] },
+    keys: [R("src/data/market.ts", "export const useBoard", 63), R("src/data/market.ts", "export const usePrices", 89), R("src/data/market.ts", "export const usePriceEvents", 100), R("src/data/market.ts", "export const useIndices", 110), R("src/data/market.ts", "export const useEventDetail", 67)] },
   { id: 'fe-home', layer: 'browser', path: 'src/data/home.ts', role: '시드머니 hook(서버 값 + 직접 고친 값, 연동 회원은 저장할 때 앱 반영 결과 appSync도 받는다). 코스피·코스닥 지수는 아직 예시 값(isSample).',
     calledBy: 'Home.tsx, Layout.tsx(상단 칩), Invest.tsx', calls: 'lib/api (GET·PUT·DELETE /me/seed-money)',
     keys: [R("src/data/home.ts", "async function fetchSeedMoney(", 70), R("src/data/home.ts", "function fromApp(", 79), R("src/data/home.ts", "export function useSetSeedManual()", 123)] },

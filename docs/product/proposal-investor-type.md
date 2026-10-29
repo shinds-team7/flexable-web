@@ -78,7 +78,7 @@
 
 | 파일 | 내용 |
 |---|---|
-| `src/pages/InvestorType.tsx` | `/type`(세 유형 카드), `/type/:id`(유형 화면), `TypeChoices`(첫 방문 안내에서도 사용) |
+| `src/pages/InvestorType.tsx` | `/type`(알아보기 시작 화면, 정한 성향이 있으면 "지금 내 성향" 카드), `/type/test`(질문 10개·결과), `/type/choose`(세 유형 카드), `/type/:id`(유형 화면), `TypeChoices`(첫 방문 안내에서도 사용) |
 | `src/data/investorType.ts` | 유형 정의·상품 유형·브라우저 저장 |
 | `src/pages/Invest.tsx` `IntroDialog` | 첫 방문 안내 마지막 단계(성향을 아직 안 골랐을 때만) |
 | `src/pages/Diversify.tsx` | 분산 투자 시안(`/diversify`, 예시 배치). 액티브 쪽 도구라 별도 화면으로 유지 |

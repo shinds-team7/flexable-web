@@ -181,7 +181,7 @@ export function InvestorTypeTest() {
         <ProtoNote />
         <div className="card it-start">
           <span className="meta">답변으로 보면</span>
-          <h1 className="page-title it-focus" ref={headRef} tabIndex={-1}>
+          <h1 className="page-title" ref={headRef} tabIndex={-1}>
             {t.name}에 가까워요
           </h1>
           <b className="it-one">{t.oneLine}</b>
@@ -226,7 +226,7 @@ export function InvestorTypeTest() {
         <div className="it-progress" role="progressbar" aria-label="진행" aria-valuemin={0} aria-valuemax={total} aria-valuenow={step}>
           <i style={{ width: `${(step / total) * 100}%` }} />
         </div>
-        <h1 className="it-q it-focus" ref={headRef} tabIndex={-1}>
+        <h1 className="it-q" ref={headRef} tabIndex={-1}>
           <span className="sr-only">
             {step + 1}번째 질문.{' '}
           </span>

@@ -992,7 +992,6 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .it-progress{height:8px;border-radius:var(--radius-xs);background:var(--sunken)}
 .it-progress i{display:block;height:100%;border-radius:inherit;background:var(--brand);transition:width 180ms var(--ease)}
 .it-q{font-size:20px;line-height:28px;font-weight:800}
-.it-focus:focus{outline:none}
 .it-mine{gap:12px}
 .it-answers{display:flex;flex-direction:column;gap:8px}
 .it-answer{padding:16px 20px;text-align:left;font:inherit;font-size:15px;font-weight:600;color:inherit;cursor:pointer;transition:border-color 180ms var(--ease),background-color 180ms var(--ease)}

@@ -29,6 +29,8 @@ app:
         client-id: ""
         client-secret: ""
   cors-origins: http://localhost:5173
+  news-search:
+    source: fake
   market:
     top-limit: 100
   ingest:

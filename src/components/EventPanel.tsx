@@ -2,7 +2,7 @@
 // 금액 계산은 투자 시뮬레이션(/simulation)이 맡아 이 패널에는 "이때 내 돈" 같은 금액 칸이 없다(decisions/2026-10-26-invest-insight-redesign ②).
 // 수치는 모두 서버 값이고(03 C-9·C-10) 여기서는 문장으로만 바꾼다. "무슨 일"은 서버 문장(설명 전에는 수치로 만든 사실 문장)을 그대로 쓴다.
 import { useState } from 'react';
-import { useEventDetail, type SimEvent } from '@/data/market';
+import { useEventDetail, useEventNews, type SimEvent } from '@/data/market';
 import { errorText } from '@/lib/api';
 import { arrow, pctTxt } from '@/lib/format';
 
@@ -198,7 +198,7 @@ function Detail({ ev }: { ev: PanelEvent }) {
 
       <h4>근거</h4>
       {d.scope === 'MARKET' ? (
-        <p>시장 전체 움직임이라 특정 회사 공시는 붙이지 않았어요. 그때 뉴스는 아래 검색에서 볼 수 있어요.</p>
+        <p>시장 전체 움직임이라 특정 회사 공시는 붙이지 않았어요.</p>
       ) : d.sources.length === 0 ? (
         <p>이 기간에 확인된 주요 공시가 없어요. 원인을 단정하기 어려워요.</p>
       ) : (
@@ -218,6 +218,9 @@ function Detail({ ev }: { ev: PanelEvent }) {
         </ul>
       )}
       {d.scope === 'STOCK' && d.sources.length > 0 && <p className="meta">이 기간에 나온 공시예요. 주가가 움직인 원인이라는 뜻은 아니에요.</p>}
+
+      <h4>그때 뉴스</h4>
+      <News id={ev.id} />
       <p className="meta" style={{ marginTop: 6 }}>
         {d.scope === 'STOCK' ? '공시: 금융감독원 OpenDART' : ''}
         {d.scope === 'STOCK' && d.newsSearchUrl ? ' · ' : ''}
@@ -232,6 +235,49 @@ function Detail({ ev }: { ev: PanelEvent }) {
         <span aria-hidden="true">ⓘ</span>
         <span>고지: {d.notice}</span>
       </div>
+    </>
+  );
+}
+
+/** 2026-03-10T15:42:00+09:00 → 2026.03.10 15:42(서버가 +09:00으로 준다) */
+const stamp = (iso: string) => `${dot(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
+
+/**
+ * 사건 무렵 기사(decisions/2026-10-28-event-news). 서버가 네이버 뉴스 검색을 그대로 중계한 제목·원문 링크·발행 시각만 보이고,
+ * 출처와 "원인이 아니다" 고지를 늘 함께 둔다. 못 불러오거나 못 찾으면 아래 "그때 뉴스 검색" 링크로 안내한다.
+ */
+function News({ id }: { id: number }) {
+  const q = useEventNews(id);
+  if (q.isPending) return <p className="sub">그 무렵 기사를 찾는 중이에요…</p>;
+  if (q.isError || q.data.status === 'UNAVAILABLE') {
+    return <p className="sub">지금은 기사를 불러올 수 없어요. 아래 뉴스 검색에서 직접 찾아볼 수 있어요.</p>;
+  }
+  const n = q.data;
+  return (
+    <>
+      {n.items.length === 0 ? (
+        <p>
+          {dot(n.from)}~{dot(n.to)}에 나온 기사를 찾지 못했어요. 오래된 일은 검색 결과에 잘 나오지 않아요. 아래 뉴스 검색에서 직접 찾아볼 수 있어요.
+        </p>
+      ) : (
+        <ul>
+          {n.items.map((a) => (
+            <li key={a.url}>
+              <a href={a.url} target="_blank" rel="noopener noreferrer">
+                {a.title} ↗
+              </a>
+              <span className="meta num">
+                {' '}
+                — {a.publisher ? `${a.publisher}, ` : ''}
+                {stamp(a.publishedAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="meta">
+        {n.isSample && <span className="tag-ex">예시</span>} 출처: {n.sourceName} · {dot(n.from)}~{dot(n.to)} 발행 기사. {n.notice}
+      </p>
     </>
   );
 }

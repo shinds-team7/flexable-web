@@ -67,6 +67,14 @@ export const useBoard = (board: Board) =>
 export const useEventDetail = (id: number | null) =>
   useQuery({ queryKey: ['market', 'event', id], queryFn: () => api<EventDetail>(`/market/events/${id}`), enabled: id != null, staleTime: 30 * 60_000 });
 
+/**
+ * 사건 무렵 뉴스 기사(GET /market/events/{id}/news). 서버가 네이버 뉴스 검색을 요청 중 중계한 결과라 저장하지 않는다
+ * (decisions/2026-10-28-event-news). 그래서 화면도 오래 들고 있지 않는다(패널을 닫으면 버림). UNAVAILABLE이면 items가 비어 있다.
+ */
+export type EventNews = components['schemas']['EventNews'];
+export const useEventNews = (id: number | null) =>
+  useQuery({ queryKey: ['market', 'event-news', id], queryFn: () => api<EventNews>(`/market/events/${id}/news`), enabled: id != null, staleTime: 0, gcTime: 0, retry: false });
+
 export type PricePeriod = components['schemas']['PricePeriod'];
 /** 화면 차트용 일별 종가(수정주가). 시가·고가·저가·거래량은 없다(decisions/2026-10-26-invest-insight-redesign ④) */
 export type PriceSeries = components['schemas']['PriceSeries'];

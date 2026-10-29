@@ -4,7 +4,7 @@
 import type { AppLink, SeedEntry } from '@/data/appLink';
 import type { Coach, GoalInput, GoalState } from '@/data/goal';
 import type { SeedMoneyResponse } from '@/data/home';
-import type { BoardListing, EventDetail, IndexStrip, IndustryListing, PriceEvents, PriceSeries } from '@/data/market';
+import type { BoardListing, EventDetail, EventNews, IndexStrip, IndustryListing, PriceEvents, PriceSeries } from '@/data/market';
 import type { YouthNews } from '@/data/news';
 import type { CategoryResponse, Started } from '@/data/practice';
 import type { SavingsProduct, SavingsProductDetail, SavingsProductList, SavingsSimulateRequest, SavingsSimulation } from '@/data/savings';
@@ -35,6 +35,7 @@ export type ContractChecks = [
   // 투자 인사이트(#89). 화면은 POST /simulations/run을 부르지 않는다(API는 남음)
   Reads<S['BoardListing'], BoardListing>,
   Reads<S['EventDetail'], EventDetail>,
+  Expect<Mutual<EventNews, Ok<'/market/events/{id}/news', 'get'>>>,
   Expect<Mutual<PriceSeries, Ok<'/market/instruments/{id}/prices', 'get'>>>,
   Expect<Mutual<PriceEvents, Ok<'/market/instruments/{id}/events', 'get'>>>,
   Expect<Mutual<IndexStrip, Ok<'/market/indices', 'get'>>>,

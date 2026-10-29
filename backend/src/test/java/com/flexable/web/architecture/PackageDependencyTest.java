@@ -47,10 +47,11 @@ class PackageDependencyTest {
 			Map.entry("billing", Set.of("user")),
 			Map.entry("engagement", Set.of("simulation", "user", "seedmoney", "ai")),
 			Map.entry("ai", Set.of("common")),
+			Map.entry("newssearch", Set.of("market")),
 			// ingest는 각 도메인의 저장 인터페이스를 쓴다. 도메인 패키지가 생기면 좁힌다.
 			Map.entry("ingest", Set.of(ALL)));
 
-	/** HTTP 클라이언트. 앱 연동은 applink, 수집은 ingest, 소셜 로그인은 auth, 목표 안내는 ai가 맡는다(04 §3·§8). */
+	/** HTTP 클라이언트. 앱 연동은 applink, 수집은 ingest, 소셜 로그인은 auth, 목표 안내는 ai, 사건 뉴스 검색은 newssearch가 맡는다(04 §3·§8). */
 	private static final List<String> HTTP_CLIENTS = List.of("org.springframework.web.client.RestClient",
 			"org.springframework.web.client.RestTemplate", "java.net.http.HttpClient",
 			"org.springframework.web.reactive.function.client.WebClient");
@@ -74,7 +75,8 @@ class PackageDependencyTest {
 
 	@ArchTest
 	static final ArchRule httpClientsOnlyInApplinkIngestAuthOrAi = noClasses().that()
-		.resideOutsideOfPackages("com.flexable.web.applink..", "com.flexable.web.ingest..", "com.flexable.web.auth..", "com.flexable.web.ai..")
+		.resideOutsideOfPackages("com.flexable.web.applink..", "com.flexable.web.ingest..", "com.flexable.web.auth..", "com.flexable.web.ai..",
+				"com.flexable.web.newssearch..")
 		.should().dependOnClassesThat().haveFullyQualifiedName(HTTP_CLIENTS.get(0))
 		.orShould().dependOnClassesThat().haveFullyQualifiedName(HTTP_CLIENTS.get(1))
 		.orShould().dependOnClassesThat().haveFullyQualifiedName(HTTP_CLIENTS.get(2))

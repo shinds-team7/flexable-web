@@ -47,6 +47,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |
 | `engagement` | 목표·AI 안내·사용량, 공유·지표 이벤트(미구현) | `simulation`, `user`, `seedmoney`, `ai` |
 | `ai` | OpenAI 목표 안내 클라이언트(식별자·자유 입력 이름 미전송) | `common` |
+| `newssearch` | 사건 상세 뉴스 기사 검색(NAVER API HUB 중계·예시 소스, 저장 안 함). `market.NewsSearch` 구현 | `market` |
 | `ingest` | 외부 데이터 수집 작업(worker 프로필에서만 동작) | 각 도메인의 저장 인터페이스(지금은 `market`) |
 
 표의 오른쪽 열은 **허용**하는 방향이다. 실제 코드는 그중 일부만 쓴다(10-24 기준 `simulation → market`, `seedmoney → applink`, `user → applink`, `engagement → seedmoney·user·ai`, `ingest → market`).
@@ -80,6 +81,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `GET /market/events/{id}` | 없음 | 사건 상세 `{id, code, name, scope, startDate, endDate, windowDays, direction, headline, marketReaction:{returnRate, marketReturn, volumeRatio, weekReturn}, afterwards:{d30, d365}, sources:[{type, externalId, title, publisher, date, url, weight}], newsSearchUrl, whatHappened, whyItMoved, aiGenerated, confidence, noticeKey=EVENT_EXPLAIN, notice}`(03 C-10). 수익률은 비율, 30·365일 뒤가 아직 안 왔으면 `null`. 설명(LLM) 전이라 `whatHappened`는 수치로 만든 사실 문장(기간·등락률·같은 기간 시장·공시 수, 원인 단정 없음)이고 `aiGenerated=false`, `confidence`는 근거가 없으면 `LOW`. 없으면 404 `NOT_FOUND` |
 | `GET /market/status` | 없음 | `{pricesAsOf, instrumentsAsOf, instruments, empty}` |
 | `GET /market/instruments/{id}/prices?period=3M\|6M\|1Y\|3Y` | 없음 | 화면 차트용 일별 종가(수정주가)만 `{id, name, kind, period, startDate, endDate, dataAsOf, basis=DAILY_ADJ_CLOSE, points:[{date, close}], sources, noticeKey=PRICE_PAST, notice, isSample}`. 기간은 마지막 거래일에서 개월 수(3·6·12·36)만큼 거슬러 간 날 이후 첫 거래일부터. 시가·고가·저가·거래량은 주지 않는다([결정](../docs/decisions/2026-10-26-invest-insight-redesign.md) ④). 상위 목록 밖이거나 시세가 없으면 404, 기간이 틀리면 400 |
+| `GET /market/events/{id}/news` | 없음 | 사건 무렵 뉴스 기사 `{eventId, from, to, status, items:[{title, url, publisher, publishedAt}], sourceName, notice, isSample}`. 요청 중 NAVER API HUB 뉴스 검색을 중계하고 저장·캐시하지 않는다(`no-store`). 검색어에 사건 날짜를 넣어 최대 4번 부르고, 발행일이 사건 시작 3일 전~마지막 날 3일 뒤인 기사만 최대 5건. 키 없음·실패·하루 상한이면 `status=UNAVAILABLE`. 없는 사건은 404([결정](../docs/decisions/2026-10-28-event-news.md)) |
 | `GET /market/instruments/{id}/events?period=…` | 없음 | 같은 기간에 시작한 그 종목 사건 + 시장 사건 `{id, period, startDate, endDate, items:[{id, code, scope, …, headline, sourceCount, topSource, score}], noticeKey=EVENT_EXPLAIN}`. 금액 필드 없음. 상세는 `/market/events/{id}` |
 | `GET /market/indices` | 없음 | 시장 띠 `{items:[{key, name, kind, unit, value, prevValue, change, changeRate, date, sourceName}], sources, isSample}`. 순서 고정(코스피·코스닥·나스닥100·S&P500·다우존스·니케이225·금·원/달러·원/엔), 마지막 값과 전일 값이 모두 있는 칸만. `changeRate`는 소수 4자리 내림(음수는 더 작은 쪽). 지금은 코스피·코스닥만 수집(나머지는 #94) |
 | `GET /market/industries?board=KOSPI\|KOSDAQ&limit=1~10` | 없음 | 업종별 시가총액 상위 종목 `{board, items:[{categoryCode, categoryName, totalMarketCap, instruments:[{id, name, rank, marketCap}]}], classificationVersion=KIWOOM_UPNAME_V1, classificationAsOf, sources, note, isSample}`. 상위 목록 안에서만 묶고 업종 빈 값은 뺀다. 업종은 시가총액 합 순, 업종 안은 순위 순. ETF·범위 밖 `limit`은 400 |
@@ -166,6 +168,8 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `OPENAI_MODEL` | strict JSON schema를 지원하는 목표 안내 모델 | `gpt-4o-mini` |
 | `OPENAI_BASE_URL` | Chat Completions 경로 앞 주소 | `https://api.openai.com/v1` |
 | `GOAL_COACH_FREE_DAILY_LIMIT` | 회원당 Asia/Seoul 하루 AI 호출 횟수. 모의 결제로 한도를 바꾸지 않는다 | `3` |
+| `NEWS_SEARCH_SOURCE`, `NAVER_API_HUB_KEY_ID`, `NAVER_API_HUB_KEY` | 사건 상세 뉴스 기사(api의 요청 중 외부 호출, 저장·캐시 안 함). `naver`·`fake`(예시 기사), NAVER API HUB 뉴스 검색 Client ID·Secret. 키가 비어 있으면 뉴스 칸만 `UNAVAILABLE` | `naver`, 없음, 없음 |
+| `NAVER_API_HUB_BASE_URL`, `NAVER_NEWS_DAILY_CAP` | NAVER API HUB 주소, 서버 하루(KST) 호출 상한(하루 한도 25,000회보다 낮게) | `https://naverapihub.apigw.ntruss.com`, `20000` |
 | `GOAL_COACH_DAILY_CAP` | 회원 정보 없는 DB 날짜별 전체 상한(탈퇴해도 유지) | `300` |
 | `MARKET_TOP_LIMIT` | 시장마다 시가총액 상위 몇 종목을 보여 주고 계산·수집할지 | `100` |
 | `MARKET_PRICE_SOURCE`, `MARKET_INSTRUMENT_SOURCE`, `MARKET_INSTRUMENT_FALLBACK` | worker 수집 소스(위 표) | `kiwoom`, `krx`, `kiwoom` |

@@ -1103,6 +1103,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/market/events/{id}/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 사건 무렵 뉴스 기사(NAVER API HUB 뉴스 검색 중계, decisions/2026-10-28-event-news). 저장·캐시 없음
+         * @description - 요청 중 서버가 네이버 뉴스 검색을 불러 그대로 돌려준다. DB·서버 캐시에 기사를 두지 않고 응답은 no-store다.
+         *     - 발행 시각이 from~to(사건 시작일 3일 전 ~ 마지막 날 3일 뒤, KST, 포함) 안인 기사만, 발행 순으로 최대 5건.
+         *     - 검색에 날짜 조건이 없어 지난 사건은 기사를 찾지 못할 수 있다(items 빈 목록, status OK).
+         *     - 키 없음·호출 실패·하루 한도면 status UNAVAILABLE, items 빈 목록(200). 사건 상세는 따로 불러 영향이 없다.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 그때 뉴스(없으면 items 빈 목록) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventNews"];
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/market/status": {
         parameters: {
             query?: never;
@@ -2242,6 +2287,43 @@ export interface components {
             /** @enum {string} */
             noticeKey: "EVENT_EXPLAIN";
             notice: string;
+        };
+        EventNews: {
+            /** Format: int64 */
+            eventId: number;
+            /**
+             * Format: date
+             * @description 기사 발행일 범위 시작(사건 시작일 3일 전)
+             */
+            from: string;
+            /**
+             * Format: date
+             * @description 기사 발행일 범위 끝(사건 마지막 날 3일 뒤)
+             */
+            to: string;
+            /**
+             * @description UNAVAILABLE: 키 없음·호출 실패·하루 한도
+             * @enum {string}
+             */
+            status: "OK" | "UNAVAILABLE";
+            items: {
+                /** @description 기사 제목 원문(검색어 강조 태그·HTML 엔티티만 풀었음) */
+                title: string;
+                /**
+                 * Format: uri
+                 * @description 원문 링크(originallink, 없으면 네이버 뉴스 link)
+                 */
+                url: string;
+                /** @description 원문 링크의 호스트(예: www.hankyung.com). 알 수 없으면 null */
+                publisher: string | null;
+                /** Format: date-time */
+                publishedAt: string;
+            }[];
+            /** @description 네이버 뉴스 검색. 예시 자료면 네이버 뉴스 검색(예시) */
+            sourceName: string;
+            /** @description 제목·원문 링크를 그대로 보인다는 것과 원인이 아니라는 고지 */
+            notice: string;
+            isSample: boolean;
         };
         /**
          * @default 3M

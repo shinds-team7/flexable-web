@@ -1,5 +1,7 @@
 package com.flexable.web.market;
 
+import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,11 +22,13 @@ public class MarketController {
 	private final MarketService market;
 	private final EventService events;
 	private final MarketInsightService insight;
+	private final EventNewsService news;
 
-	public MarketController(MarketService market, EventService events, MarketInsightService insight) {
+	public MarketController(MarketService market, EventService events, MarketInsightService insight, EventNewsService news) {
 		this.market = market;
 		this.events = events;
 		this.insight = insight;
+		this.news = news;
 	}
 
 	/** 시장별 시가총액 상위 종목(기본 100). board: KOSPI | KOSDAQ | ETF */
@@ -37,6 +41,16 @@ public class MarketController {
 	@GetMapping("/events/{id}")
 	EventDtos.EventDetail event(@PathVariable long id) {
 		return events.detail(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "사건을 찾을 수 없어요"));
+	}
+
+	/**
+	 * 사건 무렵 뉴스 기사(네이버 뉴스 검색 중계). 검색 결과는 저장·캐시하지 않으므로 no-store(decisions/2026-10-28-event-news).
+	 * 검색이 안 되면 200 status=UNAVAILABLE.
+	 */
+	@GetMapping("/events/{id}/news")
+	ResponseEntity<EventDtos.EventNews> eventNews(@PathVariable long id) {
+		EventDtos.EventNews body = news.news(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "사건을 찾을 수 없어요"));
+		return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
 	}
 
 	/** 종목 일별 종가(화면 차트용). period: 3M | 6M | 1Y | 3Y(기본 3M) */

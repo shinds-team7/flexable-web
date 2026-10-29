@@ -1,0 +1,36 @@
+{
+  "lastBuildDate": "Wed, 28 Oct 2026 10:00:00 +0900",
+  "total": 3,
+  "start": 1,
+  "display": 4,
+  "items": [
+    {
+      "title": "<b>삼성전자</b> 주가 &quot;급등&quot;&#8230; 반도체 &amp; AI 기대",
+      "originallink": "https://www.hankyung.com/article/2026031012345",
+      "link": "https://n.news.naver.com/mnews/article/015/0005000001",
+      "description": "<b>삼성전자</b> 주가가 크게 올랐다",
+      "pubDate": "Tue, 10 Mar 2026 15:42:00 +0900"
+    },
+    {
+      "title": "원문 링크가 없는 기사 &lt;속보&gt;",
+      "originallink": "",
+      "link": "https://n.news.naver.com/mnews/article/001/0001000002",
+      "description": "",
+      "pubDate": "Wed, 11 Mar 2026 09:05:00 +0900"
+    },
+    {
+      "title": "발행 시각을 읽을 수 없는 기사",
+      "originallink": "https://example.com/a",
+      "link": "https://example.com/a",
+      "description": "",
+      "pubDate": "어제"
+    },
+    {
+      "title": "링크가 http가 아닌 기사",
+      "originallink": "javascript:alert(1)",
+      "link": "",
+      "description": "",
+      "pubDate": "Wed, 11 Mar 2026 09:05:00 +0900"
+    }
+  ]
+}

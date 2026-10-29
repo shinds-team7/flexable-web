@@ -96,6 +96,26 @@ class GeminiEventOverviewWriterTest {
 		// 입력에 없는 숫자(바꾼 등락률·지어낸 날짜)는 버린다
 		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 하루 +5.2% 올랐어요.", STOCK)).isNull();
 		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 10월 13일에 올랐어요.", STOCK)).isNull();
+		// 숫자는 칸마다·부호까지 입력과 같아야 한다(PR 리뷰): 틀린 부호, 다른 칸의 값(시장 대비·날짜)을 종목 등락률로 쓰기
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 하루 −4.2% 내렸어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 하루 +1.0% 올랐어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 12% 올랐어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 하루 4.2% 올랐어요.", STOCK)).isNull(); // 부호 없는 %
+		// 시장 대비 자리에는 시장 대비 값만, 거래량 배수·거래일 수도 그 칸 값만
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 +4.2% 올랐고 같은 기간 시장 전체는 +1.0%였어요.", STOCK)).isNotNull();
+		assertThat(GeminiEventOverviewWriter.check("시장 전체가 +1.0%일 때 가나전자 주가는 +4.2% 올랐어요.", STOCK)).isNotNull();
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 +4.2% 올랐고 시장 전체는 +4.2%였어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("거래량은 평소의 4.2배였어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 12거래일 동안 올랐어요.", STOCK)).isNull();
+		// 부호와 반대인 오름·내림 낱말
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 하루 +4.2% 내렸어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("시장 전체는 −7.5% 올랐어요.", MARKET)).isNull();
+		// 날짜: 연·월·일은 기간의 날짜, 붙은 월·일은 같은 날짜여야 한다
+		assertThat(GeminiEventOverviewWriter.check("가나전자 주가는 2025년 10월 12일에 +4.2% 올랐어요.", STOCK)).isNull();
+		assertThat(GeminiEventOverviewWriter.check("시장 전체는 3월 9일까지 −7.5% 내렸어요.", MARKET)).isNotNull();
+		assertThat(GeminiEventOverviewWriter.check("시장 전체는 3월 12일까지 −7.5% 내렸어요.", MARKET)).isNull();
+		// 하이픈 빼기는 빼기 기호로 바꿔 저장한다
+		assertThat(GeminiEventOverviewWriter.check("시장 전체는 5거래일 동안 -7.5% 내렸어요.", MARKET)).isEqualTo("시장 전체는 5거래일 동안 −7.5% 내렸어요.");
 		// 원인 단정·전망·권유 표현은 버린다
 		assertThat(GeminiEventOverviewWriter.check("가나전자 주가가 그 영향으로 +4.2% 올랐어요.", STOCK)).isNull();
 		assertThat(GeminiEventOverviewWriter.check("앞으로도 오를 수 있어요.", STOCK)).isNull();

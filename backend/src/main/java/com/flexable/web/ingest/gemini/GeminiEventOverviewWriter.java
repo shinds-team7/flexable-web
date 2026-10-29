@@ -1,12 +1,14 @@
 package com.flexable.web.ingest.gemini;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.SequencedSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.springframework.web.client.RestClient;
@@ -48,6 +50,17 @@ public class GeminiEventOverviewWriter implements EventOverviewWriter {
 			"실적", "매출", "영업이익", "순이익", "적자", "흑자", "계약", "수주", "공급", "증자", "감자", "합병", "인수", "분할", "매각", "배당",
 			"자사주", "자기주식", "상장", "승인", "허가", "임상", "출시", "특허", "소송", "제재", "사고", "최대주주",
 			"금리", "환율", "물가", "정책", "규제", "정부", "선거", "전쟁", "관세", "이슈", "루머");
+	/** 오름·내림을 말하는 낱말. 바로 앞 등락률의 부호와 맞아야 한다 */
+	static final List<String> UP = List.of("올랐", "오른", "올라", "상승", "뛰었", "뛴");
+	static final List<String> DOWN = List.of("내렸", "내린", "내려", "하락", "떨어", "빠졌", "빠진");
+	/** 숫자 하나와 붙은 부호·단위. 단위: % · 배 · 거래일 · 년 · 월 · 일(없으면 맨 숫자) */
+	private static final Pattern TOKEN = Pattern.compile("([+\\-−]?)(\\d+(?:,\\d{3})*(?:\\.\\d+)?)\\s*(%|배|거래일|년|월|일)?");
+	/** 입력 기간의 날짜("2026년 10월 12일") */
+	private static final Pattern KOREAN_DATE = Pattern.compile("(\\d{4})년 (\\d{1,2})월 (\\d{1,2})일");
+	/** 문장 나누기: 마침표·물음표·느낌표 뒤 공백 */
+	private static final Pattern SENTENCE_SPLIT = Pattern.compile("(?<=[.!?])\\s+");
+	/** 종목명 자리 표시(이름 안 글자가 다른 검사에 걸리지 않게 바꿔 둔다) */
+	private static final String NAME_MARK = "\u0001";
 
 	static final String INSTRUCTION = """
 			너는 주가가 크게 움직인 지난 사건을 처음 투자를 공부하는 사람에게 짧게 정리하는 편집자다. 입력 배열의 사건마다 주가 움직임만 한국어 1~2문장(120자 이내)으로 쓴다.
@@ -120,8 +133,8 @@ public class GeminiEventOverviewWriter implements EventOverviewWriter {
 
 	/**
 	 * AI 문장을 검사하고 서버 공시 문장을 붙여 개요를 완성한다. 통과하면 완성된 개요, 아니면 null(상세에 개요 칸이 보이지 않는다).
-	 * AI 문장: 2문장 이내, 금지 표현·사실 주장 낱말 없음(종목명 안의 글자는 빼고 본다), 나온 숫자가 모두 입력에 있어야 한다
-	 * (등락률·배수는 적힌 소수 그대로, 날짜는 입력의 "2026년 10월 12일"에서 나온 연·월·일 숫자로).
+	 * AI 문장: 2문장 이내, 금지 표현·사실 주장 낱말 없음(종목명 안의 글자는 빼고 본다), 숫자는 칸마다 입력 값과 같아야 한다(valuesMatch).
+	 * 하이픈 빼기(-4.2%)는 화면과 같은 빼기 기호(−4.2%)로 바꿔 저장한다.
 	 * 공시 문장: 입력 공시 제목으로 서버가 만든다(disclosureSentence). 붙인 뒤 160자를 넘으면 제목 없이 건수만 쓰고, 그래도 넘으면 버린다.
 	 */
 	public static String check(String text, OverviewInput in) {
@@ -132,18 +145,13 @@ public class GeminiEventOverviewWriter implements EventOverviewWriter {
 		if (s.isEmpty() || s.length() > MAX_CHARS || GeminiNewsSummarizer.sentences(s) > MAX_AI_SENTENCES) {
 			return null;
 		}
-		String plain = s.replace(in.name(), " ");
+		s = s.replaceAll("-(?=\\d)", "−"); // 하이픈 빼기를 화면과 같은 빼기 기호로
+		String plain = s.replace(in.name(), NAME_MARK);
 		if (BANNED.stream().anyMatch(plain::contains) || CLAIMS.stream().anyMatch(plain::contains)) {
 			return null;
 		}
-		Set<String> known = new LinkedHashSet<>();
-		Stream.of(in.name(), in.period(), in.returnRate(), String.valueOf(in.windowDays()), in.marketReturn(), in.volumeRatio())
-			.filter(v -> v != null)
-			.forEach(t -> GeminiNewsSummarizer.numbers(t).forEach(known::addAll));
-		for (SequencedSet<String> n : GeminiNewsSummarizer.numbers(s)) {
-			if (!known.contains(n.getLast())) {
-				return null;
-			}
+		if (!valuesMatch(plain, in)) {
+			return null;
 		}
 		if (in.disclosures().isEmpty()) {
 			return s;
@@ -153,6 +161,122 @@ public class GeminiEventOverviewWriter implements EventOverviewWriter {
 			full = s + " " + disclosureSentence(in.disclosures(), false);
 		}
 		return full.length() <= MAX_CHARS && GeminiNewsSummarizer.sentences(full) <= MAX_SENTENCES ? full : null;
+	}
+
+	/**
+	 * AI 문장의 숫자를 칸마다 입력 값과 맞춘다(모든 칸의 숫자를 한 집합에 모아 보면 다른 칸의 값이나 틀린 부호가 통과한다, PR 리뷰).
+	 * - 등락률(%): 부호까지 같아야 한다. 부호 없는 %는 버린다. 종목 사건에서 문장 앞쪽(이 % 앞, 같은 문장 안)에 "시장"이 있고 종목명이 없으면
+	 *   같은 기간 시장 대비, 아니면 종목 등락률과 맞춘다. 시장 사건은 늘 등락률과 맞춘다.
+	 * - 바로 뒤(다음 %나 문장 끝까지)의 오름·내림 낱말이 부호와 반대면 버린다("−4.2% 올랐어요").
+	 * - 배: 거래량 배수와 같아야 한다. 거래일: 거래일 수와 같아야 한다.
+	 * - 년·월·일: 기간의 시작일·마지막 날 것이어야 하고, "10월 12일"처럼 붙어 있으면 같은 날짜여야 한다.
+	 * - 단위 없는 숫자는 종목명 안의 숫자가 글자에 붙어 있을 때만(예: 코스피200) 받는다. 그 밖(2,400선 등)은 버린다.
+	 */
+	static boolean valuesMatch(String plain, OverviewInput in) {
+		boolean market = "MARKET".equals(in.scope());
+		String stockPct = signed(in.returnRate());
+		String marketPct = in.marketReturn() == null ? null : signed(in.marketReturn());
+		String ratio = in.volumeRatio() == null ? null : plainNumber(in.volumeRatio().replace("배", ""));
+		Set<String> years = new HashSet<>(), months = new HashSet<>(), days = new HashSet<>(), dates = new HashSet<>();
+		Matcher d = KOREAN_DATE.matcher(in.period());
+		while (d.find()) {
+			years.add(plainNumber(d.group(1)));
+			months.add(plainNumber(d.group(2)));
+			days.add(plainNumber(d.group(3)));
+			dates.add(plainNumber(d.group(2)) + "/" + plainNumber(d.group(3)));
+		}
+		Set<String> nameNumbers = new HashSet<>();
+		Matcher nm = Pattern.compile("\\d+").matcher(in.name());
+		while (nm.find()) {
+			nameNumbers.add(plainNumber(nm.group()));
+		}
+		for (String sentence : SENTENCE_SPLIT.split(plain)) {
+			List<int[]> pcts = new ArrayList<>(); // 이 문장의 % 위치(시작, 끝)
+			Matcher t = TOKEN.matcher(sentence);
+			String lastMonth = null;
+			int lastMonthEnd = -1;
+			while (t.find()) {
+				String sign = t.group(1), value = plainNumber(t.group(2)), unit = t.group(3);
+				if (unit == null) {
+					boolean glued = t.start() > 0 && Character.isLetter(sentence.charAt(t.start() - 1));
+					if (!sign.isEmpty() || !glued || !nameNumbers.contains(value)) {
+						return false;
+					}
+					continue;
+				}
+				if (!"%".equals(unit) && !sign.isEmpty()) {
+					return false;
+				}
+				switch (unit) {
+					case "%" -> {
+						if (sign.isEmpty()) {
+							return false;
+						}
+						String before = sentence.substring(pcts.isEmpty() ? 0 : pcts.getLast()[1], t.start());
+						boolean aboutMarket = !market && before.contains("시장") && !before.contains(NAME_MARK);
+						String want = aboutMarket ? marketPct : stockPct;
+						if (want == null || !want.equals(sign.replace('-', '−') + value)) {
+							return false;
+						}
+						pcts.add(new int[] { t.start(), t.end() });
+					}
+					case "배" -> {
+						if (!value.equals(ratio)) {
+							return false;
+						}
+					}
+					case "거래일" -> {
+						if (!value.equals(plainNumber(String.valueOf(in.windowDays())))) {
+							return false;
+						}
+					}
+					case "년" -> {
+						if (!years.contains(value)) {
+							return false;
+						}
+					}
+					case "월" -> {
+						if (!months.contains(value)) {
+							return false;
+						}
+						lastMonth = value;
+						lastMonthEnd = t.end();
+					}
+					default -> { // 일
+						if (!days.contains(value)) {
+							return false;
+						}
+						boolean paired = lastMonth != null && sentence.substring(lastMonthEnd, t.start()).isBlank();
+						if (paired && !dates.contains(lastMonth + "/" + value)) {
+							return false;
+						}
+					}
+				}
+			}
+			// 등락률 바로 뒤의 오름·내림 낱말이 부호와 반대면 버린다
+			for (int i = 0; i < pcts.size(); i++) {
+				int from = pcts.get(i)[1], to = i + 1 < pcts.size() ? pcts.get(i + 1)[0] : sentence.length();
+				String after = sentence.substring(from, to);
+				boolean rise = sentence.charAt(pcts.get(i)[0]) == '+';
+				if (rise ? DOWN.stream().anyMatch(after::contains) : UP.stream().anyMatch(after::contains)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/** "+4.2%" → "+4.2", "−7.5%" → "−7.5"(하이픈은 빼기 기호로) */
+	private static String signed(String pct) {
+		String p = pct.replace("%", "").replace('-', '−').strip();
+		char sign = p.charAt(0);
+		return sign == '+' || sign == '−' ? sign + plainNumber(p.substring(1)) : "+" + plainNumber(p);
+	}
+
+	/** 쉼표를 빼고 같은 값이면 같은 글자로(4.20 → 4.2는 하지 않는다: 소수 자리까지 입력과 같아야 한다) */
+	private static String plainNumber(String n) {
+		String v = n.replace(",", "");
+		return v.contains(".") ? v : new BigDecimal(v).toPlainString();
 	}
 
 	/**

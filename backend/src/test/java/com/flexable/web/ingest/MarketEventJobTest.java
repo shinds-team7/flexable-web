@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.flexable.web.market.DailyClose;
+import com.flexable.web.market.EventDtos.AiSummary;
 import com.flexable.web.market.EventDtos.EventView;
 import com.flexable.web.market.EventService;
 import com.flexable.web.market.MarketService;
@@ -76,11 +77,19 @@ class MarketEventJobTest {
 		assertThat(e.sources().getFirst().type()).isEqualTo("DART");
 		assertThat(e.sources().getFirst().date()).isEqualTo(dates.get(jump));
 		assertThat(e.sources().getFirst().url()).startsWith("https://example.com/disclosures/");
+		// 테스트는 예시 작성기(EVENT_OVERVIEW_SOURCE=fake): 근거를 찾은 뒤 개요를 쓰고 isSample로 저장한다
+		assertThat(first.overview().status()).isEqualTo("SUCCESS");
+		assertThat(first.overview().saved()).isPositive();
+		AiSummary overview = events.detail(e.id()).orElseThrow().aiSummary();
+		assertThat(overview.isSample()).isTrue();
+		assertThat(overview.model()).isEqualTo("sample");
+		assertThat(overview.text()).startsWith("삼성전자 주가는 ").contains("단일판매ㆍ공급계약체결 공시가 있었어요");
 
 		// 다시 돌려도 같은 사건을 갱신만 하고(id 유지), 이미 찾은 근거는 다시 받지 않는다
 		MarketEventJob.Result second = job.runOnce();
 		assertThat(second.status()).isEqualTo("SUCCESS");
 		assertThat(second.evidenceChecked()).isZero();
+		assertThat(second.overview().targets()).isZero(); // 입력이 그대로면 개요도 다시 만들지 않는다
 		assertThat(events.events("005930")).containsExactlyElementsOf(samsung);
 	}
 }

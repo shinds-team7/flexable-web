@@ -14,10 +14,12 @@ import org.springframework.web.client.RestClient;
 
 import com.flexable.web.ingest.dart.DartDisclosureSource;
 import com.flexable.web.ingest.fake.FakeDisclosureSource;
+import com.flexable.web.ingest.fake.FakeEventOverviewWriter;
 import com.flexable.web.ingest.fake.FakeIndexSource;
 import com.flexable.web.ingest.fake.FakeInstrumentSource;
 import com.flexable.web.ingest.fake.FakePriceSource;
 import com.flexable.web.ingest.fake.FakeYouthPolicySource;
+import com.flexable.web.ingest.gemini.GeminiEventOverviewWriter;
 import com.flexable.web.ingest.gemini.GeminiNewsSummarizer;
 import com.flexable.web.ingest.kiwoom.KiwoomIndexSource;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
@@ -100,13 +102,37 @@ public class IngestConfig {
 		};
 	}
 
-	/** 소식 요약. 묶음 요약은 응답이 길어 읽기 제한을 60초로 둔다. 키가 없으면 꺼진 채로 만들어진다. */
+	/** Gemini 호출. 묶음 요약은 응답이 길어 읽기 제한을 60초로 둔다. */
+	private final RestClient gemini = RestClient.builder()
+		.requestFactory(readTimeout60(new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build())))
+		.build();
+
+	private static JdkClientHttpRequestFactory readTimeout60(JdkClientHttpRequestFactory f) {
+		f.setReadTimeout(Duration.ofSeconds(60));
+		return f;
+	}
+
+	/** 소식 요약. 키가 없으면 꺼진 채로 만들어진다. */
 	@Bean
 	NewsSummarizer newsSummarizer(IngestProperties props) {
 		IngestProperties.Gemini g = props.gemini();
-		JdkClientHttpRequestFactory f = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
-		f.setReadTimeout(Duration.ofSeconds(60));
-		return new GeminiNewsSummarizer(RestClient.builder().requestFactory(f).build(), g.baseUrl(), g.apiKey(), g.model());
+		return new GeminiNewsSummarizer(gemini, g.baseUrl(), g.apiKey(), g.model());
+	}
+
+	/**
+	 * 사건 AI 개요. gemini는 전용 키(EVENT_OVERVIEW_GEMINI_API_KEY)가 있으면 그것을, 없으면 소식 요약과 같은 키를 쓴다.
+	 * 둘 다 없으면 꺼진 채로 만들어진다.
+	 */
+	@Bean
+	EventOverviewWriter eventOverviewWriter(IngestProperties props) {
+		IngestProperties.Gemini g = props.gemini();
+		IngestProperties.EventOverview o = props.eventOverview();
+		return switch (o.source()) {
+			case "gemini" -> new GeminiEventOverviewWriter(gemini, g.baseUrl(), o.apiKeyOr(g), o.modelOr(g));
+			case "fake" -> new FakeEventOverviewWriter();
+			case "none" -> new GeminiEventOverviewWriter(gemini, g.baseUrl(), null, o.modelOr(g)); // 키 없음 = 꺼짐
+			default -> throw new IllegalArgumentException("알 수 없는 EVENT_OVERVIEW_SOURCE: " + props.eventOverview().source());
+		};
 	}
 
 	@Bean

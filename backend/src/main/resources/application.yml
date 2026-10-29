@@ -133,6 +133,14 @@ app:
       batch-size: ${GEMINI_BATCH_SIZE:20}
       max-calls: ${GEMINI_MAX_CALLS:100}
       call-delay: ${GEMINI_CALL_DELAY:7s}
+    # 사건 AI 개요(worker). gemini | fake(키 없이 예시 문장) | none. 한 번 실행의 호출 상한을 둔다
+    # 전용 키·모델이 비어 있으면 위 gemini(소식 요약)의 키·모델을 같이 쓴다. 호출 간격은 gemini.call-delay
+    event-overview:
+      source: ${EVENT_OVERVIEW_SOURCE:gemini}
+      api-key: ${EVENT_OVERVIEW_GEMINI_API_KEY:}
+      model: ${EVENT_OVERVIEW_GEMINI_MODEL:}
+      batch-size: ${EVENT_OVERVIEW_BATCH_SIZE:10}
+      max-calls: ${EVENT_OVERVIEW_MAX_CALLS:30}
   applink:
     # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
     mode: ${APP_LINK_MODE:http}

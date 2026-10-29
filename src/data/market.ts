@@ -52,8 +52,10 @@ export type EventDetail = {
   afterwards: { d30: number | null; d365: number | null };
   sources: EvidenceSource[];
   newsSearchUrl: string | null; // 검색어를 만들 수 없으면 null
-  whatHappened: string | null;
-  aiGenerated: boolean;
+  whatHappened: string | null; // 수치로 만든 사실 문장(AI가 쓰지 않음)
+  aiGenerated: boolean; // whatHappened를 AI가 썼는지. 지금은 늘 false
+  /** worker가 미리 만든 AI 개요(decisions/2026-10-29-event-ai-summary). 없으면 null이고 칸을 보이지 않는다. isSample이면 "예시" */
+  aiSummary: { text: string; model: string; generatedAt: string; isSample: boolean } | null;
   confidence: 'LOW' | 'MEDIUM' | 'HIGH';
   noticeKey: string;
   notice: string;

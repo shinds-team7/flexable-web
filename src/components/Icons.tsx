@@ -9,6 +9,11 @@ export function IconSprite() {
       <symbol id="i-check" viewBox="0 0 16 16">
         <path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </symbol>
+      {/* AI가 쓴 문장 앞에만 둔다(02 §9 "AI 요약"). 글자 "AI 요약"과 함께 쓰고 기호만 단독으로 쓰지 않는다 */}
+      <symbol id="i-ai" viewBox="0 0 16 16">
+        <path d="M7 1.5l1.45 4.05L12.5 7 8.45 8.45 7 12.5 5.55 8.45 1.5 7l4.05-1.45z" fill="currentColor" />
+        <path d="M12.5 10.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z" fill="currentColor" />
+      </symbol>
       <symbol id="i-info" viewBox="0 0 16 16">
         <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
         <path d="M8 7v4.5M8 4.6v.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />

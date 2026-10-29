@@ -331,7 +331,7 @@ G.units = [
       body: [
         '시뮬레이션은 요청마다 다시 계산하고 DB에 쓰지 않는다. 브라우저의 React Query 캐시(10분)에만 남는다. "결과 저장·공유"(`/p/:id`)는 아직 자리만 있는 화면이다.',
         '같은 조건을 여러 사람이 보내도 매번 일봉을 다시 읽고 계산한다. 지금 규모에서는 문제가 확인되지 않았지만 캐시 여부는 멘토에게 물어볼 만한 지점이다.',
-      ], refs: [R("src/App.tsx", "path: '/p/:id'", 47)], ev: ['code'] },
+      ], refs: [R("src/App.tsx", "path: '/p/:id'", 49)], ev: ['code'] },
     { kind: 'ours', h: '응답에 같이 실리는 고지와 가정',
       body: [
         '응답에는 계산 가정(`assumptions`: 주 마지막 거래일 종가 평가, 매달 첫 거래일 매수, 배당·세금·수수료 제외)과 고지(`notice`: 과거 시세로 계산한 가상 결과, 투자 권유 아님)가 들어 있다. 문구를 서버가 주므로 화면마다 빠뜨리지 않는다.',
@@ -728,7 +728,7 @@ G.units = [
       refs: [R("backend/src/main/java/com/flexable/web/common/AttemptLimiter.java", "public class AttemptLimiter", 17), R("backend/src/main/java/com/flexable/web/auth/MemoryOAuthStore.java", "public class MemoryOAuthStore", 16), R("backend/src/main/java/com/flexable/web/applink/AppLinkService.java", "private final Set<Long> busy", 52)] },
     { q: '지금 화면은 있는데 서버가 없는 기능은?',
       a: '섞어보기(`/mix`는 자리만)·공유 결과·소식 상세(Placeholder), 플러스 결제(모의), 홈의 코스피/코스닥 지수(예시. `GET /market/indices`는 구현돼 투자 인사이트 시장 띠가 쓰지만 홈은 아직 연결 전, 시장 띠도 수집은 코스피·코스닥뿐), 정책 적금 계산(정책 목록만 있고 금리·계산 없음), 소식 챙기기(브라우저 localStorage). 적금 모아보기·청년 소식·투자 시뮬레이션(사건 퀴즈)·투자 인사이트는 10-26~28에 서버가 생겼다.',
-      refs: [R("src/App.tsx", "path: '/mix'", 38), R("src/data/home.ts", "async function fetchIndices()", 100)] },
+      refs: [R("src/App.tsx", "path: '/mix'", 40), R("src/data/home.ts", "async function fetchIndices()", 100)] },
   ],
   next: null,
 },

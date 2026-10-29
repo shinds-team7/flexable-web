@@ -6,7 +6,7 @@ import GoalPage from '@/pages/Goal';
 import GoalDemo from '@/pages/GoalDemo';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
-import { InvestorTypeDetail, InvestorTypes } from '@/pages/InvestorType';
+import { InvestorTypeDetail, InvestorTypePick, InvestorTypes, InvestorTypeTest } from '@/pages/InvestorType';
 import Simulation from '@/pages/Simulation';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
@@ -30,6 +30,8 @@ export const router = createBrowserRouter([
       { path: '/oauth/callback', element: <OAuthCallback /> },
       // 투자 성향 시연 화면(docs/product/proposal-investor-type.md)
       { path: '/type', element: <InvestorTypes /> },
+      { path: '/type/test', element: <InvestorTypeTest /> },
+      { path: '/type/choose', element: <InvestorTypePick /> },
       { path: '/type/:id', element: <InvestorTypeDetail /> },
       { path: '/diversify', element: <Diversify /> },
       { path: '/invest', element: <Invest /> },

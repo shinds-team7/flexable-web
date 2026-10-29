@@ -23,7 +23,9 @@ import com.flexable.web.market.NewsSearch.Sort;
  * 사건 무렵 뉴스 기사(decisions/2026-10-28-event-news). 상세를 열 때 검색을 불러 그대로 돌려주고 저장·캐시하지 않는다.
  * 검색에 날짜 조건이 없어 검색어에 사건 날짜("10월 12일")를 넣어 최대 4번 부르고, 발행 시각이 사건 시작 3일 전 ~ 마지막 날 3일 뒤(KST)인
  * 기사만 남긴다. "종목명 급등" 같은 날짜 없는 정확도순 검색은 지난 사건에서 범위 안 기사를 거의 찾지 못했다(2026-10-28 실제 호출 확인).
- * 하루(KST) 호출 수를 세어 상한을 넘거나 429를 받으면 그날은 더 부르지 않는다. 실패하면 UNAVAILABLE이고 사건 상세는 영향이 없다.
+ * 하루(KST) 호출 수를 세어 상한을 넘거나 429를 받으면 그날은 더 부르지 않는다. 429는 그 호출을 센 날에만 적용한다(자정을 넘겨 끝난
+ * 전날 호출이 다음 날을 막지 않게). 검색 도중 한 번이라도 실패하거나 상한에 닿으면, 앞서 찾은 기사가 있어도 UNAVAILABLE과 빈 목록이다
+ * (계약 EventNews). 사건 상세는 영향이 없다.
  */
 @Service
 public class EventNewsService {
@@ -82,14 +84,13 @@ public class EventNewsService {
 		List<Query> plan = plan(name, market, e.getStartDate(), e.getEndDate(), e.getDirection(),
 				!e.getEndDate().isBefore(LocalDate.now(clock.withZone(EventService.SEOUL)).minusDays(RECENT_DAYS)));
 		Map<String, Article> picked = new LinkedHashMap<>();
-		boolean failed = false;
 		for (Query q : plan) {
 			if (picked.size() >= MAX_ITEMS) {
 				break;
 			}
-			if (!take()) {
-				failed = picked.isEmpty();
-				break;
+			LocalDate counted = take();
+			if (counted == null) {
+				return Optional.of(result(id, from, to, UNAVAILABLE, List.of()));
 			}
 			try {
 				for (Article a : search.search(q.text(), q.sort(), from, to)) {
@@ -101,20 +102,15 @@ public class EventNewsService {
 			}
 			catch (NewsSearch.Unavailable u) {
 				if (u.stopsToday()) {
-					stopToday();
+					stop(counted);
 				}
 				log.warn("뉴스 검색 실패(사건 {}): {}", id, u.getMessage());
-				failed = picked.isEmpty();
-				break;
+				return Optional.of(result(id, from, to, UNAVAILABLE, List.of()));
 			}
 			catch (RuntimeException ex) {
 				log.warn("뉴스 검색 실패(사건 {}): {}", id, ex.getClass().getSimpleName());
-				failed = picked.isEmpty();
-				break;
+				return Optional.of(result(id, from, to, UNAVAILABLE, List.of()));
 			}
-		}
-		if (failed) {
-			return Optional.of(result(id, from, to, UNAVAILABLE, List.of()));
 		}
 		List<NewsItem> items = picked.values().stream()
 			.sorted(Comparator.comparing(Article::publishedAt))
@@ -162,19 +158,22 @@ public class EventNewsService {
 		return new EventNews(id, from, to, status, items, sample ? SAMPLE_SOURCE : SOURCE, NOTICE, sample);
 	}
 
-	/** 오늘 한 번 더 불러도 되면 세고 true. 상한을 넘었거나 429를 받은 날이면 false. */
-	synchronized boolean take() {
+	/** 오늘(KST) 한 번 더 불러도 되면 세고 센 날을 돌려준다. 상한을 넘었거나 429를 받은 날이면 null. */
+	synchronized LocalDate take() {
 		roll();
 		if (stopped || used >= dailyCap) {
-			return false;
+			return null;
 		}
 		used++;
-		return true;
+		return day;
 	}
 
-	private synchronized void stopToday() {
+	/** 429를 받은 호출을 센 날만 멈춘다. 그사이 날이 바뀌었으면 새 날은 막지 않는다. */
+	private synchronized void stop(LocalDate counted) {
 		roll();
-		stopped = true;
+		if (counted.equals(day)) {
+			stopped = true;
+		}
 	}
 
 	private void roll() {

@@ -127,16 +127,40 @@ class EventNewsServiceTest {
 	}
 
 	@Test
-	void 앞_검색이_찾은_기사가_있으면_뒤_검색이_실패해도_찾은_것을_보인다() {
+	void 앞_검색이_기사를_찾았어도_뒤_검색이_실패하면_UNAVAILABLE과_빈_목록() {
 		search.answer = q -> {
-			if (!q.startsWith("삼성전자 주가 ")) {
+			if (!q.startsWith("삼성전자 주가 3월 10일")) {
 				throw new NewsSearch.Unavailable("NAVER 500 SE99", false);
 			}
 			return List.of(at("사건 중", "https://a.example.com/1", "2026-03-11T09:00:00"));
 		};
 		EventNews news = service(100).news(1L).orElseThrow();
-		assertThat(news.status()).isEqualTo("OK");
-		assertThat(news.items()).hasSize(1);
+		assertThat(news.status()).isEqualTo("UNAVAILABLE");
+		assertThat(news.items()).isEmpty();
+		assertThat(search.queries).hasSize(2);
+	}
+
+	@Test
+	void 검색_도중_하루_상한에_닿으면_UNAVAILABLE과_빈_목록() {
+		search.answer = q -> List.of(at("사건 중", "https://a.example.com/1", "2026-03-11T09:00:00"));
+		EventNews news = service(2).news(1L).orElseThrow(); // 두 번 부르고 세 번째에서 상한
+		assertThat(news.status()).isEqualTo("UNAVAILABLE");
+		assertThat(news.items()).isEmpty();
+		assertThat(search.queries).hasSize(2);
+	}
+
+	@Test
+	void 전날_시작한_호출이_자정을_넘겨_429로_끝나도_다음_날은_막지_않는다() {
+		clock.now = Instant.parse("2026-10-28T14:59:59Z"); // 23:59:59 KST
+		search.answer = q -> {
+			clock.now = Instant.parse("2026-10-28T15:00:01Z"); // 응답은 다음 날 00:00:01 KST
+			throw new NewsSearch.Unavailable("NAVER 429", true);
+		};
+		EventNewsService s = service(100);
+		assertThat(s.news(1L).orElseThrow().status()).isEqualTo("UNAVAILABLE");
+		search.answer = q -> List.of();
+		assertThat(s.news(1L).orElseThrow().status()).isEqualTo("OK");
+		assertThat(search.queries).hasSize(4); // 전날 1번 + 다음 날 3번
 	}
 
 	@Test

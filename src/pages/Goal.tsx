@@ -77,6 +77,7 @@ export default function GoalPage() {
             <h1 className="page-title">AI 목표 달성</h1>
             <p className="page-desc">모은 돈으로 언제 목표에 닿는지 계산하고, AI가 내 숫자에 맞춘 실천 방법을 알려 줘요.</p>
           </div>
+          <Link className="btn btn-secondary btn-sm" to="/goal/demo">새 목표 시나리오 체험 <span className="tag-ex">예시</span></Link>
         </div>
         {body}
       </div>

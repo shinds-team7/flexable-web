@@ -403,7 +403,7 @@
 | 근거 | `links[{id,title,sourceName,kind,url,date}]` | 출처 없는 풀이를 만들지 않음 |
 | 고지 | `noticeKey=EVENT_EXPLAIN`, `aiGenerated`, `confidence` | 낮은 근거는 배지로 표시 |
 
-- 사실과 풀이를 구분하고 AI가 쓴 부분만 AI 요약으로 표시한다. 해커톤은 검수한 사전 생성 샘플만 사용한다. 종목 판단·전망·AI 종목 상담은 어느 플랜에도 없다.
+- 사실과 풀이를 구분하고 AI가 쓴 부분만 AI 요약으로 표시한다. 해커톤 사건 설명은 검수한 사전 생성 샘플만 사용한다. 이 사건 설명에 종목 판단·전망·AI 종목 상담을 추가하지 않는다. 별도 F7의 실제 상품·종목·배분 비중 제안은 [10-29 결정](../decisions/2026-10-29-goal-scenarios.md)으로 허용하며 구현 전이다.
 - 사건 금액: `valueBefore`, `valueAfter`, `contributionInWindow`, `startDate`, `endDate`. 변화 = after − before − 기간 납입액. 종목 사건은 해당 종목 몫, 시장 사건은 전체 합계라고 표시한다.
 - 공시·통계·보도자료·기사의 출처 이름과 날짜를 보인다. 출처 원문은 별도 창. 근거·툴팁·본문은 플랜에 따라 달라지지 않는다.
 

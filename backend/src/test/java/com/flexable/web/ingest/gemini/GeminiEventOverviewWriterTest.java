@@ -28,7 +28,7 @@ import com.flexable.web.market.EventDtos.OverviewTarget;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 사건 AI 개요: 보내는 값(허용 자료만), 응답 읽기, 검사(입력에 없는 숫자·금지 표현·사실 주장·길이), 서버가 붙이는 공시 문장, 키 가리기.
+ * 사건 AI 개요: 보내는 값(허용 자료만), 응답 읽기, 검사(칸별·부호 숫자·금지 표현·사실 주장·길이), 서버가 붙이는 공시 문장, 키 가리기.
  * 사건은 가상 값이다.
  */
 class GeminiEventOverviewWriterTest {

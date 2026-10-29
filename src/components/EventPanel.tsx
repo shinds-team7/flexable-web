@@ -247,6 +247,7 @@ function Detail({ ev }: { ev: PanelEvent }) {
 
 /**
  * AI 개요(서버가 미리 만들어 저장한 1~3문장). AI가 쓴 이 문장에만 기호 + "AI 요약"을 붙인다(기호는 읽지 않고 글자만 읽힌다).
+ * 끝의 공시 문장은 AI가 아니라 서버가 공시 제목으로 붙인 것이라, 아래 설명에서 그 점을 밝힌다.
  * 예시 작성기가 쓴 문장(isSample)은 AI 표시 대신 "예시"를 붙인다.
  */
 function AiOverview({ summary }: { summary: NonNullable<EventDetail['aiSummary']> }) {
@@ -265,7 +266,7 @@ function AiOverview({ summary }: { summary: NonNullable<EventDetail['aiSummary']
         {summary.text}
       </p>
       <p className="meta">
-        {summary.isSample ? '키 없이 만든 예시 문장이에요. ' : ''}시세와 공시 제목만 보고 쓴 요약이에요. 원인을 단정하지 않아요. 숫자는 아래 확인된 사실을 기준으로 보세요.
+        {summary.isSample ? '키 없이 만든 예시 문장이에요. ' : ''}주가 움직임은 AI가 시세 자료로 썼고, 공시 문장은 공시 제목을 그대로 붙였어요. 원인을 단정하지 않아요. 숫자는 아래 확인된 사실을 기준으로 보세요.
       </p>
     </section>
   );

@@ -7,7 +7,8 @@ import com.flexable.web.market.EventDtos.OverviewTarget;
 
 /**
  * 사건 AI 개요 작성기(worker만 부른다, decisions/2026-10-29-event-ai-summary). 사건마다 1~3문장 개요를 쓴다.
- * 사람 검수 없이 화면에 나가므로 구현은 검사(입력에 없는 숫자·원인 단정·권유·전망 표현·길이)를 통과한 문장만 돌려주고,
+ * 사람 검수 없이 화면에 나가므로 구현은 검사(칸별·부호 숫자, 원인 단정·권유·전망 표현, 공시·사건 주장, 길이)를 통과한 문장에
+ * 서버 공시 문장을 붙여 돌려주고(GeminiEventOverviewWriter.check),
  * 통과하지 못한 사건은 summary=null로 돌려준다.
  */
 public interface EventOverviewWriter {

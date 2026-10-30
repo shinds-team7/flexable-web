@@ -1,11 +1,12 @@
 // 적금 비교(지금 가입하면): 조건 300px · 상품 표 · 고른 상품 상세 360px. 금융권에서 '정책 적금'을 고르면 상품 표 아래에 조건 직접 입력 카드가 붙는다.
 // 2026-10-20 사용자 결정: [그때 들었다면] 탭은 없애고 [정책 적금] 탭은 금융권 선택지로 합쳤다. 설계는 docs/product/01-product.md F2, 02-design.md §5-5. 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6).
 // 금액은 모두 서버 결과를 그대로 그린다(ADR-3). 막대 길이처럼 그리기 위한 비율만 화면에서 정한다.
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { Icon } from '@/components/Icons';
+import { Assumptions, CompanyPicker, ErrorCard, Loading, Notice, ScrollTopButton } from '@/components/ProductCompareParts';
 import { useSeedMoney } from '@/data/home';
 import { useSubscription } from '@/data/plans';
 import {
@@ -20,14 +21,13 @@ import {
   type PolicySavingsRules,
   type PolicyType,
   type ReserveType,
-  type SavingsCompany,
   type SavingsProduct,
   type YouthPolicy,
   type SavingsSort,
   type SavingsTerm,
   type Sector,
 } from '@/data/savings';
-import { ApiError, errorText } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { won } from '@/lib/format';
 
 const TERMS: SavingsTerm[] = [6, 12, 24, 36];
@@ -52,56 +52,6 @@ const toThousand = (s: string) => {
   const n = Math.floor(Number(s) / 1000) * 1000;
   return Number.isFinite(n) && n > 0 ? n : null;
 };
-
-function Notice({ text }: { text: string }) {
-  return (
-    <p className="disclaimer">
-      <Icon id="i-info" size={14} />
-      {text}
-    </p>
-  );
-}
-
-function Assumptions({ items }: { items: string[] }) {
-  return (
-    <ul className="sv-assume">
-      {items.map((a) => (
-        <li key={a}>{a}</li>
-      ))}
-    </ul>
-  );
-}
-
-function Loading({ h = 240 }: { h?: number }) {
-  return (
-    <div className="card" aria-busy="true" aria-label="불러오는 중">
-      <div className="skel" style={{ height: 18, width: 200 }} />
-      <div className="skel" style={{ height: h, marginTop: 16 }} />
-    </div>
-  );
-}
-
-/** 예시 데이터에 없는 조건(SAMPLE_ONLY)이면 기본 조건으로 돌아가는 버튼을 준다. */
-function ErrorCard({ error, onRetry, onReset }: { error: unknown; onRetry: () => void; onReset?: () => void }) {
-  const sampleOnly = error instanceof ApiError && error.code === 'SAMPLE_ONLY';
-  return (
-    <div className="error-box" role="alert">
-      <h3>{sampleOnly ? '이 조건은 아직 계산할 수 없어요' : '적금 정보를 불러오지 못했어요'}</h3>
-      <p className="sub">{errorText(error)}</p>
-      <div className="toolbar">
-        {sampleOnly && onReset ? (
-          <button className="btn btn-primary" onClick={onReset}>
-            기본 조건으로
-          </button>
-        ) : (
-          <button className="btn btn-primary" onClick={onRetry}>
-            다시 불러오기
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /* ───────── 지금 가입하면 ───────── */
 
@@ -372,73 +322,6 @@ function CompareCard({ picked, monthly, term, limit }: { picked: Picked[]; month
       )}
       {picked.length > 0 && <MoneyOverTime picked={picked} monthly={monthly} term={term} asTable={asTable} />}
     </div>
-  );
-}
-
-/** 조금 내려가면 나타나는 [맨 위로]. 부드럽게 올라간다(움직임 줄이기 설정이면 바로 이동). */
-function ScrollTopButton() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 400);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  if (!show) return null;
-  const up = () =>
-    window.scrollTo({
-      top: 0,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    });
-  return (
-    <button type="button" className="btn btn-primary to-top" onClick={up} aria-label="맨 위로 올라가기">
-      ↑ 맨 위로
-    </button>
-  );
-}
-
-/** 은행·저축은행을 한 번에 여러 개 고르는 선택창. 아무것도 안 고르면 '전체'. */
-function CompanyPicker({ companies, value, onChange }: { companies: SavingsCompany[]; value: string[]; onChange: (v: string[]) => void }) {
-  const ref = useRef<HTMLDetailsElement>(null);
-  useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (ref.current?.open && !ref.current.contains(e.target as Node)) ref.current.open = false;
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
-  const toggle = (name: string) => onChange(value.includes(name) ? value.filter((x) => x !== name) : [...value, name]);
-  const label = value.length === 0 ? '전체' : value.length === 1 ? value[0] : `${value[0]} 외 ${value.length - 1}`;
-  const group = (title: string, sector: Sector) => {
-    const list = companies.filter((c) => c.sector === sector);
-    return (
-      list.length > 0 && (
-        <div className="sv-pick-group">
-          <h4>{title}</h4>
-          {list.map((c) => (
-            <label key={c.name} className="check">
-              <input type="checkbox" checked={value.includes(c.name)} onChange={() => toggle(c.name)} />
-              {c.name}
-            </label>
-          ))}
-        </div>
-      )
-    );
-  };
-  return (
-    <details className="sv-pick" ref={ref}>
-      <summary className="input" aria-label="은행 고르기">
-        <span className="sv-pick-label">{label}</span>
-      </summary>
-      <div className="sv-pick-panel">
-        <label className="check sv-pick-all">
-          <input type="checkbox" checked={value.length === 0} onChange={() => onChange([])} />
-          전체
-        </label>
-        {group('은행', 'BANK')}
-        {group('저축은행', 'SAVINGS_BANK')}
-      </div>
-    </details>
   );
 }
 

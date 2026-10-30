@@ -38,6 +38,7 @@
 | 우선 | 작업·담당 | 완료 조건 |
 |---|---|---|
 | 1 | [#113 F2 청년미래적금](https://github.com/shinds-team7/flexable-web/issues/113) / 미정 | 공식 계산 규칙·입력·검산 근거 → 정책 fixture·계약 승인 → 서버 계산·화면 연결. 현재 `UNVERIFIED` 고정 예시이며 일반 적금 완료와 구분 |
+| 1 | [#140 예금 비교 API·수집·계산](https://github.com/shinds-team7/flexable-web/issues/140) / 미정 | 계약·계산 정책 승인(spec-change) → finlife 정기예금 수집·Flyway·계산·`/deposit/*` API 구현 → 화면에 실데이터 연결. 화면(`/deposit`)은 구현됐으나 서버 API가 없어 데이터가 나오지 않는다 |
 | 1 | [#114 F3 조합·프리셋](https://github.com/shinds-team7/flexable-web/issues/114) / 리드 결정·담당 미정 | Must 유지·축소·연기, 담당·일정·시연 흐름 확정. 결정 전 조합 2개·프리셋 3개 Must 유지. `/type`·`/diversify`·F7 시연으로 대체 완료 처리하지 않음 |
 | 1 | [#115 F7 개편](https://github.com/shinds-team7/flexable-web/issues/115) / 미정 | 방향·고정 예시 시연은 #126으로 반영. 시작 자산 출처·성향 전달·상품 자료·배분 제한·확률 정의·계산 모형·Spring↔AI 서버 계약·MVP·일정 확정 후 구현. FastAPI는 후보이며 AI 서버 미구축 |
 | 2 | #120·#122·#128 남은 운영 화면 확인 / 운영 담당·rhkrqkq 협업 | 기존 외부 웹·health·지수/업종 수집·조회 완료 기록 유지. 실제 `/invest` 핀/뉴스/첫 방문 안내·AI 개요, 현재 배포 커밋·Flyway V17·개요 생성은 별도 확인. 네이버/Gemini 키는 사람이 운영 환경 변수에 입력, 공개 전 약관 원문 확인 |
@@ -157,6 +158,17 @@ F7 문서 변경 뒤 재확인: `npm.cmd run check:api`·`npm.cmd run typecheck`
 - [ ] 기여금 적립 시점·기여금 이자·금리 구조·중도해지 규칙과 가입일·납입일 등 입력을 공식 근거로 확정한다. Issue의 가설을 확정 정책으로 쓰지 않는다.
 - [ ] `policy_savings` 정책·fixture·OpenAPI를 spec-change PR로 먼저 승인받는다.
 - [ ] 계약 병합 뒤 서버 계산·화면을 연결하고 월 78,000원·500,000원 일반/우대형을 검산한다. 근거·기준일·가정·추정 고지를 표시하고, 검증 전에는 `UNVERIFIED`를 유지한다.
+
+### 예금 비교 — #140 / 담당 미정
+
+`/deposit`을 적금과 같은 구성(조건 바·상품 표·상세·비교 카드)으로 구현했다. 화면은 `src/pages/Deposit.tsx`, 데이터 계층은 `src/data/deposit.ts`, 적금과 같이 쓰는 부품은 `src/components/ProductCompareParts.tsx`다. **서버에 예금 API가 없어 지금은 오류 카드가 보인다.** 계약 변경이라 구현 전에 승인이 필요하다(AGENTS.md).
+
+- [ ] 계약 초안 spec-change PR: `GET /deposit/products`·`/deposit/companies`·`/deposit/products/{id}`·`POST /deposit/simulate`(응답 모양은 `src/data/deposit.ts`, 적금과 다른 점은 `amount`·`interestType`).
+- [ ] finlife `depositProductsSearch.json` 수집·Flyway 마이그레이션·`SavingsSnapshotJob` 연결(옵션에 `rsrv_type` 없음, `intr_rate_type` S/M).
+- [ ] 예금 계산기(일시 지급 단리·월복리, 세금 15.4% 내림, 가입 한도)와 정책 fixture·`tests/policy` 승인.
+- [ ] **사람이 할 일**: 계산식·복리 가정 확정, 운영 `FINLIFE_API_KEY` 호출 한도 확인, 배포 뒤 실제 화면 확인.
+- [ ] 계약 병합 뒤 `npm run gen:api`로 타입을 맞추고 `contractChecks.ts`에 예금 타입 대조를 더한다.
+- 화면 검증 상태: 타입체크·빌드(웹)만 확인했다. 임시 목 서버로 띄운 브라우저 화면 확인은 스크린샷이 시간 초과돼 못 했다 — API 연결 뒤 1280px·390px·라이트/다크·키보드 확인이 필요하다.
 
 ### 청년 소식 자동 게시·AI 요약 후속 — #48(#93 머지) / seon00
 

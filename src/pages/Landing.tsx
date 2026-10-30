@@ -1,12 +1,12 @@
 // 랜딩(와이어프레임 그대로). 예시 차트는 빌드에 포함된 예시 데이터로 그린다.
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { placePinNote, removePinNote } from '@/charts/pinNote';
 import { TimeChart } from '@/charts/TimeChart';
 import { Footer } from '@/components/Layout';
+import { LANDING_ART } from '@/data/landingArt';
 import { N, sampleChartData, simulateSample } from '@/data/sampleMarket';
-import { SocialButtons } from './Login';
 
 const HINT_KEY = 'fx.landHint';
 const seen = () => {
@@ -24,6 +24,74 @@ const markSeen = () => {
   }
 };
 
+/** 히어로 일러스트: 유리 질감 도형·원 단위 코인·예시 시드머니 카드. 장식이라 스크린리더에는 숨긴다 */
+function HeroArt() {
+  const A = LANDING_ART;
+  // 각 자리는 위아래로 둥실 떠다니는 래퍼(.art)이고, 안에는 data/landingArt.ts의 이미지 또는 임시 그림이 들어간다
+  const slot = (key: 'logo' | 'coin1' | 'coin2' | 'coin3', fallback: ReactNode) => (
+    <div className={`art art-${key}`}>{A[key].src ? <img src={A[key].src} alt="" /> : fallback}</div>
+  );
+  return (
+    <div className="land-art" aria-hidden="true">
+      {slot(
+        'logo',
+        <svg className="land-glass" viewBox="0 0 400 400">
+          <g transform="rotate(32 200 200)">
+            <rect x="70" y="70" width="260" height="260" rx="30" fill="var(--color-land-glass)" stroke="var(--color-land-glass-line)" strokeWidth="3" />
+            <rect x="112" y="112" width="176" height="176" rx="18" fill="none" stroke="var(--color-land-glass-line)" strokeWidth="2" />
+          </g>
+          <polyline points="104,262 156,222 196,244 252,170 296,138" fill="none" stroke="#fff" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+        </svg>,
+      )}
+      {slot('coin1', <span className="coin">₩</span>)}
+      {slot('coin2', <span className="coin">₩</span>)}
+      {slot('coin3', <span className="coin">₩</span>)}
+      {/* 폰 틀과 그 위 카드는 떠다니지 않는다. 폰 틀 자리에는 나중에 앱 화면 이미지를 넣는다 */}
+      <div className="art-device">
+        <div className="art-phone">
+          {A.phone.src ? (
+            <img src={A.phone.src} alt="" />
+          ) : (
+            <div className="land-phone">
+              <span className="land-phone-notch" />
+            </div>
+          )}
+        </div>
+        <div className="art-card">
+          {A.card.src ? (
+            <img src={A.card.src} alt="" />
+          ) : (
+            <div className="land-mock">
+              <div className="land-mock-head">
+                <span className="land-mock-tag">예시</span>
+                <span className="land-mock-badge">체험 중</span>
+              </div>
+              <p className="land-mock-title">내 시드머니</p>
+              <p className="land-mock-amount num">
+                470,000<small>원</small>
+              </p>
+              <svg viewBox="0 0 200 48" className="land-mock-line">
+                <polyline points="0,40 30,34 60,38 90,24 120,26 150,12 200,6" fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p className="land-mock-meta">예시 데이터예요. 실제 내 돈이 아니에요.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 화면별 소개 카드. 링크는 모두 로그인 없이 체험할 수 있는 화면이다 */
+const FEATURES = [
+  { to: '/type', title: '내 투자 성향', desc: '질문 10개로 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' },
+  { to: '/invest?demo=1', title: '투자 인사이트', desc: '국내 지수·채권지수·금·환율 흐름과 시가총액·업종별 순위, 종목 3개까지 지난 주가를 견줘요. ▲▼ 핀을 누르면 그때 나온 공시와 AI 개요를 읽어요.', cta: '예시로 보기' },
+  { to: '/simulation', title: '투자 시뮬레이션', desc: '고른 종목에 금액을 넣어 지난 날짜부터 흘려 보고, 크게 오르내린 구간을 재생하며 그 이유를 읽어요.', cta: '시뮬레이션 해보기' },
+  { to: '/savings?demo=1', title: '예적금 모아보기', desc: '금융권 공시 적금과 청년 정책 적금을 같은 금액 기준 만기 수령액으로 비교해요. 광고로 순서를 바꾸지 않아요.', cta: '적금 비교하기' },
+  { to: '/goal', title: 'AI 계획 수립', desc: '목표 금액과 기한을 정하면 매달 얼마를 남기면 되는지 계산하고, AI가 내 숫자로 실천 단계를 안내해요(하루 3회 무료).', cta: '목표 세워 보기' },
+  { to: '/news', title: '청년 금융 소식', desc: '교통·주거·금융·일자리 소식을 매일 아침 공공 출처에서 모아 AI로 요약해요. 마감 가까운 순으로 보여 주고 공고문으로 바로 가요.', cta: '소식 보기' },
+];
+
 export default function Landing() {
   const { status } = useSession();
   const navigate = useNavigate();
@@ -37,18 +105,49 @@ export default function Landing() {
 
   return (
     <section>
-      <div className="page land">
-        <div className="land-hero">
+      <div className="land-sky">
+        <div className="land-sky-in">
           <div className="land-copy">
-            <h1 className="display">아낀 돈, 그때 굴렸다면 얼마였을까?</h1>
-            <p className="lead">앱에서 하루 예산을 지켜 모은 돈으로 지난 주식·적금을 실험해 봐요.</p>
-            <div className="cta-stack">
-              <Link className="btn-text land-try" to="/home">
-                로그인 없이 체험하기
-              </Link>
-              <SocialButtons />
-            </div>
+            <p className="land-kicker">
+              청년들의 자산 증식을 도울 수 있도록,
+              <br />
+              정확한 정보와 투자의 인사이트를!
+            </p>
+            <h1 className="land-display">
+              솔파와 함께
+              <br />
+              금융 정보를 빠르게 얻고
+              <br />
+              함께 성장하세요
+            </h1>
+            <Link className="land-cta" to="/home">
+              체험 시작하기
+            </Link>
           </div>
+          <HeroArt />
+        </div>
+      </div>
+      <div className="land-cream">
+        <div className="land-cream-in">
+          <div className="land-cream-copy">
+            <h2>
+              청년 금융 정보는 빠르게,
+              <br />
+              투자 인사이트는 쉽게
+            </h2>
+            <p>가입 없이 예시 데이터로 모든 화면을 둘러볼 수 있어요. 체험한 내용은 저장되지 않아요.</p>
+            <Link className="btn btn-primary land-cream-btn" to="/invest?demo=1">
+              투자 인사이트 둘러보기
+            </Link>
+          </div>
+        </div>
+      </div>
+      <div className="page land">
+        <div className="land-sub">
+          <h2>아낀 돈을 그때 굴렸다면,</h2>
+          <p>예시 차트로 먼저 보여 드려요</p>
+        </div>
+        <div className="land-hero chart-only">
           <div className="card card-hero">
             <div className="card-head">
               <div>
@@ -90,7 +189,7 @@ export default function Landing() {
           </div>
         </div>
 
-        <h2 className="land-title">앱에서 모으고, 웹에서 굴려봐요</h2>
+        <h2 className="land-title land-title-gap">앱에서 모으고, 웹에서 굴려봐요</h2>
         <div className="flow">
           <div>
             <span className="n">1</span>
@@ -104,78 +203,26 @@ export default function Landing() {
           </div>
           <div>
             <span className="n">3</span>
-            <h3>웹에서 주식·적금으로 실험</h3>
-            <p>그 돈을 지난 날짜로 보내 보고, 크게 오르내린 때엔 이유까지 읽어요.</p>
+            <h3>웹에서 시드머니로 해보기</h3>
+            <p>앱을 연동하면 그 돈을 그대로 불러와요. 투자 시뮬레이션·적금 비교·목표 계산에 쓰고, 연동하지 않아도 직접 금액을 넣어 볼 수 있어요.</p>
           </div>
         </div>
 
-        <div className="feat">
-          <div>
-            <h2>투자 인사이트</h2>
-            <p>지수·금·환율 흐름과 시가총액 상위 종목의 지난 주가를 한눈에 봐요. 그래프의 ▲▼ 핀에 마우스를 올리면 그때 무슨 일이 있었는지, 누르면 그때 나온 공시를 보여 줘요.</p>
-            <Link className="btn btn-soft" to={demo}>
-              예시로 해보기
+        <h2 className="land-title">웹에서 이런 걸 해볼 수 있어요</h2>
+        <div className="land-feats">
+          {FEATURES.map((f) => (
+            <Link key={f.to} to={f.to} className="land-feat">
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+              <span className="land-feat-cta">{f.cta} →</span>
             </Link>
-          </div>
-          <div className="sketch" aria-hidden="true">
-            <div className="bar-ph" style={{ width: '40%' }} />
-            <div className="bar-ph" style={{ width: '70%', height: 18 }} />
-            <svg viewBox="0 0 300 90" style={{ width: '100%', height: 'auto' }}>
-              <polyline points="0,70 40,62 60,80 90,55 130,40 160,58 200,35 240,45 300,20" fill="none" strokeWidth="2" style={{ stroke: 'var(--text)' }} />
-              <circle cx="60" cy="80" r="6" style={{ fill: 'var(--fall)' }} />
-              <circle cx="90" cy="40" r="6" style={{ fill: 'var(--rise)' }} />
-            </svg>
-          </div>
-        </div>
-        <div className="feat flip">
-          <div>
-            <h2>적금 비교</h2>
-            <p>같은 돈을 적금에 넣었다면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요. 광고로 순서를 바꾸지 않아요.</p>
-            <Link className="btn btn-soft" to="/savings?demo=1">
-              예시로 해보기
-            </Link>
-          </div>
-          <div className="sketch" aria-hidden="true">
-            <div className="bar-ph" style={{ width: '30%' }} />
-            <div className="bar-ph" />
-            <div className="bar-ph" style={{ width: '85%' }} />
-            <div className="bar-ph" style={{ width: '92%' }} />
-            <div className="bar-ph" style={{ width: '76%' }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-              <div style={{ height: 12, width: '80%', background: 'var(--s1)', borderRadius: '0 4px 4px 0' }} />
-              <div style={{ height: 12, width: '62%', background: 'var(--s2)', borderRadius: '0 4px 4px 0' }} />
-              <div style={{ height: 12, width: '20%', background: 'var(--baseline)', borderRadius: '0 4px 4px 0' }} />
-            </div>
-          </div>
-        </div>
-        <div className="feat">
-          <div>
-            <h2>오늘의 청년 금융 소식</h2>
-            <p>교통·주거·금융·일자리처럼 당장 돈을 아끼거나 받을 수 있는 소식을 매일 골라요. 마감이 가까운 건 먼저 보여주고, 공고문으로 바로 가요.</p>
-            <Link className="btn btn-soft" to="/news">
-              소식 보기
-            </Link>
-          </div>
-          <div className="sketch" aria-hidden="true">
-            <div style={{ display: 'flex', gap: 8 }}>
-              <span className="dday">D-3</span>
-              <span className="tag">교통</span>
-            </div>
-            <div className="bar-ph" style={{ width: '80%', height: 14 }} />
-            <div className="bar-ph" style={{ width: '55%' }} />
-            <div className="hair" style={{ margin: '8px 0' }} />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <span className="dday calm">상시</span>
-              <span className="tag">주거</span>
-            </div>
-            <div className="bar-ph" style={{ width: '70%', height: 14 }} />
-          </div>
+          ))}
         </div>
 
         <div className="land-plus">
           <div>
             <h2>무료로 충분히, 더 깊게는 월 990원 플러스</h2>
-            <p>사건 설명·기간 지정·정책 적금은 무료. 플러스는 정책 마감 리마인더·내 돈 리포트·정밀 모드·저장 확대예요.</p>
+            <p>소식, 투자 시뮬레이션의 사건 설명, 적금·정책 적금 비교는 무료예요. 저장 개수 확대·정밀 모드·리마인더·리포트가 플러스예요. 지금은 모의 결제라 실제 청구는 없어요.</p>
           </div>
           <Link className="btn btn-line" to="/plus">
             플러스 알아보기
@@ -189,7 +236,7 @@ export default function Landing() {
           </div>
           <div>
             <h3>실제 투자 아님</h3>
-            <p>지난 주가로 해보는 계산이에요. 사고파는 기능은 없고, 어떤 종목도 권하지 않아요.</p>
+            <p>지난 주가로 해보는 계산이에요. 사고팔거나 가입을 대신해 주는 기능은 없고, 수익이나 목표 달성을 보장하지 않아요.</p>
           </div>
           <div>
             <h3>출처를 밝혀요</h3>

@@ -6,8 +6,7 @@ import { fetchProviders, startOAuth, type OAuthProvider } from '@/auth/oauth';
 import { useSession } from '@/auth/session';
 import type { AuthResponse } from '@/auth/types';
 import { Icon } from '@/components/Icons';
-import { LEGAL_BASE } from '@/components/Layout';
-import { privacyHref, usesWebBackend } from '@/lib/legal';
+import { LEGAL_BASE, privacyHref, usesWebBackend } from '@/lib/legal';
 import { api, errorText } from '@/lib/api';
 
 const LABEL: Record<OAuthProvider, string> = { kakao: '카카오 로그인', google: 'Google 계정으로 로그인' };
@@ -51,19 +50,15 @@ export function SocialButtons({ onError, onEmail }: { onError?: (msg: string) =>
   );
 }
 
-export default function Login() {
-  const { status, signIn } = useSession();
+/** 로그인 카드. /login 화면과 헤더 로그인 모달이 함께 쓴다. */
+export function LoginPanel({ from, initialEmailOpen = false, initialError = null, onSignedIn }: { from: string; initialEmailOpen?: boolean; initialError?: string | null; onSignedIn?: () => void }) {
+  const { signIn } = useSession();
   const navigate = useNavigate();
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const [emailOpen, setEmailOpen] = useState(params.get('email') === '1');
+  const [emailOpen, setEmailOpen] = useState(initialEmailOpen);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(params.get('error'));
+  const [error, setError] = useState<string | null>(initialError);
   const [busy, setBusy] = useState(false);
-  const from = (location.state as { from?: string } | null)?.from ?? '/home';
-
-  if (status === 'member') return <Navigate to={from} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -72,6 +67,7 @@ export default function Login() {
     try {
       const r = await api<AuthResponse>('/auth/login', { method: 'POST', json: { email: email.trim(), password } });
       signIn(r);
+      onSignedIn?.();
       navigate(from, { replace: true });
     } catch (err) {
       setError(errorText(err));
@@ -81,8 +77,6 @@ export default function Login() {
   };
 
   return (
-    <section>
-      <div className="page">
         <div className="login-card">
           <div className="cat-ph" style={{ margin: '0 auto 16px', width: 96, height: 96, background: 'none', border: 0 }}>
             <img src="/characters/lv3-3.png" alt="" width={96} height={96} style={{ objectFit: 'contain' }} />
@@ -139,6 +133,19 @@ export default function Login() {
             </div>
           )}
         </div>
+  );
+}
+
+export default function Login() {
+  const { status } = useSession();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const from = (location.state as { from?: string } | null)?.from ?? '/home';
+  if (status === 'member') return <Navigate to={from} replace />;
+  return (
+    <section>
+      <div className="page">
+        <LoginPanel from={from} initialEmailOpen={params.get('email') === '1'} initialError={params.get('error')} />
       </div>
     </section>
   );

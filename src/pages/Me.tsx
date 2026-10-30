@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { saveSettings } from '@/auth/settings';
 import { AppLinkCard } from '@/components/AppLinkCard';
+import { useLoginModal } from '@/components/LoginModal';
 import { billingPath } from '@/data/billing';
 import { useSession } from '@/auth/session';
 import { api, errorText } from '@/lib/api';
@@ -13,6 +14,7 @@ const WITHDRAW_CONFIRM = '탈퇴';
 
 export default function Me() {
   const { status, user, signOut, clearSession } = useSession();
+  const { openLogin } = useLoginModal();
   const guest = status === 'guest';
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -92,7 +94,7 @@ export default function Me() {
             <div className="card">
               <p className="k">로그인 없이 체험 중</p>
               <p className="v">예시 데이터로 둘러보고 있어요. 내 계정으로 이용하려면 로그인해 주세요.</p>
-              <Link className="btn btn-line btn-sm" to="/login">로그인</Link>
+              <button type="button" className="btn btn-line btn-sm" onClick={() => openLogin('/me')}>로그인</button>
             </div>
           ) : status === 'member' && <div className="card">
             <div className="set-row">

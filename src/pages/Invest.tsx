@@ -134,8 +134,16 @@ const asInstrument = (board: 'KOSPI' | 'KOSDAQ', i: { id: string; name: string; 
   marketCap: i.marketCap,
 });
 
+const asBoard = (v: string | null): Board | null => (v === 'KOSPI' || v === 'KOSDAQ' || v === 'ETF' ? v : null);
+
 export default function Invest() {
-  const [board, setBoard] = useState<Board>('KOSPI');
+  const [sp, setSp] = useSearchParams();
+  // 헤더 메뉴(코스피·코스닥·ETF)가 ?board=로 시장을 고른다
+  const boardParam = asBoard(sp.get('board'));
+  const [board, setBoard] = useState<Board>(boardParam ?? 'KOSPI');
+  useEffect(() => {
+    if (boardParam) setBoard(boardParam);
+  }, [boardParam]);
   const listing = useBoard(board);
   const kospi = useBoard('KOSPI');
   const strip = useIndices();
@@ -145,7 +153,6 @@ export default function Invest() {
   const firstVisit = useFirstVisit('invest');
   const [pinHint, setPinHint] = useState(false);
   const [tourOn, setTourOn] = useState(false);
-  const [sp, setSp] = useSearchParams();
   const [view, setView] = useState<'cap' | 'industry'>('cap');
 
   // 훅 수를 고정하려고 최대 3칸을 늘 부른다(빈 칸은 부르지 않음)

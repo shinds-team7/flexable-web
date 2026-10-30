@@ -40,6 +40,16 @@
   --color-hero-scene:#E8F0FB; --color-hero-ink:#191F28; --color-hero-ink-sub:#4E5968; --color-hero-ink-muted:#6B7684;
   --color-hero-surface:#FFFFFF; --color-hero-subtle:#F4F6F9; --color-hero-line:#C5CCD6;
 
+  /* 색 · 랜딩 히어로(신한 블루 배경. 위는 신한 블루 #0046FF, 아래로 갈수록 옅어진다. 일러스트용 금색은 장식이라 의미 없음) */
+  --color-land-sky-top:#0046FF; --color-land-sky-bottom:#4A86FF;
+  --color-land-ink:#FFFFFF; --color-land-ink-sub:rgba(255,255,255,.82);
+  --color-land-glass:rgba(255,255,255,.16); --color-land-glass-line:rgba(255,255,255,.45);
+  --color-land-coin:#FFD45C; --color-land-coin-deep:#E0A010; --color-land-coin-ink:#9A6400;
+  /* 서브 색: 코인 금색을 버튼·아래 섹션 바탕(크림)으로 이어 쓴다 */
+  --color-land-cta-hover:#FFC72E; --color-land-cream:#FFF8E1; --color-land-line:#C9D7FF;
+  /* 폰 틀 화면(앱 화면 이미지가 들어오기 전 자리) */
+  --color-land-screen:#D3D7DE;
+
   /* 색 · 차트 계열(블루 3단 + 회색 2단). 색만으로 구분하지 않게 범례·값을 같이 둔다 */
   --color-series-1:#0046FF; --color-series-2:#5C8BFF; --color-series-3:#A7C0FF; --color-series-4:#6B7684; --color-series-5:#C3CAD4;
 

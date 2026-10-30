@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,8 @@ class MarketInsightServiceTest {
 	MarketService market;
 	@Autowired
 	MarketInsightService insight;
+	@Autowired
+	MarketIndexRepository indexRows;
 
 	private static boolean seeded;
 
@@ -145,6 +148,18 @@ class MarketInsightServiceTest {
 		// 정정: 같은 날 값을 다시 넣으면 고친다
 		insight.saveIndex(IndexKey.KOSPI, List.of(new IndexValue(AS_OF, new BigDecimal("2610.10"))), "키움증권");
 		assertThat(insight.indices().items().getFirst().changeRate()).isEqualByComparingTo("0.0038");
+	}
+
+	@Test
+	void 시장_띠는_제공처가_다른_두_값으로_전일_대비를_내지_않는다() {
+		// saveIndex는 다른 제공처 값을 지우므로, 남아 있는 경우를 저장소에 직접 넣어 흉내 낸다
+		MarketIndexDaily fake = new MarketIndexDaily(IndexKey.KRXBOND, AS_OF.minusDays(1));
+		fake.set(new BigDecimal("180.00"), "테스트용 가짜 지수", Instant.now());
+		MarketIndexDaily real = new MarketIndexDaily(IndexKey.KRXBOND, AS_OF);
+		real.set(new BigDecimal("191.00"), "한국거래소", Instant.now());
+		indexRows.saveAll(List.of(fake, real));
+
+		assertThat(insight.indices().items()).extracting(InsightDtos.IndexItem::key).doesNotContain(IndexKey.KRXBOND);
 	}
 
 	@Test

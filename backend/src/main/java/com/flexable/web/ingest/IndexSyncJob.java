@@ -17,7 +17,9 @@ import com.flexable.web.market.MarketInsightService;
 
 /**
  * 시장 띠 수집(worker). 소스 여러 개(키움·KRX·수출입은행 또는 가짜)에서 칸마다 그 칸을 받을 수 있는 첫 소스를 쓴다. 키가 없는 소스는 칸을 내놓지 않아 그 칸은 건너뛴다.
- * 칸마다 처음에는 INITIAL_DAYS 전부터, 이후에는 마지막 거래일 recheckDays 전부터 다시 받아 정정을 반영한다.
+ * 건너뛴 칸에 남은 가짜 값은 지운다(실제 제공처 값은 마지막 성공 값으로 둔다).
+ * 칸마다 그 소스가 처음이면 INITIAL_DAYS 전부터, 이후에는 그 소스의 마지막 거래일 recheckDays 전부터 다시 받아 정정을 반영한다.
+ * 저장이 성공하면 그 칸의 다른 제공처 값은 지운다(가짜 → 실제 전환 때 두 제공처 값이 섞이지 않게).
  * 한 칸이 실패해도 나머지는 계속하고, 실패한 칸은 마지막 성공 값을 그대로 둔다. MarketSyncJob이 시세 수집보다 먼저 부른다(몇 칸뿐이라 금방 끝난다).
  */
 @Component
@@ -51,10 +53,15 @@ public class IndexSyncJob {
 		for (IndexKey key : IndexKey.values()) {
 			sources.stream().filter(s -> s.keys().contains(key)).findFirst().ifPresent(s -> plan.put(key, s));
 		}
+		for (IndexKey key : IndexKey.values()) {
+			if (!plan.containsKey(key) && store.deleteSampleIndex(key) > 0) {
+				log.info("시장 띠 {}: 소스가 없어 남은 가짜 값을 지웠다", key);
+			}
+		}
 		for (Map.Entry<IndexKey, IndexSource> e : plan.entrySet()) {
 			IndexKey key = e.getKey();
 			IndexSource source = e.getValue();
-			LocalDate from = store.latestIndexDate(key).map(d -> d.minusDays(props.recheckDays())).orElse(today.minusDays(INITIAL_DAYS));
+			LocalDate from = store.latestIndexDate(key, source.source()).map(d -> d.minusDays(props.recheckDays())).orElse(today.minusDays(INITIAL_DAYS));
 			try {
 				rows += store.saveIndex(key, source.daily(key, from, today), source.source());
 			}

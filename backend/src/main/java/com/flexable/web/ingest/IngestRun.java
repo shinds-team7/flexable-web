@@ -64,4 +64,12 @@ public class IngestRun {
 	int getRowCount() {
 		return rowCount;
 	}
+
+	String getError() {
+		return error;
+	}
+
+	Instant getFinishedAt() {
+		return finishedAt;
+	}
 }

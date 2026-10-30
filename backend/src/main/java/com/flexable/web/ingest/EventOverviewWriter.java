@@ -16,6 +16,11 @@ public interface EventOverviewWriter {
 	/** 키가 없는 등으로 쓸 수 없으면 false. 이때 개요 단계를 건너뛴다(사건 상세는 사실 문장만). */
 	boolean enabled();
 
+	/** 바깥 API 없이 예시 문장을 쓰는 작성기(EVENT_OVERVIEW_SOURCE=fake)면 true. Gemini 하루 호출 수(gemini_daily_usage)에 세지 않는다 */
+	default boolean sample() {
+		return false;
+	}
+
 	/** 한 번 호출로 묶어 쓴다. 응답에 없는 사건은 결과에서 빠진다(다음 실행에 다시 한다). 호출이 실패하면 예외 */
 	List<OverviewResult> write(List<OverviewTarget> batch);
 }

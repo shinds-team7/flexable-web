@@ -22,6 +22,12 @@ public class FakeEventOverviewWriter implements EventOverviewWriter {
 		return true;
 	}
 
+	/** Gemini를 부르지 않아 하루 호출 수에 세지 않는다 */
+	@Override
+	public boolean sample() {
+		return true;
+	}
+
 	@Override
 	public List<OverviewResult> write(List<OverviewTarget> batch) {
 		return batch.stream()

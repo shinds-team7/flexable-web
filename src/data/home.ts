@@ -140,4 +140,5 @@ export function useSetSeedManual() {
     return { saved, appSync };
   };
 }
-export const useIndices = () => useQuery({ queryKey: ['market', 'indices'], queryFn: fetchIndices, staleTime: 5 * 60_000 });
+/** 홈 "오늘의 시장" 고정 예시. 투자 인사이트 시장 띠(data/market useIndices, GET /market/indices)와 모양이 달라 키를 나눈다(#133) */
+export const useIndices = () => useQuery({ queryKey: ['home', 'indices'], queryFn: fetchIndices, staleTime: 5 * 60_000 });

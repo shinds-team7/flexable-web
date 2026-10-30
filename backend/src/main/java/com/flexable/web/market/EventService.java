@@ -237,6 +237,7 @@ public class EventService {
 
 	/**
 	 * AI 개요를 만들 사건(worker, decisions/2026-10-29-event-ai-summary). 마지막 날이 최근인 사건부터 limit개.
+	 * 화면(/invest)의 가장 긴 기간(3년) 핀으로 보이는 사건만 고른다(overviewSince). 그보다 오래된 사건은 핀으로 보이지 않아 만들지 않는다.
 	 * 아직 만들지 않았거나 입력(이름·기간·등락률·시장 대비·거래량 배수·공시 제목)이 바뀐 사건만 고른다. 운영자가 공개를 멈춘 사건은 뺀다.
 	 * waitForEvidence가 true면(공시 소스가 켜짐) 공시 고유번호가 있는 종목 사건은 근거를 한 번 찾은 뒤에 고른다.
 	 */
@@ -248,8 +249,15 @@ public class EventService {
 		}
 		Map<Long, Instrument> insts = new HashMap<>();
 		instruments.findAll().forEach(i -> insts.put(i.getId(), i));
+		Map<Long, LocalDate> latest = new HashMap<>();
+		prices.findLatestTradeDates().forEach(r -> latest.put((Long) r[0], (LocalDate) r[1]));
+		OverviewSince since = overviewSince(insts.values(), latest);
 		List<MarketEvent> all = events.findByDetectorVersionOrderByEndDateDescIdDesc(EventDetector.VERSION).stream()
 			.filter(e -> !e.isAiSummaryHidden() && insts.containsKey(e.getInstrumentId()))
+			.filter(e -> {
+				LocalDate from = MarketEvent.MARKET.equals(e.getScope()) ? since.market() : since.stock().get(e.getInstrumentId());
+				return from != null && !e.getStartDate().isBefore(from);
+			})
 			.filter(e -> !waitForEvidence || MarketEvent.MARKET.equals(e.getScope()) || e.getEvidenceCheckedAt() != null
 					|| insts.get(e.getInstrumentId()).getCorpCode() == null)
 			.toList();
@@ -270,6 +278,32 @@ public class EventService {
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * 개요를 만들 사건의 가장 이른 시작일. 화면 3년 차트(MarketInsightService.range)와 같이 오늘이 아니라 종목의 마지막 거래일에서 3년을 거슬러 간다.
+	 * stock: 종목 사건은 그 종목의 기준일(종목 id별). market: 시장 사건은 고를 수 있는 종목(시가총액 상위 topLimit) 어느 차트에도
+	 * 핀으로 붙으므로 그중 가장 이른 기준일(없으면 null). 시세가 없는 종목은 빠진다(차트도 없다).
+	 */
+	OverviewSince overviewSince(Iterable<Instrument> insts, Map<Long, LocalDate> latest) {
+		Map<Long, LocalDate> out = new HashMap<>();
+		LocalDate market = null;
+		for (Instrument i : insts) {
+			LocalDate asOf = latest.get(i.getId());
+			if (asOf == null) {
+				continue;
+			}
+			LocalDate from = PricePeriod.Y3.from(asOf);
+			out.put(i.getId(), from);
+			boolean selectable = i.getCapRank() != null && i.getCapRank() <= props.topLimit();
+			if (selectable && (market == null || from.isBefore(market))) {
+				market = from;
+			}
+		}
+		return new OverviewSince(out, market);
+	}
+
+	record OverviewSince(Map<Long, LocalDate> stock, LocalDate market) {
 	}
 
 	static OverviewInput overviewInput(MarketEvent e, Instrument inst, List<String> titles) {

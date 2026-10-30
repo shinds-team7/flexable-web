@@ -98,7 +98,7 @@ public class MarketEventJob {
 		}
 		catch (RuntimeException e) {
 			log.warn("사건 AI 개요 실패: {}", e.getMessage());
-			overview = new EventOverviewJob.Run("FAILED", 0, 0, 0, 0, e.getMessage());
+			overview = new EventOverviewJob.Run("FAILED", 0, 0, 0, 0, e.getMessage(), false);
 		}
 		return new Result(status, detected, evidence, errors, overview);
 	}

@@ -183,7 +183,7 @@ public class MarketInsightService {
 	private Range range(Instrument inst, PricePeriod period) {
 		LocalDate asOf = prices.findLatestTradeDate(inst.getId())
 			.orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, inst.getName() + "의 시세를 아직 모으지 않았어요"));
-		return new Range(asOf.minusMonths(period.months()), asOf);
+		return new Range(period.from(asOf), asOf);
 	}
 
 	private record Range(LocalDate from, LocalDate asOf) {

@@ -67,6 +67,26 @@ public class MarketEvent {
 	@Column(name = "evidence_checked_at")
 	private Instant evidenceCheckedAt;
 
+	/** AI 개요(decisions/2026-10-29-event-ai-summary). 검사를 통과하지 못했으면 null이고 hash만 남는다. */
+	@Column(name = "ai_summary", length = 400)
+	private String aiSummary;
+
+	@Column(name = "ai_summary_model", length = 60)
+	private String aiSummaryModel;
+
+	@Column(name = "ai_summary_hash", length = 64)
+	private String aiSummaryHash;
+
+	@Column(name = "ai_summary_at")
+	private Instant aiSummaryAt;
+
+	@Column(name = "ai_summary_sample", nullable = false)
+	private boolean aiSummarySample;
+
+	/** 운영자가 공개를 멈춘 개요(DB에서 직접 바꾼다). */
+	@Column(name = "ai_summary_hidden", nullable = false)
+	private boolean aiSummaryHidden;
+
 	protected MarketEvent() {
 	}
 
@@ -96,6 +116,15 @@ public class MarketEvent {
 
 	void evidenceChecked(Instant now) {
 		this.evidenceCheckedAt = now;
+	}
+
+	/** 개요를 넣는다. summary가 null이면(검사 탈락) 문장 없이 입력 지문만 남겨 같은 입력으로 다시 부르지 않는다. */
+	void overview(String summary, String model, String inputHash, boolean sample, Instant now) {
+		this.aiSummary = summary;
+		this.aiSummaryModel = model;
+		this.aiSummaryHash = inputHash;
+		this.aiSummarySample = sample;
+		this.aiSummaryAt = now;
 	}
 
 	boolean overlaps(LocalDate start, LocalDate end) {
@@ -156,5 +185,29 @@ public class MarketEvent {
 
 	int getRankInYear() {
 		return rankInYear;
+	}
+
+	String getAiSummary() {
+		return aiSummary;
+	}
+
+	String getAiSummaryModel() {
+		return aiSummaryModel;
+	}
+
+	String getAiSummaryHash() {
+		return aiSummaryHash;
+	}
+
+	Instant getAiSummaryAt() {
+		return aiSummaryAt;
+	}
+
+	boolean isAiSummarySample() {
+		return aiSummarySample;
+	}
+
+	boolean isAiSummaryHidden() {
+		return aiSummaryHidden;
 	}
 }

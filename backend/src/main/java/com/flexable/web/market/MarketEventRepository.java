@@ -16,6 +16,9 @@ public interface MarketEventRepository extends JpaRepository<MarketEvent, Long> 
 	List<MarketEvent> findByInstrumentIdInAndDetectorVersionAndStartDateBetweenOrderByStartDateAsc(List<Long> instrumentIds,
 			String detectorVersion, LocalDate from, LocalDate to);
 
+	/** AI 개요를 만들 차례를 정할 때: 마지막 날이 최근인 사건부터. */
+	List<MarketEvent> findByDetectorVersionOrderByEndDateDescIdDesc(String detectorVersion);
+
 	/** 근거를 찾을 종목 사건(corp_code가 있는 종목), 최근 사건부터. 확인 시각 조건은 서비스가 거른다. */
 	@Query("select e, i.corpCode from MarketEvent e, Instrument i where e.instrumentId = i.id and e.scope = 'STOCK'"
 			+ " and e.detectorVersion = :version and i.corpCode is not null order by e.endDate desc, e.id desc")

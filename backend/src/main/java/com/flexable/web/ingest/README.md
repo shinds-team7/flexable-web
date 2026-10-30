@@ -1,7 +1,7 @@
 # ingest
 외부 데이터 수집 작업(`worker` 프로필에서만 켜짐). 지금 구현은 시장 띠(`IndexSyncJob`, 코스피·코스닥 ka20006, 맨 먼저)·시세 수집(`MarketSyncJob`)과 이어서 도는 사건 탐지·공시 근거(`MarketEventJob`)·업종과 시뮬레이션 자료(`PracticeSyncJob`), 적금 공시·청년정책 수집(`SavingsSnapshotJob`, 아래 savings-snapshot)이다. 실행 시점·소스·환경 변수는 `backend/README.md` "로컬 실행" 아래 설명이 정본이다.
 
-- 실행: 켜질 때 한 번(`MARKET_SYNC_ON_START`, 기본 켬)과 평일 18:30 KST(`MARKET_SYNC_CRON`). 시세 수집이 끝나면 사건 탐지·공시 근거를 이어 돌린다.
+- 실행: 켜질 때 한 번(`MARKET_SYNC_ON_START`, 기본 켬)과 평일 18:30 KST(`MARKET_SYNC_CRON`). 시세 수집이 끝나면 사건 탐지·공시 근거를 이어 돌리고, 이어서 사건 AI 개요(`EventOverviewJob`, `EventOverviewWriter` 구현 `gemini.GeminiEventOverviewWriter`·예시 `fake.FakeEventOverviewWriter`, ingest_runs `event-overview`)를 만든다([결정](../../../../../../../../docs/decisions/2026-10-29-event-ai-summary.md)).
 - 소스: 일봉은 키움(`kiwoom`), 종목 목록은 KRX(`krx`, 시장별로 실패하면 키움 대체), 사건 근거는 OpenDART(`dart`). 시험용 `fake` 소스가 있다.
 - 실행 기록: `ingest_runs`(job = `market-sync`·`market-events`·`index-sync`, `SUCCESS`·`PARTIAL`·`FAILED`).
 - 실패 처리: 한 시장·한 종목이 실패해도 나머지는 계속한다. 다음 실행은 마지막 거래일 10일 전부터 다시 받아 빠진 날·정정을 채운다. 공시는 한 번에 `DART_MAX_CALLS`건까지 처리하고 나머지는 다음 실행에서 잇는다.

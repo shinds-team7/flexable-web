@@ -48,6 +48,8 @@ app:
     gemini:
       api-key: ""
       call-delay: 0s
+    event-overview:
+      source: fake
   applink:
     # 테스트는 AppApiClient를 바꿔 끼운다. 암호화 키는 실행마다 임의 값.
     mode: http

@@ -117,6 +117,8 @@ class ContractTest {
 
 	private static boolean seeded;
 	private static long eventId;
+	/** 시장 띠 칸의 전날(코스닥은 이날 값이 없어 응답에서 빠진다). */
+	private static LocalDate stripPrevDay;
 
 	private static OpenApiInteractionValidator validator() {
 		try {
@@ -183,6 +185,13 @@ class ContractTest {
 		insight.saveIndex(IndexKey.KOSPI, List.of(new IndexValue(dates.get(dates.size() - 2), new java.math.BigDecimal("2600.10")),
 				new IndexValue(dates.getLast(), new java.math.BigDecimal("2587.55"))), "키움증권");
 		insight.saveIndex(IndexKey.KOSDAQ, List.of(new IndexValue(dates.getLast(), new java.math.BigDecimal("850.00"))), "키움증권");
+		stripPrevDay = dates.get(dates.size() - 2);
+		// 키움 밖 칸은 두 날씩(새 key·unit이 스펙에 맞는지 본다). 금은 원/g 정수, 환율은 소수 2자리
+		Map<IndexKey, String[]> others = Map.of(IndexKey.KRXBOND, new String[] { "191.20", "191.35" }, IndexKey.GOLD, new String[] { "151200", "150800" },
+				IndexKey.USDKRW, new String[] { "1385.50", "1390.10" }, IndexKey.JPYKRW, new String[] { "905.12", "903.40" },
+				IndexKey.EURKRW, new String[] { "1501.30", "1498.75" }, IndexKey.CNYKRW, new String[] { "190.21", "190.55" });
+		others.forEach((key, v) -> insight.saveIndex(key, List.of(new IndexValue(dates.get(dates.size() - 2), new java.math.BigDecimal(v[0])),
+				new IndexValue(dates.getLast(), new java.math.BigDecimal(v[1]))), key == IndexKey.KRXBOND || key == IndexKey.GOLD ? "한국거래소" : "한국수출입은행"));
 		// 청년 소식(검수 없이 게시): 요약·계산 연결이 있는 전국 카드, 요약 없이 빈 값이 많은 지역 카드, 반려해서 빠지는 카드
 		news.saveCollected(new PolicyDraft("FAKE", "c-all", "{}", "전국 청년 저축 지원", List.of(NewsCategory.FINANCE, NewsCategory.CULTURE), 19, 34,
 				Boolean.TRUE, true, null, today.minusDays(1), today.plusDays(30), false, "○○부(예시)", "https://example.com/c-all", today,
@@ -296,8 +305,13 @@ class ContractTest {
 		call(get("/api/v1/market/instruments/005930/events?period=1D"), 400);
 		call(get("/api/v1/market/instruments/999999/events"), 404);
 		MvcResult strip = call(get("/api/v1/market/indices"), 200);
+		// 코스닥은 하루뿐이라 빠지고(수집 전 칸), 나머지는 화면 순서대로
 		assertThat((List<String>) JsonPath.read(strip.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items[*].key"))
-			.containsExactly("KOSPI");
+			.containsExactly("KOSPI", "KRXBOND", "GOLD", "USDKRW", "JPYKRW", "EURKRW", "CNYKRW");
+		insight.saveIndex(IndexKey.KOSDAQ, List.of(new IndexValue(stripPrevDay, new java.math.BigDecimal("845.10"))), "키움증권");
+		MvcResult full = call(get("/api/v1/market/indices"), 200);
+		assertThat((List<String>) JsonPath.read(full.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.items[*].key"))
+			.containsExactly("KOSPI", "KOSDAQ", "KRXBOND", "GOLD", "USDKRW", "JPYKRW", "EURKRW", "CNYKRW");
 		call(get("/api/v1/market/industries?board=KOSPI"), 200);
 		call(get("/api/v1/market/industries?board=KOSDAQ&limit=10"), 200);
 		call(get("/api/v1/market/industries?board=ETF"), 400);

@@ -846,6 +846,12 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 /* 카드는 4줄(위 · 본문 · 공고문 · 아래). 목록 그리드의 줄을 subgrid로 나눠 써서 같은 줄 카드끼리 공고문 버튼·구분선 높이가 같다 */
 .news-list{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;grid-auto-rows:auto minmax(var(--news-body-min),auto) auto auto;--news-body-min:138px}
 .news-list .news-card{padding:16px;display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:10px;transition:border-color .15s}
+/* 네이티브 공고문 링크 하나로 본문·정보·여백까지 연다. 보조 동작은 링크의 클릭 면보다 위에 둔다 */
+.news-card:has(.news-notice[href]){position:relative;isolation:isolate}
+.news-card .news-notice[href]::after{content:"";position:absolute;inset:0;border-radius:var(--radius-soft)}
+.news-card .news-notice:active{transform:none}
+.news-card .news-notice:focus-visible::after{outline:2px solid var(--color-focus);outline-offset:2px}
+.news-card .news-card-acts,.news-card .news-calc{position:relative;z-index:1}
 /* 마우스를 올리거나 키보드로 카드 안에 들어오면 테두리를 진하게 */
 .news-list .news-card:hover,.news-list .news-card:has(:focus-visible){border-color:var(--color-border-strong)}
 .news-card .news-corrected{font-size:12px;font-weight:700;color:var(--warn)}

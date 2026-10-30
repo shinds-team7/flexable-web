@@ -97,7 +97,10 @@ public class MarketInsightService {
 		return new PriceEvents(inst.getCode(), period.code(), start, range.asOf(), items, EventDtos.NOTICE_KEY);
 	}
 
-	/** 시장 띠. IndexKey 순서 고정, 마지막 값과 그 앞 값이 모두 있는 칸만 보인다(수집 전 칸은 뺀다). */
+	/**
+	 * 시장 띠. IndexKey 순서 고정, 마지막 값과 그 앞 값이 모두 있고 같은 제공처에서 온 칸만 보인다(수집 전 칸은 뺀다).
+	 * 제공처가 다른 두 값으로는 전일 대비를 내지 않는다(worker가 제공처를 바꿀 때 이전 값을 지우지만 한 번 더 막는다).
+	 */
 	@Transactional(readOnly = true)
 	public IndexStrip indices() {
 		List<IndexItem> items = new ArrayList<>();
@@ -108,6 +111,9 @@ public class MarketInsightService {
 				continue;
 			}
 			MarketIndexDaily now = last.get(0);
+			if (!now.getSource().equals(last.get(1).getSource())) {
+				continue;
+			}
 			BigDecimal value = now.getValue().setScale(key.scale(), RoundingMode.DOWN);
 			BigDecimal prev = last.get(1).getValue().setScale(key.scale(), RoundingMode.DOWN);
 			if (prev.signum() <= 0) {
@@ -189,9 +195,18 @@ public class MarketInsightService {
 
 	// ───────── 쓰기(worker) ─────────
 
-	/** 같은 칸·날짜가 있으면 값을 고친다(정정 반영). 저장한 줄 수를 돌려준다. */
+	/**
+	 * 같은 칸·날짜가 있으면 값을 고친다(정정 반영). 저장한 줄 수를 돌려준다.
+	 * source가 이 칸의 지금 제공처다. 다른 제공처(예: 가짜 소스)에서 온 이 칸의 값은 같은 트랜잭션에서 지운다.
+	 */
 	@Transactional
 	public int saveIndex(IndexKey key, List<IndexValue> values, String source) {
+		int saved = upsertIndex(key, values, source);
+		indices.deleteByIndexKeyAndSourceNot(key, source);
+		return saved;
+	}
+
+	private int upsertIndex(IndexKey key, List<IndexValue> values, String source) {
 		if (values.isEmpty()) {
 			return 0;
 		}
@@ -213,8 +228,15 @@ public class MarketInsightService {
 		return save.size();
 	}
 
+	/** 이 제공처가 넣은 마지막 거래일. 제공처가 바뀐 칸은 비어 있어 처음부터 다시 받는다. */
 	@Transactional(readOnly = true)
-	public Optional<LocalDate> latestIndexDate(IndexKey key) {
-		return indices.findLatestTradeDate(key);
+	public Optional<LocalDate> latestIndexDate(IndexKey key, String source) {
+		return indices.findLatestTradeDate(key, source);
+	}
+
+	/** 소스가 없어 건너뛴 칸의 가짜 값(이름이 SAMPLE_SOURCE_PREFIX로 시작)을 지운다. 실제 제공처 값은 마지막 성공 값으로 둔다. 지운 줄 수. */
+	@Transactional
+	public long deleteSampleIndex(IndexKey key) {
+		return indices.deleteByIndexKeyAndSourceStartingWith(key, SAMPLE_SOURCE_PREFIX);
 	}
 }

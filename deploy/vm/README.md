@@ -126,4 +126,4 @@ api·worker는 같은 `.env`를 `env_file`로 함께 읽는다(비밀 값이 컨
 
 ## 바깥 연결
 
-api는 카카오·Google(로그인), 앱 서버(앱 연동, 매일 03:20 일일 확인 포함), OpenAI(목표 안내, `OPENAI_API_KEY`가 있을 때만)를, worker는 키움·KRX·OpenDART(사건 근거 공시, `DART_API_KEY`가 있을 때만)를 HTTPS로 부른다. VM에서 나가는 연결이 막혀 있으면 해당 기능만 실패한다(`curl -sI https://kauth.kakao.com`으로 확인).
+api는 카카오·Google(로그인), 앱 서버(앱 연동, 매일 03:20 일일 확인 포함), OpenAI(목표 안내, `OPENAI_API_KEY`가 있을 때만)를, worker는 키움·KRX·OpenDART(사건 근거 공시, `DART_API_KEY`가 있을 때만)·한국수출입은행(시장 띠 환율, `KOREAEXIM_AUTH_KEY`가 있을 때만, `oapi.koreaexim.go.kr`)을 HTTPS로 부른다. VM에서 나가는 연결이 막혀 있으면 해당 기능만 실패한다(`curl -sI https://kauth.kakao.com`으로 확인).

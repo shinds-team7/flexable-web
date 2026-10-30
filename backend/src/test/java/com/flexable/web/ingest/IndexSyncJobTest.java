@@ -12,7 +12,7 @@ import com.flexable.web.market.IndexKey;
 import com.flexable.web.market.InsightDtos;
 import com.flexable.web.market.MarketInsightService;
 
-/** worker 프로필 + 가짜 소스로 시장 띠(코스피·코스닥)와 업종을 모아 조회에 보이는지 본다. 외부 호출 없음. */
+/** worker 프로필 + 가짜 소스로 시장 띠(8칸)와 업종을 모아 조회에 보이는지 본다. 외부 호출 없음. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = "spring.datasource.url=jdbc:h2:mem:worker-index;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
 @ActiveProfiles("worker")
 class IndexSyncJobTest {
@@ -34,10 +34,11 @@ class IndexSyncJobTest {
 
 		MarketSyncJob.Result r = indexJob.runOnce();
 		assertThat(r.status()).isEqualTo("SUCCESS");
-		assertThat(r.instruments()).isEqualTo(2);
+		assertThat(r.instruments()).isEqualTo(8);
 		assertThat(runs.findFirstByJobOrderByIdDesc(IndexSyncJob.JOB).orElseThrow().getStatus()).isEqualTo("SUCCESS");
 		var strip = insight.indices();
-		assertThat(strip.items()).extracting(InsightDtos.IndexItem::key).containsExactly(IndexKey.KOSPI, IndexKey.KOSDAQ);
+		assertThat(strip.items()).extracting(InsightDtos.IndexItem::key).containsExactly(IndexKey.values()); // 선언 순서 = 화면 순서
+		assertThat(strip.items()).allMatch(i -> i.value().scale() == i.key().scale());
 		assertThat(strip.isSample()).isTrue();
 		// 두 번째는 마지막 거래일 recheckDays 전부터만 다시 받는다
 		assertThat(indexJob.runOnce().rows()).isLessThan(r.rows());

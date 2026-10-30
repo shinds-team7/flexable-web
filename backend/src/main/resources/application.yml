@@ -108,6 +108,14 @@ app:
     krx:
       base-url: ${KRX_BASE_URL:https://data-dbg.krx.co.kr/svc/apis}
       auth-key: ${KRX_AUTH_KEY:}
+    # 시장 띠의 키움 밖 칸(price-source=kiwoom일 때). 채권지수·금은 위 KRX 키(API별 이용 신청), 환율은 수출입은행 키. 키가 없으면 그 칸은 빠진다
+    indices:
+      koreaexim-base-url: ${KOREAEXIM_BASE_URL:https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON}
+      koreaexim-auth-key: ${KOREAEXIM_AUTH_KEY:}
+      # KRX 채권지수 시세정보의 지수 그룹 이름(BND_IDX_GRP_NM)과 금시장의 종목 코드(ISU_CD). 틀리면 ingest_runs 메시지에 실제 값이 나온다
+      krx-bond-index-name: ${KRX_BOND_INDEX_NAME:KRX 채권지수}
+      krx-gold-isu-cd: ${KRX_GOLD_ISU_CD:04020000}
+      call-delay: 100ms
     # 사건 근거 공시: dart | fake | none. dart는 키가 비어 있으면 공시 단계를 건너뛴다(탐지는 한다)
     disclosure-source: ${MARKET_DISCLOSURE_SOURCE:dart}
     dart:

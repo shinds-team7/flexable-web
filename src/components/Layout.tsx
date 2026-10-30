@@ -8,15 +8,32 @@ import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
 import { Logo } from './Icons';
+import { LoginModalProvider, useLoginModal } from './LoginModal';
 
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
-const NAV = [
-  { to: '/type', label: '내 투자 성향' },
-  { to: '/invest', label: '투자 인사이트' },
-  { to: '/simulation', label: '투자 시뮬레이션' },
-  { to: '/savings', label: '적금 모아보기' },
-  { to: '/goal', label: 'AI 계획 수립' },
-  { to: '/news', label: '청년 금융 소식' },
+type NavItem = { to: string; label: string; sub?: { to: string; label: string }[] };
+const NAV: NavItem[] = [
+  { to: '/type', label: '투자성향' },
+  {
+    to: '/invest',
+    label: '인사이트',
+    sub: [
+      { to: '/invest?board=KOSPI', label: '코스피' },
+      { to: '/invest?board=KOSDAQ', label: '코스닥' },
+      { to: '/invest?board=ETF', label: 'ETF' },
+    ],
+  },
+  { to: '/simulation', label: '시뮬레이션' },
+  {
+    to: '/savings',
+    label: '예적금',
+    sub: [
+      { to: '/deposit', label: '예금' },
+      { to: '/savings', label: '적금' },
+    ],
+  },
+  { to: '/goal', label: 'AI 계획' },
+  { to: '/news', label: '청년소식' },
   { to: '/plus', label: '플러스' },
 ];
 
@@ -57,6 +74,15 @@ function SeedChip() {
 }
 
 export function Layout() {
+  return (
+    <LoginModalProvider>
+      <LayoutBody />
+    </LoginModalProvider>
+  );
+}
+
+function LayoutBody() {
+  const { openLogin } = useLoginModal();
   const { status, user } = useSession();
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
@@ -68,14 +94,24 @@ export function Layout() {
     <>
       <header className="topnav">
         <div className="wrap">
-          <Link className="logo" to={member || exploring ? '/home' : '/'} aria-label="텅장관리 홈으로">
+          <Link className="logo" to={member || exploring ? '/home' : '/'} aria-label="solpa 홈으로">
             <Logo />
+            <span className="logo-word">solpa</span>
           </Link>
           <nav className={'mainnav' + (menu ? ' open' : '')} id="mainnav" aria-label="주 메뉴">
             {NAV.map((n) => (
-              <NavLink key={n.to} to={n.to}>
-                {n.label}
-              </NavLink>
+              <div key={n.to} className="navitem">
+                <NavLink to={n.to}>{n.label}</NavLink>
+                {n.sub && (
+                  <div className="subnav">
+                    {n.sub.map((c) => (
+                      <Link key={c.to} to={c.to}>
+                        {c.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </nav>
           <div className="nav-right">
@@ -89,8 +125,13 @@ export function Layout() {
               </Link>
             )}
             {status === 'guest' && (
-              <Link className="btn btn-primary btn-sm" to="/login">
+              <button type="button" className="nav-login" onClick={() => openLogin()}>
                 로그인
+              </button>
+            )}
+            {status === 'guest' && !exploring && (
+              <Link className="btn btn-primary btn-sm" to="/home">
+                체험하기
               </Link>
             )}
           </div>
@@ -126,7 +167,7 @@ export function Footer() {
       <a href={PLAY_URL} target="_blank" rel="noreferrer">
         앱 받기(Google Play)
       </a>
-      <span style={{ marginLeft: 'auto' }}>© 텅장관리</span>
+      <span style={{ marginLeft: 'auto' }}>© solpa</span>
     </footer>
   );
 }

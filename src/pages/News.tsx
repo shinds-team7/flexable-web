@@ -12,7 +12,7 @@ import { todayKst } from '@/lib/deadline';
 import { DEFAULT_FILTER, isDefaultFilter, NEWS_PAGE_SIZE, pageCount, pageWindow, pickMain, selectNews, type NewsFilter } from '@/lib/newsList';
 
 /** 화면 위에 붙어 있는 상단 바 높이(.topnav .wrap). 이보다 위로 올라간 영역은 가려져 안 보인다 */
-const TOPBAR_HEIGHT = 64;
+const TOPBAR_HEIGHT = 80;
 
 export default function News() {
   const news = useNews();

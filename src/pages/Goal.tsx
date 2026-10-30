@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useLoginModal } from '@/components/LoginModal';
 import { useAppLink } from '@/data/appLink';
 import {
   CATEGORIES,
@@ -106,6 +107,7 @@ function GoalSkeleton() {
 }
 
 function GuestIntro() {
+  const { openLogin } = useLoginModal();
   return (
     <div className="empty-box goal-intro">
       <h3>목표를 하나 정해 보세요</h3>
@@ -117,9 +119,9 @@ function GuestIntro() {
         <li>지금 속도 유지 / 기한 맞추기 / 기한 늘리기 비교</li>
         <li>AI가 내 숫자로 쓴 실천 단계 3가지(하루 3회 무료)</li>
       </ul>
-      <Link className="btn btn-primary" to="/login" state={{ from: '/goal' }}>
+      <button type="button" className="btn btn-primary" onClick={() => openLogin('/goal')}>
         로그인하고 목표 세우기
-      </Link>
+      </button>
     </div>
   );
 }

@@ -614,18 +614,17 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .hero-edit:hover{color:var(--text-sub)}
 .home-hero .hero-num{margin-top:4px}
 .home-hero .sub{margin-top:6px}
-/* 시드머니 수정: 숫자 자리에 입력 창을 띄운다. 취소·저장은 창 오른쪽 위 */
-.seed-inline{display:inline-flex;flex-direction:column;gap:6px;margin-top:4px;min-width:240px}
-.seed-inline-acts{display:flex;justify-content:flex-end;gap:6px}
-.seed-inline-box{display:flex;align-items:center;padding:8px 14px;border:1px solid var(--color-border-strong);border-radius:var(--radius-soft-sm);background:var(--card);font-size:28px;line-height:36px;font-weight:800;letter-spacing:-.02em}
-.seed-inline-box:focus-within{border-color:var(--brand)}
-.seed-inline-box small{margin-left:auto;padding-left:6px;font-size:18px;font-weight:700}
-/* 입력 너비를 글자 길이에 맞춘다: 안 보이는 같은 글자로 칸 너비를 잡고 입력을 그 위에 겹친다 */
-.seed-inline-field{display:inline-grid}
-.seed-inline-field::after{content:attr(data-value) " ";grid-area:1/1;visibility:hidden;white-space:pre}
-.seed-inline-input{grid-area:1/1;width:100%;min-width:0;padding:0;border:0;background:none;color:var(--text);font:inherit;letter-spacing:inherit}
+/* 원래 금액의 자리를 유지하고 입력창을 같은 영역에 겹친다. */
+.hero-amount{position:relative;width:max-content;max-width:100%}
+.hero-edit-controls{position:relative;display:inline-flex}
+.seed-inline-acts{position:absolute;bottom:var(--radius-xs);left:0;display:flex;gap:var(--radius-xs);white-space:nowrap}
+.home-hero .seed-inline{position:absolute;inset:0;margin:0;padding:0}
+.seed-inline-box{display:flex;align-items:baseline;width:100%;height:100%;border-radius:var(--radius-soft-sm);background:var(--card);outline:1px solid var(--color-border-strong)}
+.seed-inline-box:focus-within{outline-color:var(--brand)}
+.seed-inline-field{flex:1;min-width:0}
+.seed-inline-input{display:block;width:100%;min-width:0;padding:0;border:0;border-radius:0;background:none;color:var(--text);font:inherit;letter-spacing:inherit;line-height:inherit}
 .seed-inline-input:focus{outline:none}
-.seed-inline .form-error{margin-top:6px}
+.seed-inline .form-error{margin-top:var(--radius-xs)}
 .input-affix{position:relative}
 .input-affix .input{padding-right:40px;text-align:right;font-size:17px;font-weight:700}
 .input-affix .unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-sub);font-weight:600;pointer-events:none}

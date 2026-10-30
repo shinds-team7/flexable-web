@@ -6,7 +6,7 @@
 
 ## 2026-10-30
 
-- [Refs #132] 사건 AI 개요의 첫 백필을 서버에서 한 번에 채울 수 있게 했다([결정](decisions/2026-10-29-event-ai-summary.md) 변경 기록). 화면 최대 기간(3년)보다 앞서 시작한 사건은 개요를 만들지 않고(⑥), 하루(KST) 호출 상한 `EVENT_OVERVIEW_DAILY_CAP`(기본 100)을 DB `gemini_daily_usage`(Flyway V18)에 세어 worker를 다시 켜도 넘지 않게 했다(⑦). 첫 백필 절차는 `deploy/vm/README.md`. 계약은 바뀌지 않는다 — 영향: 백엔드(worker), 운영(환경 변수)
+- [#134, Refs #132] 사건 AI 개요의 첫 백필을 서버에서 한 번에 채울 수 있게 했다([결정](decisions/2026-10-29-event-ai-summary.md) 변경 기록). 화면 최대 기간(3년)보다 앞서 시작한 사건은 개요를 만들지 않고(⑥), 하루(KST) 호출 상한 `EVENT_OVERVIEW_DAILY_CAP`(기본 100)을 DB `gemini_daily_usage`(Flyway V18)에 세어 worker를 다시 켜도 넘지 않게 했다(⑦). 첫 백필 절차는 `deploy/vm/README.md`. 계약은 바뀌지 않는다 — 영향: 백엔드(worker), 운영(환경 변수)
 - [#94] 시장 띠를 9칸에서 8칸으로 바꿨다([결정](decisions/2026-10-26-invest-insight-redesign.md) ⑤ 변경 기록). KIS는 핀테크 제휴 불가(03 §4-1)라 환율 제공처를 한국수출입은행 현재환율 API로 바꾸고, 해외 지수 4개(나스닥100·S&P500·다우존스·니케이225)는 지수 회사 허락이 필요해(FRED·TradingView 위젯 포함) 보류했다. 대신 KRX 채권지수(종합, 총수익지수)·원/유로·원/위안을 더했다. 계약: `IndexStrip` key enum `KRXBOND`·`EURKRW`·`CNYKRW` 추가, `NASDAQ100`·`SP500`·`DJIA`·`NIKKEI225` 삭제, unit enum `KRW_PER_EUR`·`KRW_PER_CNY` 추가 — 영향: 프론트(`npm run gen:api`)·백엔드
 
 ## 2026-10-29

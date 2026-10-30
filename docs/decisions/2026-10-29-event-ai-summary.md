@@ -1,7 +1,7 @@
 # 투자 인사이트 사건 상세의 AI 개요(Gemini, 자동 검사 후 공개)와 패널 정리
 
 - 날짜: 2026-10-29 · 결정한 사람: 사용자(rhkrqkq) · 관련: Issue #127, 리뷰 피드백 2026-10-29
-- 상태: 이 PR로 제안·구현. 실제 키로 하는 생성은 로컬에서 확인했다(2026-10-29). 운영 VM 확인은 머지 뒤 사람이 서버 환경 변수에 키를 넣고 한다.
+- 상태: #128로 병합. 2026-10-30 생성 대상(⑥)과 하루 호출 상한(⑦)을 고쳤다(아래 "변경 기록"). 운영 VM 확인은 사람이 서버 환경 변수에 키를 넣고 한다.
 - 영향: 웹 백엔드(worker 생성·api 조회), 웹 프론트(`/invest` 사건 상세), API 계약. 투자 시뮬레이션(`/simulation`)·앱·시연은 범위 밖이다.
 - 기준: [10-24 데이터 저장 합의](../product/decisions.md)("AI 해석은 초안으로 저장한 뒤 검수·승인분만 공개"), [청년 소식 자동 게시 결정](2026-10-26-youth-news-auto-publish.md)(Gemini 요약·검사 선례), [사건 뉴스 결정](2026-10-28-event-news.md)(네이버 기사 AI 입력 금지), 01 §7, 02 §5-4·§9, 03 §4-2, 04 §8.
 
@@ -23,8 +23,8 @@
      - 단위 없는 숫자는 종목명 안의 숫자가 글자에 붙어 있을 때(예: 코스피200)만 받는다.
      - 하이픈 빼기(`-4.2%`)는 화면과 같은 빼기 기호(`−4.2%`)로 바꿔 저장한다.
    - 탈락하면 문장 없이 입력 지문만 저장해 같은 입력으로 다시 부르지 않는다. 작성 규칙 버전(`overview-v3`)이 지문에 들어가 이전 규칙으로 만든 개요는 모두 다시 만든다.
-6. **생성 대상·순서**: 종목 사건과 시장 사건 모두. 아직 개요가 없거나 **입력 지문(작성 규칙 버전 + 입력 값의 SHA-256)이 바뀐** 사건만, 사건 마지막 날이 최근인 것부터. 공시 소스가 켜져 있으면 공시 고유번호가 있는 종목 사건은 근거를 한 번 찾은 뒤에 만든다. 근거를 다시 찾아 공시가 바뀌면 지문이 바뀌어 다시 만든다.
-7. **호출 상한·키**: 한 번 호출에 10건(`EVENT_OVERVIEW_BATCH_SIZE`)을 묶고 한 번 실행에 30번(`EVENT_OVERVIEW_MAX_CALLS`)까지 부른다. 남은 사건은 다음 실행(평일 18:30)에 한다. 소식 요약과 한도를 나눌 수 있게 개요 전용 키·모델 `EVENT_OVERVIEW_GEMINI_API_KEY`·`EVENT_OVERVIEW_GEMINI_MODEL`을 두고, 비어 있으면 청년 소식 요약과 같은 `GEMINI_API_KEY`·`GEMINI_MODEL`을 쓴다. 호출 사이 간격은 `GEMINI_CALL_DELAY`를 같이 쓴다. Gemini 무료 한도는 Google Cloud 프로젝트 단위라, 다른 프로젝트에서 만든 키여야 한도가 실제로 나뉜다.
+6. **생성 대상·순서**: 종목 사건과 시장 사건 모두. 단, 화면(`/invest`)의 가장 긴 기간(3년, 휴장 여유 14일)보다 앞서 시작한 사건은 핀으로 보이지 않아 만들지 않는다(2026-10-30). 아직 개요가 없거나 **입력 지문(작성 규칙 버전 + 입력 값의 SHA-256)이 바뀐** 사건만, 사건 마지막 날이 최근인 것부터. 공시 소스가 켜져 있으면 공시 고유번호가 있는 종목 사건은 근거를 한 번 찾은 뒤에 만든다. 근거를 다시 찾아 공시가 바뀌면 지문이 바뀌어 다시 만든다.
+7. **호출 상한·키**: 한 번 호출에 10건(`EVENT_OVERVIEW_BATCH_SIZE`)을 묶고 한 번 실행에 30번(`EVENT_OVERVIEW_MAX_CALLS`)까지 부른다. 남은 사건은 다음 실행(평일 18:30)에 한다. **하루(KST) 호출 상한**(`EVENT_OVERVIEW_DAILY_CAP`, 기본 100)을 두고, 부르기 전마다 DB(`gemini_daily_usage`)에서 조건부로 하나 늘려 상한에 닿으면 그 실행을 멈춘다(2026-10-30). worker를 다시 켜도 그날 센 수가 남아 상한을 넘지 않는다. 첫 백필은 두 값을 Gemini 일일 한도보다 낮게 올려 한 번에 채운다(`deploy/vm/README.md`). 소식 요약과 한도를 나눌 수 있게 개요 전용 키·모델 `EVENT_OVERVIEW_GEMINI_API_KEY`·`EVENT_OVERVIEW_GEMINI_MODEL`을 두고, 비어 있으면 청년 소식 요약과 같은 `GEMINI_API_KEY`·`GEMINI_MODEL`을 쓴다. 호출 사이 간격은 `GEMINI_CALL_DELAY`를 같이 쓴다. Gemini 무료 한도는 Google Cloud 프로젝트 단위라, 다른 프로젝트에서 만든 키여야 한도가 실제로 나뉜다.
 8. **실패해도 상세는 그대로**: 키 없음·`EVENT_OVERVIEW_SOURCE=none`·호출 실패·한도 초과·검사 탈락이면 개요 없이(`aiSummary: null`) 지금처럼 사실 문장만 보인다. 호출이 실패하면(응답 대기 60초 초과 포함) 다시 시도하지 않고 그 실행의 개요 단계만 멈춘다(ingest_runs `event-overview`가 `FAILED`·`PARTIAL`). 그때까지 만든 개요는 저장되고 남은 사건은 다음 실행에서 이어 만들며, 사건·근거 결과는 바뀌지 않는다.
 9. **키·로그**: 키는 환경 변수에만 두고 헤더로 보내며 오류 메시지에서 가린다. 로그에는 건수만 남기고 프롬프트·응답 본문은 남기지 않는다.
 10. **예시 자료**: `EVENT_OVERVIEW_SOURCE=fake`면 키 없이 입력 값으로 정해진 틀의 문장을 만들어 같은 검사를 거쳐 `isSample: true`, 모델 `sample`로 저장한다. 테스트·로컬 확인용이다.
@@ -43,7 +43,7 @@
 |---|---|
 | Gemini 호출 형식(generateContent, JSON 응답 스키마) | 청년 소식 요약과 같은 연결을 쓴다(`ingest.gemini.GeminiClient`로 묶음). 실제 키로 하는 사건 개요 생성은 **로컬에서 확인**했다(2026-10-29, `gemini-flash-lite-latest`, 키움·KRX·DART 실데이터 사건 4,362건). 지금 규칙(`overview-v3`): 기본 상한으로 최근 300건 중 294건 저장·6건 탈락(약 5분), 상한을 410번으로 올린 한 번 실행에서 300번 호출·2,990건 처리·2,884건 저장·106건 탈락(약 3.5%, 57분, 300번째 호출이 응답 대기 60초를 넘겨 `PARTIAL`로 멈춤). 누적 3,288건 처리·3,176건 개요 표시. 고치기 전 규칙(`overview-v1`)은 같은 최근 300건 중 274건 저장·26건 탈락이었다. 운영 VM은 머지 뒤 확인한다 |
 | 검사 | 단위 테스트로 칸별 숫자·부호(틀린 부호, 시장 대비·날짜를 등락률로 쓰기, 부호 없는 %, 부호와 반대인 오름·내림 낱말, 기간 밖 날짜)·금지 표현·사실 주장 낱말(입력에 없는 공시 "유상증자 공시", "실적 발표", "수주 소식", "금리 인상")·길이·서버 공시 문장(제목·건수·길이 줄이기)을 확인. 알려진 한계: 사실 주장은 낱말 목록이라 목록에 없는 사건 표현(예: "업황")은 막지 못한다. 등락률이 어느 칸인지는 문장 안의 "시장"·종목명 위치로 가려, 문장이 복잡하면 맞는 개요도 버릴 수 있다(안전한 쪽으로 틀림) |
-| 무료 한도 | 한 번 실행 최대 30회 + 청년 소식 최대 100회(같은 키·프로젝트면 한도를 같이 쓴다, 전용 키로 나눌 수 있음). 실제 일일 한도는 AI Studio에서 확인한다. 사건이 수천 건이면 최근 사건부터 며칠에 걸쳐 채워진다 |
+| 무료 한도 | 한 번 실행 최대 30회, 하루 최대 100회(기본값, DB에 셈) + 청년 소식 최대 100회(같은 키·프로젝트면 한도를 같이 쓴다, 전용 키로 나눌 수 있음). 실제 일일 한도는 AI Studio에서 확인한다. 기본값이면 최근 3년 사건(로컬 실데이터 약 3,000건)이 며칠에 걸쳐 채워지고, 첫 백필은 상한을 올려 한 번에 채운다. 하루 상한은 `GeminiDailyUsageTest`·`EventOverviewJobTest`(재시작 뒤에도 멈춤)로 확인 |
 | 개인정보 | Gemini에 보내는 값은 공개 시장 자료(종목명·수치·공시 제목)뿐이고 회원 정보·IP가 나가지 않는다. 저장 항목도 시장 자료라 `Privacy.tsx`·`privacy-web.md`는 고치지 않는다 |
 
 ## 이유
@@ -58,9 +58,15 @@
 | 무엇 | 어디 |
 |---|---|
 | `EventDetail.aiSummary` | `docs/contracts/web-api.yaml`, `src/lib/api-schema.d.ts`(`npm run gen:api`), `src/data/market.ts` |
-| 저장 칸 | Flyway `V17__event_ai_summary.sql`(`market_events.ai_summary`·`ai_summary_model`·`ai_summary_hash`·`ai_summary_at`·`ai_summary_sample`·`ai_summary_hidden`) |
-| 생성(worker) | `ingest.EventOverviewJob`(MarketEventJob 뒤), `ingest.EventOverviewWriter`, `ingest.gemini.GeminiEventOverviewWriter`·`GeminiClient`, `ingest.fake.FakeEventOverviewWriter`, `market.EventService.overviewTargets`·`applyOverviews` |
+| 저장 칸 | Flyway `V17__event_ai_summary.sql`(`market_events.ai_summary`·`ai_summary_model`·`ai_summary_hash`·`ai_summary_at`·`ai_summary_sample`·`ai_summary_hidden`), `V18__gemini_daily_usage.sql`(하루 호출 수, 2026-10-30) |
+| 생성(worker) | `ingest.EventOverviewJob`(MarketEventJob 뒤), `ingest.GeminiDailyUsage`(하루 상한), `ingest.EventOverviewWriter`, `ingest.gemini.GeminiEventOverviewWriter`·`GeminiClient`, `ingest.fake.FakeEventOverviewWriter`, `market.EventService.overviewTargets`·`applyOverviews` |
 | 조회(api) | `market.EventService.detail`(저장된 개요만) |
-| 환경 변수 | `EVENT_OVERVIEW_SOURCE`(gemini·fake·none)·`EVENT_OVERVIEW_BATCH_SIZE`·`EVENT_OVERVIEW_MAX_CALLS`·`EVENT_OVERVIEW_GEMINI_API_KEY`·`EVENT_OVERVIEW_GEMINI_MODEL`(비우면 공용 Gemini 키·모델), `backend/README.md`·`backend/.env.example`·`deploy/vm/.env.example` |
+| 환경 변수 | `EVENT_OVERVIEW_SOURCE`(gemini·fake·none)·`EVENT_OVERVIEW_BATCH_SIZE`·`EVENT_OVERVIEW_MAX_CALLS`·`EVENT_OVERVIEW_DAILY_CAP`·`EVENT_OVERVIEW_GEMINI_API_KEY`·`EVENT_OVERVIEW_GEMINI_MODEL`(비우면 공용 Gemini 키·모델), `backend/README.md`·`backend/.env.example`·`deploy/vm/.env.example` |
 | 화면 | `src/components/EventPanel.tsx`(AI 개요·사실 카드·가로 뉴스 카드), `src/components/Icons.tsx`(`i-ai`), `src/styles/global.css` |
 | 문서 | 02 §5-4 상세 패널·§9 AI 표시, 03 현재 구현 상자, PRD F1, 이 기록, CHANGELOG |
+
+## 변경 기록
+
+| 날짜 | 무엇 | 왜 |
+|---|---|---|
+| 2026-10-30 | ⑥ 화면 최대 기간(3년)보다 앞서 시작한 사건은 개요를 만들지 않는다. ⑦ 하루(KST) 호출 상한 `EVENT_OVERVIEW_DAILY_CAP`(기본 100, DB `gemini_daily_usage`에 셈)을 더하고 첫 백필 절차를 `deploy/vm/README.md`에 적었다 | 실행당 300건이라 첫 백필(사건 약 4,400건)이 몇 주 걸렸다. 화면에 안 보이는 3년 밖 사건이 약 32%였고, 실행당 상한만 올리면 worker를 다시 켤 때마다 다시 불러 Gemini 일일 한도를 넘을 수 있었다 |

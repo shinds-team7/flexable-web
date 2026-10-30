@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-10-30
+
+- [Refs #127] 사건 AI 개요의 첫 백필을 서버에서 한 번에 채울 수 있게 했다([결정](decisions/2026-10-29-event-ai-summary.md) 변경 기록). 화면 최대 기간(3년)보다 앞서 시작한 사건은 개요를 만들지 않고(⑥), 하루(KST) 호출 상한 `EVENT_OVERVIEW_DAILY_CAP`(기본 100)을 DB `gemini_daily_usage`(Flyway V18)에 세어 worker를 다시 켜도 넘지 않게 했다(⑦). 첫 백필 절차는 `deploy/vm/README.md`. 계약은 바뀌지 않는다 — 영향: 백엔드(worker), 운영(환경 변수)
+
 ## 2026-10-29
 
 - [Refs #127] 투자 인사이트 사건 상세 맨 위에 AI 개요를 붙이기로 했다([결정](decisions/2026-10-29-event-ai-summary.md)). worker가 사건 탐지·공시 근거 뒤 Gemini(전용 키가 없으면 `GEMINI_API_KEY` 재사용)로 1~3문장을 미리 만들어 저장하고, AI는 주가 문장만 쓰고 공시 문장은 서버가 입력 공시 제목으로 붙인다. 입력(종목명·기간·등락률·시장 대비·거래량 배수·DART 공시 제목, 네이버 기사 제외)과 칸마다·부호까지 다른 숫자, 원인 단정·권유·전망 표현, 공시·사건 주장 낱말, 길이 검사를 통과한 것만 **사람 검수 없이** 공개한다(10-24 "검수 후 공개"의 예외, 운영자 숨김 칸 있음). 상세 요청 중 AI 호출은 없다. 계약: `EventDetail.aiSummary`(nullable `{text, model, generatedAt, isSample}`) 추가, `whatHappened`·`aiGenerated=false`는 그대로. Flyway V17, 환경 변수 `EVENT_OVERVIEW_SOURCE`·`EVENT_OVERVIEW_BATCH_SIZE`·`EVENT_OVERVIEW_MAX_CALLS`·`EVENT_OVERVIEW_GEMINI_API_KEY`·`EVENT_OVERVIEW_GEMINI_MODEL`(비우면 `GEMINI_API_KEY`·`GEMINI_MODEL`). 화면은 AI 기호 + "AI 요약"(예시는 "예시"), 무슨 일~근거를 한 카드로, 그때 뉴스를 가로 카드로 바꿨다(02 §5-4·§9). 개인정보처리방침은 바뀌지 않는다 — 영향: 프론트·백엔드

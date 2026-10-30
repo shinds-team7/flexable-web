@@ -103,6 +103,16 @@ sudo logrotate -d /etc/logrotate.d/rsyslog   # 문법 확인
 
 `.env`에 키움·KRX 키를 넣은 뒤 `docker compose --profile worker up -d`. 끄려면 `docker compose stop worker`. 켜질 때 한 번 수집하고(`MARKET_SYNC_ON_START`), 이후 평일 18:30 KST에 수집한 뒤 사건 탐지·공시 근거를 이어 돈다(`backend/README.md`).
 
+### 사건 AI 개요 첫 백필
+
+사건 AI 개요는 한 번 실행에 `EVENT_OVERVIEW_MAX_CALLS`번(기본 30번 × 10건 = 300건)까지만 만들어, 처음에는 최근 3년 사건 약 3,000건이 채워지기까지 여러 날이 걸린다. 그 뒤로는 새 사건만 생겨 기본값으로 충분하다. 한 번에 채우려면:
+
+1. AI Studio에서 개요 키 프로젝트의 모델(`gemini-flash-lite-latest` 등) 하루 요청 한도를 확인한다. 청년 소식 요약과 같은 키·프로젝트면 소식 요약(실행당 최대 100번)과 한도를 나눠 쓴다.
+2. `.env`에 `EVENT_OVERVIEW_MAX_CALLS`와 `EVENT_OVERVIEW_DAILY_CAP`을 하루 한도보다 낮게 넣는다(예: 하루 한도 500·전용 키면 둘 다 450). 하루 상한은 DB(`gemini_daily_usage`)에 세므로 worker를 다시 켜도 그날 넘지 않는다.
+3. `docker compose --profile worker up -d --force-recreate worker`로 다시 켠다. 켜질 때 시세 수집·사건 탐지 뒤 개요를 만든다(호출 사이 `GEMINI_CALL_DELAY` 7초, 450번이면 1시간쯤).
+4. `ingest_runs`의 `event-overview` 행으로 결과를 본다. 하루 상한에 닿았으면 `error` 칸에 남은 건수가 적히고, 다음 날 실행에서 이어 만든다.
+5. 다 채운 뒤에는 두 값을 비워 기본값(30·100)으로 되돌려도 되고, 그대로 둬도 하루 상한이 지켜진다.
+
 api·worker는 같은 `.env`를 `env_file`로 함께 읽는다(비밀 값이 컨테이너별로 나뉘어 있지 않음). 메모리는 컨테이너 제한 없이 `JAVA_OPTS`(api `-Xmx1g`, worker `-Xmx512m`)로만 정하고, worker의 DB 연결 풀은 3이다.
 
 ## 점검

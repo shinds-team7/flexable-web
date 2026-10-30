@@ -9,7 +9,7 @@ export type SeedPoint = { date: string; saved: number | null; cum: number }; // 
 const H = 260;
 const M = { l: 56, r: 20, t: 20, b: 32 };
 
-export function SeedLineChart({ data }: { data: SeedPoint[] }) {
+export function SeedLineChart({ data, isSample = false }: { data: SeedPoint[]; isSample?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [W, setW] = useState(600);
   const [hover, setHover] = useState<number | null>(null);
@@ -86,13 +86,13 @@ export function SeedLineChart({ data }: { data: SeedPoint[] }) {
       </svg>
       {h && (
         <div className="tip" style={{ left: tipLeft, top: tipTop, width: 200 }}>
-          <div className="meta">{h.saved == null ? `${hy}년 ${hm}월 ${hd}일 시작` : `${hy}년 ${hm}월 ${hd}일 정산`}</div>
+          <div className="meta">{isSample ? `${hy}년 ${hm}월 · 예시` : h.saved == null ? `${hy}년 ${hm}월 ${hd}일 시작` : `${hy}년 ${hm}월 ${hd}일 정산`}</div>
           <div className="t-val num">{won(h.cum)}원</div>
-          <div>{h.saved == null ? '처음 모아둔 돈' : `그 주기에 반영한 돈 ${won(h.saved)}원`}</div>
+          <div>{isSample ? '누적 시드머니 예시' : h.saved == null ? '처음 모아둔 돈' : `그 주기에 반영한 돈 ${won(h.saved)}원`}</div>
         </div>
       )}
       <p className="sr-only">
-        {data.map((d) => `${d.date} ${d.saved == null ? '시작' : '누적'} ${won(d.cum)}원`).join(', ')}
+        {data.map((d) => `${d.date} ${isSample ? '누적 예시' : d.saved == null ? '시작' : '누적'} ${won(d.cum)}원`).join(', ')}
       </p>
     </div>
   );

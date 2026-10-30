@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/auth/session';
 import type { SeedPoint } from '@/charts/SeedLineChart';
 import { api } from '@/lib/api';
+import { todayKst } from '@/lib/deadline';
 import { refreshAppLink, type SeedEntry } from './appLink';
 
 export type SeedMoney = {
@@ -58,6 +59,21 @@ const EMPTY: SeedMoney = {
 // 게스트(로그인 없이 체험) 기본 시드머니. 예시 값이라 화면에 "예시" 표시가 붙는다.
 const GUEST: SeedMoney = { ...EMPTY, confirmed: 4_270_000, isSample: true };
 
+/** 현재 월까지 8개월의 고정 예시. 실제 저축액을 계산하거나 저장하지 않는다. */
+function guestSeedMoney(): SeedMoney {
+  const [year, month] = todayKst().split('-').map(Number);
+  const totals = [620_000, 940_000, 1_650_000, 1_890_000, 2_720_000, 3_080_000, 3_960_000, localManual ?? GUEST.confirmed];
+  return {
+    ...GUEST,
+    manual: localManual,
+    history: totals.map((cum, i) => ({
+      date: new Date(Date.UTC(year, month - 8 + i, 1)).toISOString().slice(0, 10),
+      saved: null,
+      cum,
+    })),
+  };
+}
+
 // 서버에 저장하지 않는 직접 고친 금액: 비로그인 체험과 웹 백엔드가 없는 배포(Vercel)만. 이 탭의 메모리에 두고 새로고침하면 사라진다.
 let localManual: number | null = null;
 
@@ -68,7 +84,7 @@ const usesWebBackend = !import.meta.env.VITE_API_URL;
 const savesOnServer = (member: boolean) => member && usesWebBackend;
 
 async function fetchSeedMoney(member: boolean): Promise<SeedMoney> {
-  if (!member) return delay({ ...GUEST, manual: localManual });
+  if (!member) return delay(guestSeedMoney());
   if (!usesWebBackend) return delay({ ...EMPTY, manual: localManual });
   let r = await api<SeedMoneyResponse>('/me/seed-money');
   // GET은 저장한 값만 준다. 다시 받을 때가 됐으면 앱 서버에서 받아 온 뒤 다시 읽는다(실패하면 저장한 값 그대로).
@@ -134,7 +150,7 @@ export function useSetSeedManual() {
     }
     const applied = appSync?.status === 'applied' && n != null;
     qc.setQueriesData<SeedMoney>({ queryKey: ['seed-money', member] }, (old) =>
-      old ? (applied ? { ...old, confirmed: n, manual: null } : { ...old, manual: n }) : old,
+      old ? (!member ? guestSeedMoney() : applied ? { ...old, confirmed: n, manual: null } : { ...old, manual: n }) : old,
     );
     if (saved) void qc.invalidateQueries({ queryKey: ['seed-money', member] });
     return { saved, appSync };

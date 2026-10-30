@@ -359,7 +359,7 @@ function AppLinkIntro() {
     <div className="card" role="region" aria-label="앱 연동 안내">
       <h2>앱에서 모은 시드머니를 불러올까요?</h2>
       <p className="sub" style={{ marginTop: 4 }}>
-        텅장관리 앱 설정에서 받은 연동 코드를 입력하면 앱에서 확정한 시드머니를 웹에서 볼 수 있어요. 웹만 써도 괜찮아요.
+        solpa 앱 설정에서 받은 연동 코드를 입력하면 앱에서 확정한 시드머니를 웹에서 볼 수 있어요. 웹만 써도 괜찮아요.
       </p>
       <div className="toolbar" style={{ marginTop: 12 }}>
         <Link className="btn btn-primary btn-sm" to="/me#app-link">

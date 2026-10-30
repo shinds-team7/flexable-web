@@ -15,19 +15,19 @@ export default function Privacy() {
     <section>
       <div className="page legal" style={{ maxWidth: 760 }}>
         <div className="page-head">
-          <h1 className="page-title">텅장관리 웹사이트 개인정보처리방침</h1>
+          <h1 className="page-title">solpa 웹사이트 개인정보처리방침</h1>
         </div>
         {!webPrivacyInEffect && (
           <p className="legal-draft" role="note">
             {WEB_PRIVACY_EFFECTIVE ? `${fmtEffective()}부터 시행해요. ` : '시행 전 초안이에요. '}
-            그 전까지는 <a href={`${LEGAL_BASE}/privacy`}>텅장관리 개인정보처리방침</a>이 적용돼요.
+            그 전까지는 <a href={`${LEGAL_BASE}/privacy`}>solpa 개인정보처리방침</a>이 적용돼요.
           </p>
         )}
 
         <p>시행일: {WEB_PRIVACY_EFFECTIVE ?? '미정'}</p>
         <p>
-          텅장관리를 운영하는 {OPERATOR}(운영 이름 {BRAND}, 이하 "운영자")는 「개인정보 보호법」에 따라 개인정보를 보호하고 관련 문의를 처리하기 위해
-          다음과 같이 텅장관리 웹사이트(이하 "웹")의 개인정보처리방침을 공개합니다.
+          solpa를 운영하는 {OPERATOR}(운영 이름 {BRAND}, 이하 "운영자")는 「개인정보 보호법」에 따라 개인정보를 보호하고 관련 문의를 처리하기 위해
+          다음과 같이 solpa 웹사이트(이하 "웹")의 개인정보처리방침을 공개합니다.
         </p>
 
         <h2>제1조 적용 범위</h2>
@@ -37,7 +37,7 @@ export default function Privacy() {
             처리하는 개인정보에 적용됩니다.
           </li>
           <li>
-            텅장관리 앱도 같은 운영자가 제공하지만 웹과 계정·개인정보 저장 환경을 구분해 운영합니다. 앱의 가입·이용에 관한 처리 현황은{' '}
+            solpa 앱도 같은 운영자가 제공하지만 웹과 계정·개인정보 저장 환경을 구분해 운영합니다. 앱의 가입·이용에 관한 처리 현황은{' '}
             <a href={`${LEGAL_BASE}/privacy`}>앱 개인정보처리방침</a>에서 안내합니다.
           </li>
           <li>앱 계정으로 로그인하는 다른 주소의 화면에는 그 계정과 처리 환경에 적용되는 방침(앱 방침)을 안내합니다.</li>

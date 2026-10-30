@@ -86,7 +86,7 @@ function NotLinked({ appUnlinked, onExists }: { appUnlinked: boolean; onExists: 
       <div className="card-sunken" id="app-link-items">
         <p className="k">앱 연동을 위한 개인정보 수집·이용 동의(선택)</p>
         <ul className="meta" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-          <li>처리자: 텅장관리 운영자 강선후(앱과 웹 같은 운영자)</li>
+          <li>처리자: solpa 운영자 강선후(앱과 웹 같은 운영자)</li>
           <li>목적: 앱 계정 연결 확인, 연동 상태 관리, 앱에서 확정한 시드머니를 웹에 표시·갱신하고 시뮬레이션에 사용</li>
           <li>
             항목: 연동 코드, 앱 계정 이메일(없을 수 있음)·가입 방법, 연동 식별값, 연동·조회 일시, 시드머니(합계·모아둔 돈·매달 저축할 돈·마지막 반영·갱신

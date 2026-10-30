@@ -31,7 +31,7 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 		dart = dart == null ? new Dart(null, null, null, null) : dart;
 		youth = youth == null ? new Youth(null, null, null, null, null, null, null) : youth;
 		gemini = gemini == null ? new Gemini(null, null, null, null, null, null) : gemini;
-		eventOverview = eventOverview == null ? new EventOverview(null, null, null, null, null) : eventOverview;
+		eventOverview = eventOverview == null ? new EventOverview(null, null, null, null, null, null) : eventOverview;
 	}
 
 	public record Kiwoom(String baseUrl, String appKey, String secretKey, Duration pageDelay) {
@@ -91,12 +91,14 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 	 * source: gemini(키가 없으면 꺼짐) | fake(키 없이 예시 문장, isSample) | none(만들지 않음).
 	 * apiKey·model: 개요 전용 Gemini 키·모델. 비어 있으면 gemini 설정(소식 요약과 같은 키·모델)을 쓴다. 호출 사이 쉬는 시간은 gemini 설정을 같이 쓴다.
 	 * 한 번 호출에 batchSize건을 묶고 한 번 실행에 maxCalls번까지 부른다(남은 사건은 다음 실행, 최근 사건부터).
+	 * dailyCap: 하루(KST) 호출 상한. DB(gemini_daily_usage)에 세어 worker를 다시 켜도 넘지 않는다. 첫 백필은 maxCalls와 함께 올린다.
 	 */
-	public record EventOverview(String source, String apiKey, String model, Integer batchSize, Integer maxCalls) {
+	public record EventOverview(String source, String apiKey, String model, Integer batchSize, Integer maxCalls, Integer dailyCap) {
 		public EventOverview {
 			source = source == null || source.isBlank() ? "gemini" : source;
 			batchSize = batchSize == null ? 10 : batchSize;
 			maxCalls = maxCalls == null ? 30 : maxCalls;
+			dailyCap = dailyCap == null ? 100 : dailyCap;
 		}
 
 		/** 전용 키, 없으면 공용 Gemini 키 */

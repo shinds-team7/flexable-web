@@ -11,17 +11,19 @@ class IngestPropertiesTest {
 
 	@Test
 	void 전용_키가_없으면_공용_키를_쓴다() {
-		IngestProperties.EventOverview none = new IngestProperties.EventOverview(null, null, null, null, null);
+		IngestProperties.EventOverview none = new IngestProperties.EventOverview(null, null, null, null, null, null);
 		assertThat(none.apiKeyOr(SHARED)).isEqualTo("shared-key");
 		assertThat(none.modelOr(SHARED)).isEqualTo("shared-model");
-		IngestProperties.EventOverview blank = new IngestProperties.EventOverview(null, " ", "", null, null);
+		assertThat(none.maxCalls()).isEqualTo(30);
+		assertThat(none.dailyCap()).isEqualTo(100);
+		IngestProperties.EventOverview blank = new IngestProperties.EventOverview(null, " ", "", null, null, null);
 		assertThat(blank.apiKeyOr(SHARED)).isEqualTo("shared-key");
 		assertThat(blank.modelOr(SHARED)).isEqualTo("shared-model");
 	}
 
 	@Test
 	void 전용_키가_있으면_그것을_쓴다() {
-		IngestProperties.EventOverview own = new IngestProperties.EventOverview("gemini", "event-key", "event-model", null, null);
+		IngestProperties.EventOverview own = new IngestProperties.EventOverview("gemini", "event-key", "event-model", null, null, null);
 		assertThat(own.apiKeyOr(SHARED)).isEqualTo("event-key");
 		assertThat(own.modelOr(SHARED)).isEqualTo("event-model");
 	}

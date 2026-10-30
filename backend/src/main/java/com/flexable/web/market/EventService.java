@@ -40,6 +40,8 @@ public class EventService {
 	/** AI 개요 입력에서 시장 사건의 이름(whatHappened와 같은 말) */
 	static final String MARKET_NAME = "시장 전체(코스피200 추종 ETF)";
 	private static final int OVERVIEW_SCAN_CHUNK = 200;
+	/** 휴장으로 종목의 마지막 거래일이 오늘보다 앞설 수 있어, 화면 3년 기간의 시작보다 이만큼 앞선 사건까지 개요를 만든다. */
+	static final int OVERVIEW_LOOKBACK_SLACK_DAYS = 14;
 
 	private final InstrumentRepository instruments;
 	private final DailyPriceRepository prices;
@@ -237,6 +239,7 @@ public class EventService {
 
 	/**
 	 * AI 개요를 만들 사건(worker, decisions/2026-10-29-event-ai-summary). 마지막 날이 최근인 사건부터 limit개.
+	 * 화면(/invest)의 가장 긴 기간(3년) 안에서 시작한 사건만 고른다. 그보다 오래된 사건은 핀으로 보이지 않아 만들지 않는다.
 	 * 아직 만들지 않았거나 입력(이름·기간·등락률·시장 대비·거래량 배수·공시 제목)이 바뀐 사건만 고른다. 운영자가 공개를 멈춘 사건은 뺀다.
 	 * waitForEvidence가 true면(공시 소스가 켜짐) 공시 고유번호가 있는 종목 사건은 근거를 한 번 찾은 뒤에 고른다.
 	 */
@@ -248,8 +251,10 @@ public class EventService {
 		}
 		Map<Long, Instrument> insts = new HashMap<>();
 		instruments.findAll().forEach(i -> insts.put(i.getId(), i));
+		LocalDate since = overviewSince();
 		List<MarketEvent> all = events.findByDetectorVersionOrderByEndDateDescIdDesc(EventDetector.VERSION).stream()
 			.filter(e -> !e.isAiSummaryHidden() && insts.containsKey(e.getInstrumentId()))
+			.filter(e -> !e.getStartDate().isBefore(since))
 			.filter(e -> !waitForEvidence || MarketEvent.MARKET.equals(e.getScope()) || e.getEvidenceCheckedAt() != null
 					|| insts.get(e.getInstrumentId()).getCorpCode() == null)
 			.toList();
@@ -270,6 +275,11 @@ public class EventService {
 			}
 		}
 		return out;
+	}
+
+	/** 개요를 만들 사건의 가장 이른 시작일: 오늘(KST)에서 화면 최대 기간(3년)을 빼고 휴장 여유를 더 뺀 날. */
+	LocalDate overviewSince() {
+		return LocalDate.now(clock.withZone(SEOUL)).minusMonths(PricePeriod.Y3.months()).minusDays(OVERVIEW_LOOKBACK_SLACK_DAYS);
 	}
 
 	static OverviewInput overviewInput(MarketEvent e, Instrument inst, List<String> titles) {

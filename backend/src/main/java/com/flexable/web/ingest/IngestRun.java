@@ -64,4 +64,8 @@ public class IngestRun {
 	int getRowCount() {
 		return rowCount;
 	}
+
+	String getError() {
+		return error;
+	}
 }

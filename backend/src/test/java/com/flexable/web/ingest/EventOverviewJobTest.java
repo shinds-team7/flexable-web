@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +56,18 @@ class EventOverviewJobTest {
 
 	@Autowired
 	EventService events;
+
+	@Autowired
+	GeminiDailyUsage usage;
+
+	@Autowired
+	IngestProperties props;
+
+	@Autowired
+	IngestRunRepository runs;
+
+	@Autowired
+	Clock clock;
 
 	@MockitoBean
 	EventOverviewWriter writer;
@@ -162,5 +175,60 @@ class EventOverviewJobTest {
 		assertThat(detail().aiSummary().text()).isEqualTo("삼성전자 주가는 하루에 크게 올랐어요.");
 		assertThat(detail().aiSummary().isSample()).isFalse();
 		assertThat(detail().aiGenerated()).isFalse();
+	}
+
+	@Test
+	@Order(3)
+	void 화면_3년_밖의_사건은_만들지_않고_하루_상한에_닿으면_다시_켜도_멈춘다() {
+		// SK하이닉스: 4년 전 한 번, 최근 두 번 하루 +20% 사건을 만든다(시장 대용 종목은 seed에서 저장함)
+		List<LocalDate> dates = market.dailyCloses("005930", LocalDate.of(2000, 1, 1)).stream().map(DailyClose::date).toList();
+		LocalDate fourYearsAgo = dates.getLast().minusYears(4);
+		int old = dates.indexOf(dates.stream().filter(d -> !d.isBefore(fourYearsAgo)).findFirst().orElseThrow());
+		int recent = dates.size() - 50;
+		int earlier = dates.size() - 150;
+		Random rnd = new Random(7);
+		List<DailyClose> closes = new ArrayList<>();
+		double s = Math.log(100_000);
+		for (int i = 0; i < dates.size(); i++) {
+			if (i > 0) {
+				s += rnd.nextGaussian() * 0.004 + (i == old || i == recent || i == earlier ? Math.log(1.2) : 0);
+			}
+			closes.add(new DailyClose(dates.get(i), Math.round(Math.exp(s))));
+		}
+		market.saveDailyCloses("000660", closes, Map.of(), "테스트");
+		events.detect("000660");
+		long oldId = events.events("000660").stream().filter(x -> x.startDate().equals(dates.get(old))).findFirst().orElseThrow().id();
+		long recentId = events.events("000660").stream().filter(x -> x.startDate().equals(dates.get(recent))).findFirst().orElseThrow().id();
+
+		List<Long> targetIds = events.overviewTargets(10_000, false).stream().map(t -> t.input().id()).toList();
+		assertThat(targetIds).contains(recentId).doesNotContain(oldId).hasSizeGreaterThan(1); // 상한 시험에 두 건 이상 필요
+
+		// 오늘 이미 쓴 수 + 1번만 남긴 하루 상한, 한 번 호출에 1건
+		when(writer.enabled()).thenReturn(true);
+		when(writer.write(anyList())).thenAnswer(inv -> {
+			List<OverviewTarget> batch = inv.getArgument(0);
+			return batch.stream().map(t -> new OverviewResult(t.input().id(), t.inputHash(), null, "test-model", false)).toList();
+		});
+		int cap = usage.used(EventOverviewJob.JOB) + 1;
+		IngestProperties.EventOverview o = props.eventOverview();
+		IngestProperties capped = new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(),
+				props.backfillYears(), props.recheckDays(), props.runOnStart(), props.kiwoom(), props.krx(), props.disclosureSource(), props.dart(),
+				props.youth(), props.gemini(), new IngestProperties.EventOverview(o.source(), o.apiKey(), o.model(), 1, 100, cap));
+
+		EventOverviewJob.Run first = new EventOverviewJob(events, writer, usage, capped, runs, clock).runOnce(false);
+		assertThat(first.status()).isEqualTo("SUCCESS");
+		assertThat(first.calls()).isEqualTo(1);
+		assertThat(first.capped()).isTrue();
+		verify(writer, times(1)).write(anyList());
+		assertThat(runs.findFirstByJobOrderByIdDesc(EventOverviewJob.JOB).orElseThrow().getError()).contains("하루 호출 상한");
+
+		// worker를 다시 켠 것과 같다(새 인스턴스): 같은 날이면 부르지 않는다
+		clearInvocations(writer);
+		EventOverviewJob.Run restarted = new EventOverviewJob(events, writer, usage, capped, runs, clock).runOnce(false);
+		assertThat(restarted.status()).isEqualTo("SKIPPED");
+		assertThat(restarted.calls()).isZero();
+		assertThat(restarted.capped()).isTrue();
+		verify(writer, never()).write(anyList());
+		assertThat(usage.used(EventOverviewJob.JOB)).isEqualTo(cap);
 	}
 }

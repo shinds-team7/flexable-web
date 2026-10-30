@@ -141,6 +141,8 @@ app:
       model: ${EVENT_OVERVIEW_GEMINI_MODEL:}
       batch-size: ${EVENT_OVERVIEW_BATCH_SIZE:10}
       max-calls: ${EVENT_OVERVIEW_MAX_CALLS:30}
+      # 하루(KST) 호출 상한. DB에 세어 worker를 다시 켜도 넘지 않는다. Gemini 무료 일일 한도(AI Studio)보다 낮게 둔다
+      daily-cap: ${EVENT_OVERVIEW_DAILY_CAP:100}
   applink:
     # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
     mode: ${APP_LINK_MODE:http}

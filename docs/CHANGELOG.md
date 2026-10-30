@@ -6,7 +6,7 @@
 
 ## 2026-10-30
 
-- [Refs #127] 사건 AI 개요의 첫 백필을 서버에서 한 번에 채울 수 있게 했다([결정](decisions/2026-10-29-event-ai-summary.md) 변경 기록). 화면 최대 기간(3년)보다 앞서 시작한 사건은 개요를 만들지 않고(⑥), 하루(KST) 호출 상한 `EVENT_OVERVIEW_DAILY_CAP`(기본 100)을 DB `gemini_daily_usage`(Flyway V18)에 세어 worker를 다시 켜도 넘지 않게 했다(⑦). 첫 백필 절차는 `deploy/vm/README.md`. 계약은 바뀌지 않는다 — 영향: 백엔드(worker), 운영(환경 변수)
+- [Refs #132] 사건 AI 개요의 첫 백필을 서버에서 한 번에 채울 수 있게 했다([결정](decisions/2026-10-29-event-ai-summary.md) 변경 기록). 화면 최대 기간(3년)보다 앞서 시작한 사건은 개요를 만들지 않고(⑥), 하루(KST) 호출 상한 `EVENT_OVERVIEW_DAILY_CAP`(기본 100)을 DB `gemini_daily_usage`(Flyway V18)에 세어 worker를 다시 켜도 넘지 않게 했다(⑦). 첫 백필 절차는 `deploy/vm/README.md`. 계약은 바뀌지 않는다 — 영향: 백엔드(worker), 운영(환경 변수)
 
 ## 2026-10-29
 

@@ -1294,13 +1294,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 구현 전 계약. 상단 시장 띠(국내외 지수·금·환율 9칸). 수집 전이거나 성공한 값이 없는 칸은 items에서 빠진다
-         * @description - 순서는 KOSPI·KOSDAQ·NASDAQ100·SP500·DJIA·NIKKEI225·GOLD·USDKRW·JPYKRW로 고정한다. 등락률로 정렬하지 않는다(PRD §5).
+         * 상단 시장 띠(국내 지수·채권지수·금·환율 8칸). 수집 전이거나 성공한 값이 없는 칸은 items에서 빠진다
+         * @description - 순서는 KOSPI·KOSDAQ·KRXBOND·GOLD·USDKRW·JPYKRW·EURKRW·CNYKRW로 고정한다. 등락률로 정렬하지 않는다(PRD §5).
          *     - KOSPI·KOSDAQ: 키움 업종일봉(ka20006) 종합지수, unit=POINT(소수 2자리).
-         *     - NASDAQ100·SP500·DJIA·NIKKEI225: 한국투자증권 KIS Open API, unit=POINT. 수집은 #94이고 지원 범위·재표시 조건은 그 Issue에서 확인한다.
+         *     - KRXBOND: KRX 채권지수 시세정보(idx/bon_dd_trd) 종합 지수의 총수익지수, unit=POINT(소수 2자리).
          *     - GOLD: KRX 금시장 일별매매정보, unit=KRW_PER_GRAM(원 단위 정수).
-         *     - USDKRW·JPYKRW: KIS Open API, unit=KRW_PER_USD·KRW_PER_100JPY(소수 2자리).
-         *     - 대용 ETF로 대신하지 않는다. date는 칸마다의 기준일이며 해외 지수는 현지 거래일이다.
+         *     - USDKRW·JPYKRW·EURKRW·CNYKRW: 한국수출입은행 현재환율 API 매매기준율, unit=KRW_PER_USD·KRW_PER_100JPY·KRW_PER_EUR·KRW_PER_CNY(소수 2자리). CNYKRW는 수출입은행 통화 코드 CNH다.
+         *     - 해외 지수(나스닥100·S&P500·다우존스·니케이225)는 지수 회사 허락 전까지 보류한다(결정 ⑤). 대용 ETF·CFD로 대신하지 않는다. date는 칸마다의 기준일이다.
          *     - changeRate = (value − prevValue) ÷ prevValue, 소수 4자리 내림.
          */
         get: {
@@ -2423,13 +2423,13 @@ export interface components {
         IndexStrip: {
             items: {
                 /** @enum {string} */
-                key: "KOSPI" | "KOSDAQ" | "NASDAQ100" | "SP500" | "DJIA" | "NIKKEI225" | "GOLD" | "USDKRW" | "JPYKRW";
-                /** @description 화면 표시 이름(예: 코스피, S&P500, 금, 원/달러) */
+                key: "KOSPI" | "KOSDAQ" | "KRXBOND" | "GOLD" | "USDKRW" | "JPYKRW" | "EURKRW" | "CNYKRW";
+                /** @description 화면 표시 이름(예: 코스피, KRX 채권지수, 금, 원/달러) */
                 name: string;
                 /** @enum {string} */
                 kind: "INDEX" | "COMMODITY" | "FX";
                 /** @enum {string} */
-                unit: "POINT" | "KRW_PER_GRAM" | "KRW_PER_USD" | "KRW_PER_100JPY";
+                unit: "POINT" | "KRW_PER_GRAM" | "KRW_PER_USD" | "KRW_PER_100JPY" | "KRW_PER_EUR" | "KRW_PER_CNY";
                 /** @description POINT·환율은 소수 2자리, KRW_PER_GRAM은 정수 */
                 value: number;
                 prevValue: number;
@@ -2441,7 +2441,7 @@ export interface components {
                  * @description 이 칸의 기준일
                  */
                 date: string;
-                /** @description 제공처 이름(키움증권·한국투자증권·한국거래소 등) */
+                /** @description 제공처 이름(키움증권·한국거래소·한국수출입은행 등) */
                 sourceName: string;
             }[];
             sources: components["schemas"]["SourceRow"][];

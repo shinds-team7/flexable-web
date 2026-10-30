@@ -4,6 +4,7 @@ import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,7 +26,9 @@ import com.flexable.web.ingest.kiwoom.KiwoomIndexSource;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
 import com.flexable.web.ingest.kiwoom.KiwoomPriceSource;
 import com.flexable.web.ingest.kiwoom.KiwoomTokenClient;
+import com.flexable.web.ingest.koreaexim.KoreaEximFxSource;
 import com.flexable.web.ingest.krx.KrxInstrumentSource;
+import com.flexable.web.ingest.krx.KrxMarketIndexSource;
 import com.flexable.web.ingest.youthcenter.YouthCenterPolicySource;
 
 /**
@@ -71,12 +74,18 @@ public class IngestConfig {
 		};
 	}
 
-	/** 시장 띠(코스피·코스닥). 시세 소스와 같은 제공처를 쓴다(kiwoom → 업종일봉 ka20006, fake → 가짜 지수). */
+	/**
+	 * 시장 띠 소스. 시세 소스 설정을 따른다. kiwoom → 코스피·코스닥(키움 ka20006)·채권지수·금(KRX)·환율 4개(한국수출입은행),
+	 * fake → 8칸 모두 가짜 값. 키가 없는 소스는 칸을 내놓지 않아 그 칸만 빠진다.
+	 */
 	@Bean
-	IndexSource indexSource(IngestProperties props, KiwoomTokenClient tokens) {
+	List<IndexSource> indexSources(IngestProperties props, MarketIndexProperties indices, KiwoomTokenClient tokens) {
 		return switch (props.priceSource()) {
-			case "kiwoom" -> new KiwoomIndexSource(http, props.kiwoom().baseUrl(), tokens);
-			case "fake" -> new FakeIndexSource();
+			case "kiwoom" -> List.of(new KiwoomIndexSource(http, props.kiwoom().baseUrl(), tokens),
+					new KrxMarketIndexSource(http, props.krx().baseUrl(), props.krx().authKey(), indices.krxBondIndexName(), indices.krxGoldIsuCd(),
+							indices.callDelay()),
+					new KoreaEximFxSource(http, indices.koreaeximBaseUrl(), indices.koreaeximAuthKey(), indices.callDelay()));
+			case "fake" -> List.of(new FakeIndexSource());
 			default -> throw new IllegalArgumentException("알 수 없는 MARKET_PRICE_SOURCE: " + props.priceSource());
 		};
 	}

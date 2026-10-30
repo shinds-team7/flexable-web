@@ -14,6 +14,12 @@ public interface MarketIndexRepository extends JpaRepository<MarketIndexDaily, M
 
 	List<MarketIndexDaily> findByIndexKeyAndTradeDateBetween(IndexKey indexKey, LocalDate from, LocalDate to);
 
-	@Query("select max(m.tradeDate) from MarketIndexDaily m where m.indexKey = :indexKey")
-	Optional<LocalDate> findLatestTradeDate(IndexKey indexKey);
+	@Query("select max(m.tradeDate) from MarketIndexDaily m where m.indexKey = :indexKey and m.source = :source")
+	Optional<LocalDate> findLatestTradeDate(IndexKey indexKey, String source);
+
+	/** 칸의 제공처가 바뀌면 이전 제공처 값을 지운다(전일 대비가 두 제공처를 섞지 않게). */
+	long deleteByIndexKeyAndSourceNot(IndexKey indexKey, String source);
+
+	/** 소스가 없어 건너뛴 칸의 가짜 값을 지운다. */
+	long deleteByIndexKeyAndSourceStartingWith(IndexKey indexKey, String prefix);
 }

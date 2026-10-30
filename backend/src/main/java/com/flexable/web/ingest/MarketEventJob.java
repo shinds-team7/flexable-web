@@ -25,6 +25,7 @@ import com.flexable.web.market.MarketService;
  * 급변동 사건 탐지와 근거 공시 수집(worker, 03 §5-3·5-4). 시세 수집(MarketSyncJob)이 끝난 뒤 돈다.
  * 1) 시장 대용 종목(시장 사건)과 상위 목록 종목마다 저장된 일봉으로 사건을 다시 찾고
  * 2) 공시 소스가 켜져 있으면 고유번호를 채운 뒤, 근거를 아직 찾지 않은 종목 사건의 공시를 받아 점수 상위 5건을 붙인다(임원 지분 보고는 뺀다).
+ * 3) 아직 개요가 없거나 입력이 바뀐 사건의 AI 개요를 쓴다(EventOverviewJob, 따로 ingest_runs event-overview에 남긴다).
  * 한 종목·한 사건이 실패해도 나머지는 계속하고, 키 문제·한도 초과면 공시 단계만 멈춘다. 결과는 ingest_runs에 남긴다.
  */
 @Component
@@ -42,15 +43,17 @@ public class MarketEventJob {
 	private final IngestProperties props;
 	private final IngestRunRepository runs;
 	private final Clock clock;
+	private final EventOverviewJob overviews;
 
 	public MarketEventJob(EventService events, MarketService market, DisclosureSource disclosures, IngestProperties props,
-			IngestRunRepository runs, Clock clock) {
+			IngestRunRepository runs, Clock clock, EventOverviewJob overviews) {
 		this.events = events;
 		this.market = market;
 		this.disclosures = disclosures;
 		this.props = props;
 		this.runs = runs;
 		this.clock = clock;
+		this.overviews = overviews;
 	}
 
 	public synchronized Result runOnce() {
@@ -87,7 +90,17 @@ public class MarketEventJob {
 				clock.instant());
 		runs.save(run);
 		log.info("사건 작업 끝 {} (사건 {}건, 근거 확인 {}건, 실패 {}건)", status, detected, evidence, errors.size());
-		return new Result(status, detected, evidence, errors);
+
+		// 개요는 사건·근거 결과와 따로 남긴다. 실패해도 사건 상세는 사실 문장만으로 그대로 나간다
+		EventOverviewJob.Run overview;
+		try {
+			overview = overviews.runOnce(disclosures.enabled());
+		}
+		catch (RuntimeException e) {
+			log.warn("사건 AI 개요 실패: {}", e.getMessage());
+			overview = new EventOverviewJob.Run("FAILED", 0, 0, 0, 0, e.getMessage());
+		}
+		return new Result(status, detected, evidence, errors, overview);
 	}
 
 	/** 근거를 찾은 사건 수를 돌려준다. */
@@ -144,6 +157,6 @@ public class MarketEventJob {
 		return done;
 	}
 
-	public record Result(String status, int events, int evidenceChecked, List<String> errors) {
+	public record Result(String status, int events, int evidenceChecked, List<String> errors, EventOverviewJob.Run overview) {
 	}
 }

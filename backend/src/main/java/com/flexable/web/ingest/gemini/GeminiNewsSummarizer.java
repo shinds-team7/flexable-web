@@ -11,21 +11,18 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
 import com.flexable.web.ingest.NewsSummarizer;
 import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
 
 import tools.jackson.core.JacksonException;
-import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Gemini API(generateContent)로 소식 카드를 묶어서 요약한다. 응답은 JSON 배열 [{id, summary}]로 받는다(responseSchema).
  * 보내는 것: 정책명·정책설명(plcyExplnCn)·지원내용(plcySprtCn)뿐이다. 담당자 이름은 수집 때 이미 지웠고 회원 정보는 없다.
- * 키는 헤더(x-goog-api-key)로 보내고, 오류 메시지에 키가 들어가면 ***로 가린다. 프롬프트·응답 본문은 로그에 남기지 않는다.
+ * 호출·키 가리기는 GeminiClient가 한다. 프롬프트·응답 본문은 로그에 남기지 않는다.
  */
 public class GeminiNewsSummarizer implements NewsSummarizer {
 
@@ -35,7 +32,6 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 	static final List<String> BANNED = List.of("추천", "투자 권유", "계좌 연결", "무조건");
 	/** 원문 한 칸을 이 길이까지만 보낸다(입력 토큰을 줄인다) */
 	static final int SOURCE_CHARS = 700;
-	private static final JsonMapper JSON = JsonMapper.builder().build();
 	/** 숫자 하나: 천 단위 쉼표와 소수점까지(날짜 2026.10.01은 2026·10·01로 나뉜다) */
 	private static final Pattern NUMBER = Pattern.compile("\\d+(?:,\\d{3})*(?:\\.\\d+)?");
 	/** 문장 끝: 마침표·물음표·느낌표 또는 "~요"·"~다" 뒤 공백/끝 */
@@ -50,21 +46,15 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 			- 입력의 id를 그대로 돌려준다.
 			""";
 
-	private final RestClient http;
-	private final String baseUrl;
-	private final String apiKey;
-	private final String model;
+	private final GeminiClient gemini;
 
 	public GeminiNewsSummarizer(RestClient http, String baseUrl, String apiKey, String model) {
-		this.http = http;
-		this.baseUrl = baseUrl;
-		this.apiKey = apiKey;
-		this.model = model;
+		this.gemini = new GeminiClient(http, baseUrl, apiKey, model);
 	}
 
 	@Override
 	public boolean enabled() {
-		return apiKey != null && !apiKey.isBlank();
+		return gemini.enabled();
 	}
 
 	@Override
@@ -85,7 +75,8 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 			input.add(Map.of("id", t.id(), "title", t.title(), "text", text));
 		}
 		List<SummaryResult> out = new ArrayList<>();
-		for (Map<?, ?> row : parseRows(call(input))) {
+		String reply = gemini.generate(INSTRUCTION, GeminiClient.toJson(input), GeminiClient.idTextSchema("summary"));
+		for (Map<?, ?> row : GeminiClient.parseRows(reply)) {
 			if (!(row.get("id") instanceof Number n) || !byId.containsKey(n.longValue())) {
 				continue;
 			}
@@ -96,61 +87,10 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 		return out;
 	}
 
-	private String call(List<Map<String, Object>> input) {
-		Map<String, Object> schema = Map.of("type", "ARRAY", "items", Map.of("type", "OBJECT",
-				"properties", Map.of("id", Map.of("type", "INTEGER"), "summary", Map.of("type", "STRING")),
-				"required", List.of("id", "summary")));
-		Map<String, Object> body = Map.of(
-				"systemInstruction", Map.of("parts", List.of(Map.of("text", INSTRUCTION))),
-				"contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", toJson(input))))),
-				"generationConfig", Map.of("temperature", 0.2, "responseMimeType", "application/json", "responseSchema", schema));
-		String res;
-		try {
-			res = http.post()
-				.uri(baseUrl + "/v1beta/models/{model}:generateContent", model)
-				.header("x-goog-api-key", apiKey)
-				.contentType(MediaType.APPLICATION_JSON)
-				.body(toJson(body))
-				.retrieve()
-				.body(String.class);
-		}
-		catch (RestClientException e) {
-			throw hideKey("Gemini 호출 실패: " + e.getMessage());
-		}
-		try {
-			Map<?, ?> parsed = res == null ? null : JSON.readValue(res, Map.class);
-			if (parsed != null && parsed.get("candidates") instanceof List<?> c && !c.isEmpty() && c.getFirst() instanceof Map<?, ?> first
-					&& first.get("content") instanceof Map<?, ?> content && content.get("parts") instanceof List<?> parts && !parts.isEmpty()
-					&& parts.getFirst() instanceof Map<?, ?> part && part.get("text") instanceof String text) {
-				return text;
-			}
-		}
-		catch (JacksonException e) {
-			// 아래에서 같은 오류로 바꾼다
-		}
-		throw new IllegalStateException("Gemini 응답을 읽지 못했어요(후보 없음)");
-	}
-
-	private static List<Map<?, ?>> parseRows(String reply) {
-		try {
-			List<?> rows = JSON.readValue(reply, List.class);
-			List<Map<?, ?>> out = new ArrayList<>();
-			for (Object r : rows) {
-				if (r instanceof Map<?, ?> m) {
-					out.add(m);
-				}
-			}
-			return out;
-		}
-		catch (JacksonException e) {
-			throw new IllegalStateException("Gemini 응답이 JSON 배열이 아니에요");
-		}
-	}
-
 	/** 원문(payload JSON)에서 요약에 쓸 칸만 꺼낸다. 없으면 빈 문자열 */
 	static String sourceText(String payload) {
 		try {
-			Map<?, ?> row = JSON.readValue(payload, Map.class);
+			Map<?, ?> row = GeminiClient.JSON.readValue(payload, Map.class);
 			StringBuilder sb = new StringBuilder();
 			for (String key : List.of("plcyExplnCn", "plcySprtCn")) {
 				if (row.get(key) instanceof String s && !s.isBlank()) {
@@ -189,7 +129,7 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 		return s;
 	}
 
-	private static int sentences(String s) {
+	static int sentences(String s) {
 		Matcher m = SENTENCE_END.matcher(s);
 		int count = 0;
 		while (m.find()) {
@@ -225,18 +165,5 @@ public class GeminiNewsSummarizer implements NewsSummarizer {
 			out.add(values);
 		}
 		return out;
-	}
-
-	private static String toJson(Object o) {
-		try {
-			return JSON.writeValueAsString(o);
-		}
-		catch (JacksonException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	private IllegalStateException hideKey(String msg) {
-		return new IllegalStateException(enabled() ? msg.replace(apiKey, "***") : msg);
 	}
 }

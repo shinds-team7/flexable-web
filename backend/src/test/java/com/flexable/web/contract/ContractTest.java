@@ -56,6 +56,7 @@ import com.flexable.web.ingest.fake.FakePracticeData;
 import com.flexable.web.market.Board;
 import com.flexable.web.market.DailyClose;
 import com.flexable.web.market.EventDtos.EvidenceRow;
+import com.flexable.web.market.EventDtos.OverviewResult;
 import com.flexable.web.market.EventService;
 import com.flexable.web.market.IndexKey;
 import com.flexable.web.market.InsightDtos.IndexValue;
@@ -174,6 +175,9 @@ class ContractTest {
 		eventId = events.events("005930").stream().filter(e -> e.startDate().equals(jumpDate)).findFirst().orElseThrow().id();
 		events.saveEvidence(eventId, "DART", List.of(new EvidenceRow("DART", "20990101000001", "단일판매ㆍ공급계약체결", "삼성전자",
 				jumpDate, "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20990101000001", 3)));
+		// AI 개요(worker가 미리 저장, decisions/2026-10-29-event-ai-summary)
+		events.applyOverviews(List.of(new OverviewResult(eventId, "test-hash", "삼성전자 주가는 하루에 크게 올랐어요. 이 기간에 단일판매ㆍ공급계약체결 공시가 있었어요.",
+				"test-model", false)));
 		// 투자 인사이트: 업종(삼성전자만), 시장 띠는 코스피 두 날(보임)·코스닥 하루(전일 값이 없어 빠짐)
 		market.setIndustries(Map.of("005930", "전기전자"), today);
 		insight.saveIndex(IndexKey.KOSPI, List.of(new IndexValue(dates.get(dates.size() - 2), new java.math.BigDecimal("2600.10")),
@@ -267,7 +271,10 @@ class ContractTest {
 		call(get("/api/v1/market/instruments?board=KOSPI"), 200);
 		call(get("/api/v1/market/instruments?board=NOPE"), 400);
 		call(get("/api/v1/market/status"), 200);
-		call(get("/api/v1/market/events/" + eventId), 200);
+		MvcResult detail = call(get("/api/v1/market/events/" + eventId), 200);
+		String detailBody = detail.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat((String) JsonPath.read(detailBody, "$.aiSummary.model")).isEqualTo("test-model");
+		assertThat((Boolean) JsonPath.read(detailBody, "$.aiGenerated")).isFalse();
 		call(get("/api/v1/market/events/999999999"), 404);
 		// 사건 무렵 뉴스: 테스트는 예시 소스(fake). 기간 밖 예시 기사는 빠지고 저장하지 않으므로 no-store
 		MvcResult news = call(get("/api/v1/market/events/" + eventId + "/news"), 200);

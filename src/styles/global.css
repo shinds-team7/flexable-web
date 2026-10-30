@@ -389,6 +389,28 @@ caption{text-align:left;font-size:13px;color:var(--text-muted);padding-bottom:8p
 .ev-detail ul{margin:0;padding-left:18px}
 .fact{display:flex;gap:8px;align-items:flex-start;margin-top:6px}
 .fact .tag{flex:none;margin-top:1px}
+/* 사건 상세(decisions/2026-10-29-event-ai-summary): 맨 위 AI 개요 → 사실 카드(무슨 일~근거) → 그때 뉴스 가로 카드 */
+.ev-ai{margin-top:16px;padding:14px 16px;background:var(--brand-soft);border-radius:var(--radius-soft)}
+.ev-detail .ev-ai h4{margin:0 0 6px}
+.ev-detail .ev-ai p:not(.meta){color:var(--text)}
+.ev-ai .meta{margin-top:6px}
+.ai-chip{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border-radius:var(--radius-soft-sm);background:var(--card);color:var(--brand-text);font-size:11px;font-weight:700;line-height:1;white-space:nowrap;vertical-align:1px}
+.ai-chip svg{flex:none}
+.ev-card{margin-top:12px;padding:2px 16px 16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft)}
+.ev-detail .ev-card > h4:first-child{margin-top:14px}
+.ev-card .meta{margin-top:4px}
+.ev-detail ul.ev-news{list-style:none;margin:0;padding:2px 2px 10px;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:2px;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--color-border-strong) transparent}
+.ev-news li{flex:0 0 min(240px,82%);display:flex;scroll-snap-align:start}
+.ev-news-card{display:flex;flex-direction:column;gap:10px;width:100%;min-height:132px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft-sm);color:var(--text);text-decoration:none;transition:border-color .15s var(--ease)}
+.ev-news-card:hover{border-color:var(--color-border-strong)}
+.ev-news-card:focus-visible{outline-offset:-2px;border-color:var(--color-border-strong)}
+.ev-news-t{font-size:14px;font-weight:600;line-height:1.45;color:var(--text);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.ev-news-m{margin-top:auto;display:flex;flex-direction:column;min-width:0;font-size:12px;line-height:18px;color:var(--text-muted)}
+.ev-news-m span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev-news::-webkit-scrollbar{height:8px}
+.ev-news::-webkit-scrollbar-thumb{background:var(--color-border-strong);border-radius:var(--radius-soft-sm);border:2px solid transparent;background-clip:padding-box}
+.ev-news::-webkit-scrollbar-track{background:transparent}
+@media (prefers-reduced-motion: no-preference){.ev-news{scroll-behavior:smooth}}
 .locked-row{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px dashed var(--line);border-radius:var(--radius-soft-sm);padding:10px 12px;margin-top:8px;font-size:13px;color:var(--text-sub)}
 .ev-nav{display:flex;justify-content:space-between;margin-top:20px;gap:8px}
 

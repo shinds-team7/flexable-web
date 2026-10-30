@@ -29,12 +29,34 @@ public final class EventDtos {
 
 	/**
 	 * 사건 상세(서버 계산). 수익률은 비율, 아직 그날이 안 왔거나 시세가 없으면 null.
-	 * whatHappened: 검수된 설명(LLM)이 생기기 전에는 수치로 만든 사실 문장(whatHappened 메서드). aiGenerated가 false면 이 문장이다.
+	 * whatHappened: 수치로 만든 사실 문장(whatHappened 메서드). AI가 쓰지 않으므로 aiGenerated는 false다.
+	 * aiSummary: worker가 미리 만든 AI 개요(decisions/2026-10-29-event-ai-summary). 없거나 공개를 멈췄으면 null.
 	 */
 	public record EventDetail(long id, String code, String name, String scope, LocalDate startDate, LocalDate endDate, int windowDays,
 			String direction, String headline, MarketReaction marketReaction, Afterwards afterwards, List<EvidenceRow> sources,
-			String newsSearchUrl, String whatHappened, List<Object> whyItMoved, boolean aiGenerated, String confidence, String noticeKey,
-			String notice) {
+			String newsSearchUrl, String whatHappened, List<Object> whyItMoved, boolean aiGenerated, AiSummary aiSummary, String confidence,
+			String noticeKey, String notice) {
+	}
+
+	/** AI 개요 한 칸. model: 만든 모델 이름(예시 작성기면 "sample"), generatedAt: 만든 시각(+09:00), isSample: 예시 작성기가 쓴 문장 */
+	public record AiSummary(String text, String model, OffsetDateTime generatedAt, boolean isSample) {
+	}
+
+	/**
+	 * AI 개요 작성기에 보내는 사건 하나. 공개 시장 자료만 담는다: 이름·기간·등락률·시장 대비·거래량 배수·DART 공시 제목.
+	 * 네이버 뉴스 기사는 넣지 않는다(검색 API 특약, decisions/2026-10-28-event-news). 값은 화면과 같은 글자로 만든다(+4.2%, 3.1배).
+	 * marketReturn·volumeRatio는 없으면 null, disclosures는 시장 사건이면 비어 있다.
+	 */
+	public record OverviewInput(long id, String scope, String name, String period, int windowDays, String direction, String returnRate,
+			String marketReturn, String volumeRatio, List<String> disclosures) {
+	}
+
+	/** 개요를 만들 사건과 입력 지문(입력이 바뀌면 지문이 바뀐다). */
+	public record OverviewTarget(OverviewInput input, String inputHash) {
+	}
+
+	/** 작성기 결과. summary가 null이면 검사 탈락(문장 없이 지문만 남긴다). */
+	public record OverviewResult(long eventId, String inputHash, String summary, String model, boolean sample) {
 	}
 
 	/** returnRate: 사건 기간 종목, marketReturn: 같은 기간 시장 대용, volumeRatio: 거래량 배수, weekReturn: 마지막 날까지 5거래일 */

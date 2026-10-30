@@ -15,9 +15,13 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.flexable.web.market.EventDtos.AiSummary;
 import com.flexable.web.market.EventDtos.DetectResult;
 import com.flexable.web.market.EventDtos.EventView;
 import com.flexable.web.market.EventDtos.EvidenceRow;
+import com.flexable.web.market.EventDtos.OverviewInput;
+import com.flexable.web.market.EventDtos.OverviewResult;
+import com.flexable.web.market.EventDtos.OverviewTarget;
 import com.flexable.web.market.EventDtos.PendingEvidence;
 
 /**
@@ -30,6 +34,12 @@ public class EventService {
 	static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 	/** 사건 마지막 날 뒤 며칠까지는 늦게 올라오는 공시를 다시 찾아본다. */
 	static final int EVIDENCE_RECHECK_DAYS = 3;
+	/** AI 개요 입력 형식·작성 규칙을 바꾸면 올린다. 지문에 들어가 모든 개요를 다시 만든다. */
+	/** overview-v2: 공시 문장을 AI 대신 서버가 입력 제목으로 붙인다. overview-v3: 숫자를 칸마다·부호까지 맞춘다 */
+	static final String OVERVIEW_VERSION = "overview-v3";
+	/** AI 개요 입력에서 시장 사건의 이름(whatHappened와 같은 말) */
+	static final String MARKET_NAME = "시장 전체(코스피200 추종 ETF)";
+	private static final int OVERVIEW_SCAN_CHUNK = 200;
 
 	private final InstrumentRepository instruments;
 	private final DailyPriceRepository prices;
@@ -212,8 +222,99 @@ public class EventService {
 				new EventDtos.Afterwards(d30, d365), rows, news,
 				EventDtos.whatHappened(name, e.getScope(), e.getStartDate(), e.getEndDate(), e.getWindowDays(), e.getReturnRate(),
 						e.getMarketReturn(), rows.size()),
-				List.of(), false,
+				List.of(), false, aiSummary(e),
 				rows.isEmpty() ? "LOW" : "MEDIUM", EventDtos.NOTICE_KEY, EventDtos.NOTICE));
+	}
+
+	/** 저장된 AI 개요. 문장이 없거나(검사 탈락) 운영자가 공개를 멈췄으면 null. */
+	private static AiSummary aiSummary(MarketEvent e) {
+		if (e.getAiSummary() == null || e.isAiSummaryHidden()) {
+			return null;
+		}
+		return new AiSummary(e.getAiSummary(), e.getAiSummaryModel(), e.getAiSummaryAt().atZone(SEOUL).toOffsetDateTime(),
+				e.isAiSummarySample());
+	}
+
+	/**
+	 * AI 개요를 만들 사건(worker, decisions/2026-10-29-event-ai-summary). 마지막 날이 최근인 사건부터 limit개.
+	 * 아직 만들지 않았거나 입력(이름·기간·등락률·시장 대비·거래량 배수·공시 제목)이 바뀐 사건만 고른다. 운영자가 공개를 멈춘 사건은 뺀다.
+	 * waitForEvidence가 true면(공시 소스가 켜짐) 공시 고유번호가 있는 종목 사건은 근거를 한 번 찾은 뒤에 고른다.
+	 */
+	@Transactional(readOnly = true)
+	public List<OverviewTarget> overviewTargets(int limit, boolean waitForEvidence) {
+		List<OverviewTarget> out = new ArrayList<>();
+		if (limit <= 0) {
+			return out;
+		}
+		Map<Long, Instrument> insts = new HashMap<>();
+		instruments.findAll().forEach(i -> insts.put(i.getId(), i));
+		List<MarketEvent> all = events.findByDetectorVersionOrderByEndDateDescIdDesc(EventDetector.VERSION).stream()
+			.filter(e -> !e.isAiSummaryHidden() && insts.containsKey(e.getInstrumentId()))
+			.filter(e -> !waitForEvidence || MarketEvent.MARKET.equals(e.getScope()) || e.getEvidenceCheckedAt() != null
+					|| insts.get(e.getInstrumentId()).getCorpCode() == null)
+			.toList();
+		for (int from = 0; from < all.size() && out.size() < limit; from += OVERVIEW_SCAN_CHUNK) {
+			List<MarketEvent> chunk = all.subList(from, Math.min(all.size(), from + OVERVIEW_SCAN_CHUNK));
+			Map<Long, List<String>> titles = new HashMap<>();
+			sources.findByEventIdInOrderByWeightDescPublishedDateDesc(chunk.stream().map(MarketEvent::getId).toList())
+				.forEach(s -> titles.computeIfAbsent(s.getEventId(), k -> new ArrayList<>()).add(s.row().title()));
+			for (MarketEvent e : chunk) {
+				OverviewInput input = overviewInput(e, insts.get(e.getInstrumentId()), titles.getOrDefault(e.getId(), List.of()));
+				String hash = fingerprint(input);
+				if (!hash.equals(e.getAiSummaryHash())) {
+					out.add(new OverviewTarget(input, hash));
+					if (out.size() >= limit) {
+						break;
+					}
+				}
+			}
+		}
+		return out;
+	}
+
+	static OverviewInput overviewInput(MarketEvent e, Instrument inst, List<String> titles) {
+		boolean market = MarketEvent.MARKET.equals(e.getScope());
+		String period = e.getStartDate().equals(e.getEndDate()) ? korean(e.getStartDate())
+				: korean(e.getStartDate()) + "~" + korean(e.getEndDate());
+		return new OverviewInput(e.getId(), e.getScope(), market ? MARKET_NAME : inst.getName(), period, e.getWindowDays(), e.getDirection(),
+				EventDtos.pct(e.getReturnRate()), market || e.getMarketReturn() == null ? null : EventDtos.pct(e.getMarketReturn()),
+				e.getVolumeRatio() == null ? null : String.format(java.util.Locale.ROOT, "%.1f배", e.getVolumeRatio()), market ? List.of() : List.copyOf(titles));
+	}
+
+	/** 2026년 10월 12일. 숫자가 연·월·일로 떨어져 개요 검사(입력에 있는 숫자만)에 맞춰 보기 쉽다 */
+	private static String korean(LocalDate d) {
+		return d.getYear() + "년 " + d.getMonthValue() + "월 " + d.getDayOfMonth() + "일";
+	}
+
+	/** 입력 지문: 작성 규칙 버전 + 입력 값 전부(사건 id 제외)의 SHA-256. */
+	static String fingerprint(OverviewInput in) {
+		String joined = String.join("\u001f", OVERVIEW_VERSION, in.scope(), in.name(), in.period(), String.valueOf(in.windowDays()),
+				in.direction(), in.returnRate(), String.valueOf(in.marketReturn()), String.valueOf(in.volumeRatio()),
+				String.join("\u001e", in.disclosures()));
+		try {
+			return java.util.HexFormat.of()
+				.formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(joined.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+		}
+		catch (java.security.NoSuchAlgorithmException ex) {
+			throw new IllegalStateException(ex);
+		}
+	}
+
+	/** 작성기 결과를 넣는다. 그사이 지워진 사건과 운영자가 공개를 멈춘 사건은 건너뛴다. 넣은 수를 돌려준다. */
+	@Transactional
+	public int applyOverviews(List<OverviewResult> results) {
+		Instant now = clock.instant();
+		int n = 0;
+		for (OverviewResult r : results) {
+			MarketEvent e = events.findById(r.eventId()).orElse(null);
+			if (e == null || e.isAiSummaryHidden()) {
+				continue;
+			}
+			e.overview(r.summary(), r.model(), r.inputHash(), r.sample(), now);
+			events.save(e);
+			n++;
+		}
+		return n;
 	}
 
 	/** on(포함) 이후 첫 거래일 종가 ÷ base − 1. 아직 그 날 시세가 없으면 비어 있다. */

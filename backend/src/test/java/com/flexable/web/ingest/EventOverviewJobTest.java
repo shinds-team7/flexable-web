@@ -32,6 +32,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.flexable.web.ingest.fake.FakeEventOverviewWriter;
 import com.flexable.web.market.DailyClose;
 import com.flexable.web.market.EventDtos.EventDetail;
 import com.flexable.web.market.EventDtos.EventView;
@@ -285,6 +286,24 @@ class EventOverviewJobTest {
 		assertThat(row.getStatus()).isEqualTo("FAILED"); // RUNNING으로 남지 않는다
 		assertThat(row.getFinishedAt()).isNotNull();
 		assertThat(row.getError()).contains("DB 연결 끊김");
+	}
+
+	@Test
+	@Order(6)
+	void 예시_작성기는_Gemini_하루_호출_수에_세지_않는다() {
+		// 오늘 센 수 그대로를 하루 상한으로 둔다: Gemini라면 한 번도 못 부르는 상태
+		int before = usage.used(EventOverviewJob.JOB);
+		IngestProperties.EventOverview o = props.eventOverview();
+		IngestProperties capped = new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(),
+				props.backfillYears(), props.recheckDays(), props.runOnStart(), props.kiwoom(), props.krx(), props.disclosureSource(), props.dart(),
+				props.youth(), props.gemini(), new IngestProperties.EventOverview(o.source(), o.apiKey(), o.model(), 10, 100, before));
+
+		EventOverviewJob.Run run = new EventOverviewJob(events, new FakeEventOverviewWriter(), usage, capped, runs, clock).runOnce(false);
+		assertThat(run.status()).isEqualTo("SUCCESS");
+		assertThat(run.capped()).isFalse();
+		assertThat(run.calls()).isPositive();
+		assertThat(run.saved()).isPositive();
+		assertThat(usage.used(EventOverviewJob.JOB)).isEqualTo(before);
 	}
 
 	/** on(포함) 이후 첫 거래일의 위치 */

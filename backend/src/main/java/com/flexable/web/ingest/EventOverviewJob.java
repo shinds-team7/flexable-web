@@ -17,7 +17,7 @@ import com.flexable.web.market.EventService;
 /**
  * 사건 AI 개요 단계(worker, decisions/2026-10-29-event-ai-summary). MarketEventJob이 사건 탐지·공시 근거 수집 뒤에 부른다.
  * 아직 개요가 없거나 입력이 바뀐 최근 3년 사건(마지막 날이 최근인 것부터)을 batchSize건씩 묶어 maxCalls번까지 부른다.
- * 부르기 전마다 하루 호출 상한(dailyCap, DB에 셈)을 확인해 닿으면 멈춘다. worker를 다시 켜도 그날 쓴 수는 남는다.
+ * 부르기 전마다 하루 호출 상한(dailyCap, DB에 셈)을 확인해 닿으면 멈춘다. worker를 다시 켜도 그날 쓴 수는 남는다. 예시 작성기(fake)는 세지 않는다.
  * 키가 없으면 건너뛰고, 호출이 실패하면(한도 초과 등) 거기서 멈춰 남은 사건은 다음 실행에 한다. 사건·근거는 그대로다.
  * 작성기 밖(DB) 오류로 멈춰도 ingest_runs 행은 FAILED·PARTIAL로 닫는다.
  * 로그에는 건수만 남기고 프롬프트·응답 본문은 남기지 않는다. 결과는 ingest_runs(event-overview)에 남긴다.
@@ -59,13 +59,15 @@ public class EventOverviewJob {
 		}
 		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
 		IngestRun run = runs.save(new IngestRun(JOB, today, clock.instant()));
+		// 예시 작성기(fake)는 Gemini를 부르지 않으므로 하루 호출 수에 세지 않는다(같은 DB의 실제 Gemini 상한을 먼저 쓰지 않게)
+		boolean counted = !writer.sample();
 		int calls = 0, ok = 0, saved = 0, rejected = 0, done = 0;
 		String error = null;
 		boolean failed = false, capped = false, completed = false;
 		String status;
 		try {
 			for (int from = 0; from < targets.size(); from += o.batchSize()) {
-				if (!usage.take(JOB, o.dailyCap())) {
+				if (counted && !usage.take(JOB, o.dailyCap())) {
 					capped = true;
 					break;
 				}

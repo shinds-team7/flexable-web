@@ -29,4 +29,8 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, DailyPri
 
 	@Query("select max(p.tradeDate) from DailyPrice p")
 	Optional<LocalDate> findLatestTradeDate();
+
+	/** 종목마다 마지막 거래일: [instrumentId(Long), tradeDate(LocalDate)] */
+	@Query("select p.instrumentId, max(p.tradeDate) from DailyPrice p group by p.instrumentId")
+	List<Object[]> findLatestTradeDates();
 }

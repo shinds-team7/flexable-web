@@ -1,5 +1,6 @@
 package com.flexable.web.market;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -21,6 +22,11 @@ public enum PricePeriod {
 
 	public int months() {
 		return months;
+	}
+
+	/** 마지막 거래일 asOf의 이 기간 시작 기준일(이날 이후 첫 거래일부터 보인다). 화면 조회와 사건 AI 개요 대상이 같이 쓴다 */
+	public LocalDate from(LocalDate asOf) {
+		return asOf.minusMonths(months);
 	}
 
 	public static Optional<PricePeriod> parse(String code) {

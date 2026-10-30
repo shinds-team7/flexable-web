@@ -24,6 +24,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -68,6 +69,9 @@ class EventOverviewJobTest {
 
 	@Autowired
 	Clock clock;
+
+	@Autowired
+	JdbcTemplate jdbc;
 
 	@MockitoBean
 	EventOverviewWriter writer;
@@ -230,5 +234,39 @@ class EventOverviewJobTest {
 		assertThat(restarted.capped()).isTrue();
 		verify(writer, never()).write(anyList());
 		assertThat(usage.used(EventOverviewJob.JOB)).isEqualTo(cap);
+	}
+	@Test
+	@Order(4)
+	void 마지막_거래일이_오래된_종목은_그_종목의_3년_기준으로_고른다() {
+		// NAVER: 시세가 60거래일 전에 끊긴 종목. 화면 3년 차트는 그 마지막 거래일에서 3년을 거슬러 가므로, 오늘 기준 3년 밖이어도 핀으로 보인다
+		List<LocalDate> dates = market.dailyCloses("005930", LocalDate.of(2000, 1, 1)).stream().map(DailyClose::date).toList();
+		int staleEnd = dates.size() - 1 - 60;
+		LocalDate staleAsOf = dates.get(staleEnd);
+		LocalDate screenFrom = staleAsOf.minusMonths(36); // MarketInsightService.range와 같은 기준
+		int shown = indexOnOrAfter(dates, screenFrom.plusDays(10)); // 화면 안, 오늘 기준 3년(+14일 여유)보다는 앞
+		int hidden = indexOnOrAfter(dates, screenFrom.minusDays(40)); // 화면 밖
+		assertThat(dates.get(shown)).isBefore(LocalDate.now(clock.withZone(IngestConfig.SEOUL)).minusMonths(36).minusDays(14));
+		Random rnd = new Random(5);
+		List<DailyClose> closes = new ArrayList<>();
+		double s = Math.log(200_000);
+		for (int i = 0; i <= staleEnd; i++) {
+			if (i > 0) {
+				s += rnd.nextGaussian() * 0.004 + (i == shown || i == hidden ? Math.log(1.2) : 0);
+			}
+			closes.add(new DailyClose(dates.get(i), Math.round(Math.exp(s))));
+		}
+		market.saveDailyCloses("035420", closes, Map.of(), "테스트");
+		jdbc.update("DELETE FROM daily_prices WHERE instrument_id = (SELECT id FROM instruments WHERE code = ?) AND trade_date > ?", "035420", staleAsOf);
+		events.detect("035420");
+		long shownId = events.events("035420").stream().filter(x -> x.startDate().equals(dates.get(shown))).findFirst().orElseThrow().id();
+		long hiddenId = events.events("035420").stream().filter(x -> x.startDate().equals(dates.get(hidden))).findFirst().orElseThrow().id();
+
+		List<Long> targetIds = events.overviewTargets(10_000, false).stream().map(t -> t.input().id()).toList();
+		assertThat(targetIds).contains(shownId).doesNotContain(hiddenId);
+	}
+
+	/** on(포함) 이후 첫 거래일의 위치 */
+	private static int indexOnOrAfter(List<LocalDate> dates, LocalDate on) {
+		return dates.indexOf(dates.stream().filter(d -> !d.isBefore(on)).findFirst().orElseThrow());
 	}
 }

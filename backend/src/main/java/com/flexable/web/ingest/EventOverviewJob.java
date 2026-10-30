@@ -19,6 +19,7 @@ import com.flexable.web.market.EventService;
  * 아직 개요가 없거나 입력이 바뀐 최근 3년 사건(마지막 날이 최근인 것부터)을 batchSize건씩 묶어 maxCalls번까지 부른다.
  * 부르기 전마다 하루 호출 상한(dailyCap, DB에 셈)을 확인해 닿으면 멈춘다. worker를 다시 켜도 그날 쓴 수는 남는다.
  * 키가 없으면 건너뛰고, 호출이 실패하면(한도 초과 등) 거기서 멈춰 남은 사건은 다음 실행에 한다. 사건·근거는 그대로다.
+ * 작성기 밖(DB) 오류로 멈춰도 ingest_runs 행은 FAILED·PARTIAL로 닫는다.
  * 로그에는 건수만 남기고 프롬프트·응답 본문은 남기지 않는다. 결과는 ingest_runs(event-overview)에 남긴다.
  */
 @Component
@@ -58,41 +59,64 @@ public class EventOverviewJob {
 		}
 		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
 		IngestRun run = runs.save(new IngestRun(JOB, today, clock.instant()));
-		int calls = 0, saved = 0, rejected = 0;
+		int calls = 0, ok = 0, saved = 0, rejected = 0, done = 0;
 		String error = null;
-		boolean capped = false;
-		int done = 0;
-		for (int from = 0; from < targets.size(); from += o.batchSize()) {
-			if (!usage.take(JOB, o.dailyCap())) {
-				capped = true;
-				break;
+		boolean failed = false, capped = false, completed = false;
+		String status;
+		try {
+			for (int from = 0; from < targets.size(); from += o.batchSize()) {
+				if (!usage.take(JOB, o.dailyCap())) {
+					capped = true;
+					break;
+				}
+				if (calls > 0) {
+					pause(props.gemini().callDelay());
+				}
+				List<OverviewTarget> batch = targets.subList(from, Math.min(targets.size(), from + o.batchSize()));
+				done = from + batch.size();
+				List<OverviewResult> results;
+				try {
+					calls++;
+					results = writer.write(batch);
+				}
+				catch (RuntimeException e) {
+					failed = true;
+					error = message(e);
+					log.warn("사건 AI 개요 멈춤({}번째 호출): {}", calls, error);
+					break;
+				}
+				saved += events.applyOverviews(results);
+				rejected += (int) results.stream().filter(r -> r.summary() == null).count();
+				ok++;
 			}
-			if (calls > 0) {
-				pause(props.gemini().callDelay());
-			}
-			List<OverviewTarget> batch = targets.subList(from, Math.min(targets.size(), from + o.batchSize()));
-			done = from + batch.size();
-			List<OverviewResult> results;
-			try {
-				calls++;
-				results = writer.write(batch);
-			}
-			catch (RuntimeException e) {
-				error = e.getMessage();
-				log.warn("사건 AI 개요 멈춤({}번째 호출): {}", calls, e.getMessage());
-				break;
-			}
-			saved += events.applyOverviews(results);
-			rejected += (int) results.stream().filter(r -> r.summary() == null).count();
+			completed = true;
 		}
-		String status = error != null ? (calls == 1 ? "FAILED" : "PARTIAL") : capped && calls == 0 ? "SKIPPED" : "SUCCESS";
-		String note = error != null ? error
-				: capped ? "하루 호출 상한 " + o.dailyCap() + "번에 닿아 남은 " + (targets.size() - done) + "건은 다음 날 실행에 만들어요" : null;
-		run.finish(status, saved, note, clock.instant());
-		runs.save(run);
+		catch (RuntimeException e) {
+			// 작성기 밖(하루 호출 수 세기·개요 저장 등 DB) 실패. 그때까지 넣은 개요는 그대로 두고 남은 사건은 다음 실행에 한다
+			failed = true;
+			error = message(e);
+			log.warn("사건 AI 개요 멈춤(작성기 밖 오류): {}", error);
+		}
+		finally {
+			// 어떤 예외로 끝나도 ingest_runs 행이 RUNNING으로 남지 않게 닫는다(RuntimeException 밖의 오류는 닫은 뒤 그대로 던진다)
+			if (!completed && !failed) {
+				failed = true;
+				error = "개요 단계가 중간에 멈췄어요";
+			}
+			status = failed ? (ok == 0 ? "FAILED" : "PARTIAL") : capped && calls == 0 ? "SKIPPED" : "SUCCESS";
+			String note = failed ? error
+					: capped ? "하루 호출 상한 " + o.dailyCap() + "번에 닿아 남은 " + (targets.size() - done) + "건은 다음 날 실행에 만들어요" : null;
+			run.finish(status, saved, note, clock.instant());
+			runs.save(run);
+		}
 		log.info("사건 AI 개요 끝 {} (대상 {}건, 호출 {}번, 저장 {}건 중 검사 탈락 {}건, 오늘 호출 {}/{}번)", status, targets.size(), calls, saved, rejected,
 				usage.used(JOB), o.dailyCap());
 		return new Run(status, targets.size(), calls, saved, rejected, error, capped);
+	}
+
+	/** ingest_runs.error에 남길 말. 메시지가 비어 있으면 예외 종류 이름 */
+	private static String message(RuntimeException e) {
+		return e.getMessage() == null || e.getMessage().isBlank() ? e.getClass().getSimpleName() : e.getMessage();
 	}
 
 	private static void pause(Duration d) {

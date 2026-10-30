@@ -1,7 +1,10 @@
 package com.flexable.web.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -263,6 +267,24 @@ class EventOverviewJobTest {
 
 		List<Long> targetIds = events.overviewTargets(10_000, false).stream().map(t -> t.input().id()).toList();
 		assertThat(targetIds).contains(shownId).doesNotContain(hiddenId);
+	}
+
+	@Test
+	@Order(5)
+	void 하루_호출_수를_세다_DB_오류가_나도_실행_기록을_닫는다() {
+		when(writer.enabled()).thenReturn(true);
+		GeminiDailyUsage broken = mock(GeminiDailyUsage.class);
+		when(broken.take(anyString(), anyInt())).thenThrow(new DataAccessResourceFailureException("DB 연결 끊김"));
+
+		EventOverviewJob.Run run = new EventOverviewJob(events, writer, broken, props, runs, clock).runOnce(false);
+		assertThat(run.status()).isEqualTo("FAILED");
+		assertThat(run.calls()).isZero();
+		assertThat(run.error()).contains("DB 연결 끊김");
+		verify(writer, never()).write(anyList());
+		IngestRun row = runs.findFirstByJobOrderByIdDesc(EventOverviewJob.JOB).orElseThrow();
+		assertThat(row.getStatus()).isEqualTo("FAILED"); // RUNNING으로 남지 않는다
+		assertThat(row.getFinishedAt()).isNotNull();
+		assertThat(row.getError()).contains("DB 연결 끊김");
 	}
 
 	/** on(포함) 이후 첫 거래일의 위치 */

@@ -68,4 +68,8 @@ public class IngestRun {
 	String getError() {
 		return error;
 	}
+
+	Instant getFinishedAt() {
+		return finishedAt;
+	}
 }

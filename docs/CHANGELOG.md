@@ -6,6 +6,7 @@
 
 ## 2026-10-31
 
+- [Refs #140, #148] 정기예금 만기 계산 규칙을 `docs/policies.md` §6에 더하고 예시 7개를 `tests/policy/deposit.json`·`DepositPolicyTest`로 옮겼다. 적금 C-12와 같은 규칙(단리·월복리 내림, 세금 floor(세전×15.4%), 가입 한도 초과분 제외)을 한 번에 맡기는 경우로 옮긴 것이며 계산 코드(`DepositCalculator`, #151)는 이미 이 값과 같다. 규칙·계약은 바뀌지 않는다 — 영향: 백엔드(테스트)·읽는 문서
 - [Refs #140, #148] 정기예금 비교 API 4개(`/deposit/products`·`/companies`·`/products/{id}`·`/simulate`)를 `web-api.yaml`에 추가했다. 적금(`/savings/*`)과 같은 모양이고 매달 넣는 돈 대신 한 번에 맡기는 `amount`를 쓰며 적립 방식은 없다. 이자 방식은 `interestType`(단리·월복리, 새 `InterestType`), 계산은 기본금리 기준·원 단위 내림·세금 floor(세전×15.4%)로 적금과 같다. 서버 구현은 아직 없고(finlife 정기예금 수집·계산은 #140) 파킹·CMA 계약은 이 PR에 없다(#144·#145). 화면은 11/2까지 예시 데이터(`VITE_LUMP_SAMPLE`)를 쓴다 — 영향: 프론트(`npm run gen:api`)·백엔드(구현 전까지 `ContractTest` 변화 없음)
 
 ## 2026-10-30

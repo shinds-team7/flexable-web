@@ -1705,6 +1705,234 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/deposit/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 조건에 맞는 정기예금 목록과 세후 이자(서버 계산). 금리가 없는 상품은 noRateCount로만 센다
+         * @description - 맡기는 돈(amount)을 termMonths 동안 두었을 때의 기본금리 기준 결과를 상품마다 계산한다. 우대조건은 계산에 넣지 않는다.
+         *     - 가입 한도(maxLimit)보다 많이 맡기면 한도까지만 계산하고 넘는 돈은 excludedAmount에 담는다.
+         *     - interestType을 주면 그 방식(단리·월복리) 상품만, 비우면 모두 보인다. 상품마다 공시된 방식으로 계산한다.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description 맡기는 돈(원) */
+                    amount: number;
+                    termMonths: number;
+                    sort?: "BASE_RATE" | "MAX_RATE" | "TERM";
+                    direction?: "ASC" | "DESC";
+                    interestType?: components["schemas"]["InterestType"];
+                    /** @description 쉼표 구분 */
+                    sectors?: string;
+                    /** @description 쉼표 구분 금융회사 이름. 비우면 전체 */
+                    companies?: string;
+                    page?: number;
+                    size?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 정기예금 목록(items는 요청한 쪽만, total·min·max는 조건 전체 기준) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "items": [
+                         *         {
+                         *           "id": "1",
+                         *           "company": "예시은행",
+                         *           "name": "예시 정기예금",
+                         *           "sector": "BANK",
+                         *           "baseRate": 3.5,
+                         *           "maxRate": 3.9,
+                         *           "termMonths": 12,
+                         *           "interestType": "SIMPLE",
+                         *           "disclosureMonth": "2026-10",
+                         *           "maxLimit": null,
+                         *           "joinMember": "실명의 개인",
+                         *           "joinDeny": "제한 없음",
+                         *           "openToAll": true,
+                         *           "disclosureUrl": "https://finlife.fss.or.kr",
+                         *           "dataAsOf": "2026-10-31",
+                         *           "result": {
+                         *             "principal": 10000000,
+                         *             "interestPreTax": 350000,
+                         *             "tax": 53900,
+                         *             "interestAfterTax": 296100,
+                         *             "maturityAmount": 10296100,
+                         *             "excludedAmount": 0,
+                         *             "rateBasis": "BASE"
+                         *           }
+                         *         }
+                         *       ],
+                         *       "total": 1,
+                         *       "page": 1,
+                         *       "size": 10,
+                         *       "minInterestAfterTax": 296100,
+                         *       "maxInterestAfterTax": 296100,
+                         *       "noRateCount": 0,
+                         *       "disclosureMonth": "2026-10",
+                         *       "dataAsOf": "2026-10-31",
+                         *       "notice": "공시 금리로 계산한 추정이에요. 은행 계산과 조금 다를 수 있고 우대조건은 직접 확인해야 해요.",
+                         *       "isSample": true
+                         *     }
+                         */
+                        "application/json": components["schemas"]["DepositProductList"];
+                    };
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deposit/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 정기예금 공시가 있는 금융회사(가나다순) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 금융회사 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            name: string;
+                            sector: components["schemas"]["SavingsSector"];
+                        }[];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deposit/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 상품 상세(그 기간·이자 방식의 가장 높은 기본금리 줄) */
+        get: {
+            parameters: {
+                query: {
+                    termMonths: number;
+                    interestType?: components["schemas"]["InterestType"];
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 상품 상세 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DepositProductDetail"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deposit/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 한 상품의 만기 계산과 달마다 쌓인 이자(서버 계산, 세금 15.4% 내림) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        productId: string;
+                        /** Format: int64 */
+                        amount: number;
+                        termMonths: number;
+                        interestType: components["schemas"]["InterestType"];
+                        rateBasis: components["schemas"]["RateBasis"];
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DepositSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/youth-news": {
         parameters: {
             query?: never;
@@ -2724,6 +2952,131 @@ export interface components {
             excludedAmount: number;
             rateBasis: components["schemas"]["RateBasis"];
             /** @description 1개월부터 termMonths까지 달마다 넣은 돈과 쌓인 세전 이자 */
+            series: {
+                month: number;
+                /** Format: int64 */
+                principal: number;
+                /** Format: int64 */
+                interestPreTax: number;
+            }[];
+            assumptions: string[];
+            notice: string;
+            isSample: boolean;
+        };
+        /**
+         * @description SIMPLE 단리, COMPOUND 월복리
+         * @enum {string}
+         */
+        InterestType: "SIMPLE" | "COMPOUND";
+        DepositResult: {
+            /**
+             * Format: int64
+             * @description 넣은 돈(가입 한도 안)
+             */
+            principal: number;
+            /** Format: int64 */
+            interestPreTax: number;
+            /**
+             * Format: int64
+             * @description floor(세전 이자 × 0.154)
+             */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /**
+             * Format: int64
+             * @description 원금 + 세후 이자
+             */
+            maturityAmount: number;
+            /**
+             * Format: int64
+             * @description 가입 한도를 넘어 넣지 못한 돈
+             */
+            excludedAmount: number;
+            rateBasis: components["schemas"]["RateBasis"];
+        };
+        DepositProduct: {
+            id: string;
+            company: string;
+            name: string;
+            sector: components["schemas"]["SavingsSector"];
+            /** @description 연 % */
+            baseRate: number;
+            /** @description 연 %, 우대 포함. 공시가 없거나 기본보다 낮으면 기본금리 */
+            maxRate: number;
+            termMonths: number;
+            interestType: components["schemas"]["InterestType"];
+            /** @description YYYY-MM */
+            disclosureMonth: string;
+            /**
+             * Format: int64
+             * @description 가입 한도(원). 없으면 null
+             */
+            maxLimit: number | null;
+            joinMember: string;
+            /** @enum {string} */
+            joinDeny: "제한 없음" | "서민 전용" | "일부 제한" | "확인 필요";
+            openToAll: boolean | null;
+            disclosureUrl: string;
+            /** Format: date */
+            dataAsOf: string;
+            result: components["schemas"]["DepositResult"];
+        };
+        /** @description DepositProduct에서 result 대신 우대조건 원문 */
+        DepositProductDetail: {
+            id: string;
+            company: string;
+            name: string;
+            sector: components["schemas"]["SavingsSector"];
+            baseRate: number;
+            maxRate: number;
+            termMonths: number;
+            interestType: components["schemas"]["InterestType"];
+            disclosureMonth: string;
+            /** Format: int64 */
+            maxLimit: number | null;
+            joinMember: string;
+            /** @enum {string} */
+            joinDeny: "제한 없음" | "서민 전용" | "일부 제한" | "확인 필요";
+            openToAll: boolean | null;
+            disclosureUrl: string;
+            /** Format: date */
+            dataAsOf: string;
+            specialConditionText: string;
+        };
+        DepositProductList: {
+            items: components["schemas"]["DepositProduct"][];
+            total: number;
+            page: number;
+            size: number;
+            /** Format: int64 */
+            minInterestAfterTax: number | null;
+            /** Format: int64 */
+            maxInterestAfterTax: number | null;
+            /** @description 조건에 맞지만 기본금리가 없어 뺀 상품 수 */
+            noRateCount: number;
+            /** @description YYYY-MM. 상품이 없으면 빈 문자열 */
+            disclosureMonth: string;
+            /** Format: date */
+            dataAsOf: string;
+            notice: string;
+            isSample: boolean;
+        };
+        DepositSimulation: {
+            /** Format: int64 */
+            principal: number;
+            /** Format: int64 */
+            interestPreTax: number;
+            /** Format: int64 */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** Format: int64 */
+            maturityAmount: number;
+            /** Format: int64 */
+            excludedAmount: number;
+            rateBasis: components["schemas"]["RateBasis"];
+            /** @description 1개월부터 termMonths까지 달마다 쌓인 세전 이자(넣은 돈은 처음부터 같다) */
             series: {
                 month: number;
                 /** Format: int64 */

@@ -1,7 +1,8 @@
 // 정기예금·파킹통장·CMA 비교 데이터(지금 가입하면). 세 가지가 같은 모양이라 kind로 경로만 바꾼다(`/deposit/*`·`/parking/*`·`/cma/*`).
 // 정기예금 기준 설명: 적금(`savings.ts`)과 같은 모양이다. 목돈을 한 번에 넣고 기간 동안 두는 상품이라 매달 넣는 돈 대신 `amount`를 쓰고 적립 방식(reserveType)이 없다.
 // 웹 백엔드 `/api/v1/deposit/*`가 로컬 DB(finlife 정기예금 공시 복사본)에서 읽어 계산한 값을 그대로 쓴다(ADR-3, 화면은 다시 계산하지 않는다).
-// TODO(BE): 이 API는 아직 서버에 없다. 계약 초안과 구현 범위는 예금 비교 Issue·docs/product/HANDOFF.md에 있다. 계약(web-api.yaml)이 승인되면 `npm run gen:api` 타입으로 아래 타입을 대조한다(src/lib/contractChecks.ts).
+// 정기예금(`/deposit/*`)은 계약(web-api.yaml)에 있고 타입을 src/lib/contractChecks.ts가 대조한다. 서버 구현은 #140이다.
+// TODO(BE): 파킹·CMA(`/parking/*`·`/cma/*`)는 계약이 아직 없다(#144·#145). 전용 필드(category·depositProtected·rateLimit)는 그때 확정한다.
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { sampleCompanies, sampleDetail, sampleList, sampleSimulate } from '@/data/depositSample';
 import { api } from '@/lib/api';
@@ -94,12 +95,18 @@ async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<Depo
   if (q.interestType) qs.set('interestType', q.interestType);
   if (q.companies.length > 0) qs.set('companies', q.companies.join(','));
   if (q.categories.length > 0) qs.set('categories', q.categories.join(','));
-  return api<DepositProductList>(`/${kind}/products?${qs}`);
+  const res = await api<DepositProductList>(`/${kind}/products?${qs}`);
+  return kind === 'deposit' ? { ...res, items: res.items.map(withLumpFields) } : res;
 }
+
+// 정기예금 계약에는 파킹·CMA 전용 필드가 없어서 화면 타입에 맞춰 null로 채운다
+const withLumpFields = (p: DepositProduct): DepositProduct => ({ ...p, category: p.category ?? null, depositProtected: p.depositProtected ?? null, rateLimit: p.rateLimit ?? null });
+const withLumpDetail = (p: DepositProductDetail): DepositProductDetail => ({ ...p, category: p.category ?? null, depositProtected: p.depositProtected ?? null, rateLimit: p.rateLimit ?? null });
 
 async function fetchProduct(kind: LumpKind, id: string, termMonths: SavingsTerm, interestType: InterestType): Promise<DepositProductDetail> {
   if (USE_SAMPLE) return later(() => sampleDetail(kind, id, termMonths));
-  return api<DepositProductDetail>(`/${kind}/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
+  const res = await api<DepositProductDetail>(`/${kind}/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
+  return kind === 'deposit' ? withLumpDetail(res) : res;
 }
 
 async function simulate(kind: LumpKind, q: DepositSimulateRequest): Promise<DepositSimulation> {

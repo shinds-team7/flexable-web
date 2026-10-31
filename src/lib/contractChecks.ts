@@ -7,6 +7,7 @@ import type { SeedMoneyResponse } from '@/data/home';
 import type { BoardListing, EventDetail, EventNews, IndexStrip, IndustryListing, PriceEvents, PriceSeries } from '@/data/market';
 import type { YouthNews } from '@/data/news';
 import type { CategoryResponse, Started } from '@/data/practice';
+import type { DepositProduct, DepositProductDetail, DepositProductList, DepositSimulateRequest, DepositSimulation } from '@/data/deposit';
 import type { SavingsProduct, SavingsProductDetail, SavingsProductList, SavingsSimulateRequest, SavingsSimulation } from '@/data/savings';
 import type { components, paths } from './api-schema';
 
@@ -22,6 +23,8 @@ type Expect<T extends true> = T;
 type Reads<Contract extends Screen, Screen> = [Contract, Screen];
 /** 화면 타입이 계약에 들어간다: 판별 유니언처럼 화면 타입이 더 좁을 때. 필드가 빠지거나 이름이 바뀌면 실패한다 */
 type Narrows<Screen extends Contract, Contract> = [Screen, Contract];
+
+type LumpOnly = 'category' | 'depositProtected' | 'rateLimit';
 
 export type ContractChecks = [
   // 시드머니·앱 연동
@@ -52,4 +55,10 @@ export type ContractChecks = [
   Reads<S['SavingsProductList'], SavingsProductList>,
   Expect<Mutual<SavingsSimulation, S['SavingsSimulation']>>,
   Narrows<SavingsSimulateRequest, Body<'/savings/simulate', 'post'>>,
+  // 정기예금. 파킹·CMA 전용 필드(category·depositProtected·rateLimit)는 정기예금 계약에 없어 빼고 대조한다
+  Reads<S['DepositProduct'], Omit<DepositProduct, LumpOnly>>,
+  Reads<S['DepositProductDetail'], Omit<DepositProductDetail, LumpOnly>>,
+  Reads<Omit<S['DepositProductList'], 'items'> & { items: S['DepositProduct'][] }, Omit<DepositProductList, 'items'> & { items: Omit<DepositProduct, LumpOnly>[] }>,
+  Expect<Mutual<DepositSimulation, S['DepositSimulation']>>,
+  Narrows<DepositSimulateRequest, Body<'/deposit/simulate', 'post'>>,
 ];

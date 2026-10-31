@@ -16,6 +16,7 @@ import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
 import Privacy from '@/pages/Privacy';
+import { Cma, Deposit, Parking } from '@/pages/LumpSum';
 import Savings from '@/pages/Savings';
 import Signup from '@/pages/Signup';
 
@@ -37,7 +38,9 @@ export const router = createBrowserRouter([
       { path: '/invest', element: <Invest /> },
       { path: '/simulation', element: <Simulation /> },
       { path: '/savings', element: <Savings /> },
-      { path: '/deposit', element: <Placeholder title="예금" desc="예금 상품 비교" wireframe="예적금 모아보기" /> },
+      { path: '/deposit', element: <Deposit /> },
+      { path: '/parking', element: <Parking /> },
+      { path: '/cma', element: <Cma /> },
       { path: '/mix', element: <Placeholder title="섞어보기" desc="배분 · 비교 · 프리셋 저장 · 공유" wireframe="섞어보기" /> },
       // 예전 경로(하위 탭 시절) 호환
       { path: '/lab/stocks', element: <Navigate to="/invest" replace /> },

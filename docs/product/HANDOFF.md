@@ -43,6 +43,8 @@
 | 우선 | 작업·담당 | 완료 조건 |
 |---|---|---|
 | 1 | [#113 F2 청년미래적금](https://github.com/shinds-team7/flexable-web/issues/113) / 미정 | 공식 계산 규칙·입력·검산 근거 → 정책 fixture·계약 승인 → 서버 계산·화면 연결. 현재 `UNVERIFIED` 고정 예시이며 일반 적금 완료와 구분 |
+| 1 | [#140 예금 비교 API·수집·계산](https://github.com/shinds-team7/flexable-web/issues/140) / 미정 | 계약·계산 정책 승인(spec-change) → finlife 정기예금 수집·Flyway·계산·`/deposit/*` API 구현 → 화면에 실데이터 연결. 화면(`/deposit`)은 구현됐으나 서버 API가 없어 데이터가 나오지 않는다 |
+| 1 | [#143 파킹·CMA 범위 결정, 비교 필터·로고](https://github.com/shinds-team7/flexable-web/issues/143) → API는 [#144 파킹](https://github.com/shinds-team7/flexable-web/issues/144)·[#145 CMA](https://github.com/shinds-team7/flexable-web/issues/145) / 리드 결정·담당 미정 | PRD 밖 범위 결정, CMA 금리 숫자 표시 가능 여부(제안 문서와 충돌), 데이터 출처 확인 → 계약·수집·API. 화면(`/parking`·`/cma`)은 구현됐으나 데이터가 없다 |
 | 1 | [#114 F3 조합·프리셋](https://github.com/shinds-team7/flexable-web/issues/114) / 리드 결정·담당 미정 | Must 유지·축소·연기, 담당·일정·시연 흐름 확정. 결정 전 조합 2개·프리셋 3개 Must 유지. `/type`·`/diversify`·F7 시연으로 대체 완료 처리하지 않음 |
 | 1 | [#115 F7 개편](https://github.com/shinds-team7/flexable-web/issues/115) / 미정 | 방향·고정 예시 시연은 #126으로 반영. 시작 자산 출처·성향 전달·상품 자료·배분 제한·확률 정의·계산 모형·Spring↔AI 서버 계약·MVP·일정 확정 후 구현. FastAPI는 후보이며 AI 서버 미구축 |
 | 2 | #120·#122·#128 남은 운영 화면 확인 / 운영 담당·rhkrqkq 협업 | 기존 외부 웹·health·지수/업종 수집·조회 완료 기록 유지. 실제 `/invest` 핀/뉴스/첫 방문 안내·AI 개요, 현재 배포 커밋·Flyway V17·개요 생성은 별도 확인. 네이버/Gemini 키는 사람이 운영 환경 변수에 입력, 공개 전 약관 원문 확인 |
@@ -162,6 +164,22 @@ F7 문서 변경 뒤 재확인: `npm.cmd run check:api`·`npm.cmd run typecheck`
 - [ ] 기여금 적립 시점·기여금 이자·금리 구조·중도해지 규칙과 가입일·납입일 등 입력을 공식 근거로 확정한다. Issue의 가설을 확정 정책으로 쓰지 않는다.
 - [ ] `policy_savings` 정책·fixture·OpenAPI를 spec-change PR로 먼저 승인받는다.
 - [ ] 계약 병합 뒤 서버 계산·화면을 연결하고 월 78,000원·500,000원 일반/우대형을 검산한다. 근거·기준일·가정·추정 고지를 표시하고, 검증 전에는 `UNVERIFIED`를 유지한다.
+
+### 예금 비교 — #140 / 담당 미정
+
+`/deposit`을 적금과 같은 구성(조건 바·상품 표·상세·비교 카드)으로 구현했다. 화면은 `src/pages/Deposit.tsx`, 데이터 계층은 `src/data/deposit.ts`, 적금과 같이 쓰는 부품은 `src/components/ProductCompareParts.tsx`다. **서버에 예금 API가 없어 지금은 오류 카드가 보인다.** 계약 변경이라 구현 전에 승인이 필요하다(AGENTS.md).
+
+- [ ] 계약 초안 spec-change PR: `GET /deposit/products`·`/deposit/companies`·`/deposit/products/{id}`·`POST /deposit/simulate`(응답 모양은 `src/data/deposit.ts`, 적금과 다른 점은 `amount`·`interestType`).
+- [ ] finlife `depositProductsSearch.json` 수집·Flyway 마이그레이션·`SavingsSnapshotJob` 연결(옵션에 `rsrv_type` 없음, `intr_rate_type` S/M).
+- [ ] 예금 계산기(일시 지급 단리·월복리, 세금 15.4% 내림, 가입 한도)와 정책 fixture·`tests/policy` 승인.
+- [ ] **사람이 할 일**: 계산식·복리 가정 확정, 운영 `FINLIFE_API_KEY` 호출 한도 확인, 배포 뒤 실제 화면 확인.
+- [ ] 계약 병합 뒤 `npm run gen:api`로 타입을 맞추고 `contractChecks.ts`에 예금 타입 대조를 더한다.
+- 화면 구성(10-31 레퍼런스 반영, #141): 맨 위 예금·적금·파킹·CMA 탭 → 금융권·대표 은행 가로 줄 + 맨 끝 [상세 필터](전체 은행 선택창, 은행·저축은행 탭·가나다 찾기) → 조건 칩(기간·금액·이자 방식 등)과 고른 조건 줄 → 은행 아이콘이 붙은 상품 줄(최고금리 파랑 큰 글씨). 적금 화면(`Savings.tsx`)도 같은 구성으로 바꿨다. 공용 부품은 `src/components/`의 `ProductTabs`·`BankStrip`·`CompareFilters`·`ProductRow`·`BankBadge`, 스타일은 `src/styles/compare.css`, 예금·파킹·CMA 화면은 `src/pages/LumpSum.tsx`다.
+- 상품 가이드: 예금·적금·파킹·CMA 화면에 처음 들어오면 설명 창이 한 번 뜨고, 상단 카드 우측 상단 [?]로 다시 연다(`ProductGuide.tsx`). 본 적이 있는지는 브라우저 `fx.guide.*`에만 남긴다(`privacy-web.md` 반영, 방침 본문은 기존 "첫 화면 안내 표시 여부"로 포함). 설명 문구는 일반 설명이라 리드 검수가 필요하다.
+- 은행 아이콘은 로고 이미지가 아니라 이름에서 뽑은 글자 아이콘이다(상표). 로고 파일은 사람이 사용 허락을 받아 `BankBadge.tsx`의 `LOGOS`에 넣는다.
+- 레퍼런스의 상품 유형·우대조건 필터는 목록 API에 가입 방식·우대조건 분류가 없어 넣지 못했다(#143).
+- 비교 칸: 예금은 적금과 같은 로직(세후 이자 막대 + 기간별 이자선)이다. 파킹·CMA는 같은 그래프를 "1년 기준 추정"으로 쓰고, 금리만으로 비교되지 않는 조건(우대 한도·상품 종류·예금자보호·가입 한도)을 "조건 비교" 표로 나란히 놓는다. 파킹·CMA 전용 필드(`rateLimit`·`category`·`depositProtected`)와 CMA 상품 종류 필터는 `deposit.ts`·`LumpSum.tsx`에 제안 형태로 들어 있고 #144·#145에서 확정한다.
+- 파킹·CMA는 #143에서 범위·출처를 결정하기 전까지 API가 없다. 화면 검증 상태: 임시 목 서버로 1280px에서 `/deposit`·`/savings`·`/cma`와 은행 선택창·기간·금액 패널의 렌더링·조작을 확인했다. 390px·다크·키보드·실데이터는 확인하지 못했다.
 
 ### 청년 소식 자동 게시·AI 요약 후속 — #48(#93 머지) / seon00
 

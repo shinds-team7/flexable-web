@@ -18,6 +18,14 @@ export function IconSprite() {
         <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.4" />
         <path d="M8 7v4.5M8 4.6v.1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </symbol>
+      <symbol id="i-sliders" viewBox="0 0 16 16">
+        <path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <circle cx="10.5" cy="4.5" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="5.5" cy="11.5" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 16 16">
+        <path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75M13.4 2.6v2.7h-2.7" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </symbol>
       <symbol id="i-search" viewBox="0 0 16 16">
         <circle cx="7" cy="7" r="4.8" fill="none" stroke="currentColor" strokeWidth="1.6" />
         <path d="M10.6 10.6L14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />

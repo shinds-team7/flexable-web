@@ -30,6 +30,8 @@ const NAV: NavItem[] = [
     sub: [
       { to: '/deposit', label: '예금' },
       { to: '/savings', label: '적금' },
+      { to: '/parking', label: '파킹' },
+      { to: '/cma', label: 'CMA' },
     ],
   },
   { to: '/goal', label: 'AI 계획' },

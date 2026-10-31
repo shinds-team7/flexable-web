@@ -1,5 +1,5 @@
 // 예금·파킹·CMA 예시 데이터. 서버 API(#140·#144·#145)가 나오기 전까지 화면을 채우는 용도다. 실제 상품·금리가 아니다.
-// 모든 응답에 isSample=true와 "예시" 안내를 달고, API가 연결되면(VITE_LUMP_SAMPLE=false) 이 파일은 쓰지 않으므로 지운다.
+// 모든 응답에 isSample=true와 "예시" 안내를 달고, API가 연결되면(VITE_LUMP_SAMPLE에서 그 종류를 뺀다) 이 파일은 쓰지 않으므로 지운다.
 // ADR-3(계산은 서버)의 임시 예외: 조건을 바꿔 가며 보는 화면이라 미리 계산한 값을 둘 수 없어, 같은 계산 규칙(원 단위 내림, 세금 floor(세전 × 15.4%))을 여기서 한다.
 // 회사 이름은 대표 은행 줄·은행 선택창을 시연하려고 실제 금융회사 이름을 쓰지만 상품 이름·금리·한도는 모두 꾸며 낸 값이다.
 import type { DepositPoint, DepositProduct, DepositProductDetail, DepositProductList, DepositListParams, DepositSimulateRequest, DepositSimulation, LumpKind } from '@/data/deposit';

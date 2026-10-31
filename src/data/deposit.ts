@@ -77,12 +77,19 @@ export type DepositSimulateRequest = { productId: string; amount: number; termMo
 export type DepositPoint = { month: number; principal: number; interestPreTax: number };
 export type DepositSimulation = DepositResult & { series: DepositPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
-// 서버 API(#140·#144·#145)가 나오기 전까지 예시 데이터를 보여 준다. API가 연결되면 환경 변수 VITE_LUMP_SAMPLE=false로 끈다.
-const USE_SAMPLE = import.meta.env.VITE_LUMP_SAMPLE !== 'false';
+// 서버 API(#140·#144·#145)가 나오기 전까지 예시 데이터를 보여 준다. 환경 변수 VITE_LUMP_SAMPLE로 정한다:
+// 비움·true = 모두 예시, false = 모두 실제 API, 'parking,cma'처럼 종류를 적으면 그 종류만 예시(나머지는 실제 API).
+const SAMPLE_KINDS: LumpKind[] = (() => {
+  const v = String(import.meta.env.VITE_LUMP_SAMPLE ?? '').trim();
+  if (v === 'false') return [];
+  const listed = v.split(',').map((x) => x.trim()).filter((x): x is LumpKind => x === 'deposit' || x === 'parking' || x === 'cma');
+  return listed.length > 0 ? listed : ['deposit', 'parking', 'cma'];
+})();
+const useSample = (kind: LumpKind) => SAMPLE_KINDS.includes(kind);
 const later = <T,>(v: () => T) => new Promise<T>((resolve, reject) => setTimeout(() => { try { resolve(v()); } catch (e) { reject(e); } }, 150));
 
 async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<DepositProductList> {
-  if (USE_SAMPLE) return later(() => sampleList(kind, q));
+  if (useSample(kind)) return later(() => sampleList(kind, q));
   const qs = new URLSearchParams({
     amount: String(q.amount),
     termMonths: String(q.termMonths),
@@ -104,20 +111,20 @@ const withLumpFields = (p: DepositProduct): DepositProduct => ({ ...p, category:
 const withLumpDetail = (p: DepositProductDetail): DepositProductDetail => ({ ...p, category: p.category ?? null, depositProtected: p.depositProtected ?? null, rateLimit: p.rateLimit ?? null });
 
 async function fetchProduct(kind: LumpKind, id: string, termMonths: SavingsTerm, interestType: InterestType): Promise<DepositProductDetail> {
-  if (USE_SAMPLE) return later(() => sampleDetail(kind, id, termMonths));
+  if (useSample(kind)) return later(() => sampleDetail(kind, id, termMonths));
   const res = await api<DepositProductDetail>(`/${kind}/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
   return kind === 'deposit' ? withLumpDetail(res) : res;
 }
 
 async function simulate(kind: LumpKind, q: DepositSimulateRequest): Promise<DepositSimulation> {
-  if (USE_SAMPLE) return later(() => sampleSimulate(kind, q));
+  if (useSample(kind)) return later(() => sampleSimulate(kind, q));
   return api<DepositSimulation>(`/${kind}/simulate`, { method: 'POST', json: q });
 }
 
 export const useDepositProducts = (kind: LumpKind, q: DepositListParams, enabled = true) =>
   useQuery({ queryKey: [kind, 'products', q], queryFn: () => fetchProducts(kind, q), staleTime: 5 * 60_000, enabled });
 export const useDepositCompanies = (kind: LumpKind) =>
-  useQuery({ queryKey: [kind, 'companies'], queryFn: () => (USE_SAMPLE ? later(() => sampleCompanies(kind)) : api<SavingsCompany[]>(`/${kind}/companies`)), staleTime: 60 * 60_000 });
+  useQuery({ queryKey: [kind, 'companies'], queryFn: () => (useSample(kind) ? later(() => sampleCompanies(kind)) : api<SavingsCompany[]>(`/${kind}/companies`)), staleTime: 60 * 60_000 });
 export const useDepositProduct = (kind: LumpKind, id: string | null, termMonths: SavingsTerm, interestType: InterestType) =>
   useQuery({ queryKey: [kind, 'product', id, termMonths, interestType], queryFn: () => fetchProduct(kind, id!, termMonths, interestType), enabled: id !== null });
 export const useDepositSimulation = (kind: LumpKind, q: DepositSimulateRequest | null) =>

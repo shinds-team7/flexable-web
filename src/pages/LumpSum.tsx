@@ -54,7 +54,7 @@ const KINDS: Record<LumpKind, Kind> = {
     byTerm: false,
     strip: 'broker',
     categories: ['RP형', 'MMF형', '종금형', '발행어음형'],
-    caution: 'CMA는 증권사 상품이라 상품에 따라 예금자보호 대상이 아닐 수 있어요. 상품 설명서에서 꼭 확인해 주세요.',
+    caution: 'CMA 수익률은 지난 실적 기준이에요. 운용 결과에 따라 달라지는 확정 금리가 아니에요. 상품에 따라 예금자보호 대상이 아닐 수 있으니 상품 설명서에서 꼭 확인해 주세요.',
   },
 };
 

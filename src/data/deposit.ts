@@ -1,9 +1,12 @@
-// 정기예금 비교 데이터(지금 가입하면). 적금(`savings.ts`)과 같은 모양이다. 목돈을 한 번에 넣고 기간 동안 두는 상품이라 매달 넣는 돈 대신 `amount`를 쓰고 적립 방식(reserveType)이 없다.
+// 정기예금·파킹통장·CMA 비교 데이터(지금 가입하면). 세 가지가 같은 모양이라 kind로 경로만 바꾼다(`/deposit/*`·`/parking/*`·`/cma/*`).
+// 정기예금 기준 설명: 적금(`savings.ts`)과 같은 모양이다. 목돈을 한 번에 넣고 기간 동안 두는 상품이라 매달 넣는 돈 대신 `amount`를 쓰고 적립 방식(reserveType)이 없다.
 // 웹 백엔드 `/api/v1/deposit/*`가 로컬 DB(finlife 정기예금 공시 복사본)에서 읽어 계산한 값을 그대로 쓴다(ADR-3, 화면은 다시 계산하지 않는다).
 // TODO(BE): 이 API는 아직 서버에 없다. 계약 초안과 구현 범위는 예금 비교 Issue·docs/product/HANDOFF.md에 있다. 계약(web-api.yaml)이 승인되면 `npm run gen:api` 타입으로 아래 타입을 대조한다(src/lib/contractChecks.ts).
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { InterestType, RateBasis, SavingsCompany, SavingsSort, SavingsTerm, Sector, SortDirection } from '@/data/savings';
+
+export type LumpKind = 'deposit' | 'parking' | 'cma';
 
 export type DepositResult = {
   principal: number; // 넣은 돈(가입 한도 안)
@@ -67,7 +70,7 @@ export type DepositSimulateRequest = { productId: string; amount: number; termMo
 export type DepositPoint = { month: number; principal: number; interestPreTax: number };
 export type DepositSimulation = DepositResult & { series: DepositPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
-async function fetchProducts(q: DepositListParams): Promise<DepositProductList> {
+async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<DepositProductList> {
   const qs = new URLSearchParams({
     amount: String(q.amount),
     termMonths: String(q.termMonths),
@@ -79,25 +82,25 @@ async function fetchProducts(q: DepositListParams): Promise<DepositProductList> 
   });
   if (q.interestType) qs.set('interestType', q.interestType);
   if (q.companies.length > 0) qs.set('companies', q.companies.join(','));
-  return api<DepositProductList>(`/deposit/products?${qs}`);
+  return api<DepositProductList>(`/${kind}/products?${qs}`);
 }
 
-async function fetchProduct(id: string, termMonths: SavingsTerm, interestType: InterestType): Promise<DepositProductDetail> {
-  return api<DepositProductDetail>(`/deposit/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
+async function fetchProduct(kind: LumpKind, id: string, termMonths: SavingsTerm, interestType: InterestType): Promise<DepositProductDetail> {
+  return api<DepositProductDetail>(`/${kind}/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
 }
 
-async function simulate(q: DepositSimulateRequest): Promise<DepositSimulation> {
-  return api<DepositSimulation>('/deposit/simulate', { method: 'POST', json: q });
+async function simulate(kind: LumpKind, q: DepositSimulateRequest): Promise<DepositSimulation> {
+  return api<DepositSimulation>(`/${kind}/simulate`, { method: 'POST', json: q });
 }
 
-export const useDepositProducts = (q: DepositListParams, enabled = true) =>
-  useQuery({ queryKey: ['deposit', 'products', q], queryFn: () => fetchProducts(q), staleTime: 5 * 60_000, enabled });
-export const useDepositCompanies = () =>
-  useQuery({ queryKey: ['deposit', 'companies'], queryFn: () => api<SavingsCompany[]>('/deposit/companies'), staleTime: 60 * 60_000 });
-export const useDepositProduct = (id: string | null, termMonths: SavingsTerm, interestType: InterestType) =>
-  useQuery({ queryKey: ['deposit', 'product', id, termMonths, interestType], queryFn: () => fetchProduct(id!, termMonths, interestType), enabled: id !== null });
-export const useDepositSimulation = (q: DepositSimulateRequest | null) =>
-  useQuery({ queryKey: ['deposit', 'simulate', q], queryFn: () => simulate(q!), enabled: q !== null });
+export const useDepositProducts = (kind: LumpKind, q: DepositListParams, enabled = true) =>
+  useQuery({ queryKey: [kind, 'products', q], queryFn: () => fetchProducts(kind, q), staleTime: 5 * 60_000, enabled });
+export const useDepositCompanies = (kind: LumpKind) =>
+  useQuery({ queryKey: [kind, 'companies'], queryFn: () => api<SavingsCompany[]>(`/${kind}/companies`), staleTime: 60 * 60_000 });
+export const useDepositProduct = (kind: LumpKind, id: string | null, termMonths: SavingsTerm, interestType: InterestType) =>
+  useQuery({ queryKey: [kind, 'product', id, termMonths, interestType], queryFn: () => fetchProduct(kind, id!, termMonths, interestType), enabled: id !== null });
+export const useDepositSimulation = (kind: LumpKind, q: DepositSimulateRequest | null) =>
+  useQuery({ queryKey: [kind, 'simulate', q], queryFn: () => simulate(kind, q!), enabled: q !== null });
 /** 고른 상품마다 기본금리 계산 결과(기간 선 포함). 상품 순서대로 돌려준다. */
-export const useDepositSimulations = (reqs: DepositSimulateRequest[]) =>
-  useQueries({ queries: reqs.map((q) => ({ queryKey: ['deposit', 'simulate', q], queryFn: () => simulate(q) })) });
+export const useDepositSimulations = (kind: LumpKind, reqs: DepositSimulateRequest[]) =>
+  useQueries({ queries: reqs.map((q) => ({ queryKey: [kind, 'simulate', q], queryFn: () => simulate(kind, q) })) });

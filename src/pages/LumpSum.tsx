@@ -1,11 +1,16 @@
-// 예금 비교(지금 가입하면): 조건 바 · 상품 표 · 고른 상품 비교 칸. 적금 비교(Savings.tsx)와 같은 구성이다.
-// 적금과 다른 점: 매달 넣는 돈 대신 처음에 한 번 넣는 돈(amount)을 받고, 적립 방식 대신 단리·복리를 거른다. 정책 상품 탭은 없다.
+// 목돈 비교(지금 가입하면): 예금·파킹·CMA 세 화면이 같이 쓰는 구성. 위에서부터 종류 탭 · 금융권/대표 은행 줄(맨 끝 [상세 필터]) · 조건 칩 · 상품 줄 목록 · 고른 상품 비교 칸.
+// 적금 비교(Savings.tsx)와 같은 모양이다. 적금과 다른 점: 매달 넣는 돈 대신 처음에 한 번 넣는 돈(amount)을 받고, 적립 방식 대신 단리·복리를 거른다.
 // 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6). 금액은 모두 서버 결과를 그대로 그린다(ADR-3).
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '@/auth/session';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
+import { shortBankName } from '@/components/BankBadge';
+import { BankStrip } from '@/components/BankStrip';
+import { AmountInput, FilterChips, SelectedBar, TermTrack } from '@/components/CompareFilters';
 import { Icon } from '@/components/Icons';
-import { CompanyPicker, ErrorCard, Loading, Notice, ScrollTopButton } from '@/components/ProductCompareParts';
+import { ProductRow } from '@/components/ProductRow';
+import { ErrorCard, Loading, Notice, ScrollTopButton } from '@/components/ProductCompareParts';
+import { ProductTabs } from '@/components/ProductTabs';
 import {
   useDepositCompanies,
   useDepositProduct,
@@ -13,11 +18,51 @@ import {
   useDepositSimulation,
   useDepositSimulations,
   type DepositProduct,
+  type LumpKind,
 } from '@/data/deposit';
 import { useSubscription } from '@/data/plans';
 import type { InterestType, SavingsSort, SavingsTerm, Sector } from '@/data/savings';
 import { errorText } from '@/lib/api';
 import { won } from '@/lib/format';
+
+type Kind = {
+  noun: string;
+  title: string;
+  desc: string;
+  amountLabel: string;
+  byTerm: boolean; // 기간을 고르는 상품인지(정기예금). 파킹·CMA는 정해진 기간이 없어 1년 기준으로 본다
+  strip: 'bank' | 'broker';
+  caution?: string;
+};
+
+const KINDS: Record<LumpKind, Kind> = {
+  deposit: {
+    noun: '예금',
+    title: '예금 비교',
+    desc: '같은 돈을 지금 예금에 맡기면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요.',
+    amountLabel: '맡길 돈',
+    byTerm: true,
+    strip: 'bank',
+  },
+  parking: {
+    noun: '파킹통장',
+    title: '파킹통장 비교',
+    desc: '넣고 빼기 자유로운 통장에 1년 동안 두면 이자가 얼마인지, 기본금리·최고금리로 정렬해요.',
+    amountLabel: '넣어 둘 돈',
+    byTerm: false,
+    strip: 'bank',
+    caution: '파킹통장 금리는 언제든 바뀔 수 있고, 우대 한도를 넘는 돈에는 기본금리가 적용될 수 있어요.',
+  },
+  cma: {
+    noun: 'CMA',
+    title: 'CMA 비교',
+    desc: '증권사 CMA에 1년 동안 두면 이자가 얼마인지, 기본금리·최고금리로 정렬해요.',
+    amountLabel: '넣어 둘 돈',
+    byTerm: false,
+    strip: 'broker',
+    caution: 'CMA는 증권사 상품이라 상품에 따라 예금자보호 대상이 아닐 수 있어요. 상품 설명서에서 꼭 확인해 주세요.',
+  },
+};
 
 const TERMS: SavingsTerm[] = [6, 12, 24, 36];
 const SORTS: { s: SavingsSort; label: string }[] = [
@@ -25,18 +70,16 @@ const SORTS: { s: SavingsSort; label: string }[] = [
   { s: 'MAX_RATE', label: '최고금리 높은 순' },
   { s: 'TERM', label: '기간순' },
 ];
-const INTEREST: { v: InterestType | null; label: string }[] = [
-  { v: null, label: '전체' },
+const INTEREST: { v: InterestType; label: string }[] = [
   { v: 'SIMPLE', label: '단리' },
   { v: 'COMPOUND', label: '복리' },
 ];
-const PRESETS = [1_000_000, 5_000_000, 10_000_000];
+const QUICK = [1_000_000, 5_000_000, 10_000_000, 30_000_000];
 const DEFAULT_AMOUNT = 10_000_000;
 // TODO(BE): 비교 개수는 설정값(무료 2 / 플러스 5). GET /billing/plans의 limits로 바꾼다(적금과 같다)
 const COMPARE_LIMIT = { FREE: 2, PLUS: 5 };
-const SECTORS: Sector[] = ['BANK', 'SAVINGS_BANK'];
+const ALL: Sector[] = ['BANK', 'SAVINGS_BANK'];
 const ALL_SIZE = 1000; // 쪽 나누기 없이 전체를 한 번에 받는다
-const NOUN = '예금';
 
 const pct = (r: number) => r.toFixed(2) + '%';
 const ym = (s: string) => {
@@ -44,17 +87,12 @@ const ym = (s: string) => {
   return `${y}.${m}`;
 };
 const typeLabel = (t: InterestType) => (t === 'SIMPLE' ? '단리' : '월복리');
-/** 1만 원 단위로 내림. 1만 원보다 작으면 null. */
-const toTenThousand = (s: string) => {
-  const n = Math.floor(Number(s) / 10_000) * 10_000;
-  return Number.isFinite(n) && n > 0 ? n : null;
-};
 const manWon = (n: number) => (n % 10_000 === 0 ? `${won(n / 10_000)}만 원` : `${won(n)}원`);
 
 /** 표에서 상품 줄을 누르면 그 줄 아래에 펼쳐지는 상세. */
-function ProductDetail({ p: row, term, amount }: { p: DepositProduct; term: SavingsTerm; amount: number }) {
-  const detail = useDepositProduct(row.id, term, row.interestType);
-  const max = useDepositSimulation({ productId: row.id, amount, termMonths: term, interestType: row.interestType, rateBasis: 'MAX' });
+function ProductDetail({ kind, p: row, term, amount }: { kind: LumpKind; p: DepositProduct; term: SavingsTerm; amount: number }) {
+  const detail = useDepositProduct(kind, row.id, term, row.interestType);
+  const max = useDepositSimulation(kind, { productId: row.id, amount, termMonths: term, interestType: row.interestType, rateBasis: 'MAX' });
   const p = detail.data;
   return (
     <div className="sv-detail-body">
@@ -111,8 +149,9 @@ function ProductDetail({ p: row, term, amount }: { p: DepositProduct; term: Savi
 type Picked = { p: DepositProduct; slot: number }; // slot = 비교에 넣을 때 받은 색 칸. 다른 상품을 빼도 바뀌지 않는다
 
 /** 기간 동안 내 돈: 고른 상품마다 넣은 돈 위에 쌓이는 세전 이자 선(기본금리). 표로 보기면 달마다 표. */
-function MoneyOverTime({ picked, amount, term, asTable }: { picked: Picked[]; amount: number; term: SavingsTerm; asTable: boolean }) {
+function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind; picked: Picked[]; amount: number; term: SavingsTerm; asTable: boolean }) {
   const sims = useDepositSimulations(
+    kind,
     picked.map(({ p }) => ({ productId: p.id, amount, termMonths: term, interestType: p.interestType, rateBasis: 'BASE' as const })),
   );
   const failed = sims.find((q) => q.isError);
@@ -205,7 +244,7 @@ function MoneyOverTime({ picked, amount, term, asTable }: { picked: Picked[]; am
   );
 }
 
-function CompareCard({ picked, amount, term, limit }: { picked: Picked[]; amount: number; term: SavingsTerm; limit: number }) {
+function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; picked: Picked[]; amount: number; term: SavingsTerm; limit: number }) {
   const [asTable, setAsTable] = useState(false);
   const rows = [
     ...picked.map(({ p, slot }) => ({
@@ -285,32 +324,36 @@ function CompareCard({ picked, amount, term, limit }: { picked: Picked[]; amount
           </div>
         </>
       )}
-      {picked.length > 0 && <MoneyOverTime picked={picked} amount={amount} term={term} asTable={asTable} />}
+      {picked.length > 0 && <MoneyOverTime kind={kind} picked={picked} amount={amount} term={term} asTable={asTable} />}
     </div>
   );
 }
 
-function NowMode({ compareLimit }: { compareLimit: number }) {
-  const [preset, setPreset] = useState<number | 'manual'>(DEFAULT_AMOUNT);
-  const [draft, setDraft] = useState(String(DEFAULT_AMOUNT));
+
+function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number }) {
+  const k = KINDS[kind];
+  const [amount, setAmount] = useState(DEFAULT_AMOUNT);
   const [term, setTerm] = useState<SavingsTerm>(12);
   const [interestType, setInterestType] = useState<InterestType | null>(null);
+  const [sectors, setSectors] = useState<Sector[]>(['BANK']); // 비어 있으면 둘 다
   const [sort, setSort] = useState<SavingsSort>('BASE_RATE');
   const [companyNames, setCompanyNames] = useState<string[]>([]); // 비어 있으면 전체
   const [cmp, setCmp] = useState<Picked[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [lockMsg, setLockMsg] = useState('');
 
-  const companies = useDepositCompanies();
-  const amount = preset === 'manual' ? (toTenThousand(draft) ?? 0) : preset;
+  const companies = useDepositCompanies(kind);
+  // 은행 이름을 골랐으면 그 은행만 보이도록 금융권은 묻지 않는다
+  const effSectors = companyNames.length > 0 || sectors.length === 0 ? ALL : sectors;
   const list = useDepositProducts(
+    kind,
     {
       amount,
-      termMonths: term,
+      termMonths: k.byTerm ? term : 12,
       sort,
       direction: sort === 'TERM' ? 'ASC' : 'DESC',
       interestType,
-      sectors: SECTORS,
+      sectors: effSectors,
       companies: companyNames,
       page: 1,
       size: ALL_SIZE,
@@ -319,10 +362,12 @@ function NowMode({ compareLimit }: { compareLimit: number }) {
   );
   const items = list.data?.items ?? [];
   const total = list.data?.total ?? 0;
+  const calcTerm: SavingsTerm = k.byTerm ? term : 12;
 
   // 계산 조건이 바뀌면 비교 목록을 비운다(이전 조건으로 계산한 값이라서)
   const companyKey = companyNames.join('|');
-  useEffect(() => setCmp([]), [amount, term, interestType, companyKey]);
+  const sectorKey = effSectors.join('|');
+  useEffect(() => setCmp([]), [amount, calcTerm, interestType, companyKey, sectorKey]);
 
   const toggleCompare = (p: DepositProduct, on: boolean) => {
     setLockMsg('');
@@ -337,164 +382,128 @@ function NowMode({ compareLimit }: { compareLimit: number }) {
       return [...c, { p, slot }];
     });
   };
-  const toggleOpen = (id: string) => setOpenId(openId === id ? null : id);
   const reset = () => {
-    setPreset(DEFAULT_AMOUNT);
-    setDraft(String(DEFAULT_AMOUNT));
+    setAmount(DEFAULT_AMOUNT);
+    setTerm(12);
+    setInterestType(null);
+    setSectors(['BANK']);
+    setCompanyNames([]);
   };
+
+  const chips = [
+    {
+      id: 'amount',
+      label: k.byTerm ? '기간·금액' : '금액',
+      panel: (
+        <>
+          {k.byTerm && <TermTrack terms={TERMS} value={term} onChange={setTerm} />}
+          <div className="cf-quick" role="group" aria-label="자주 쓰는 금액">
+            {QUICK.map((v) => (
+              <button key={v} type="button" aria-pressed={amount === v} onClick={() => setAmount(v)}>
+                {manWon(v)}
+              </button>
+            ))}
+          </div>
+          <AmountInput value={amount} unit={10_000} label={`${k.amountLabel}(원)`} onApply={setAmount} />
+        </>
+      ),
+    },
+    ...(k.byTerm
+      ? [
+          {
+            id: 'type',
+            label: '이자 방식',
+            count: interestType ? 1 : 0,
+            panel: (
+              <div className="cf-pgroup" role="group" aria-label="이자 방식">
+                {INTEREST.map((o) => (
+                  <button key={o.v} type="button" className="cf-opt" aria-pressed={interestType === o.v} onClick={() => setInterestType(interestType === o.v ? null : o.v)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            ),
+          },
+        ]
+      : []),
+  ];
+  const selected = [
+    ...sectors.map((s) => ({ key: s, label: s === 'BANK' ? (k.strip === 'bank' ? '1금융권' : '증권사') : '저축은행', onRemove: () => setSectors(sectors.filter((x) => x !== s)) })),
+    ...companyNames.map((n) => ({ key: n, label: shortBankName(n), onRemove: () => setCompanyNames(companyNames.filter((x) => x !== n)) })),
+    { key: 'amount', label: manWon(amount) },
+    ...(k.byTerm ? [{ key: 'term', label: `${term}개월` }] : [{ key: 'term', label: '1년 기준' }]),
+    ...(interestType ? [{ key: 'type', label: typeLabel(interestType), onRemove: () => setInterestType(null) }] : []),
+  ];
 
   return (
     <div className="col">
-      <form className="card sv-cond-bar" aria-label="조건" onSubmit={(e) => e.preventDefault()}>
-        <div className="field">
-          <span className="field-label">
-            얼마를 맡길까요? <span className="tag-ex">예시</span>
-          </span>
-          <div className="toolbar" style={{ gap: 8, flexWrap: 'nowrap' }}>
-            <div className="seg" role="group" aria-label="맡길 돈">
-              {PRESETS.map((v) => (
-                <button key={v} type="button" aria-pressed={preset === v} onClick={() => setPreset(v)}>
-                  {manWon(v)}
-                </button>
-              ))}
-              <button type="button" aria-pressed={preset === 'manual'} onClick={() => setPreset('manual')}>
-                직접 입력
-              </button>
-            </div>
-            {preset === 'manual' && (
-              <input
-                className="input sv-amt"
-                type="number"
-                min={10000}
-                step={10000}
-                inputMode="numeric"
-                aria-label="맡길 돈(원, 1만 원 단위)"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-              />
-            )}
-          </div>
-        </div>
-        <div className="field">
-          <span className="field-label">기간</span>
-          <div className="seg" role="group" aria-label="기간">
-            {TERMS.map((t) => (
-              <button key={t} type="button" aria-pressed={term === t} onClick={() => setTerm(t)}>
-                {t}개월
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="field">
-          <span className="field-label">이자 방식</span>
-          <div className="seg" role="group" aria-label="이자 방식">
-            {INTEREST.map((o) => (
-              <button key={o.label} type="button" aria-pressed={interestType === o.v} onClick={() => setInterestType(o.v)}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="field">
-          <span className="field-label">은행</span>
-          <CompanyPicker companies={companies.data ?? []} value={companyNames} onChange={setCompanyNames} />
-        </div>
-      </form>
+      <div className="card cmp-top">
+        <ProductTabs />
+        <BankStrip
+          companies={companies.data ?? []}
+          sectors={sectors}
+          onSectors={setSectors}
+          picked={companyNames}
+          onPicked={setCompanyNames}
+          variant={k.strip}
+        />
+      </div>
+      <div className="card">
+        <FilterChips chips={chips} />
+        <SelectedBar items={selected} onReset={reset} />
+      </div>
 
+      {k.caution && <Notice text={k.caution} />}
       <p className="meta">우대조건은 상품 상세에서 원문을 확인하세요. 계산에 넣지 않아요.</p>
       <div className="sv-main">
         <div className="col">
-          {amount <= 0 ? (
-            <div className="empty-box">
-              <h3>맡길 돈을 입력해 주세요</h3>
-              <p className="sub">1만 원 이상 입력하면 같은 조건으로 예금 상품을 비교할 수 있어요.</p>
-            </div>
-          ) : list.isPending ? (
+          {list.isPending ? (
             <Loading h={320} />
           ) : list.isError ? (
-            <ErrorCard noun={NOUN} error={list.error} onRetry={() => list.refetch()} onReset={reset} />
+            <ErrorCard noun={k.noun} error={list.error} onRetry={() => list.refetch()} onReset={reset} />
           ) : total === 0 ? (
             <div className="empty-box">
               <h3>이 조건으로 계산할 상품이 없어요</h3>
-              <p className="sub">기간이나 이자 방식, 은행을 바꿔 보세요.</p>
+              <p className="sub">금융권이나 은행, 이자 방식, 금액을 바꿔 보세요.</p>
             </div>
           ) : (
             <>
               <div className="card">
-                <p className="story">
-                  같은 조건으로 계산한 상품 {total}개예요. 만기 세후 이자는 {won(list.data.minInterestAfterTax ?? 0)}원~
-                  {won(list.data.maxInterestAfterTax ?? 0)}원이에요. {list.data.isSample && <span className="tag-ex">예시</span>}
-                </p>
-                <div className="toolbar" style={{ margin: '16px 0 4px' }}>
+                <div className="toolbar" style={{ marginBottom: 4 }}>
+                  <p className="cmp-count">
+                    <b className="num">{total}</b>개 {list.data.isSample && <span className="tag-ex">예시</span>}
+                  </p>
+                  <span className="spacer" />
                   <label className="field sv-sort">
                     <span className="field-label">정렬</span>
                     <select className="input" value={sort} onChange={(e) => setSort(e.target.value as SavingsSort)}>
-                      {SORTS.map((o) => (
+                      {SORTS.filter((o) => k.byTerm || o.s !== 'TERM').map((o) => (
                         <option key={o.s} value={o.s}>
                           {o.label}
                         </option>
                       ))}
                     </select>
                   </label>
-                  <span className="spacer" />
-                  <span className="meta">
-                    {ym(list.data.disclosureMonth)} 공시 기준 · 광고로 순서를 바꾸지 않아요
-                    {list.data.noRateCount > 0 && ` · 금리 정보 없음 ${list.data.noRateCount}개`}
-                  </span>
                 </div>
-                <div className="table-wrap">
-                  <table>
-                    <caption className="sr-only">예금 상품 목록</caption>
-                    <thead>
-                      <tr>
-                        <th>상품·은행</th>
-                        <th className="r">기본금리</th>
-                        <th className="r">최고금리</th>
-                        <th className="r">만기 세후 수령액(기본금리)</th>
-                        <th>비교</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((p) => (
-                        <Fragment key={p.id}>
-                          <tr className={'sv-row' + (openId === p.id ? ' sel' : '')} onClick={() => toggleOpen(p.id)}>
-                            <td>
-                              <button type="button" className="btn-text sv-name" aria-expanded={openId === p.id} onClick={() => toggleOpen(p.id)}>
-                                {p.name}
-                              </button>
-                              <div className="meta">
-                                {p.company} {p.sector === 'SAVINGS_BANK' && <span className="tag">저축은행</span>} <span className="tag">{typeLabel(p.interestType)}</span>
-                              </div>
-                            </td>
-                            <td className="r">{pct(p.baseRate)}</td>
-                            <td className="r">{pct(p.maxRate)}</td>
-                            <td className="r">
-                              <div>{won(p.result.maturityAmount)}원</div>
-                              <div className="meta">이자 {won(p.result.interestAfterTax)}원</div>
-                              {p.result.excludedAmount > 0 && <div className="meta">한도 초과 {won(p.result.excludedAmount)}원은 넣지 못함</div>}
-                            </td>
-                            <td onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                className="sv-cmp"
-                                aria-label={`${p.name} 비교에 넣기`}
-                                checked={cmp.some((x) => x.p.id === p.id)}
-                                onChange={(e) => toggleCompare(p, e.target.checked)}
-                              />
-                            </td>
-                          </tr>
-                          {openId === p.id && (
-                            <tr className="sv-detail">
-                              <td colSpan={5}>
-                                <ProductDetail p={p} term={term} amount={amount} />
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <p className="meta" style={{ marginBottom: 8 }}>
+                  같은 조건으로 계산한 만기 세후 이자는 {won(list.data.minInterestAfterTax ?? 0)}원~{won(list.data.maxInterestAfterTax ?? 0)}원이에요 · {ym(list.data.disclosureMonth)} 공시 기준 ·
+                  광고로 순서를 바꾸지 않아요
+                  {list.data.noRateCount > 0 && ` · 금리 정보 없음 ${list.data.noRateCount}개`}
+                </p>
+                <ul className="pr-list" aria-label={`${k.noun} 상품 목록`}>
+                  {items.map((p) => (
+                    <ProductRow
+                      key={p.id}
+                      p={p}
+                      tags={[...(p.sector === 'SAVINGS_BANK' ? ['저축은행'] : []), ...(k.byTerm ? [typeLabel(p.interestType)] : [])]}
+                      open={openId === p.id}
+                      onToggle={() => setOpenId(openId === p.id ? null : p.id)}
+                      checked={cmp.some((x) => x.p.id === p.id)}
+                      onCheck={(on) => toggleCompare(p, on)}
+                      detail={<ProductDetail kind={kind} p={p} term={calcTerm} amount={amount} />}
+                    />
+                  ))}
+                </ul>
                 {lockMsg && (
                   <p className="locked-row" role="status">
                     <span>
@@ -510,12 +519,12 @@ function NowMode({ compareLimit }: { compareLimit: number }) {
 
         <div className="sv-rail">
           {cmp.length >= 2 ? (
-            <CompareCard picked={cmp} amount={amount} term={term} limit={compareLimit} />
+            <CompareCard kind={kind} picked={cmp} amount={amount} term={calcTerm} limit={compareLimit} />
           ) : (
             <div className="card">
               <h2>고른 상품 비교</h2>
               <p className="sub" style={{ marginTop: 8 }}>
-                표의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요. 화면을 내려도 따라와요.
+                목록의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요. 화면을 내려도 따라와요.
               </p>
             </div>
           )}
@@ -526,22 +535,26 @@ function NowMode({ compareLimit }: { compareLimit: number }) {
   );
 }
 
-export default function Deposit() {
+function LumpSum({ kind }: { kind: LumpKind }) {
   const { status } = useSession();
   const sub = useSubscription(status === 'member');
   const compareLimit = status === 'guest' || sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
-
+  const k = KINDS[kind];
   return (
     <section>
       <div className="page">
         <div className="page-head">
           <div>
-            <h1 className="page-title">예금 비교</h1>
-            <p className="page-desc">같은 돈을 지금 예금에 맡기면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요.</p>
+            <h1 className="page-title">{k.title}</h1>
+            <p className="page-desc">{k.desc}</p>
           </div>
         </div>
-        <NowMode compareLimit={compareLimit} />
+        <NowMode key={kind} kind={kind} compareLimit={compareLimit} />
       </div>
     </section>
   );
 }
+
+export const Deposit = () => <LumpSum kind="deposit" />;
+export const Parking = () => <LumpSum kind="parking" />;
+export const Cma = () => <LumpSum kind="cma" />;

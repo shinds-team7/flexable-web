@@ -16,8 +16,9 @@
 .bank-more{flex:none;width:44px;height:44px;margin-left:4px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--text-sub);box-shadow:var(--shadow-subtle)}
 .bank-more:hover{border-color:var(--brand);color:var(--brand-text)}
 
-/* 위쪽을 고정해 두고 내용이 길어지면 아래로 늘어난다(탭을 바꿔도 창이 위아래로 움직이지 않는다) */
-dialog.bank-dlg{width:min(560px,calc(100vw - 32px));margin:max(24px,8vh) auto auto;max-height:calc(100vh - max(24px,8vh) - 24px);padding:0;overflow:hidden;flex-direction:column}
+dialog.bank-dlg{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;overflow:hidden;flex-direction:column}
+/* 가이드 창은 높이를 고정해 가운데에 둔 채로 탭을 바꿔도 위아래로 움직이지 않게 한다(내용이 넘치면 안쪽이 스크롤) */
+dialog.pg-dlg{height:min(600px,calc(100vh - 48px))}
 dialog.bank-dlg[open]{display:flex}
 .bank-dlg-head{display:flex;align-items:center;justify-content:center;position:relative;padding:20px 24px 12px}
 .bank-dlg-head h2{font-size:18px;font-weight:800}

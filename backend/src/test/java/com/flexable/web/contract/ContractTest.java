@@ -69,6 +69,7 @@ import com.flexable.web.news.NewsDtos.PolicyDraft;
 import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
 import com.flexable.web.news.NewsService;
+import com.flexable.web.deposit.DepositCatalogService;
 import com.flexable.web.savings.SavingsCatalogService;
 import com.flexable.web.savings.SavingsCatalogService.OptionData;
 import com.flexable.web.savings.SavingsCatalogService.PolicyData;
@@ -108,6 +109,9 @@ class ContractTest {
 	PracticeMarketService practice;
 	@Autowired
 	SavingsCatalogService savings;
+
+	@Autowired
+	DepositCatalogService deposits;
 	@Autowired
 	JdbcTemplate jdbc;
 	@MockitoBean
@@ -213,6 +217,16 @@ class ContractTest {
 						"20261001", null, "202610011000", List.of(new OptionData("M", "S", 12, new BigDecimal("3.80"), null))),
 				new ProductData("0010001", "C", "BANK", "202610", "예시은행", "금리 없는 적금", "영업점", null, null, "1", null, null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, null, new BigDecimal("2.00"))))));
+		// 정기예금: 한도가 있는 단리 상품, 한도 없는 복리 상품, 기본금리가 없어 목록에서 빠지는 상품
+		deposits.replaceAll(List.of(
+				new DepositCatalogService.ProductData("0010001", "A", "BANK", "202610", "예시은행", "예시 정기예금", "영업점", "만기 후 이율", "우대 원문",
+						"1", "실명의 개인", "해당없음", 20_000_000L, "20261001", null, "202610011000",
+						List.of(new DepositCatalogService.OptionData("S", 12, new BigDecimal("3.50"), new BigDecimal("3.90")))),
+				new DepositCatalogService.ProductData("0010002", "B", "SAVINGS_BANK", "202610", "예시저축은행", "복리 정기예금", "인터넷", null, null, null, null,
+						null, null, "20261001", null, "202610011000",
+						List.of(new DepositCatalogService.OptionData("M", 12, new BigDecimal("3.80"), null))),
+				new DepositCatalogService.ProductData("0010001", "C", "BANK", "202610", "예시은행", "금리 없는 정기예금", "영업점", null, null, "1", null, null,
+						null, "20261001", null, "202610011000", List.of(new DepositCatalogService.OptionData("S", 12, null, new BigDecimal("2.00"))))));
 		savings.replacePolicies(List.of(
 				new PolicyData("P1", "청년 저축 지원(예시)", "설명", "지원 내용", "금융", "취약계층 및 금융지원", "○○부", "운영기관", "20261007 ~ 20261016", null,
 						null, null, "온라인 신청", null, null, "https://example.com", null, null, 19, 34, null, null, null, "2026-10-20 00:00:00", "전국"),
@@ -358,7 +372,7 @@ class ContractTest {
 				checked++;
 			}
 		}
-		assertThat(checked).as("example이 있는 응답 수").isGreaterThanOrEqualTo(5);
+		assertThat(checked).as("example이 있는 응답 수").isGreaterThanOrEqualTo(6);
 	}
 
 	@Test
@@ -383,6 +397,31 @@ class ContractTest {
 		call(json(post("/api/v1/savings/simulate"), sim.formatted(id, "BASE")), 200);
 		call(json(post("/api/v1/savings/simulate"), sim.formatted(id, "NOPE")), 400);
 		call(json(post("/api/v1/savings/simulate"), sim.formatted("999999", "BASE")), 404);
+	}
+
+	@Test
+	void 정기예금() throws Exception {
+		MvcResult list = call(get("/api/v1/deposit/products?amount=10000000&termMonths=12"), 200);
+		String body = list.getResponse().getContentAsString(StandardCharsets.UTF_8);
+		assertThat((List<?>) JsonPath.read(body, "$.items")).hasSize(2);
+		assertThat((Integer) JsonPath.read(body, "$.noRateCount")).isEqualTo(1);
+		String id = JsonPath.read(body, "$.items[1].id"); // 기본금리 3.50 단리 상품
+		call(get("/api/v1/deposit/products?amount=10000000&termMonths=36"), 200); // 맞는 상품이 없으면 min·max가 null
+		call(get("/api/v1/deposit/products?amount=10000000&termMonths=12&interestType=COMPOUND&sort=MAX_RATE&direction=ASC&sectors=SAVINGS_BANK&page=1&size=1"), 200);
+		call(get("/api/v1/deposit/products?amount=30000000&termMonths=12&companies=예시은행"), 200); // 한도 초과분 excludedAmount
+		call(get("/api/v1/deposit/products?amount=0&termMonths=12"), 400);
+		call(get("/api/v1/deposit/products?amount=10000000&termMonths=12&sort=NOPE"), 400);
+		call(get("/api/v1/deposit/products?amount=10000000&termMonths=12&interestType=NOPE"), 400);
+		call(get("/api/v1/deposit/companies"), 200);
+		call(get("/api/v1/deposit/products/" + id + "?termMonths=12"), 200);
+		call(get("/api/v1/deposit/products/" + id + "?termMonths=12&interestType=SIMPLE"), 200);
+		call(get("/api/v1/deposit/products/" + id + "?termMonths=36"), 404);
+		call(get("/api/v1/deposit/products/" + id + "?termMonths=12&interestType=COMPOUND"), 404);
+		String sim = "{\"productId\":\"%s\",\"amount\":10000000,\"termMonths\":12,\"interestType\":\"SIMPLE\",\"rateBasis\":\"%s\"}";
+		call(json(post("/api/v1/deposit/simulate"), sim.formatted(id, "MAX")), 200);
+		call(json(post("/api/v1/deposit/simulate"), sim.formatted(id, "BASE")), 200);
+		call(json(post("/api/v1/deposit/simulate"), sim.formatted(id, "NOPE")), 400);
+		call(json(post("/api/v1/deposit/simulate"), sim.formatted("999999", "BASE")), 404);
 	}
 
 	@Test

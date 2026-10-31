@@ -60,7 +60,8 @@ export function ProductRow({
         </div>
         <div className="pr-rate">
           <p className="pr-max">
-            최고 <b className="num">{pct(p.maxRate)}</b>
+            최고 <b className="num">{p.maxRate.toFixed(2)}</b>
+            <span className="pr-pct">%</span>
           </p>
           <p className="pr-base">
             기본 <span className="num">{pct(p.baseRate)}</span>

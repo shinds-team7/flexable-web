@@ -27,8 +27,6 @@ import { won } from '@/lib/format';
 
 type Kind = {
   noun: string;
-  title: string;
-  desc: string;
   amountLabel: string;
   byTerm: boolean; // 기간을 고르는 상품인지(정기예금). 파킹·CMA는 정해진 기간이 없어 1년 기준으로 본다
   strip: 'bank' | 'broker';
@@ -38,16 +36,12 @@ type Kind = {
 const KINDS: Record<LumpKind, Kind> = {
   deposit: {
     noun: '예금',
-    title: '예금 비교',
-    desc: '같은 돈을 지금 예금에 맡기면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요.',
     amountLabel: '맡길 돈',
     byTerm: true,
     strip: 'bank',
   },
   parking: {
     noun: '파킹통장',
-    title: '파킹통장 비교',
-    desc: '넣고 빼기 자유로운 통장에 1년 동안 두면 이자가 얼마인지, 기본금리·최고금리로 정렬해요.',
     amountLabel: '넣어 둘 돈',
     byTerm: false,
     strip: 'bank',
@@ -55,8 +49,6 @@ const KINDS: Record<LumpKind, Kind> = {
   },
   cma: {
     noun: 'CMA',
-    title: 'CMA 비교',
-    desc: '증권사 CMA에 1년 동안 두면 이자가 얼마인지, 기본금리·최고금리로 정렬해요.',
     amountLabel: '넣어 둘 돈',
     byTerm: false,
     strip: 'broker',
@@ -475,7 +467,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
                   </p>
                   <span className="spacer" />
                   <label className="field sv-sort">
-                    <span className="field-label">정렬</span>
+                    <span className="sr-only">정렬</span>
                     <select className="input" value={sort} onChange={(e) => setSort(e.target.value as SavingsSort)}>
                       {SORTS.filter((o) => k.byTerm || o.s !== 'TERM').map((o) => (
                         <option key={o.s} value={o.s}>
@@ -524,7 +516,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
             <div className="card">
               <h2>고른 상품 비교</h2>
               <p className="sub" style={{ marginTop: 8 }}>
-                목록의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요. 화면을 내려도 따라와요.
+                목록의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요.
               </p>
             </div>
           )}
@@ -539,16 +531,9 @@ function LumpSum({ kind }: { kind: LumpKind }) {
   const { status } = useSession();
   const sub = useSubscription(status === 'member');
   const compareLimit = status === 'guest' || sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
-  const k = KINDS[kind];
   return (
     <section>
       <div className="page">
-        <div className="page-head">
-          <div>
-            <h1 className="page-title">{k.title}</h1>
-            <p className="page-desc">{k.desc}</p>
-          </div>
-        </div>
         <NowMode key={kind} kind={kind} compareLimit={compareLimit} />
       </div>
     </section>

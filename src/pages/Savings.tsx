@@ -639,7 +639,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
                       </p>
                       <span className="spacer" />
                       <label className="field sv-sort">
-                        <span className="field-label">정렬</span>
+                        <span className="sr-only">정렬</span>
                         <select className="input" value={sort} onChange={(e) => setSort(e.target.value as SavingsSort)}>
                           {SORTS.map((o) => (
                             <option key={o.s} value={o.s}>
@@ -689,7 +689,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
                 <div className="card">
                   <h2>고른 상품 비교</h2>
                   <p className="sub" style={{ marginTop: 8 }}>
-                    표의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요. 화면을 내려도 따라와요.
+                    표의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요.
                   </p>
                 </div>
               )}
@@ -895,12 +895,6 @@ export default function Savings() {
   return (
     <section>
       <div className="page">
-        <div className="page-head">
-          <div>
-            <h1 className="page-title">적금 비교</h1>
-            <p className="page-desc">같은 돈을 지금 적금에 넣으면 만기에 얼마를 받는지, 기본금리·최고금리·기간으로 정렬해요.</p>
-          </div>
-        </div>
         {seed.isPending ? <Loading /> : <NowMode key={pace} pace={pace} compareLimit={compareLimit} initialPolicy={initialPolicy} />}
       </div>
     </section>

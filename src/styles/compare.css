@@ -92,8 +92,9 @@ dialog.bank-dlg[open]{display:flex}
 .pr-co{font-size:14px;color:var(--text-sub);margin-top:2px}
 .pr-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .pr-rate{text-align:right;white-space:nowrap}
-.pr-max{font-size:15px;font-weight:700;color:var(--text-sub)}
-.pr-max b{font-size:28px;font-weight:800;color:var(--brand-text);letter-spacing:-.02em;margin-left:2px}
+.pr-max{font-size:14px;font-weight:600;color:var(--text-muted)}
+.pr-max b{font-size:24px;font-weight:700;color:var(--brand-text);letter-spacing:-.02em;margin-left:2px}
+.pr-pct{font-size:14px;font-weight:600;color:var(--text-muted)}
 .pr-base{font-size:14px;font-weight:600;color:var(--text-muted);margin-top:2px}
 .pr-base .num{font-weight:700}
 .pr-got{text-align:right}
@@ -113,7 +114,6 @@ dialog.bank-dlg[open]{display:flex}
   .cf-pgroup{grid-template-columns:repeat(2,minmax(0,1fr))}
   .pr-main{grid-template-columns:40px minmax(0,1fr) auto;gap:12px;padding:16px 4px}
   .pr-cmp{display:none}
-  .pr-max b{font-size:24px}
-  .pr-detail{padding:4px 12px 20px}
+    .pr-detail{padding:4px 12px 20px}
   .cf-amt-input{font-size:18px}
 }

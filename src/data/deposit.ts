@@ -3,6 +3,7 @@
 // 웹 백엔드 `/api/v1/deposit/*`가 로컬 DB(finlife 정기예금 공시 복사본)에서 읽어 계산한 값을 그대로 쓴다(ADR-3, 화면은 다시 계산하지 않는다).
 // TODO(BE): 이 API는 아직 서버에 없다. 계약 초안과 구현 범위는 예금 비교 Issue·docs/product/HANDOFF.md에 있다. 계약(web-api.yaml)이 승인되면 `npm run gen:api` 타입으로 아래 타입을 대조한다(src/lib/contractChecks.ts).
 import { useQueries, useQuery } from '@tanstack/react-query';
+import { sampleCompanies, sampleDetail, sampleList, sampleSimulate } from '@/data/depositSample';
 import { api } from '@/lib/api';
 import type { InterestType, RateBasis, SavingsCompany, SavingsSort, SavingsTerm, Sector, SortDirection } from '@/data/savings';
 
@@ -75,7 +76,12 @@ export type DepositSimulateRequest = { productId: string; amount: number; termMo
 export type DepositPoint = { month: number; principal: number; interestPreTax: number };
 export type DepositSimulation = DepositResult & { series: DepositPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
+// 서버 API(#140·#144·#145)가 나오기 전까지 예시 데이터를 보여 준다. API가 연결되면 환경 변수 VITE_LUMP_SAMPLE=false로 끈다.
+const USE_SAMPLE = import.meta.env.VITE_LUMP_SAMPLE !== 'false';
+const later = <T,>(v: () => T) => new Promise<T>((resolve, reject) => setTimeout(() => { try { resolve(v()); } catch (e) { reject(e); } }, 150));
+
 async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<DepositProductList> {
+  if (USE_SAMPLE) return later(() => sampleList(kind, q));
   const qs = new URLSearchParams({
     amount: String(q.amount),
     termMonths: String(q.termMonths),
@@ -92,17 +98,19 @@ async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<Depo
 }
 
 async function fetchProduct(kind: LumpKind, id: string, termMonths: SavingsTerm, interestType: InterestType): Promise<DepositProductDetail> {
+  if (USE_SAMPLE) return later(() => sampleDetail(kind, id, termMonths));
   return api<DepositProductDetail>(`/${kind}/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
 }
 
 async function simulate(kind: LumpKind, q: DepositSimulateRequest): Promise<DepositSimulation> {
+  if (USE_SAMPLE) return later(() => sampleSimulate(kind, q));
   return api<DepositSimulation>(`/${kind}/simulate`, { method: 'POST', json: q });
 }
 
 export const useDepositProducts = (kind: LumpKind, q: DepositListParams, enabled = true) =>
   useQuery({ queryKey: [kind, 'products', q], queryFn: () => fetchProducts(kind, q), staleTime: 5 * 60_000, enabled });
 export const useDepositCompanies = (kind: LumpKind) =>
-  useQuery({ queryKey: [kind, 'companies'], queryFn: () => api<SavingsCompany[]>(`/${kind}/companies`), staleTime: 60 * 60_000 });
+  useQuery({ queryKey: [kind, 'companies'], queryFn: () => (USE_SAMPLE ? later(() => sampleCompanies(kind)) : api<SavingsCompany[]>(`/${kind}/companies`)), staleTime: 60 * 60_000 });
 export const useDepositProduct = (kind: LumpKind, id: string | null, termMonths: SavingsTerm, interestType: InterestType) =>
   useQuery({ queryKey: [kind, 'product', id, termMonths, interestType], queryFn: () => fetchProduct(kind, id!, termMonths, interestType), enabled: id !== null });
 export const useDepositSimulation = (kind: LumpKind, q: DepositSimulateRequest | null) =>

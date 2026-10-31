@@ -17,8 +17,9 @@
 .bank-more:hover{border-color:var(--brand);color:var(--brand-text)}
 
 dialog.bank-dlg{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:0;overflow:hidden;flex-direction:column}
-/* 가이드 창은 높이를 고정해 가운데에 둔 채로 탭을 바꿔도 위아래로 움직이지 않게 한다(내용이 넘치면 안쪽이 스크롤) */
-dialog.pg-dlg{height:min(600px,calc(100vh - 48px))}
+/* 가이드 창은 위쪽을 고정하고 내용이 길어지면 아래로 늘어난다(탭을 바꿔도 위아래로 움직이지 않고 스크롤도 없다) */
+dialog.pg-dlg{margin:max(24px,8vh) auto auto;max-height:none;overflow:visible}
+.pg-dlg .pg-body{overflow:visible}
 dialog.bank-dlg[open]{display:flex}
 .bank-dlg-head{display:flex;align-items:center;justify-content:center;position:relative;padding:20px 24px 12px}
 .bank-dlg-head h2{font-size:18px;font-weight:800}

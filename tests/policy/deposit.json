@@ -1,0 +1,20 @@
+{
+  "status": "IMPLEMENTED",
+  "cases": [
+    { "name": "단리 1000만원 3.50% 12개월", "amount": 10000000, "maxLimit": null, "months": 12, "ratePercent": "3.50", "compound": false,
+      "expected": { "principal": 10000000, "excludedAmount": 0, "interestPreTax": 350000, "tax": 53900, "interestAfterTax": 296100, "maturityAmount": 10296100 } },
+    { "name": "단리 6개월은 이자를 원 단위로 내림", "amount": 1234567, "maxLimit": null, "months": 6, "ratePercent": "3.33", "compound": false,
+      "expected": { "principal": 1234567, "excludedAmount": 0, "interestPreTax": 20555, "tax": 3165, "interestAfterTax": 17390, "maturityAmount": 1251957 } },
+    { "name": "단리 1개월", "amount": 10000000, "maxLimit": null, "months": 1, "ratePercent": "3.50", "compound": false,
+      "expected": { "principal": 10000000, "excludedAmount": 0, "interestPreTax": 29166, "tax": 4491, "interestAfterTax": 24675, "maturityAmount": 10024675 } },
+    { "name": "월복리 1000만원 3.50% 12개월", "amount": 10000000, "maxLimit": null, "months": 12, "ratePercent": "3.50", "compound": true,
+      "expected": { "principal": 10000000, "excludedAmount": 0, "interestPreTax": 355669, "tax": 54773, "interestAfterTax": 300896, "maturityAmount": 10300896 },
+      "series": [ { "month": 1, "interestPreTax": 29166 }, { "month": 6, "interestPreTax": 176281 }, { "month": 12, "interestPreTax": 355669 } ] },
+    { "name": "월복리 500만원 2.80% 24개월", "amount": 5000000, "maxLimit": null, "months": 24, "ratePercent": "2.80", "compound": true,
+      "expected": { "principal": 5000000, "excludedAmount": 0, "interestPreTax": 287643, "tax": 44297, "interestAfterTax": 243346, "maturityAmount": 5243346 } },
+    { "name": "가입 한도를 넘는 돈은 계산에서 빼고 따로 센다", "amount": 30000000, "maxLimit": 20000000, "months": 12, "ratePercent": "3.00", "compound": false,
+      "expected": { "principal": 20000000, "excludedAmount": 10000000, "interestPreTax": 600000, "tax": 92400, "interestAfterTax": 507600, "maturityAmount": 20507600 } },
+    { "name": "금리 0%는 이자가 없다", "amount": 10000000, "maxLimit": null, "months": 12, "ratePercent": "0", "compound": true,
+      "expected": { "principal": 10000000, "excludedAmount": 0, "interestPreTax": 0, "tax": 0, "interestAfterTax": 0, "maturityAmount": 10000000 } }
+  ]
+}

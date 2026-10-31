@@ -42,6 +42,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
 | `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 없음 | `common` |
+| `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |
 | `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |
 | `news` | 청년 금융 소식: 온통청년 수집 카드 자동 게시·AI 요약 저장·`GET /youth-news`(#47·#93) | `common` |
 | `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |
@@ -97,6 +98,10 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `GET /savings/companies` | 없음 | 공시가 있는 금융회사 `[{name, sector}]`(가나다순). 화면의 은행 선택지 |
 | `GET /savings/policies` | 없음 | `?ids=정책번호,…` → 청년정책(적금·저축·통장 계열, 온통청년) `[{id, name, summary, support, agency, applyPeriod, minAge, maxAge, applyMethod, documents, applyUrl, …}]`. 금리가 없어 계산하지 않는다 |
 | `GET /savings/products/{id}` | 없음 | `?termMonths=&reserveType=` → 상품 상세(우대조건 원문 `specialConditionText` 포함) |
+| `GET /deposit/products` | 없음 | `?amount=&termMonths=&sort=&direction=&interestType=SIMPLE\|COMPOUND&sectors=&companies=&page=&size=` → 적금 목록과 같은 모양. 맡긴 돈을 기간 동안 두었을 때의 기본금리 기준 결과를 서버가 계산(가입 한도 초과분은 `excludedAmount`) |
+| `GET /deposit/companies` | 없음 | 정기예금 공시가 있는 금융회사 `[{name, sector}]`(가나다순) |
+| `GET /deposit/products/{id}` | 없음 | `?termMonths=&interestType=` → 상품 상세(우대조건 원문 포함) |
+| `POST /deposit/simulate` | 없음 | `{productId, amount, termMonths, interestType, rateBasis: BASE\|MAX}` → 만기 계산 + `series` + `assumptions` |
 | `POST /savings/simulate` | 없음 | `{productId, monthly, termMonths, reserveType, rateBasis: BASE\|MAX}` → 만기 계산 + `assumptions` |
 | `GET /youth-news?age=&region=&category=` | 없음 | 청년 금융 소식 `{items:[{id, category, categories, title, summary, benefit, audience:{summary, ageMin, ageMax, incomeLimit}, regions, applyStart, applyDeadline, alwaysOpen, action, source:{org, url, asOf}, postedAt, keywords, calcLink:{to, label}\|null, correctedAt, slot}]}`. 정본은 [`web-api.yaml`](../docs/contracts/web-api.yaml). 수집한 소식을 **사람 검수 없이** 내보내고 반려(`REJECTED`)한 것과 출처·지역이 빠진 것만 뺀다([결정](../docs/decisions/2026-10-26-youth-news-auto-publish.md)). `summary`는 worker가 만든 AI 요약(없으면 `null`), `benefit`·`action`은 지금 `null`이다. `regions`는 `"NATIONWIDE"` 또는 시도 이름 목록, 날짜는 `YYYY-MM-DD`, 원문에서 확인 못 한 값은 `null`(조건 없음이 아님). 필터는 모두 선택: `age`(만 나이, 나이 범위를 모르는 쪽은 막지 않음), `region`(시도 이름, 전국 소식 포함), `category`(`TRANSPORT`·`HOUSING`·`FINANCE`·`JOB`·`EDUCATION`·`CULTURE`·`TAX`·`ETC`(기타), 그 밖은 400, `categories` 중 하나라도 맞으면 포함). `category`는 대표 분야(배지), `categories`는 드는 분야 전부(분야가 없으면 `["ETC"]`). 신청 날짜가 없고 상시도 아닌데 원문의 사업기간(`bizPrdEndYmd`)이 끝난 소식은 마감으로 보고 뺀다(마감일이 지난 소식은 화면이 목록에서 내린다). `Cache-Control: public, max-age=300` |
 | `GET /health` | 없음 | `{status: "UP"}` |
@@ -216,6 +221,7 @@ Flyway `src/main/resources/db/migration`, 버전별 표는 [그 폴더 README](s
 - `V16__invest_insight.sql`: `instruments.industry_name`·`industry_as_of`(키움 ka10099 업종, KIWOOM_UPNAME_V1), `market_index_daily`(market: 시장 띠 일별 값, `(index_key, trade_date)` PK, 값·제공처·수집 시각)
 - `V17__event_ai_summary.sql`: `market_events.ai_summary`(AI 개요)·`ai_summary_model`·`ai_summary_hash`(입력 지문)·`ai_summary_at`·`ai_summary_sample`(예시 작성기)·`ai_summary_hidden`(운영자 숨김)(market)
 - `V18__gemini_daily_usage.sql`: `gemini_daily_usage`(ingest: worker의 Gemini 하루 호출 수, `(usage_date, purpose)` PK, 사건 AI 개요의 하루 상한)
+- `V19__deposit.sql`: `deposit_products`·`deposit_rate_options`(deposit: finlife 정기예금 공시 복사본, 상품·기간·이자 방식별 기본/최고 금리)
 
 ## 아직 정해지지 않은 것
 

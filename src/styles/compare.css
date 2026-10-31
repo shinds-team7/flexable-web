@@ -92,11 +92,11 @@ dialog.bank-dlg[open]{display:flex}
 .pr-co{font-size:14px;color:var(--text-sub);margin-top:2px}
 .pr-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .pr-rate{text-align:right;white-space:nowrap}
-.pr-max{font-size:14px;font-weight:600;color:var(--text-muted)}
-.pr-max b{font-size:20px;font-weight:600;color:var(--brand-text);letter-spacing:-.02em;margin-left:2px}
-.pr-pct{margin-left:3px;font-size:14px;font-weight:600;color:var(--text-muted)}
-.pr-base{font-size:14px;font-weight:600;color:var(--text-muted);margin-top:2px}
-.pr-base .num{font-weight:700}
+.pr-max{font-size:14px;font-weight:600;color:var(--brand-text)}
+.pr-max b{font-size:20px;font-weight:650;color:var(--brand-text);letter-spacing:-.02em;margin-left:2px}
+.pr-pct{margin-left:3px;font-size:14px;font-weight:600;color:var(--brand-text)}
+.pr-base{font-size:14px;font-weight:500;color:var(--text-muted);margin-top:2px}
+.pr-base .num{font-weight:500}
 .pr-got{text-align:right}
 .pr-got-val{font-size:16px;font-weight:800;color:var(--text)}
 .pr-cmp{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--text-muted)}

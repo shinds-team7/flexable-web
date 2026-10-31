@@ -22,6 +22,7 @@ export function ProductRow({
   checked,
   onCheck,
   detail,
+  gotLabel = '만기 세후 수령액',
 }: {
   p: RowProduct;
   tags: string[];
@@ -30,6 +31,7 @@ export function ProductRow({
   checked: boolean;
   onCheck: (on: boolean) => void;
   detail: ReactNode;
+  gotLabel?: string;
 }) {
   return (
     <li className={'pr' + (open ? ' open' : '')}>
@@ -68,7 +70,7 @@ export function ProductRow({
           </p>
         </div>
         <div className="pr-got">
-          <p className="meta">만기 세후 수령액</p>
+          <p className="meta">{gotLabel}</p>
           <p className="pr-got-val num">{won(p.result.maturityAmount)}원</p>
           <p className="meta num">이자 {won(p.result.interestAfterTax)}원</p>
           {p.result.excludedAmount > 0 && <p className="meta">한도 초과 {won(p.result.excludedAmount)}원은 넣지 못함</p>}

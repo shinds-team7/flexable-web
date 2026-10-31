@@ -30,6 +30,7 @@ type Kind = {
   amountLabel: string;
   byTerm: boolean; // 기간을 고르는 상품인지(정기예금). 파킹·CMA는 정해진 기간이 없어 1년 기준으로 본다
   strip: 'bank' | 'broker';
+  categories?: string[]; // 상품 종류 필터(CMA). TODO(BE): 서버가 주는 목록으로 바꾼다(#143)
   caution?: string;
 };
 
@@ -52,6 +53,7 @@ const KINDS: Record<LumpKind, Kind> = {
     amountLabel: '넣어 둘 돈',
     byTerm: false,
     strip: 'broker',
+    categories: ['RP형', 'MMF형', '종금형', '발행어음형'],
     caution: 'CMA는 증권사 상품이라 상품에 따라 예금자보호 대상이 아닐 수 있어요. 상품 설명서에서 꼭 확인해 주세요.',
   },
 };
@@ -128,6 +130,24 @@ function ProductDetail({ kind, p: row, term, amount }: { kind: LumpKind; p: Depo
               <span className="k">가입 한도</span>
               <span className="v">{p.maxLimit == null ? '없음' : won(p.maxLimit) + '원'}</span>
             </div>
+            {p.rateLimit != null && (
+              <div className="set-row">
+                <span className="k">우대 한도</span>
+                <span className="v">{won(p.rateLimit)}원까지 우대금리, 넘는 돈은 기본금리가 달라질 수 있어요</span>
+              </div>
+            )}
+            {p.category && (
+              <div className="set-row">
+                <span className="k">상품 종류</span>
+                <span className="v">{p.category}</span>
+              </div>
+            )}
+            {p.depositProtected !== null && (
+              <div className="set-row">
+                <span className="k">예금자보호</span>
+                <span className="v">{p.depositProtected ? '보호 대상' : '보호 대상이 아니에요'}</span>
+              </div>
+            )}
             <a href={p.disclosureUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, fontWeight: 600 }}>
               공시 원문 보기(금융상품한눈에) ↗
             </a>
@@ -150,7 +170,11 @@ function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind
   const head = (
     <>
       <h3 className="sec-title sv-h3">기간 동안 내 돈</h3>
-      <p className="meta">넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 중간에 해지하면 이 금리를 다 받지 못해요.</p>
+      <p className="meta">
+        {KINDS[kind].byTerm
+          ? '넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 중간에 해지하면 이 금리를 다 받지 못해요.'
+          : '넣어 둔 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 금리가 바뀌면 이자도 달라져요.'}
+      </p>
     </>
   );
   if (failed)
@@ -236,8 +260,60 @@ function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind
   );
 }
 
+/** 금리·이자만으로는 같은 선에서 비교되지 않는 조건을 나란히 놓는다: 예금은 이자 방식, 파킹은 우대 한도, CMA는 상품 종류·예금자보호. 모두 공시 값 그대로다. */
+function ConditionTable({ kind, picked }: { kind: LumpKind; picked: Picked[] }) {
+  const yn = (v: boolean | null) => (v === null ? '확인 중' : v ? '대상' : '대상 아님');
+  const cols: { h: string; v: (p: DepositProduct) => string }[] = [
+    { h: '최고금리', v: (p) => pct(p.maxRate) },
+    ...(kind === 'deposit' ? [{ h: '이자 방식', v: (p: DepositProduct) => typeLabel(p.interestType) }] : []),
+    ...(kind === 'parking' ? [{ h: '우대 한도', v: (p: DepositProduct) => (p.rateLimit ? `${won(p.rateLimit)}원까지` : '한도 없음') }] : []),
+    ...(kind === 'cma'
+      ? [
+          { h: '상품 종류', v: (p: DepositProduct) => p.category ?? '확인 중' },
+          { h: '예금자보호', v: (p: DepositProduct) => yn(p.depositProtected) },
+        ]
+      : []),
+    { h: '가입 한도', v: (p) => (p.maxLimit == null ? '없음' : `${won(p.maxLimit)}원`) },
+  ];
+  return (
+    <>
+      <h3 className="sec-title sv-h3">조건 비교</h3>
+      {kind !== 'deposit' && <p className="meta">금리 말고도 다른 조건이 있어요. 이자만 보고 고르지 말고 아래 조건도 같이 봐 주세요.</p>}
+      <div className="table-wrap">
+        <table>
+          <caption className="sr-only">고른 상품의 조건 비교</caption>
+          <thead>
+            <tr>
+              <th>상품</th>
+              {cols.map((c) => (
+                <th key={c.h} className="r">
+                  {c.h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {picked.map(({ p }) => (
+              <tr key={p.id}>
+                <td>{p.name}</td>
+                {cols.map((c) => (
+                  <td key={c.h} className="r">
+                    {c.v(p)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; picked: Picked[]; amount: number; term: SavingsTerm; limit: number }) {
+  const k = KINDS[kind];
   const [asTable, setAsTable] = useState(false);
+  const when = k.byTerm ? '만기' : '1년';
   const rows = [
     ...picked.map(({ p, slot }) => ({
       key: p.id,
@@ -257,7 +333,7 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
         <div>
           <h2>고른 상품 비교</h2>
           <p className="meta">
-            최대 {limit}개 + 이자 0% · {manWon(amount)} · {term}개월
+            최대 {limit}개 + 이자 0% · {manWon(amount)} · {k.byTerm ? `${term}개월` : '1년 기준'}
           </p>
         </div>
         {picked.length > 0 && (
@@ -267,7 +343,7 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
         )}
       </div>
       {picked.length === 0 ? (
-        <p className="sub">표의 비교 칸을 체크하면 만기 세후 이자와 기간 동안 내 돈을 나란히 볼 수 있어요.</p>
+        <p className="sub">목록의 비교 칸을 체크하면 {when} 세후 이자와 기간 동안 내 돈을 나란히 볼 수 있어요.</p>
       ) : asTable ? (
         <div className="table-wrap" id="dpCmpTable">
           <table>
@@ -277,7 +353,7 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
                 <th>상품</th>
                 <th className="r">기본금리</th>
                 <th className="r">세후 이자</th>
-                <th className="r">만기에 받는 돈</th>
+                <th className="r">{when}에 받는 돈</th>
               </tr>
             </thead>
             <tbody>
@@ -295,7 +371,7 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
       ) : (
         <>
           <p className="field-label" style={{ marginBottom: 8 }}>
-            만기에 받는 세후 이자(기본금리 기준)
+            {when}에 받는 세후 이자(기본금리 기준)
           </p>
           <div className="sv-bars">
             {rows.map((x) => {
@@ -317,10 +393,22 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
         </>
       )}
       {picked.length > 0 && <MoneyOverTime kind={kind} picked={picked} amount={amount} term={term} asTable={asTable} />}
+      {picked.length > 0 && <ConditionTable kind={kind} picked={picked} />}
     </div>
   );
 }
 
+
+/** 상품 줄 아래 태그: 금융권, 이자 방식(예금), 상품 종류·예금자보호(CMA), 우대 한도(파킹) */
+function rowTags(k: Kind, p: DepositProduct): string[] {
+  return [
+    ...(p.sector === 'SAVINGS_BANK' ? ['저축은행'] : []),
+    ...(k.byTerm ? [typeLabel(p.interestType)] : []),
+    ...(p.category ? [p.category] : []),
+    ...(p.depositProtected === true ? ['예금자보호'] : p.depositProtected === false ? ['예금자보호 아님'] : []),
+    ...(p.rateLimit ? [`${manWon(p.rateLimit)}까지 우대`] : []),
+  ];
+}
 
 function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number }) {
   const k = KINDS[kind];
@@ -328,6 +416,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
   const [term, setTerm] = useState<SavingsTerm>(12);
   const [interestType, setInterestType] = useState<InterestType | null>(null);
   const [sectors, setSectors] = useState<Sector[]>(['BANK']); // 비어 있으면 둘 다
+  const [categories, setCategories] = useState<string[]>([]); // 비어 있으면 전체
   const [sort, setSort] = useState<SavingsSort>('BASE_RATE');
   const [companyNames, setCompanyNames] = useState<string[]>([]); // 비어 있으면 전체
   const [cmp, setCmp] = useState<Picked[]>([]);
@@ -347,6 +436,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
       interestType,
       sectors: effSectors,
       companies: companyNames,
+      categories,
       page: 1,
       size: ALL_SIZE,
     },
@@ -359,7 +449,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
   // 계산 조건이 바뀌면 비교 목록을 비운다(이전 조건으로 계산한 값이라서)
   const companyKey = companyNames.join('|');
   const sectorKey = effSectors.join('|');
-  useEffect(() => setCmp([]), [amount, calcTerm, interestType, companyKey, sectorKey]);
+  useEffect(() => setCmp([]), [amount, calcTerm, interestType, companyKey, sectorKey, categories.join('|')]);
 
   const toggleCompare = (p: DepositProduct, on: boolean) => {
     setLockMsg('');
@@ -380,8 +470,33 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
     setInterestType(null);
     setSectors(['BANK']);
     setCompanyNames([]);
+    setCategories([]);
   };
 
+  const catChip = k.categories
+    ? [
+        {
+          id: 'category',
+          label: '상품 종류',
+          count: categories.length,
+          panel: (
+            <div className="cf-pgroup" role="group" aria-label="상품 종류">
+              {k.categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className="cf-opt"
+                  aria-pressed={categories.includes(c)}
+                  onClick={() => setCategories(categories.includes(c) ? categories.filter((x) => x !== c) : [...categories, c])}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          ),
+        },
+      ]
+    : [];
   const chips = [
     {
       id: 'amount',
@@ -418,12 +533,14 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
           },
         ]
       : []),
+    ...catChip,
   ];
   const selected = [
     ...sectors.map((s) => ({ key: s, label: s === 'BANK' ? (k.strip === 'bank' ? '1금융권' : '증권사') : '저축은행', onRemove: () => setSectors(sectors.filter((x) => x !== s)) })),
     ...companyNames.map((n) => ({ key: n, label: shortBankName(n), onRemove: () => setCompanyNames(companyNames.filter((x) => x !== n)) })),
     { key: 'amount', label: manWon(amount) },
     ...(k.byTerm ? [{ key: 'term', label: `${term}개월` }] : [{ key: 'term', label: '1년 기준' }]),
+    ...categories.map((c) => ({ key: c, label: c, onRemove: () => setCategories(categories.filter((x) => x !== c)) })),
     ...(interestType ? [{ key: 'type', label: typeLabel(interestType), onRemove: () => setInterestType(null) }] : []),
   ];
 
@@ -478,7 +595,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
                   </label>
                 </div>
                 <p className="meta" style={{ marginBottom: 8 }}>
-                  같은 조건으로 계산한 만기 세후 이자는 {won(list.data.minInterestAfterTax ?? 0)}원~{won(list.data.maxInterestAfterTax ?? 0)}원이에요 · {ym(list.data.disclosureMonth)} 공시 기준 ·
+                  같은 조건으로 계산한 {k.byTerm ? '만기' : '1년'} 세후 이자는 {won(list.data.minInterestAfterTax ?? 0)}원~{won(list.data.maxInterestAfterTax ?? 0)}원이에요 · {ym(list.data.disclosureMonth)} 공시 기준 ·
                   광고로 순서를 바꾸지 않아요
                   {list.data.noRateCount > 0 && ` · 금리 정보 없음 ${list.data.noRateCount}개`}
                 </p>
@@ -487,7 +604,8 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
                     <ProductRow
                       key={p.id}
                       p={p}
-                      tags={[...(p.sector === 'SAVINGS_BANK' ? ['저축은행'] : []), ...(k.byTerm ? [typeLabel(p.interestType)] : [])]}
+                      tags={rowTags(k, p)}
+                      gotLabel={k.byTerm ? '만기 세후 수령액' : '1년 뒤 세후 수령액'}
                       open={openId === p.id}
                       onToggle={() => setOpenId(openId === p.id ? null : p.id)}
                       checked={cmp.some((x) => x.p.id === p.id)}
@@ -516,7 +634,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
             <div className="card">
               <h2>고른 상품 비교</h2>
               <p className="sub" style={{ marginTop: 8 }}>
-                목록의 비교 칸을 2개 이상 체크하면 만기 세후 이자를 여기에서 나란히 볼 수 있어요.
+                목록의 비교 칸을 2개 이상 체크하면 {k.byTerm ? '만기' : '1년'} 세후 이자를 여기에서 나란히 볼 수 있어요.
               </p>
             </div>
           )}

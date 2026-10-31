@@ -34,6 +34,10 @@ export type DepositProduct = {
   openToAll: boolean | null;
   disclosureUrl: string;
   dataAsOf: string;
+  // 파킹·CMA 전용(예금은 null). 서버 계약 전 제안이라 #143에서 확정한다
+  category: string | null; // CMA 상품 종류(RP형·MMF형·종금형·발행어음형). 파킹은 null
+  depositProtected: boolean | null; // 예금자보호 대상 여부, 확인 못 하면 null
+  rateLimit: number | null; // 파킹: 우대금리가 적용되는 금액 한도(원), 없으면 null
   result: DepositResult; // 요청한 amount·termMonths로 서버가 계산한 기본금리 기준 결과
 };
 
@@ -47,6 +51,7 @@ export type DepositListParams = {
   interestType: InterestType | null; // null이면 단리·복리 모두
   sectors: Sector[];
   companies: string[]; // 비어 있으면 전체
+  categories: string[]; // CMA 상품 종류. 비어 있으면 전체
   page: number;
   size: number;
 };
@@ -82,6 +87,7 @@ async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<Depo
   });
   if (q.interestType) qs.set('interestType', q.interestType);
   if (q.companies.length > 0) qs.set('companies', q.companies.join(','));
+  if (q.categories.length > 0) qs.set('categories', q.categories.join(','));
   return api<DepositProductList>(`/${kind}/products?${qs}`);
 }
 

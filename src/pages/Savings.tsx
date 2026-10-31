@@ -603,7 +603,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
   return (
     <div className="col">
       <div className="card cmp-top">
-        <ProductTabs />
+        <ProductTabs kind="savings" autoGuide={!initialPolicy} />
         <BankStrip companies={companies.data ?? []} sectors={sectors} onSectors={setSectors} picked={companyNames} onPicked={setCompanyNames} />
       </div>
       <div className="card">

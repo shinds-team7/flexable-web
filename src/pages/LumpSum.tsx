@@ -547,7 +547,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
   return (
     <div className="col">
       <div className="card cmp-top">
-        <ProductTabs />
+        <ProductTabs kind={kind} />
         <BankStrip
           companies={companies.data ?? []}
           sectors={sectors}

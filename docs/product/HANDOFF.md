@@ -170,6 +170,7 @@ F7 문서 변경 뒤 재확인: `npm.cmd run check:api`·`npm.cmd run typecheck`
 - [ ] **사람이 할 일**: 계산식·복리 가정 확정, 운영 `FINLIFE_API_KEY` 호출 한도 확인, 배포 뒤 실제 화면 확인.
 - [ ] 계약 병합 뒤 `npm run gen:api`로 타입을 맞추고 `contractChecks.ts`에 예금 타입 대조를 더한다.
 - 화면 구성(10-31 레퍼런스 반영, #141): 맨 위 예금·적금·파킹·CMA 탭 → 금융권·대표 은행 가로 줄 + 맨 끝 [상세 필터](전체 은행 선택창, 은행·저축은행 탭·가나다 찾기) → 조건 칩(기간·금액·이자 방식 등)과 고른 조건 줄 → 은행 아이콘이 붙은 상품 줄(최고금리 파랑 큰 글씨). 적금 화면(`Savings.tsx`)도 같은 구성으로 바꿨다. 공용 부품은 `src/components/`의 `ProductTabs`·`BankStrip`·`CompareFilters`·`ProductRow`·`BankBadge`, 스타일은 `src/styles/compare.css`, 예금·파킹·CMA 화면은 `src/pages/LumpSum.tsx`다.
+- 상품 가이드: 예금·적금·파킹·CMA 화면에 처음 들어오면 설명 창이 한 번 뜨고, 상단 카드 우측 상단 [?]로 다시 연다(`ProductGuide.tsx`). 본 적이 있는지는 브라우저 `fx.guide.*`에만 남긴다(`privacy-web.md` 반영, 방침 본문은 기존 "첫 화면 안내 표시 여부"로 포함). 설명 문구는 일반 설명이라 리드 검수가 필요하다.
 - 은행 아이콘은 로고 이미지가 아니라 이름에서 뽑은 글자 아이콘이다(상표). 로고 파일은 사람이 사용 허락을 받아 `BankBadge.tsx`의 `LOGOS`에 넣는다.
 - 레퍼런스의 상품 유형·우대조건 필터는 목록 API에 가입 방식·우대조건 분류가 없어 넣지 못했다(#143).
 - 비교 칸: 예금은 적금과 같은 로직(세후 이자 막대 + 기간별 이자선)이다. 파킹·CMA는 같은 그래프를 "1년 기준 추정"으로 쓰고, 금리만으로 비교되지 않는 조건(우대 한도·상품 종류·예금자보호·가입 한도)을 "조건 비교" 표로 나란히 놓는다. 파킹·CMA 전용 필드(`rateLimit`·`category`·`depositProtected`)와 CMA 상품 종류 필터는 `deposit.ts`·`LumpSum.tsx`에 제안 형태로 들어 있고 #144·#145에서 확정한다.

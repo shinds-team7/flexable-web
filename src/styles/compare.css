@@ -80,7 +80,14 @@ dialog.bank-dlg[open]{display:flex}
 .cf-pill button{display:grid;place-items:center;width:16px;height:16px;border:0;background:none;color:inherit;padding:0}
 .cf-reset{flex:none;width:36px;height:36px;display:grid;place-items:center;border:0;background:none;color:var(--text-muted)}
 .cf-reset:hover{color:var(--brand-text)}
-.cmp-top{display:flex;flex-direction:column;gap:20px}
+.cmp-top{position:relative;display:flex;flex-direction:column;gap:20px}
+.pg-help{position:absolute;top:16px;right:16px;width:32px;height:32px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--color-border-strong);background:var(--card);font-size:15px;font-weight:800;color:var(--text-sub)}
+.pg-help:hover{border-color:var(--brand);color:var(--brand-text)}
+.pg-body{display:flex;flex-direction:column;gap:6px;padding-bottom:16px}
+.pg-lead{font-size:17px;font-weight:700;line-height:1.5;margin:4px 0 8px}
+.pg-body h3{font-size:14px;font-weight:800;color:var(--brand-text);margin:14px 0 2px}
+.pg-body ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--text-sub);line-height:1.55}
+.pg-body .meta{margin-top:14px}
 
 .pr-list{list-style:none;margin:0;padding:0}
 .pr{border-top:1px solid var(--line)}

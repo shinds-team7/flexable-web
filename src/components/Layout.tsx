@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LEGAL_BASE, fmtEffective, privacyHref, privacyNotice } from '@/lib/legal';
 import { useSession } from '@/auth/session';
 import { displayName } from '@/auth/types';
+import { lumpReady } from '@/data/deposit';
 import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
 import { Logo } from './Icons';
@@ -30,8 +31,8 @@ const NAV: NavItem[] = [
     sub: [
       { to: '/deposit', label: '예금' },
       { to: '/savings', label: '적금' },
-      { to: '/parking', label: '파킹' },
-      { to: '/cma', label: 'CMA' },
+      ...(lumpReady('parking') ? [{ to: '/parking', label: '파킹' }] : []),
+      ...(lumpReady('cma') ? [{ to: '/cma', label: 'CMA' }] : []),
     ],
   },
   { to: '/goal', label: 'AI 계획' },

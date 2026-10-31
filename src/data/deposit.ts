@@ -86,6 +86,12 @@ const SAMPLE_KINDS: LumpKind[] = (() => {
   return listed.length > 0 ? listed : ['deposit', 'parking', 'cma'];
 })();
 const useSample = (kind: LumpKind) => SAMPLE_KINDS.includes(kind);
+
+/**
+ * 화면을 공개해도 되는 종류. 정기예금은 항상 공개한다. 파킹·CMA는 데이터 출처가 정해지기 전(#154)이라 예시 데이터일 때는 숨기고 "준비 중"으로 보인다.
+ * 로컬·시연에서 예시 화면을 보려면 VITE_LUMP_PREVIEW=true. 실제 API로 바꾸면(VITE_LUMP_SAMPLE에서 뺌) 저절로 열린다.
+ */
+export const lumpReady = (kind: LumpKind) => kind === 'deposit' || !useSample(kind) || import.meta.env.VITE_LUMP_PREVIEW === 'true';
 const later = <T,>(v: () => T) => new Promise<T>((resolve, reject) => setTimeout(() => { try { resolve(v()); } catch (e) { reject(e); } }, 150));
 
 async function fetchProducts(kind: LumpKind, q: DepositListParams): Promise<DepositProductList> {

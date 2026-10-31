@@ -3,6 +3,7 @@
 // 설명은 일반적인 상품 구조만 적는다. 특정 상품 추천·수익 보장·가입 유도는 하지 않는다.
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/Icons';
+import { lumpReady } from '@/data/deposit';
 
 export type ProductKind = 'deposit' | 'savings' | 'parking' | 'cma';
 
@@ -39,7 +40,7 @@ const GUIDES: Record<ProductKind, Guide> = {
   },
 };
 
-const ORDER: ProductKind[] = ['deposit', 'savings', 'parking', 'cma'];
+const ORDER = (['deposit', 'savings', 'parking', 'cma'] as ProductKind[]).filter((k) => k === 'savings' || lumpReady(k));
 const storeKey = (k: ProductKind) => `fx.guide.${k}`;
 const seenHere = (k: ProductKind) => {
   try {

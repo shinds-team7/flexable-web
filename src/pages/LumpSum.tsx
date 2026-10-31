@@ -2,6 +2,7 @@
 // 적금 비교(Savings.tsx)와 같은 모양이다. 적금과 다른 점: 매달 넣는 돈 대신 처음에 한 번 넣는 돈(amount)을 받고, 적립 방식 대신 단리·복리를 거른다.
 // 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6). 금액은 모두 서버 결과를 그대로 그린다(ADR-3).
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { shortBankName } from '@/components/BankBadge';
@@ -18,6 +19,7 @@ import {
   useDepositSimulation,
   useDepositSimulations,
   type DepositProduct,
+  lumpReady,
   type LumpKind,
 } from '@/data/deposit';
 import { useSubscription } from '@/data/plans';
@@ -645,10 +647,30 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
   );
 }
 
+/** 데이터 출처가 정해지기 전의 파킹·CMA. 메뉴에서는 숨기고 주소로 들어오면 이 안내만 보인다. */
+function ComingSoon({ kind }: { kind: LumpKind }) {
+  return (
+    <section>
+      <div className="page wip">
+        <div className="card col" style={{ gap: 12 }}>
+          <h1 className="page-title">{KINDS[kind].noun} 비교는 준비 중이에요</h1>
+          <p className="sub">믿고 볼 수 있는 공시 데이터를 확인하는 중이라 아직 열지 않았어요.</p>
+          <p className="meta">예금·적금 비교는 지금 쓸 수 있어요.</p>
+          <div className="row" style={{ gap: 8 }}>
+            <Link to="/deposit" className="btn btn-primary">예금 비교 보기</Link>
+            <Link to="/savings" className="btn">적금 비교 보기</Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function LumpSum({ kind }: { kind: LumpKind }) {
   const { status } = useSession();
   const sub = useSubscription(status === 'member');
   const compareLimit = status === 'guest' || sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
+  if (!lumpReady(kind)) return <ComingSoon kind={kind} />;
   return (
     <section>
       <div className="page">

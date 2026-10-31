@@ -7,6 +7,7 @@
 ## 2026-10-31
 
 - [Refs #140, #148] 정기예금 만기 계산 규칙을 `docs/policies.md` §6에 더하고 예시 7개를 `tests/policy/deposit.json`·`DepositPolicyTest`로 옮겼다. 적금 C-12와 같은 규칙(단리·월복리 내림, 세금 floor(세전×15.4%), 가입 한도 초과분 제외)을 한 번에 맡기는 경우로 옮긴 것이며 계산 코드(`DepositCalculator`, #151)는 이미 이 값과 같다. 규칙·계약은 바뀌지 않는다 — 영향: 백엔드(테스트)·읽는 문서
+- [Refs #143, #144, #145, #148] 파킹통장·CMA 비교의 범위·데이터 출처·CMA 금리 표시·계산 규칙을 정하는 결정을 기록했다([결정](decisions/2026-10-31-parking-cma.md), 11-01 사용자): 파킹·CMA를 실데이터 전까지 **예시 데이터로 공개**하고, 운영자 입력 표 없이 적금처럼 API 자동 수집으로 간다(출처 확정이 먼저). CMA 금리는 숫자로 보이되 "지난 실적 기준"으로 고지한다(`proposal-active-passive`의 "금리는 숫자로 쓰지 않는다"를 CMA 비교 화면에 한해 대체). CMA는 `SECURITIES` 금융권을 추가한다(계약 PR에서). 재투자(복리) 반영은 CMA 방향으로 정했고 파킹 계산·CMA 재투자 방식은 미정이다. CMA 화면 고지 문구를 바꿨다. 계약·정책은 바뀌지 않는다 — 영향: 프론트(문구)·읽는 문서
 - [Refs #140, #148] 정기예금 비교 API 4개(`/deposit/products`·`/companies`·`/products/{id}`·`/simulate`)를 `web-api.yaml`에 추가했다. 적금(`/savings/*`)과 같은 모양이고 매달 넣는 돈 대신 한 번에 맡기는 `amount`를 쓰며 적립 방식은 없다. 이자 방식은 `interestType`(단리·월복리, 새 `InterestType`), 계산은 기본금리 기준·원 단위 내림·세금 floor(세전×15.4%)로 적금과 같다. 서버 구현은 아직 없고(finlife 정기예금 수집·계산은 #140) 파킹·CMA 계약은 이 PR에 없다(#144·#145). 화면은 11/2까지 예시 데이터(`VITE_LUMP_SAMPLE`)를 쓴다 — 영향: 프론트(`npm run gen:api`)·백엔드(구현 전까지 `ContractTest` 변화 없음)
 
 ## 2026-10-30

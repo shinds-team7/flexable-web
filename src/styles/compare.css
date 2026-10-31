@@ -93,8 +93,8 @@ dialog.bank-dlg[open]{display:flex}
 .pr-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .pr-rate{text-align:right;white-space:nowrap}
 .pr-max{font-size:14px;font-weight:600;color:var(--text-muted)}
-.pr-max b{font-size:24px;font-weight:700;color:var(--brand-text);letter-spacing:-.02em;margin-left:2px}
-.pr-pct{font-size:14px;font-weight:600;color:var(--text-muted)}
+.pr-max b{font-size:20px;font-weight:600;color:var(--brand-text);letter-spacing:-.02em;margin-left:2px}
+.pr-pct{margin-left:3px;font-size:14px;font-weight:600;color:var(--text-muted)}
 .pr-base{font-size:14px;font-weight:600;color:var(--text-muted);margin-top:2px}
 .pr-base .num{font-weight:700}
 .pr-got{text-align:right}

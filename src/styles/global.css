@@ -56,7 +56,7 @@ button{cursor:pointer}
 .seed-chip{display:flex;align-items:center;gap:8px;height:var(--density-control-sm);border:1px solid var(--line);background:var(--card);border-radius:var(--radius-soft-sm);padding:0 10px 0 14px;font-size:13px;color:var(--text-sub);white-space:nowrap;transition:border-color 140ms var(--ease)}
 .seed-chip:hover,.seed-chip[aria-expanded="true"]{border-color:var(--color-border-strong)}
 .seed-chip b{color:var(--text);font-size:15px}
-.avatar{width:var(--density-control-sm);height:var(--density-control-sm);border-radius:var(--radius-soft-sm);background:var(--brand-soft);color:var(--brand-text);display:grid;place-items:center;font-weight:700;font-size:13px}
+.avatar{flex:none;width:var(--density-control-sm);height:var(--density-control-sm);border-radius:var(--radius-soft-sm);background:var(--brand-soft);color:var(--brand-text);display:grid;place-items:center;font-weight:700;font-size:13px}
 .avatar:hover{text-decoration:none;box-shadow:inset 0 0 0 1px var(--brand)}
 .menu-btn{display:none;border:1px solid var(--color-border-strong);background:var(--card);border-radius:var(--radius-soft-sm);height:var(--density-control-sm);padding:0 12px;font-weight:600}
 .popover{position:absolute;top:calc(100% + 8px);right:0;width:320px;background:var(--raised);border:1px solid var(--line);border-radius:var(--radius-soft);box-shadow:var(--shadow-float);padding:20px;z-index:50;font-size:14px;color:var(--text-sub)}
@@ -458,7 +458,7 @@ dialog::backdrop{background:var(--scrim)}
 .bookmark[aria-pressed="true"]{color:var(--brand-text)}
 
 /* ───────── 헤더 로그인·로그인 모달 ───────── */
-.nav-login{border:0;background:none;height:var(--density-control-sm);padding:0 12px;font-weight:600;color:var(--text-sub);border-radius:var(--radius-soft-sm)}
+.nav-login{white-space:nowrap;flex:none;border:0;background:none;height:var(--density-control-sm);padding:0 12px;font-weight:600;color:var(--text-sub);border-radius:var(--radius-soft-sm)}
 .nav-login:hover{background:var(--sunken);color:var(--text)}
 .login-modal{border:0;padding:0;background:none;width:min(400px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;color:var(--text);border-radius:var(--radius-soft)}
 .login-modal .login-card{margin:0;max-width:none;box-shadow:var(--shadow-float)}

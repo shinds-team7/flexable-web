@@ -120,10 +120,10 @@ function LayoutBody() {
             <button className="menu-btn" aria-expanded={menu} aria-controls="mainnav" onClick={() => setMenu((v) => !v)}>
               메뉴
             </button>
-            {(member || exploring) && <SeedChip />}
-            {(member || exploring) && (
+            {member && <SeedChip />}
+            {member && (
               <Link className="avatar" to="/me" aria-label="내 정보">
-                {member ? displayName(user).slice(0, 1).toUpperCase() : '체험'}
+                {displayName(user).slice(0, 1).toUpperCase()}
               </Link>
             )}
             {status === 'guest' && (
@@ -131,7 +131,7 @@ function LayoutBody() {
                 로그인
               </button>
             )}
-            {status === 'guest' && !exploring && (
+            {status === 'guest' && (
               <Link className="btn btn-primary btn-sm" to="/home">
                 체험하기
               </Link>

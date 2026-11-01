@@ -25,10 +25,25 @@ const markSeen = () => {
 };
 
 /** 히어로 일러스트: 유리 질감 도형·원 단위 코인·예시 시드머니 카드. 장식이라 스크린리더에는 숨긴다 */
+function HeroCoins() {
+  const A = LANDING_ART;
+  const coin = (key: 'coin1' | 'coin2' | 'coin3' | 'coin4') => (
+    <div className={`art art-${key}`}>{A[key].src ? <img src={A[key].src} alt="" /> : <span className="coin">₩</span>}</div>
+  );
+  return (
+    <div className="land-coins" aria-hidden="true">
+      {coin('coin1')}
+      {coin('coin2')}
+      {coin('coin3')}
+      {coin('coin4')}
+    </div>
+  );
+}
+
 function HeroArt() {
   const A = LANDING_ART;
   // 각 자리는 위아래로 둥실 떠다니는 래퍼(.art)이고, 안에는 data/landingArt.ts의 이미지 또는 임시 그림이 들어간다
-  const slot = (key: 'logo' | 'coin1' | 'coin2' | 'coin3', fallback: ReactNode) => (
+  const slot = (key: 'logo' | 'coin1' | 'coin2' | 'coin3' | 'coin4', fallback: ReactNode) => (
     <div className={`art art-${key}`}>{A[key].src ? <img src={A[key].src} alt="" /> : fallback}</div>
   );
   return (
@@ -43,9 +58,6 @@ function HeroArt() {
           <polyline points="104,262 156,222 196,244 252,170 296,138" fill="none" stroke="#fff" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
         </svg>,
       )}
-      {slot('coin1', <span className="coin">₩</span>)}
-      {slot('coin2', <span className="coin">₩</span>)}
-      {slot('coin3', <span className="coin">₩</span>)}
       {/* 폰 틀과 그 위 카드는 떠다니지 않는다. 폰 틀 자리에는 나중에 앱 화면 이미지를 넣는다 */}
       <div className="art-device">
         <div className="art-phone">
@@ -124,6 +136,7 @@ export default function Landing() {
               체험 시작하기
             </Link>
           </div>
+          <HeroCoins />
           <HeroArt />
         </div>
       </div>

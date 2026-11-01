@@ -6,10 +6,13 @@
 
 개발 기준은 [PRD](../PRD.md)·[정책](../policies.md)·[웹 API 계약](../contracts/web-api.yaml)·[변경 이력](../CHANGELOG.md)·[결정 기록](../decisions/README.md)이다.
 
-## PR 현황(10-31 갱신)
+## PR 현황(11-01 갱신)
 
 | PR | 담당·병합 커밋 | 현재 상태·후속 |
 |---|---|---|
+| [#157 시뮬레이션 테스트 날짜 의존 수정](https://github.com/shinds-team7/flexable-web/pull/157) | `fbf1afb` | 11/01 병합. 가짜 시세가 주말에 종가가 없어, 달 첫날이 주말이면 `SimulationApiTest`의 납입 횟수 13 고정값이 깨졌다(11-01 일요일 12회). 기대값을 오늘 날짜로 계산하게 바꿨다. 테스트만 변경 |
+| [#156 랜딩 코인·아이콘 재배치, 부드러운 스크롤](https://github.com/shinds-team7/flexable-web/pull/156) | `307f1be` | 11/01 병합. 레퍼런스 기준으로 코인 4개(`public/landing/coin-1~4.webp`)와 홈 아이콘(`home-icon.webp`, 15° 기울임)을 재배치하고 `html{scroll-behavior:smooth}`(움직임 줄이기 설정이면 제외)를 넣었다. 이미지 경로는 `src/data/landingArt.ts`. 1280px 이상 데스크톱만 확인했고 모바일·좁은 폭은 확인하지 못했다 |
+| [#147 체험 헤더 정리](https://github.com/shinds-team7/flexable-web/pull/147) | `6ba81b1` | 10/31 병합. 비로그인·체험 헤더에서 시드머니 칩과 "체험" 아바타를 없애고 오른쪽을 "로그인 + 체험하기"로 통일했다. 로그인 상태 헤더와 카카오 로그인 동작은 이번에 확인하지 못했다 |
 | [#139 서비스명 solpa 표기](https://github.com/shinds-team7/flexable-web/pull/139) | `2afd3ed` | 10/31 병합. 개인정보처리방침·앱 연동 안내·홈의 "텅장관리" 표기를 solpa로 변경. 운영자명과 `ucmnuniverse`는 그대로. 앱 쪽 약관 페이지(`LEGAL_BASE`)의 표기는 앱 저장소에서 따로 확인 필요 |
 | [#138 solpa 랜딩 리디자인·헤더 하위 메뉴·로그인 모달](https://github.com/shinds-team7/flexable-web/pull/138) | `c41b14b` | 10/31 병합, 릴리스 [v0.1.0](https://github.com/shinds-team7/flexable-web/releases/tag/v0.1.0). 비로그인 `/` 랜딩 개편, 헤더 호버 선·하위 메뉴(인사이트: 코스피·코스닥·ETF, 예적금: 예금·적금), 로그인 버튼을 헤더 로그인 모달로 통일. 랜딩 색은 `--color-land-*` 토큰(금색·크림은 "강조는 블루 하나" 규칙의 예외). 일러스트는 `src/data/landingArt.ts`에서 이미지로 교체. 후속: `/deposit`은 빈 자리표시 페이지라 메뉴 노출 여부 결정과 구현 필요(별도 세션 진행), 로그인 상태 헤더·모바일 전체는 눈으로 확인하지 못함 |
 | [#136 홈 시드머니 예시 추이](https://github.com/shinds-team7/flexable-web/pull/136) / #135 | `c1ec7fc` | 10/30 병합. 비로그인 홈에 현재 월까지 8개월 예시 그래프, 체험 금액 수정은 현재 월 점만 갱신, 수정 입력창 크기 유지, 기록 기준 되돌리기 버튼 제거. 저장·API 변경 없음. 작성자 로컬 Chromium 확인이며 운영 확인은 별도 |

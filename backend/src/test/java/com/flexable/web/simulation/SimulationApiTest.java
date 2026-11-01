@@ -114,13 +114,21 @@ class SimulationApiTest {
 
 	@Test
 	void 매달_나눠서는_정한_금액이_매달_쌓인다() throws Exception {
+		// 가짜 시세는 주말에 종가가 없어서, 마지막 종가는 오늘이 주말이면 직전 금요일이다.
+		// 그래서 납입 달 수를 오늘 날짜로 계산한다(달 첫날이 일요일인 날에 12회가 되는 경우 포함).
+		LocalDate lastClose = LocalDate.now();
+		while (lastClose.getDayOfWeek().getValue() >= 6) {
+			lastClose = lastClose.minusDays(1);
+		}
+		int months = (int) java.time.temporal.ChronoUnit.MONTHS.between(
+				java.time.YearMonth.from(LocalDate.parse(start)), java.time.YearMonth.from(lastClose)) + 1;
 		mvc.perform(post("/api/v1/simulations/run").contentType(MediaType.APPLICATION_JSON)
 				.content(body("SPLIT", "monthlyAmount", 1_000_000, "{\"instrumentId\":\"005930\"}")))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.contributionCount", is(13)))
+			.andExpect(jsonPath("$.contributionCount", is(months)))
 			.andExpect(jsonPath("$.series[0].invested", is(1000000)))
 			.andExpect(jsonPath("$.series[0].contributed", is(1000000)))
-			.andExpect(jsonPath("$.totalInvested", is(13000000)));
+			.andExpect(jsonPath("$.totalInvested", is(1_000_000 * months)));
 	}
 
 	@Test

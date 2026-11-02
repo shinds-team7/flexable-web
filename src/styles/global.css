@@ -515,7 +515,7 @@ dialog::backdrop{background:var(--scrim)}
 .land-iphone-island{position:absolute;top:22px;left:50%;width:80px;height:24px;margin-left:-40px;border-radius:999px;background:#14161B}
 /* 기능 소개: 한 기능이 한 화면을 채운다 */
 .land-shows{max-width:1600px;margin:0 auto;padding:0 48px}
-.land-show{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:72px;align-items:center;padding:60px 0}
+.land-show{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:72px;align-items:center;padding:90px 0}
 .land-show.flip{grid-template-columns:minmax(0,8fr) minmax(0,4fr)}
 .land-show.flip .land-show-copy{order:2}
 .land-show-head{font-size:40px;line-height:54px;font-weight:800;letter-spacing:-.02em;white-space:pre-line}
@@ -557,13 +557,22 @@ dialog::backdrop{background:var(--scrim)}
 .feat .btn{margin-top:24px}
 .sketch{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);box-shadow:var(--shadow-subtle);padding:var(--density-pad);min-height:200px;display:flex;flex-direction:column;gap:12px}
 .bar-ph{height:10px;border-radius:var(--radius-xs);background:var(--sunken)}
-.land-plus{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;margin-top:64px;padding:var(--density-pad) 32px;background:var(--color-brand-subtle);border:1px solid var(--color-notice-line);border-radius:var(--radius-soft)}
+.land-plus{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;margin:120px 0;padding:var(--density-pad) 32px;background:var(--color-brand-subtle);border:1px solid var(--color-notice-line);border-radius:var(--radius-soft)}
 .land-plus h2{font-size:22px;line-height:30px;font-weight:700}
 .land-plus p{color:var(--text-sub);margin-top:8px}
-.trust{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--density-gap);padding:var(--density-gap) 0 48px}
-.trust > div{background:var(--sunken);border-radius:var(--radius-soft);padding:24px}
-.trust h3{font-size:15px;line-height:24px;margin-bottom:4px}
-.trust p{font-size:14px;color:var(--text-sub)}
+.land-wide{max-width:1600px;margin:0 auto;padding:0 48px}
+/* 하단 앱 다운로드 띠: 파란 배경 + 반투명 무늬, 오른쪽 휴대폰은 아래가 잘린다 */
+.land-dl{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--color-land-sky-top) 0%,var(--color-land-sky-bottom) 100%);color:var(--color-land-ink)}
+.land-dl-bg{position:absolute;inset:0;width:100%;height:100%}
+.land-dl-in{position:relative;max-width:1200px;margin:0 auto;padding:0 48px;height:300px;display:grid;grid-template-columns:minmax(0,1fr) 380px;align-items:center;gap:48px}
+.land-dl-copy h2{font-size:40px;line-height:52px;font-weight:800;letter-spacing:-.02em}
+.land-dl-copy p{margin-top:8px;font-size:18px;line-height:28px;font-weight:600;color:var(--color-land-ink-sub)}
+.land-dl .land-play{margin-top:32px}
+.land-dl .land-play:hover{background:var(--color-brand-primary-hover)}
+.land-dl-phone{position:relative;align-self:stretch}
+.land-dl-halo{position:absolute;left:50%;bottom:-170px;width:380px;height:380px;margin-left:-190px;border-radius:50%;background:var(--color-land-glass)}
+.land-dl .land-iphone.solo{position:absolute;left:50%;top:44px;width:200px;margin-left:-100px;transform:none}
+.land-foot .footer{border-top:0;padding:32px 0 48px}
 .footer{border-top:1px solid var(--line);padding:24px 0 40px;font-size:13px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap}
 .footer a{color:var(--text-muted)}
 .cat-ph{width:120px;height:120px;border-radius:var(--radius-soft);background:var(--sunken);border:1.5px dashed var(--text-faint);display:grid;place-items:center;position:relative}
@@ -675,7 +684,10 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .land-iphone.left{left:calc(50% - 300px)}
   .land-iphone.right{left:calc(50% + 110px)}
   .land-shows{padding:0 24px}
-  .land-show,.land-show.flip,.land-show-invest{grid-template-columns:minmax(0,1fr);gap:28px;padding:26px 0}
+  .land-show,.land-show.flip,.land-show-invest{grid-template-columns:minmax(0,1fr);gap:28px;padding:40px 0}
+  .land-wide,.land-dl-in{padding-left:24px;padding-right:24px}
+  .land-dl-in{grid-template-columns:minmax(0,1fr);height:auto;padding-top:56px;text-align:center;gap:24px}
+  .land-dl-phone{height:260px}
   .land-show.flip .land-show-copy{order:0}
   .land-show-invest{grid-template-areas:"chart" "img" "copy"}
   .land-show-head{font-size:30px;line-height:40px}
@@ -710,6 +722,10 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .land-iphone.left{left:calc(50% - 190px)}
   .land-iphone.right{left:calc(50% + 60px)}
   .land-shows{padding:0 16px}
+  .land-wide,.land-dl-in{padding-left:16px;padding-right:16px}
+  .land-plus{margin-top:72px}
+  .land-dl-copy h2{font-size:30px;line-height:40px}
+  .land-dl-copy p{font-size:16px}
   .land-show-cta{width:156px}
   .land-show-cta span{font-size:14px;line-height:16px}
   .land-show-cta svg{width:24px;height:24px}

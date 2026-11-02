@@ -5,14 +5,14 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchProviders, startOAuth, type OAuthProvider } from '@/auth/oauth';
 import { useSession } from '@/auth/session';
 import type { AuthResponse } from '@/auth/types';
-import { Icon } from '@/components/Icons';
+import { Icon, Logo } from '@/components/Icons';
 import { LEGAL_BASE, privacyHref, usesWebBackend } from '@/lib/legal';
 import { api, errorText } from '@/lib/api';
 
 const LABEL: Record<OAuthProvider, string> = { kakao: '카카오 로그인', google: 'Google 계정으로 로그인' };
 
-/** 카카오·Google·이메일 세 버튼. 랜딩과 로그인 화면이 함께 쓴다. */
-export function SocialButtons({ onError, onEmail }: { onError?: (msg: string) => void; onEmail?: () => void }) {
+/** 카카오·Google 간편 로그인 버튼 두 개. 버튼 이름은 aria-label로 읽힌다. */
+export function SocialButtons({ onError }: { onError?: (msg: string) => void }) {
   const navigate = useNavigate();
   const providers = useQuery({ queryKey: ['oauth', 'providers'], queryFn: fetchProviders, staleTime: 10 * 60_000 });
   const [busy, setBusy] = useState<OAuthProvider | null>(null);
@@ -28,37 +28,31 @@ export function SocialButtons({ onError, onEmail }: { onError?: (msg: string) =>
     }
   };
   return (
-    <>
-      <button type="button" className="social kakao" onClick={() => go('kakao')} disabled={busy !== null}>
-        <span className="logo-slot">
-          <Icon id="i-kakao" size={18} />
-        </span>
-        {LABEL.kakao}
+    <div className="login-sns">
+      <button type="button" className="login-sns-btn kakao" aria-label={LABEL.kakao} title={LABEL.kakao} onClick={() => go('kakao')} disabled={busy !== null}>
+        <Icon id="i-kakao" size={22} />
+        <span>카카오</span>
       </button>
-      <button type="button" className="social google" onClick={() => go('google')} disabled={busy !== null}>
-        <span className="logo-slot g-ph" aria-hidden="true">
+      <button type="button" className="login-sns-btn google" aria-label={LABEL.google} title={LABEL.google} onClick={() => go('google')} disabled={busy !== null}>
+        <span className="g-mark" aria-hidden="true">
           G
         </span>
-        {LABEL.google}
+        <span>Google</span>
       </button>
-      {onEmail ? null : (
-        <button type="button" className="social email" onClick={() => navigate('/login?email=1')}>
-          이메일로 로그인
-        </button>
-      )}
-    </>
+    </div>
   );
 }
 
 /** 로그인 카드. /login 화면과 헤더 로그인 모달이 함께 쓴다. */
-export function LoginPanel({ from, initialEmailOpen = false, initialError = null, onSignedIn }: { from: string; initialEmailOpen?: boolean; initialError?: string | null; onSignedIn?: () => void }) {
+export function LoginPanel({ from, initialError = null, onSignedIn }: { from: string; initialError?: string | null; onSignedIn?: () => void }) {
   const { signIn } = useSession();
   const navigate = useNavigate();
-  const [emailOpen, setEmailOpen] = useState(initialEmailOpen);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(initialError);
   const [busy, setBusy] = useState(false);
+  // [앱 연동하기]를 누르면 이메일 로그인 뒤 내 정보의 앱 연동 칸으로 보낸다(연동은 웹 계정으로 로그인한 뒤 앱 코드로 한다)
+  const [linkAfter, setLinkAfter] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -68,7 +62,7 @@ export function LoginPanel({ from, initialEmailOpen = false, initialError = null
       const r = await api<AuthResponse>('/auth/login', { method: 'POST', json: { email: email.trim(), password } });
       signIn(r);
       onSignedIn?.();
-      navigate(from, { replace: true });
+      navigate(linkAfter ? '/me#app-link' : from, { replace: true });
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -77,62 +71,65 @@ export function LoginPanel({ from, initialEmailOpen = false, initialError = null
   };
 
   return (
-        <div className="login-card">
-          <div className="cat-ph" style={{ margin: '0 auto 16px', width: 96, height: 96, background: 'none', border: 0 }}>
-            <img src="/characters/lv3-3.png" alt="" width={96} height={96} style={{ objectFit: 'contain' }} />
-          </div>
-          <h1 className="page-title" style={{ textAlign: 'center' }}>
-            로그인
-          </h1>
-          <p className="sub" style={{ textAlign: 'center', fontSize: 14, marginBottom: 8 }}>
-            웹 계정으로 로그인해요.
-            <br />
-            앱과는 계정이 따로예요.
+    <div className="login-card">
+      <h1 className="login-brand">
+        <Logo />
+        <span className="logo-word">solpa</span>
+        <span className="sr-only">로그인</span>
+      </h1>
+      <form className="login-form" onSubmit={submit}>
+        <label className="sr-only" htmlFor="em">
+          이메일
+        </label>
+        <input className="input login-input" id="em" type="email" autoComplete="email" placeholder="이메일을 입력해 주세요." required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <label className="sr-only" htmlFor="pw">
+          비밀번호
+        </label>
+        <input className="input login-input" id="pw" type="password" autoComplete="current-password" placeholder="비밀번호를 입력해 주세요." required value={password} onChange={(e) => setPassword(e.target.value)} />
+        <button className="login-submit" disabled={busy}>
+          {busy ? '로그인 중…' : '로그인'}
+        </button>
+      </form>
+
+      <div className="login-or">SNS 간편 로그인</div>
+      <SocialButtons onError={setError} />
+      <button type="button" className="login-applink" aria-pressed={linkAfter} onClick={() => setLinkAfter((v) => !v)}>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M10.5 18h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+        앱 연동하기
+      </button>
+      {linkAfter && (
+        <p className="login-applink-note" role="status">
+          이메일로 로그인하면 내 정보의 앱 연동으로 바로 이동해요. 앱에서 받은 연동 코드를 넣으면 앱의 시드머니를 불러와요. 웹과 앱은 계정이 따로예요.
+        </p>
+      )}
+
+      {error && (
+        <div className="error-box" style={{ padding: 16 }} role="alert">
+          <h3>로그인하지 못했어요</h3>
+          <p className="sub" style={{ fontSize: 14 }}>
+            {error}
           </p>
-          <SocialButtons onError={setError} onEmail={() => setEmailOpen(true)} />
-          <div className="divider">또는</div>
-          <button type="button" className="social email" aria-expanded={emailOpen} aria-controls="emailForm" onClick={() => setEmailOpen((v) => !v)}>
-            이메일로 로그인
-          </button>
-          {emailOpen && (
-            <form id="emailForm" className="col" style={{ gap: 12 }} onSubmit={submit}>
-              <div className="field">
-                <label htmlFor="em">이메일</label>
-                <input className="input" id="em" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-              <div className="field">
-                <label htmlFor="pw">비밀번호</label>
-                <input className="input" id="pw" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-              </div>
-              <button className="btn btn-primary btn-block" disabled={busy}>
-                {busy ? '로그인 중…' : '로그인'}
-              </button>
-              <Link to="/signup" className="meta" style={{ textAlign: 'center' }}>
-                이메일로 가입하기
-              </Link>
-            </form>
-          )}
-          <p className="meta" style={{ textAlign: 'center' }}>
-            {usesWebBackend ? (
-              <>
-                처음 로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>에 동의하는 것으로 보고 계정이 만들어져요. 개인정보는{' '}
-                <a href={privacyHref}>개인정보처리방침</a>에 따라 처리해요.
-              </>
-            ) : (
-              <>
-                로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>과 <a href={privacyHref}>개인정보처리방침</a>에 동의하는 것으로 봐요.
-              </>
-            )}
-          </p>
-          {error && (
-            <div className="error-box" style={{ padding: 16 }} role="alert">
-              <h3>로그인하지 못했어요</h3>
-              <p className="sub" style={{ fontSize: 14 }}>
-                {error}
-              </p>
-            </div>
-          )}
         </div>
+      )}
+
+      <p className="login-join">
+        아직 solpa 회원이 아니신가요?<Link to="/signup">회원가입</Link>
+      </p>
+      <p className="login-legal">
+        {usesWebBackend ? (
+          <>
+            처음 로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>에 동의하는 것으로 보고 계정이 만들어져요. 개인정보는 <a href={privacyHref}>개인정보처리방침</a>에 따라 처리해요.
+          </>
+        ) : (
+          <>
+            로그인하면 <a href={`${LEGAL_BASE}/terms`}>이용약관</a>과 <a href={privacyHref}>개인정보처리방침</a>에 동의하는 것으로 봐요.
+          </>
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -145,7 +142,7 @@ export default function Login() {
   return (
     <section>
       <div className="page">
-        <LoginPanel from={from} initialEmailOpen={params.get('email') === '1'} initialError={params.get('error')} />
+        <LoginPanel from={from} initialError={params.get('error')} />
       </div>
     </section>
   );

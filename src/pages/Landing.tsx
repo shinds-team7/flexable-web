@@ -86,7 +86,7 @@ function Show({ f, flip }: { f: Feature; flip: boolean }) {
 }
 
 /** 앱 소개의 휴대폰 목업. 화면 이미지만 바꿔 끼운다 */
-function Phone({ src, alt, side }: { src: string; alt: string; side: 'left' | 'center' | 'right' }) {
+function Phone({ src, alt, side }: { src: string; alt: string; side: 'left' | 'center' | 'right' | 'solo' }) {
   return (
     <div className={`land-iphone ${side}`}>
       <div className="land-iphone-body">
@@ -248,7 +248,7 @@ export default function Landing() {
         ))}
       </div>
 
-      <div className="page land">
+      <div className="land-wide">
         <div className="land-plus">
           <div>
             <h2>무료로 충분히, 더 깊게는 월 990원 플러스</h2>
@@ -258,21 +258,42 @@ export default function Landing() {
             플러스 알아보기
           </Link>
         </div>
+      </div>
 
-        <div className="trust">
-          <div>
-            <h3>계좌 연결 없음</h3>
-            <p>앱에 직접 입력한 잔액·거래로만 계산해요. 은행 비밀번호를 받지 않아요.</p>
+      <div className="land-dl">
+        <svg className="land-dl-bg" viewBox="0 0 1440 280" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <g fill="none" stroke="var(--color-land-glass-line)" strokeWidth="1.5" opacity=".6">
+            <circle cx="70" cy="40" r="40" />
+            <circle cx="70" cy="40" r="60" />
+            <circle cx="70" cy="40" r="80" />
+            <circle cx="70" cy="40" r="100" />
+            <circle cx="1350" cy="210" r="30" />
+            <circle cx="1350" cy="210" r="50" />
+            <circle cx="1350" cy="210" r="70" />
+            <circle cx="1350" cy="210" r="90" />
+          </g>
+          <g fill="var(--color-land-glass)">
+            <rect x="-80" y="150" width="200" height="200" rx="60" />
+            <circle cx="110" cy="70" r="26" />
+            <circle cx="1420" cy="70" r="34" />
+            <circle cx="1290" cy="230" r="24" />
+            <path d="M1330 200a120 120 0 0 1 240 0z" />
+          </g>
+        </svg>
+        <div className="land-dl-in">
+          <div className="land-dl-copy reveal">
+            <h2>앱 다운로드</h2>
+            <p>텅장관리로 오늘 쓸 돈부터 지켜 보세요</p>
+            <PlayBadge />
           </div>
-          <div>
-            <h3>실제 투자 아님</h3>
-            <p>지난 주가로 해보는 계산이에요. 사고팔거나 가입을 대신해 주는 기능은 없고, 수익이나 목표 달성을 보장하지 않아요.</p>
-          </div>
-          <div>
-            <h3>출처를 밝혀요</h3>
-            <p>주가·금리·소식마다 출처와 기준일을 적어요. AI가 정리한 문장엔 표시를 붙여요.</p>
+          <div className="land-dl-phone reveal reveal-late">
+            <span className="land-dl-halo" aria-hidden="true" />
+            <Phone side="solo" src="/landing/app/splash.webp" alt="텅장관리 앱 시작 화면" />
           </div>
         </div>
+      </div>
+
+      <div className="land-wide land-foot">
         <Footer />
       </div>
     </section>

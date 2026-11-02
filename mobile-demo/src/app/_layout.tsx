@@ -1,5 +1,6 @@
 /**
  * 시연 앱 루트 레이아웃(웹 전용) — 폰 모양 틀·토스트·Mock 상태(AppStore)를 주입한다.
+ * 시연 온보딩 뒤 화면은 실제 앱 코드(src/real)라서 실제 앱의 토스트·세션·예산 설정 임시 저장도 함께 둔다.
  * 모든 시연 화면 상단에 '시연용 · 예시 데이터' 띠를 둔다(헤더 없는 온보딩·잠금화면 포함).
  * 사이트의 /m 아래에 배포된다(app.json experiments.baseUrl).
  */
@@ -11,6 +12,9 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { ToastProvider } from "@/components/Toast";
 import { T } from "@/components/ui";
 import { AppStoreProvider } from "@/demo/store/AppStore";
+import { ToastProvider as RealToastProvider } from "@/real/components/Toast";
+import { BudgetDraftProvider } from "@/real/service/BudgetDraft";
+import { SessionProvider } from "@/real/service/Session";
 import { DEMO_VERSION } from "@/demo/version";
 import { colors } from "@/theme";
 
@@ -31,12 +35,18 @@ export default function DemoLayout() {
                   시연용 · 예시 데이터 · v{DEMO_VERSION}
                 </T>
               </View>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.bg },
-                }}
-              />
+              <RealToastProvider>
+                <SessionProvider>
+                  <BudgetDraftProvider>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: { backgroundColor: colors.bg },
+                      }}
+                    />
+                  </BudgetDraftProvider>
+                </SessionProvider>
+              </RealToastProvider>
             </AppStoreProvider>
           </ToastProvider>
         </SafeAreaView>

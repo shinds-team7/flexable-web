@@ -478,36 +478,43 @@ dialog::backdrop{background:var(--scrim)}
 .land-cta:hover{text-decoration:none;background:var(--color-land-glass)}
 .land-cta:focus-visible{outline-color:var(--color-land-ink)}
 /* 카드는 폰 화면 위 레이어이고 화면 좌우로 넘친다 */
-.land-sub{text-align:center;padding:96px 0 32px}
-.land-sub h2{font-size:36px;line-height:48px;font-weight:800}
-.land-sub p{font-size:36px;line-height:48px;font-weight:800}
-.land-cream{position:relative;background:var(--color-land-cream);border-top:1px solid var(--color-land-line);color:var(--color-hero-ink)}
-.land-cream-in{max-width:1344px;margin:0 auto;padding:80px 32px;min-height:440px;display:flex;align-items:center;justify-content:center;gap:96px}
-.land-device{position:relative;flex:none;width:203px;height:406px}
-.land-phone{position:relative;width:100%;height:100%;border-radius:32px;background:linear-gradient(160deg,#2B3A5E,#101828);padding:7px;box-shadow:var(--shadow-overlay)}
-.land-phone::before{content:"";position:absolute;inset:7px;border-radius:25px;background:var(--color-land-screen)}
-.land-phone-notch{position:absolute;top:13px;left:50%;width:62px;height:17px;margin-left:-31px;border-radius:999px;background:#101828;z-index:1}
-.land-device-card{position:absolute;left:-28px;right:-28px;top:80px}
-.land-mock{width:100%;background:var(--color-surface);color:var(--text);border-radius:var(--radius-soft);padding:20px;box-shadow:var(--shadow-overlay)}
-.land-mock-head{display:flex;justify-content:space-between;align-items:center}
-.land-mock-tag{font-size:12px;font-weight:700;color:var(--brand-text);border:1px solid var(--brand);border-radius:var(--radius-xs);padding:1px 8px}
-.land-mock-badge{font-size:12px;font-weight:700;color:var(--on-brand);background:var(--brand);border-radius:var(--radius-xs);padding:1px 8px}
-.land-mock-title{margin-top:14px;font-size:14px;color:var(--text-sub)}
-.land-mock-amount{font-size:30px;font-weight:800;line-height:40px}
-.land-mock-amount small{font-size:16px;margin-left:2px}
-.land-mock-line{width:100%;height:48px;margin-top:8px}
-.land-mock-meta{margin-top:8px;font-size:12px;color:var(--text-muted)}
-.land-cream-copy{text-align:right}
-.land-cream-copy h2{font-size:36px;line-height:48px;font-weight:800;letter-spacing:-.02em}
-.land-cream-copy p{margin-top:16px;color:var(--color-hero-ink-sub)}
-.land-cream-copy .land-cream-btn{margin-left:auto}
-.land-cream-btn{margin-top:28px;display:inline-flex}
-.land-title-gap{margin-top:80px}
-.land-shows{display:flex;flex-direction:column;gap:120px;margin:16px 0 40px}
-.land-show{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:64px;align-items:center}
-.land-show.flip{grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
+.page.land{padding-top:0}
+.land-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:stretch;padding:48px 0 64px}
+.land-copy{display:flex;flex-direction:column}
+.display{font-size:56px;line-height:64px;font-weight:800;letter-spacing:-.03em}
+.lead{font-size:17px;line-height:28px;color:var(--text-sub);margin-top:16px;max-width:30em}
+/* 버튼 묶음을 아래로 붙여 이메일 버튼 하단을 오른쪽 카드 하단에 맞춘다 */
+.cta-stack{display:flex;flex-direction:column;gap:12px;margin-top:auto;padding-top:32px;max-width:360px}
+.land-try{align-self:flex-end;margin-bottom:-4px}
+.land-app{position:relative;overflow:hidden;background:var(--color-bg-canvas);border-top:1px solid var(--color-land-line);color:var(--color-hero-ink)}
+.land-app-bg{position:absolute;inset:0;width:100%;height:100%}
+.land-app-in{position:relative;max-width:1344px;margin:0 auto;padding:0 32px;height:640px;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);align-items:center;gap:32px}
+.land-app-copy{padding-bottom:40px}
+.land-app-kicker{font-size:34px;line-height:48px;font-weight:300;color:var(--color-hero-ink-sub);white-space:pre-line}
+.land-app-name{margin-top:12px;font-size:56px;line-height:68px;font-weight:800;letter-spacing:-.02em;color:var(--color-hero-ink)}
+.land-play{display:inline-flex;align-items:center;gap:12px;margin-top:56px;padding:10px 22px 10px 18px;border-radius:var(--radius-soft-sm);background:var(--color-hero-ink);color:var(--color-on-brand);transition:background 140ms var(--ease)}
+.land-play svg{width:26px;height:26px;fill:currentColor}
+.land-play span{display:flex;flex-direction:column;line-height:1.25;text-align:left}
+.land-play b{font-size:15px}
+.land-play small{font-size:12px;opacity:.82}
+.land-play:hover{text-decoration:none;background:var(--color-brand-primary)}
+.land-phones{position:relative;align-self:stretch;perspective:1800px}
+/* 휴대폰 목업: 가운데는 정면, 왼쪽은 왼쪽 대각, 오른쪽은 오른쪽 대각을 본다. 아래는 섹션 경계에서 잘린다 */
+.land-iphone{position:absolute;top:120px;width:250px}
+.land-iphone.center{left:50%;top:64px;width:290px;margin-left:-145px;z-index:2}
+.land-iphone.left{left:calc(50% - 420px);transform:rotateY(-26deg)}
+.land-iphone.right{left:calc(50% + 170px);transform:rotateY(26deg)}
+.land-iphone-body{position:relative;padding:10px;border-radius:46px;background:#14161B;box-shadow:0 30px 60px rgba(0,30,120,.22)}
+.land-iphone.left .land-iphone-body{box-shadow:12px 0 0 #2B2F38,0 30px 60px rgba(0,30,120,.22)}
+.land-iphone.right .land-iphone-body{box-shadow:-12px 0 0 #2B2F38,0 30px 60px rgba(0,30,120,.22)}
+.land-iphone-body img{display:block;width:100%;aspect-ratio:780/1600;object-fit:cover;object-position:top;border-radius:36px;background:var(--color-brand-primary)}
+.land-iphone-island{position:absolute;top:22px;left:50%;width:80px;height:24px;margin-left:-40px;border-radius:999px;background:#14161B}
+/* 기능 소개: 한 기능이 한 화면을 채운다 */
+.land-shows{max-width:1600px;margin:0 auto;padding:0 48px}
+.land-show{min-height:100vh;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:72px;align-items:center;padding:96px 0}
+.land-show.flip{grid-template-columns:minmax(0,8fr) minmax(0,4fr)}
 .land-show.flip .land-show-copy{order:2}
-.land-show-head{font-size:36px;line-height:48px;font-weight:800;letter-spacing:-.02em;white-space:pre-line}
+.land-show-head{font-size:40px;line-height:54px;font-weight:800;letter-spacing:-.02em;white-space:pre-line}
 .land-show-name{margin-top:28px;font-size:22px;line-height:30px;font-weight:800;color:var(--brand-text)}
 .land-show-desc{margin-top:12px;font-size:17px;line-height:30px;color:var(--text-sub)}
 .land-show-cta{display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;margin-top:32px;padding:18px 20px;border:2px solid var(--brand);color:var(--brand-text);transition:background 140ms var(--ease)}
@@ -518,15 +525,17 @@ dialog::backdrop{background:var(--scrim)}
 .land-show-dots{display:flex;gap:6px;padding:0 4px 10px}
 .land-show-dots i{width:10px;height:10px;border-radius:50%;background:var(--brand)}
 .land-show-frame img{display:block;width:100%;height:auto;border-radius:var(--radius-xs) var(--radius-xs) 0 0;border:1px solid var(--line);border-bottom:0}
-.land-hero.chart-only{grid-template-columns:minmax(0,880px);justify-content:center;padding:16px 0 64px}
-.page.land{padding-top:0}
-.land-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:stretch;padding:48px 0 64px}
-.land-copy{display:flex;flex-direction:column}
-.display{font-size:56px;line-height:64px;font-weight:800;letter-spacing:-.03em}
-.lead{font-size:17px;line-height:28px;color:var(--text-sub);margin-top:16px;max-width:30em}
-/* 버튼 묶음을 아래로 붙여 이메일 버튼 하단을 오른쪽 카드 하단에 맞춘다 */
-.cta-stack{display:flex;flex-direction:column;gap:12px;margin-top:auto;padding-top:32px;max-width:360px}
-.land-try{align-self:flex-end;margin-bottom:-4px}
+/* 투자 인사이트: 왼쪽 위 화면 캡처, 그 아래 설명, 오른쪽에 제목과 움직이는 예시 차트 */
+.land-show-invest{grid-template-columns:minmax(0,7fr) minmax(0,5fr);grid-template-areas:"img chart" "copy chart";align-items:start;align-content:center;row-gap:48px;column-gap:56px}
+.land-inv-img{grid-area:img}
+.land-inv-chart{grid-area:chart;align-self:center}
+.land-inv-copy{grid-area:copy}
+.land-inv-card{margin-top:28px}
+/* 스크롤하면 아래에서 위로 나타남(움직임 줄이기면 바로 보임) */
+.reveal{opacity:0;transform:translateY(56px);transition:opacity 900ms var(--ease),transform 900ms var(--ease)}
+.reveal.in{opacity:1;transform:none}
+.reveal-late{transition-delay:180ms}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none}}
 .land-legend{margin-top:12px}
 .land-legend i.total{color:var(--text)}
 .land-legend i.base{color:var(--baseline)}
@@ -654,13 +663,18 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .display{font-size:44px;line-height:52px}
   .land-sky-in{min-height:640px}
   .land-display{font-size:56px;line-height:76px}
-  .land-cream-in{min-height:0;flex-direction:column;gap:48px}
-  .land-cream-copy{width:auto;text-align:center}
-  .land-cream-copy .land-cream-btn{margin:28px auto 0}
-  .land-show,.land-show.flip{grid-template-columns:minmax(0,1fr);gap:28px}
+  .land-app-in{height:auto;grid-template-columns:minmax(0,1fr);padding-top:64px;text-align:center;gap:24px}
+  .land-app-copy{padding-bottom:0}
+  .land-phones{height:500px}
+  .land-iphone{width:190px;top:70px}
+  .land-iphone.center{width:220px;margin-left:-110px;top:24px}
+  .land-iphone.left{left:calc(50% - 300px)}
+  .land-iphone.right{left:calc(50% + 110px)}
+  .land-shows{padding:0 24px}
+  .land-show,.land-show.flip,.land-show-invest{min-height:0;grid-template-columns:minmax(0,1fr);gap:28px;padding:64px 0}
   .land-show.flip .land-show-copy{order:0}
-  .land-shows{gap:72px}
-  .land-show-head{font-size:28px;line-height:38px}
+  .land-show-invest{grid-template-areas:"chart" "img" "copy"}
+  .land-show-head{font-size:30px;line-height:40px}
   .rail{position:static}
 }
 @media (max-width:767px){
@@ -679,12 +693,21 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .land-cta{width:156px;bottom:40px}
   .land-cta span{font-size:14px;line-height:16px}
   .land-cta svg{width:24px;height:24px}
+  .land-app-kicker{font-size:22px;line-height:32px}
+  .land-app-name{font-size:40px;line-height:50px}
+  .land-play{margin-top:32px}
+  .land-phones{height:380px}
+  .land-iphone{width:130px;top:60px}
+  .land-iphone-body{padding:6px;border-radius:28px}
+  .land-iphone-body img{border-radius:22px}
+  .land-iphone-island{top:12px;width:44px;height:13px;margin-left:-22px}
+  .land-iphone.center{width:160px;margin-left:-80px;top:20px}
+  .land-iphone.left{left:calc(50% - 190px)}
+  .land-iphone.right{left:calc(50% + 60px)}
+  .land-shows{padding:0 16px}
   .land-show-cta{width:156px}
   .land-show-cta span{font-size:14px;line-height:16px}
   .land-show-cta svg{width:24px;height:24px}
-  .land-cream-copy h2{font-size:28px;line-height:38px}
-  .land-sub{padding:56px 0 24px}
-  .land-sub h2,.land-sub p{font-size:26px;line-height:36px}
   .nav-login{padding:0 8px}
   .hero-num{font-size:40px;line-height:48px}
   .story{font-size:18px;line-height:28px}

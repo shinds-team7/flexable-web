@@ -17,6 +17,7 @@ import {
   type Transaction,
 } from '@/demo/data/mock';
 import { addDays, diffDays, endOfWeek, startOfDay, startOfWeek, toKey } from '@/utils/date';
+import { seedDemoServer } from '@/demo/server';
 import { computeBudget, type BudgetInput, type BudgetSummary, type LargePlan, type ScheduledSpend } from './budget';
 
 type Income = { amount: number; payday: number };
@@ -215,10 +216,21 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       today,
       onboarded,
       completeOnboarding: () => {
+        // 시연 온보딩에서 정한 수입·고정지출·저축과 분석한 잔액으로 실제 앱 화면의 목 서버를 채운다
+        const s = computeBudget(budgetInput);
+        seedDemoServer({
+          balance: s.availableBalance,
+          cardUnpaid: s.cardUnpaid,
+          payday: income.payday,
+          incomeAmount: income.amount,
+          fixed: fixed.map((f) => ({ name: f.name, amount: f.amount, day: f.day })),
+          protectedItems: protectedList.map((p) => ({ name: p.name, amount: p.amount })),
+        });
         writeOnboarded(true);
         setOnboarded(true);
       },
       restartOnboarding: () => {
+        seedDemoServer(null);
         writeOnboarded(false);
         setOnboarded(false);
       },

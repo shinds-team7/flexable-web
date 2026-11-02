@@ -1,33 +1,15 @@
 /**
  * 시연 경로 — 시연 앱은 사이트의 /m 아래에 배포된다(app.json experiments.baseUrl). 경로는 /m을 뺀 앱 안 경로다.
- * 화면 이동은 이 helper로 한다(경로를 한곳에서 관리).
+ * 시연 온보딩(/onboarding/*)을 마치면 실제 앱 화면(/home 등, src/app/(service))으로 이어진다.
+ * 실제 앱의 예산 설정 화면(앱의 /onboarding)은 시연 온보딩과 겹치지 않게 /budget-settings에 둔다.
  */
-const BASE = '';
-const seg = (id: string) => encodeURIComponent(id);
-
 export const demoRoutes = {
-  home: '/',
-  home2: `${BASE}/home2`,
-  plan: `${BASE}/plan`,
-  analysis: `${BASE}/analysis`,
-  transactions: `${BASE}/transactions`,
-  my: `${BASE}/my`,
-  budgetDetail: `${BASE}/budget-detail`,
-  notifications: `${BASE}/notifications`,
-  memory: `${BASE}/memory`,
-  schedule: `${BASE}/schedule`,
-  scheduleNew: `${BASE}/schedule/new`,
-  tx: (id: string) => `${BASE}/tx/${seg(id)}`,
-  settle: (id: string) => `${BASE}/settle/${seg(id)}`,
-
-  onboarding: `${BASE}/onboarding`,
-  onboardingAccount: `${BASE}/onboarding/account`,
-  onboardingIncome: `${BASE}/onboarding/income`,
-  onboardingFixed: `${BASE}/onboarding/fixed`,
-  onboardingProtect: `${BASE}/onboarding/protect`,
-  onboardingAnalyze: `${BASE}/onboarding/analyze`,
-
-  simulations: `${BASE}/simulations`,
-  simPay: `${BASE}/simulations/pay`,
-  simPush: `${BASE}/simulations/push`,
+  home: '/home',
+  my: '/my',
+  onboarding: '/onboarding',
+  onboardingAccount: '/onboarding/account',
+  onboardingIncome: '/onboarding/income',
+  onboardingFixed: '/onboarding/fixed',
+  onboardingProtect: '/onboarding/protect',
+  onboardingAnalyze: '/onboarding/analyze',
 } as const;

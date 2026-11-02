@@ -1,11 +1,10 @@
 // 랜딩(와이어프레임 그대로). 예시 차트는 빌드에 포함된 예시 데이터로 그린다.
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { placePinNote, removePinNote } from '@/charts/pinNote';
 import { TimeChart } from '@/charts/TimeChart';
 import { Footer } from '@/components/Layout';
-import { LANDING_ART } from '@/data/landingArt';
 import { N, sampleChartData, simulateSample } from '@/data/sampleMarket';
 
 const HINT_KEY = 'fx.landHint';
@@ -24,85 +23,49 @@ const markSeen = () => {
   }
 };
 
-/** 히어로 일러스트: 유리 질감 도형·원 단위 코인·예시 시드머니 카드. 장식이라 스크린리더에는 숨긴다 */
-function HeroCoins() {
-  const A = LANDING_ART;
-  const coin = (key: 'coin1' | 'coin2' | 'coin3' | 'coin4') => (
-    <div className={`art art-${key}`}>{A[key].src ? <img src={A[key].src} alt="" /> : <span className="coin">₩</span>}</div>
-  );
+/** 크림 섹션의 예시 폰 화면과 그 위 시드머니 카드. 장식이라 스크린리더에는 숨긴다 */
+function PhoneMock() {
   return (
-    <div className="land-coins" aria-hidden="true">
-      {coin('coin1')}
-      {coin('coin2')}
-      {coin('coin3')}
-      {coin('coin4')}
-    </div>
-  );
-}
-
-function HeroArt() {
-  const A = LANDING_ART;
-  // 각 자리는 위아래로 둥실 떠다니는 래퍼(.art)이고, 안에는 data/landingArt.ts의 이미지 또는 임시 그림이 들어간다
-  const slot = (key: 'logo' | 'coin1' | 'coin2' | 'coin3' | 'coin4', fallback: ReactNode) => (
-    <div className={`art art-${key}`}>{A[key].src ? <img src={A[key].src} alt="" /> : fallback}</div>
-  );
-  return (
-    <div className="land-art" aria-hidden="true">
-      {slot(
-        'logo',
-        <svg className="land-glass" viewBox="0 0 400 400">
-          <g transform="rotate(32 200 200)">
-            <rect x="70" y="70" width="260" height="260" rx="30" fill="var(--color-land-glass)" stroke="var(--color-land-glass-line)" strokeWidth="3" />
-            <rect x="112" y="112" width="176" height="176" rx="18" fill="none" stroke="var(--color-land-glass-line)" strokeWidth="2" />
-          </g>
-          <polyline points="104,262 156,222 196,244 252,170 296,138" fill="none" stroke="#fff" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
-        </svg>,
-      )}
-      {/* 폰 틀과 그 위 카드는 떠다니지 않는다. 폰 틀 자리에는 나중에 앱 화면 이미지를 넣는다 */}
-      <div className="art-device">
-        <div className="art-phone">
-          {A.phone.src ? (
-            <img src={A.phone.src} alt="" />
-          ) : (
-            <div className="land-phone">
-              <span className="land-phone-notch" />
-            </div>
-          )}
-        </div>
-        <div className="art-card">
-          {A.card.src ? (
-            <img src={A.card.src} alt="" />
-          ) : (
-            <div className="land-mock">
-              <div className="land-mock-head">
-                <span className="land-mock-tag">예시</span>
-                <span className="land-mock-badge">체험 중</span>
-              </div>
-              <p className="land-mock-title">내 시드머니</p>
-              <p className="land-mock-amount num">
-                470,000<small>원</small>
-              </p>
-              <svg viewBox="0 0 200 48" className="land-mock-line">
-                <polyline points="0,40 30,34 60,38 90,24 120,26 150,12 200,6" fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <p className="land-mock-meta">예시 데이터예요. 실제 내 돈이 아니에요.</p>
-            </div>
-          )}
+    <div className="land-device" aria-hidden="true">
+      <div className="land-phone">
+        <span className="land-phone-notch" />
+      </div>
+      <div className="land-device-card">
+        <div className="land-mock">
+          <div className="land-mock-head">
+            <span className="land-mock-tag">예시</span>
+            <span className="land-mock-badge">체험 중</span>
+          </div>
+          <p className="land-mock-title">내 시드머니</p>
+          <p className="land-mock-amount num">
+            470,000<small>원</small>
+          </p>
+          <svg viewBox="0 0 200 48" className="land-mock-line">
+            <polyline points="0,40 30,34 60,38 90,24 120,26 150,12 200,6" fill="none" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <p className="land-mock-meta">예시 데이터예요. 실제 내 돈이 아니에요.</p>
         </div>
       </div>
     </div>
   );
 }
 
-/** 화면별 소개 카드. 링크는 모두 로그인 없이 체험할 수 있는 화면이다 */
+/** 화면별 소개. 이미지는 운영 화면 캡처(public/landing/screens). 링크는 모두 로그인 없이 체험할 수 있는 화면이다 */
 const FEATURES = [
-  { to: '/type', title: '내 투자 성향', desc: '질문 10개로 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' },
-  { to: '/invest?demo=1', title: '투자 인사이트', desc: '국내 지수·채권지수·금·환율 흐름과 시가총액·업종별 순위, 종목 3개까지 지난 주가를 견줘요. ▲▼ 핀을 누르면 그때 나온 공시와 AI 개요를 읽어요.', cta: '예시로 보기' },
-  { to: '/simulation', title: '투자 시뮬레이션', desc: '고른 종목에 금액을 넣어 지난 날짜부터 흘려 보고, 크게 오르내린 구간을 재생하며 그 이유를 읽어요.', cta: '시뮬레이션 해보기' },
-  { to: '/savings?demo=1', title: '예적금 모아보기', desc: '금융권 공시 적금과 청년 정책 적금을 같은 금액 기준 만기 수령액으로 비교해요. 광고로 순서를 바꾸지 않아요.', cta: '적금 비교하기' },
-  { to: '/goal', title: 'AI 계획 수립', desc: '목표 금액과 기한을 정하면 매달 얼마를 남기면 되는지 계산하고, AI가 내 숫자로 실천 단계를 안내해요(하루 3회 무료).', cta: '목표 세워 보기' },
-  { to: '/news', title: '청년 금융 소식', desc: '교통·주거·금융·일자리 소식을 매일 아침 공공 출처에서 모아 AI로 요약해요. 마감 가까운 순으로 보여 주고 공고문으로 바로 가요.', cta: '소식 보기' },
+  { to: '/type', img: 'type', name: '내 투자 성향', head: '나에게 맞는 비율부터\n차근차근 알아봐요', desc: '질문 10개로 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' },
+  { to: '/invest?demo=1', img: 'invest', name: '투자 인사이트', head: '지난 주가 위의 ▲▼ 핀으로\n그때 무슨 일이 있었는지', desc: '국내 지수·채권지수·금·환율 흐름과 시가총액·업종별 순위, 종목 3개까지 지난 주가를 견줘요. ▲▼ 핀을 누르면 그때 나온 공시와 AI 개요를 읽어요.', cta: '예시로 보기' },
+  { to: '/simulation', img: 'sim', name: '투자 시뮬레이션', head: '지난 시장으로 들어가\n사건마다 직접 판단해 봐요', desc: '업종을 고르면 종목 하나를 무작위로 골라 지난 시세를 하루씩 재생해요. 공시가 나오면 멈추고 매수·유지·매도를 골라 봐요. 실제 주문은 없어요.', cta: '시뮬레이션 해보기' },
+  { to: '/savings?demo=1', img: 'savings', name: '예적금 모아보기', head: '같은 금액, 같은 기간으로\n만기 수령액을 한눈에', desc: '금융권 공시 적금과 청년 정책 적금을 같은 금액 기준 만기 수령액으로 비교해요. 광고로 순서를 바꾸지 않아요.', cta: '적금 비교하기' },
+  { to: '/goal/demo', img: 'goal', name: 'AI 계획 수립', head: '목표까지 가는 길,\n세 가지 방법으로 견줘 봐요', desc: '목표 금액과 기한, 투자 성향을 고르면 세 가지 조합의 달성 가능성과 위험 수준을 함께 보여 줘요. 추정치이고 수익이나 달성을 보장하지 않아요.', cta: '목표 세워 보기' },
+  { to: '/news', img: 'news', name: '청년 금융 소식', head: '놓치기 쉬운 청년 정책,\n마감 가까운 순으로', desc: '교통·주거·금융·일자리 소식을 매일 아침 공공 출처에서 모아 AI로 요약해요. 마감 가까운 순으로 보여 주고 공고문으로 바로 가요.', cta: '소식 보기' },
 ];
+
+/** 오른쪽 위 화살표가 든 원 아이콘(테두리 버튼용) */
+const ArrowCircle = () => (
+  <svg viewBox="0 0 28 28" aria-hidden="true">
+    <path d="M14.0007 2.33203C7.56065 2.33203 2.33398 7.5587 2.33398 13.9987C2.33398 20.4387 7.56065 25.6654 14.0007 25.6654C20.4407 25.6654 25.6673 20.4387 25.6673 13.9987C25.6673 7.5587 20.4407 2.33203 14.0007 2.33203ZM16.194 13.462L10.4073 19.2487L8.76232 17.6037L14.549 11.817L12.064 9.33203L18.6557 9.3437L18.6673 15.9354L16.194 13.462Z" />
+  </svg>
+);
 
 export default function Landing() {
   const { status } = useSession();
@@ -120,24 +83,15 @@ export default function Landing() {
       <div className="land-sky">
         <div className="land-sky-in">
           <div className="land-copy">
-            <p className="land-kicker">
-              청년들의 자산 증식을 도울 수 있도록,
-              <br />
-              정확한 정보와 투자의 인사이트를!
-            </p>
-            <h1 className="land-display">
-              솔파와 함께
-              <br />
-              금융 정보를 빠르게 얻고
-              <br />
-              함께 성장하세요
-            </h1>
-            <Link className="land-cta" to="/home">
-              체험 시작하기
-            </Link>
+            <h1 className="land-display">{'청년을 위한 금융 파트너\n솔파와 함께 성장하세요'}</h1>
+            <span className="land-lead">
+              {'당신은 시장에 집중하세요.\n청년들의 자산 증식을 도울 수 있도록,\n정확한 금융 정보와 인사이트를 제공합니다.'}
+            </span>
           </div>
-          <HeroCoins />
-          <HeroArt />
+          <Link className="land-cta" to="/home">
+            <span>체험 시작하기</span>
+            <ArrowCircle />
+          </Link>
         </div>
       </div>
       <div className="land-cream">
@@ -153,6 +107,7 @@ export default function Landing() {
               투자 인사이트 둘러보기
             </Link>
           </div>
+          <PhoneMock />
         </div>
       </div>
       <div className="page land">
@@ -222,13 +177,27 @@ export default function Landing() {
         </div>
 
         <h2 className="land-title">웹에서 이런 걸 해볼 수 있어요</h2>
-        <div className="land-feats">
-          {FEATURES.map((f) => (
-            <Link key={f.to} to={f.to} className="land-feat">
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-              <span className="land-feat-cta">{f.cta} →</span>
-            </Link>
+        <div className="land-shows">
+          {FEATURES.map((f, i) => (
+            <section key={f.to} className={`land-show${i % 2 ? ' flip' : ''}`}>
+              <div className="land-show-copy">
+                <h3 className="land-show-head">{f.head}</h3>
+                <p className="land-show-name">{f.name}</p>
+                <p className="land-show-desc">{f.desc}</p>
+                <Link className="land-show-cta" to={f.to}>
+                  <span>{f.cta}</span>
+                  <ArrowCircle />
+                </Link>
+              </div>
+              <div className="land-show-frame">
+                <div className="land-show-dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <img src={`/landing/screens/${f.img}.webp`} alt={`${f.name} 화면`} loading="lazy" width={1440} height={794} />
+              </div>
+            </section>
           ))}
         </div>
 

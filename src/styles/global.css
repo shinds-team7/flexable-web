@@ -515,7 +515,7 @@ dialog::backdrop{background:var(--scrim)}
 .land-iphone-island{position:absolute;top:22px;left:50%;width:80px;height:24px;margin-left:-40px;border-radius:999px;background:#14161B}
 /* 기능 소개: 한 기능이 한 화면을 채운다 */
 .land-shows{max-width:1600px;margin:0 auto;padding:0 48px}
-.land-show{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:72px;align-items:center;padding:90px 0}
+.land-show{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:72px;align-items:center;padding:180px 0}
 .land-show.flip{grid-template-columns:minmax(0,8fr) minmax(0,4fr)}
 .land-show.flip .land-show-copy{order:2}
 .land-show-head{font-size:40px;line-height:54px;font-weight:800;letter-spacing:-.02em;white-space:pre-line}

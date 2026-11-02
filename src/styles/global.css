@@ -461,7 +461,7 @@ dialog::backdrop{background:var(--scrim)}
 /* ───────── 헤더 로그인·로그인 모달 ───────── */
 .nav-login{white-space:nowrap;flex:none;border:0;background:none;height:var(--density-control-sm);padding:0 12px;font-weight:600;color:var(--text-sub);border-radius:var(--radius-soft-sm)}
 .nav-login:hover{background:var(--sunken);color:var(--text)}
-.login-modal{border:0;padding:0;background:none;width:min(400px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;color:var(--text);border-radius:var(--radius-soft)}
+.login-modal{border:0;padding:0;background:none;width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;color:var(--text);border-radius:var(--radius-soft)}
 .login-modal .login-card{margin:0;max-width:none;box-shadow:var(--shadow-float)}
 .login-modal-x{position:absolute;top:12px;right:12px;z-index:1;width:var(--density-control-sm);height:var(--density-control-sm);border:0;background:none;border-radius:var(--radius-soft-sm);color:var(--text-muted)}
 .login-modal-x:hover{background:var(--sunken);color:var(--text)}
@@ -579,7 +579,7 @@ dialog::backdrop{background:var(--scrim)}
 .cat-ph figcaption{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:11px;color:var(--text-muted);white-space:nowrap}
 
 /* ───────── 로그인 ───────── */
-.login-card{max-width:400px;margin:24px auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);box-shadow:var(--shadow-subtle);padding:32px;display:flex;flex-direction:column;gap:12px}
+.login-card{max-width:440px;margin:24px auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);box-shadow:var(--shadow-subtle);padding:36px 28px 28px;display:flex;flex-direction:column;gap:12px}
 .social{display:flex;align-items:center;height:var(--density-control);border-radius:var(--radius-login);border:1px solid transparent;width:100%;font-family:var(--font-sys);font-size:15px;font-weight:600;padding:0 12px;position:relative;justify-content:center}
 .social .logo-slot{position:absolute;left:12px;top:50%;transform:translateY(-50%);display:grid;place-items:center}
 .social.kakao{background:var(--kakao);color:var(--color-kakao-ink)}
@@ -587,6 +587,28 @@ dialog::backdrop{background:var(--scrim)}
 .social.email{background:var(--color-surface);color:var(--color-text-primary);border-color:var(--color-border-strong)}
 .social.email:hover{background:var(--color-bg-subtle)}
 .social:disabled{opacity:.55;cursor:not-allowed}
+/* 로그인 카드: 로고, 이메일·비밀번호, 로그인, SNS 간편 로그인 2개, 앱 연동하기, 회원가입 */
+.login-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 12px;font-size:20px}
+.login-form{display:flex;flex-direction:column;gap:12px}
+.login-input{height:56px;font-size:16px;padding:0 18px;border-radius:var(--radius-soft-sm)}
+.login-submit{height:56px;margin-top:4px;border:0;border-radius:var(--radius-soft-sm);background:var(--color-hero-ink);color:var(--color-on-brand);font-size:16px;font-weight:700;cursor:pointer;transition:background 140ms var(--ease)}
+.login-submit:hover{background:var(--color-brand-primary)}
+.login-submit:disabled{opacity:.6;cursor:not-allowed}
+.login-or{display:flex;align-items:center;gap:16px;margin:20px 0 4px;color:var(--text-muted);font-size:14px;font-weight:600}
+.login-or::before,.login-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.login-sns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.login-sns-btn{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border:1px solid var(--line);border-radius:var(--radius-soft-sm);background:var(--color-surface);color:var(--text);font-size:15px;font-weight:600;cursor:pointer;transition:border-color 140ms var(--ease),background 140ms var(--ease)}
+.login-sns-btn:hover{border-color:var(--color-border-strong);background:var(--color-bg-subtle)}
+.login-sns-btn:disabled{opacity:.55;cursor:not-allowed}
+.login-sns-btn.kakao{background:var(--kakao);border-color:var(--kakao);color:var(--color-kakao-ink)}
+.login-sns-btn.kakao:hover{background:var(--kakao);filter:brightness(.97)}
+.g-mark{display:grid;place-items:center;width:22px;height:22px;font-weight:800;font-size:17px;color:var(--brand-text)}
+.login-applink{display:flex;align-items:center;justify-content:center;gap:8px;height:52px;border:1px solid var(--line);border-radius:var(--radius-soft-sm);background:var(--color-surface);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+.login-applink:hover,.login-applink[aria-pressed="true"]{border-color:var(--brand);color:var(--brand-text)}
+.login-applink-note{font-size:13px;line-height:20px;color:var(--text-sub);background:var(--color-brand-subtle);border-radius:var(--radius-soft-sm);padding:10px 12px}
+.login-join{margin-top:16px;text-align:center;font-size:14px;color:var(--text-sub)}
+.login-join a{margin-left:8px;font-weight:700;color:var(--text)}
+.login-legal{text-align:center;font-size:12px;line-height:18px;color:var(--text-muted)}
 .divider{display:flex;align-items:center;gap:12px;color:var(--text-muted);font-size:13px;margin:4px 0}
 .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
 .spec-note{font-size:12px;line-height:1.5;color:var(--text-muted);border:1px dashed var(--line);border-radius:var(--radius-soft-sm);padding:10px 12px}

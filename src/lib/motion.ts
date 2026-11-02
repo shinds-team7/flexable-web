@@ -108,11 +108,23 @@ export function useSmoothWheel() {
     const onScroll = () => {
       if (!raf) target = window.scrollY;
     };
+    // 클릭·탭·키 입력·주소 이동이 생기면 미끄러지던 휠 애니메이션을 바로 멈춘다.
+    // 그래야 링크·버튼이 시작한 스크롤(앵커 이동, scrollIntoView 등)을 이 hook이 덮어쓰지 않는다
+    const stop = () => {
+      if (!raf) return;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      last = -1;
+      target = window.scrollY;
+    };
+    const stopEvents = ['pointerdown', 'touchstart', 'keydown', 'hashchange', 'popstate'] as const;
     window.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('scroll', onScroll, { passive: true });
+    stopEvents.forEach((t) => window.addEventListener(t, stop, { capture: true, passive: true }));
     return () => {
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('scroll', onScroll);
+      stopEvents.forEach((t) => window.removeEventListener(t, stop, { capture: true }));
       cancelAnimationFrame(raf);
     };
   }, []);

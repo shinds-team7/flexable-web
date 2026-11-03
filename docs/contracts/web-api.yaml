@@ -1150,7 +1150,7 @@ components:
     PracticeSnapshot:
       type: object
       additionalProperties: false
-      required: [version, status, instrument, initialAmount, isSample, candles, frames, portfolio, event, decisions, notice, sources]
+      required: [version, status, instrument, initialAmount, isSample, totalDays, candles, frames, portfolio, event, decisions, notice, sources]
       properties:
         version: { type: integer, minimum: 0 }
         status: { type: string, enum: [RUNNING, AWAITING_DECISION, FINISHED] }
@@ -1167,10 +1167,11 @@ components:
             classificationAsOf: { type: string, format: date }
         initialAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000 }
         isSample: { type: boolean }
+        totalDays: { type: integer, minimum: 120, maximum: 250, description: '이번 실행의 전체 거래일 수. 종목마다 문제 3개 이상을 만나는 가장 짧은 구간(policies §5 재생 구간 고르기). 가격·사건은 공개한 봉까지만 준다' }
         candles:
           type: array
           minItems: 1
-          maxItems: 120
+          maxItems: 250
           description: '공개된 봉만 날짜 오름차순. 아직 진행하지 않은 봉 없음'
           items:
             type: object
@@ -1184,7 +1185,7 @@ components:
               close: { type: integer, format: int64, minimum: 1 }
         frames:
           type: array
-          maxItems: 120
+          maxItems: 250
           description: 'step 응답에서만 이번에 새로 공개된 봉마다 그날 종가 기준 자산(날짜 오름차순, 마지막 항목 = portfolio). 화면은 이 구간을 3초에 나눠 재생한다. start·state·decision 응답은 빈 배열'
           items:
             type: object
@@ -1209,8 +1210,8 @@ components:
             sourceName: { type: string }
         decisions:
           type: array
-          maxItems: 3
-          description: '이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null'
+          maxItems: 39
+          description: '이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null. 한 실행의 문제는 3개 이상이고 250거래일 간격 규칙상 최대 39개'
           items:
             type: object
             additionalProperties: false

@@ -105,3 +105,11 @@
 @media (max-width:1200px) { .practice-workspace { grid-template-columns:220px minmax(0,1fr); } .practice-wallet { grid-column:1/-1; border-left:0; border-top:1px solid var(--color-border); } .practice-wallet dl { display:flex; flex-wrap:wrap; gap:var(--density-gap); } .practice-wallet dl>div { gap:calc(var(--density-gap)/2); } }
 @media (max-width:760px) { .practice-heading { flex-direction:column; align-items:flex-start; } .practice-workspace { grid-template-columns:minmax(0,1fr); } .practice-setup { border-right:0; border-bottom:1px solid var(--color-border); } .practice-market { padding:var(--density-gap) calc(var(--density-gap)/2); } .practice-notice { align-items:flex-start; } .practice-ohlc { gap:calc(var(--density-gap)/3); } .practice-chart-key { justify-content:flex-start; } }
 @media (prefers-reduced-motion:reduce) { .practice-progress::-webkit-progress-value { transition:none; } }
+.practice-modes { display:flex; gap:calc(var(--density-gap)/3); margin-bottom:var(--density-gap); border-bottom:1px solid var(--color-border); }
+.practice-modes button { display:inline-flex; align-items:center; gap:calc(var(--density-gap)/3); border:0; border-bottom:2px solid transparent; margin-bottom:-1px; background:none; padding:calc(var(--density-gap)/2) calc(var(--density-gap)/3); font-size:15px; font-weight:600; color:var(--color-text-tertiary); cursor:pointer; }
+.practice-modes button[aria-selected="true"] { color:var(--color-text-primary); border-bottom-color:var(--color-brand-primary); }
+.practice-modes button:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }
+.practice-mode-badge { border:1px solid var(--color-border); border-radius:var(--radius-xs); padding:0 calc(var(--density-gap)/4); font-size:11px; font-weight:600; color:var(--color-text-tertiary); background:var(--color-bg-subtle); }
+.practice-soon { display:flex; flex-direction:column; align-items:center; gap:calc(var(--density-gap)/2); padding:calc(var(--density-pad)*2) var(--density-gap); border:1px solid var(--color-border); border-radius:var(--radius-soft); background:var(--color-surface); text-align:center; }
+.practice-soon h2 { font-size:19px; margin:0; letter-spacing:-.4px; }
+.practice-soon p { margin:0; font-size:14px; color:var(--color-text-secondary); line-height:1.65; }

@@ -2295,6 +2295,8 @@ export interface components {
             /** Format: int64 */
             initialAmount: number;
             isSample: boolean;
+            /** @description 이번 실행의 전체 거래일 수. 종목마다 문제 3개 이상을 만나는 가장 짧은 구간(policies §5 재생 구간 고르기). 가격·사건은 공개한 봉까지만 준다 */
+            totalDays: number;
             /** @description 공개된 봉만 날짜 오름차순. 아직 진행하지 않은 봉 없음 */
             candles: {
                 /** Format: date */
@@ -2331,7 +2333,7 @@ export interface components {
                 sourceUrl: string;
                 sourceName: string;
             } | null;
-            /** @description 이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null */
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null. 한 실행의 문제는 3개 이상이고 250거래일 간격 규칙상 최대 39개 */
             decisions: {
                 eventId: string;
                 title: string;

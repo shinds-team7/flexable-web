@@ -13,12 +13,13 @@ import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
 import com.flexable.web.market.*;
 import com.flexable.web.market.PracticeMarketData.*;
+import com.flexable.web.market.PracticeWindow.Question;
 import com.flexable.web.practice.PracticeDtos.*;
 
 @Service
 @EnableScheduling
 public class PracticeService {
-    private static final String NOTICE = "과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요. 배당·세금·수수료는 제외했어요. 현재 업종과 수집 대상 종목·일부 공시로 구성되어 전체 시장을 대표하지 않아요.";
+    private static final String NOTICE = "과거 시세로 계산한 가상의 결과예요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 실제 투자는 원금 손실이 생길 수 있어요. 배당·세금·수수료는 제외했어요. 현재 업종과 수집 대상 종목·일부 공시로 구성되어 전체 시장을 대표하지 않아요. 종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 골라 보여 줘요.";
     private final PracticeMarketService market;
     private final MarketService listed;
     private final Clock clock;
@@ -32,7 +33,6 @@ public class PracticeService {
             @Value("${app.practice.capacity:1000}") int capacity) {
         this.market = market; this.listed = listed; this.clock = clock; this.sample = "fake".equals(source); this.capacity = capacity;
     }
-    private record Question(int index, News news) { }
     private record Saved(Object input, Snapshot snapshot) { }
     private static class Session {
         final Start input; final Dataset data; final Instant expires; final List<Question> questions;
@@ -47,26 +47,13 @@ public class PracticeService {
             first = snapshot(this);
         }
     }
-    /** 첫 사건 전에 보여 줄 최소 거래일 수 */
-    static final int LEAD_DAYS = 14;
     private static List<Question> questions(Dataset data) {
-        var result = new ArrayList<Question>(); var seen = new HashSet<String>(); int last = LEAD_DAYS - 6;
-        for (var news : data.news().stream().sorted(Comparator.comparing(News::publishedDate).thenComparing(News::id)).toList()) {
-            if (!seen.add(news.id()) || news.publishedDate().compareTo(data.candles().getFirst().date()) < 0) continue;
-            int index = -1;
-            for (int i = 0; i < data.candles().size(); i++) {
-                if (data.candles().get(i).date().compareTo(news.publishedDate()) <= 0) index = i; else break;
-            }
-            if (index <= last + 5 || index + 5 >= data.candles().size()) continue;
-            result.add(new Question(index, news)); last = index;
-            if (result.size() == 3) break;
-        }
-        return List.copyOf(result);
+        return PracticeWindow.questions(data.candles(), data.news());
     }
     private List<Dataset> eligible() {
         return market.all().stream().filter(d -> d.isSample() == sample)
                 .filter(d -> sample || listed.find(d.instrument().code()).isPresent())
-                .filter(d -> !questions(d).isEmpty()).toList();
+                .filter(d -> questions(d).size() >= PracticeWindow.MIN_QUESTIONS).toList();
     }
     public Categories categories() {
         var groups = new LinkedHashMap<String, List<Dataset>>();
@@ -181,7 +168,7 @@ public class PracticeService {
     private static Snapshot snapshot(Session s) { return snapshot(s, List.of()); }
     private static Snapshot snapshot(Session s, List<Frame> frames) {
         long initial = s.input.initialAmount().longValueExact();
-        return new Snapshot(s.version, status(s), s.data.instrument(), initial, s.data.isSample(),
+        return new Snapshot(s.version, status(s), s.data.instrument(), initial, s.data.isSample(), s.data.candles().size(),
                 List.copyOf(s.data.candles().subList(0, s.index + 1)), List.copyOf(frames), PracticeEngine.value(s.holding, s.data.candles().get(s.index).close(), initial),
                 event(s), List.copyOf(s.decisions), NOTICE, s.data.sources());
     }

@@ -101,7 +101,6 @@ export default function News() {
       <NewsHero query={filter.query} onSearch={search} onGoConditions={openDiagnosis} />
       <div className="news-band">
         <div className="page news-page">
-          {isSample && <span className="tag-ex news-sample-note">아래 소식은 모두 화면 설명용 예시</span>}
           <div className="news-quick">
             <FindMine onGoConditions={goConditions} onGoDeadline={goDeadline} />
             <HotNewsCard picks={picks} hot={hot.data} today={today} isSample={isSample} />

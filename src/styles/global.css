@@ -472,11 +472,11 @@ dialog::backdrop{background:var(--scrim)}
 .land-copy{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:min(720px,56%);text-shadow:0 2px 14px rgba(0,50,190,.45)}
 .land-display{color:var(--color-land-ink);text-align:left;font-size:64px;line-height:84px;font-weight:800;white-space:break-spaces}
 .land-lead{display:block;margin-top:24px;color:var(--color-land-ink);text-align:left;font-size:20px;line-height:35px;font-weight:400;white-space:break-spaces}
-.land-cta{margin-top:40px;display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;padding:18px 20px;border:2px solid var(--color-land-ink);color:var(--color-land-ink);transition:background 140ms var(--ease)}
+.land-cta{margin-top:40px;display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;padding:18px 20px;border:2px solid var(--color-land-ink);background:var(--color-land-ink);color:var(--color-land-sky-top);text-shadow:none;transition:background 140ms var(--ease)}
 .land-cta span{font-size:16px;font-weight:700;line-height:18px}
 .land-cta svg{width:28px;height:28px;fill:currentColor}
-.land-cta:hover{text-decoration:none;background:var(--color-land-glass)}
-.land-cta:focus-visible{outline-color:var(--color-land-ink)}
+.land-cta:hover{text-decoration:none;background:rgba(255,255,255,.88)}
+.land-cta:focus-visible{outline-color:var(--color-land-ink);outline-offset:3px}
 /* 히어로 하단 중앙의 고정 스크롤 안내. 화살표만 위에서 아래로 흐른다 */
 .land-scroll{position:absolute;left:50%;bottom:24px;z-index:2;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;padding:8px 12px;color:var(--color-land-ink);cursor:pointer;text-shadow:0 1px 10px rgba(0,50,190,.7),0 0 3px rgba(0,50,190,.6)}
 .land-scroll-txt{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}

@@ -988,6 +988,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/goal/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * F7 v2 목표 달성 시나리오(로그인 없이). 조합은 제안기(AI 또는 데모), 숫자는 서버 계산. docs/policies.md §7
+         * @description - 입력·결과를 저장하지 않는다. 목표 이름은 계산에 쓰지 않고 그대로 돌려주며 로그에 남기지 않는다.
+         *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason).
+         *     - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
+         *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 적금 후보가 없으면 field = SAVINGS.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description 앞뒤 공백을 뺀 1~20자 */
+                        name: string;
+                        /** Format: int64 */
+                        targetAmount: number;
+                        /** @enum {integer} */
+                        years: 1 | 2 | 3;
+                    };
+                };
+            };
+            responses: {
+                /** @description 시나리오 2~3개 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GoalScenarioResult"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/market/instruments": {
         parameters: {
             query?: never;
@@ -2309,6 +2364,128 @@ export interface components {
             /** @description 과거 계산·원금 손실·비권유, 세금/수수료/배당 제외, 표본 편향과 현재 업종 분류 고지 */
             notice: string;
             sources: string[];
+        };
+        /**
+         * @description SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2
+         * @enum {string}
+         */
+        GoalScenarioProductType: "SAVINGS" | "CMA" | "KR_INDEX_ETF" | "US_INDEX_ETF" | "KOSPI_TOP5";
+        GoalScenarioResult: {
+            name: string;
+            /** Format: int64 */
+            targetAmount: number;
+            years: number;
+            /** @description years × 12 */
+            months: number;
+            /**
+             * @description DEMO면 화면에 "AI 연결 전 예시 조합" 표시
+             * @enum {string}
+             */
+            proposer: "AI" | "DEMO";
+            /**
+             * @description proposer=DEMO일 때 이유. AI면 null
+             * @enum {string|null}
+             */
+            fallbackReason: "AI_UNAVAILABLE" | "AI_FAILED" | "AI_REJECTED" | null;
+            /**
+             * Format: date
+             * @description 자료 기준일(수집된 마지막 거래일)
+             */
+            asOf: string;
+            /** @description YYYY-MM. 수익률 자료 첫 달 */
+            returnsFrom: string;
+            /** @description YYYY-MM. 수익률 자료 마지막 달 */
+            returnsTo: string;
+            /** @description 경로 수(2000) */
+            paths: number;
+            /** Format: int64 */
+            seed: number;
+            /** @description 필요 월 금액의 기준 비율(0.8 = 10번 중 8번) */
+            reachShare: number;
+            /** @description 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함) */
+            products: {
+                type: components["schemas"]["GoalScenarioProductType"];
+                /** @description KOSPI_TOP5는 5개, CMA는 이름만(code null), 나머지 1개 */
+                items: {
+                    /** @description 종목 코드 또는 적금 상품 id */
+                    code: string | null;
+                    name: string;
+                    /** @description 적금 금융회사. 그 밖에는 null */
+                    company: string | null;
+                }[];
+                /** @description 적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null */
+                ratePercent: string | null;
+                /** @description CMA 예시 금리면 true */
+                isSample: boolean;
+            }[];
+            scenarios: components["schemas"]["GoalScenario"][];
+            /** @description 세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정 */
+            assumptions: string[];
+            /** @description 고지 GOAL_SCENARIO_EST(추정·비보장·원금 손실·기준일 확인) */
+            notice: string;
+            /** @description 예시 값(CMA 예시 금리 또는 데모 조합)이 하나라도 있으면 true */
+            isSample: boolean;
+        };
+        GoalScenario: {
+            id: string;
+            title: string;
+            summary: string;
+            /** @description 제안기 해설. 숫자·보장 표현 없음(§7-6) */
+            explanation: string;
+            /** @description 비중이 0보다 큰 유형만, 비중 합 100 */
+            mix: {
+                type: components["schemas"]["GoalScenarioProductType"];
+                ratioPercent: number;
+                /**
+                 * Format: int64
+                 * @description 유형별 월 금액. reachable=false면 null
+                 */
+                monthly: number | null;
+            }[];
+            /** @description 목표 금액 이하의 월 금액으로 기준 비율을 채울 수 있는지 */
+            reachable: boolean;
+            /**
+             * Format: int64
+             * @description 필요 월 금액(천 원 단위 올림)
+             */
+            monthly: number | null;
+            /**
+             * Format: int64
+             * @description 넣은 돈 = monthly × months
+             */
+            paid: number | null;
+            /** @description reachable=false면 null */
+            outcome: {
+                /**
+                 * @description FIXED 적금·CMA만(결과 하나), RANGE 투자 포함
+                 * @enum {string}
+                 */
+                kind: "FIXED" | "RANGE";
+                /**
+                 * Format: int64
+                 * @description FIXED일 때 기한 말 금액
+                 */
+                fixedAmount: number | null;
+                /**
+                 * Format: int64
+                 * @description RANGE 하위 10%
+                 */
+                low: number | null;
+                /**
+                 * Format: int64
+                 * @description RANGE 중간값
+                 */
+                median: number | null;
+                /**
+                 * Format: int64
+                 * @description RANGE 상위 10%
+                 */
+                high: number | null;
+                /** @description 목표에 닿은 경로 비율(만분율, 내림) */
+                chanceBp: number;
+                /** @description 기한 말 금액 < 넣은 돈인 경로 비율(만분율, 내림) */
+                lossBp: number;
+            } | null;
         };
         Error: {
             /** @enum {string} */

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { CandleChart } from '@/charts/CandleChart';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
@@ -14,7 +14,8 @@ const SEGMENT_MS = 3000;
 type Reveal = { from: number; prev: PracticeSnapshot };
 type Pending = { path: 'start' | 'step' | 'decision'; body: unknown };
 
-export default function Simulation() {
+// 과거 시장 연습. 탭을 옮겨도 진행을 잃지 않도록 숨겨 둔 채 유지하고, 숨겨지면 재생만 멈춘다
+function PastMarketPractice({ active }: { active: boolean }) {
   const [catalog, setCatalog] = useState<CategoryResponse | null>(null);
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('1000000');
@@ -46,6 +47,7 @@ export default function Simulation() {
     const existing = token.current; token.current = null;
     if (existing) void practice('end', { sessionToken: existing }).catch(() => {});
   }; }, [loadCategories]);
+  useEffect(() => { if (!active) setPlaying(false); }, [active]);
   useEffect(() => {
     const hide = () => { if (document.hidden) setPlaying(false); };
     document.addEventListener('visibilitychange', hide);
@@ -135,8 +137,7 @@ export default function Simulation() {
   const decisions = revealing ? reveal!.prev.decisions : snapshot?.decisions ?? [];
   const finished = !revealing && snapshot?.status === 'FINISHED';
   const retry = () => { if (pending.current) void send(pending.current); else if (!catalog) void loadCategories(); else setError(''); };
-  return <div className="page practice-page">
-    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>사건을 읽고, 선택하고, 그다음 시장을 만나보세요.</p></div><Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link></header>
+  return <>
     <div className="practice-notice"><span>{isSample ? '예시 모드' : '과거 시장 연습'}</span><p>{isSample ? '학습용으로 만든 가상 기업·시세·사건이에요. 실제 기업의 투자 결과가 아니에요.' : '과거 시세를 따라가는 가상 투자예요. 실제 주문이나 계좌 연결은 이루어지지 않아요.'}</p></div>
     {error && <div className="practice-error" role="alert"><p>{error}</p><button className="btn btn-sm" onClick={retry} disabled={busy}>다시 시도</button></div>}
     <div className="practice-workspace">
@@ -156,14 +157,14 @@ export default function Simulation() {
           <p className="practice-allocation">처음에는 투자금의 50%로 주식을 사고, 나머지는 추가 매수를 위한 현금으로 남겨요.</p>
           {!snapshot ? <button className="btn btn-primary practice-start" type="submit" disabled={busy || !category || !catalog?.categories.length}>{busy ? '연습 준비 중…' : '시뮬레이션 시작'}</button> : <button className="btn practice-start" type="button" onClick={reset} disabled={busy}>{finished ? '다른 종목으로 다시 연습' : '연습 종료하고 다시 설정'}</button>}
         </form>
-        <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>사건과 사건 사이 시세가 3초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol></div>
+        <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 재생해요.</li><li>사건과 사건 사이 시세가 3초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol></div>
       </aside>
       <main className="practice-market">
         <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.instrument.categoryName : '나의 투자 연습'}</span><h2>{snapshot?.instrument.name ?? '다음 장면은 아직 몰라요'}</h2></div><span className="practice-state">{finished ? '연습 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span></div>
         <div className="practice-quote">{snapshot ? <><strong>{money(candles.at(-1)!.close)}</strong><span>{candles.at(-1)!.date} 종가</span></> : <p>미래 가격은 한 번에 공개되지 않아요.<br />나의 판단을 먼저 남겨보세요.</p>}</div>
         <CandleChart candles={candles} />
-        <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / 120 거래일` : '120거래일의 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : '사건 사이 구간을 3초에 재생 · 사건이 나오면 자동으로 멈춰요'}</span></div><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div>
-        <progress className="practice-progress" max={120} value={candles.length} aria-label="시뮬레이션 진행" />
+        <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : '120거래일 이상의 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : '사건 사이 구간을 3초에 재생 · 사건이 나오면 자동으로 멈춰요'}</span></div><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div>
+        <progress className="practice-progress" max={snapshot?.totalDays ?? 120} value={candles.length} aria-label="시뮬레이션 진행" />
         {snapshot && <section className="practice-journal"><div className="practice-section-title"><h2>{finished ? '이번 연습 돌아보기' : '나의 선택 기록'}</h2><span>{decisions.length}개의 선택</span></div>
           {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map(r => <article className="practice-decision" key={r.eventId}><time>{r.publishedDate}</time><div><h3>{r.title}</h3><p>{r.prediction === 'POSITIVE' ? '긍정적 영향 예상' : '부정적 영향 예상'} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${r.allocationPercent}%`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome">{r.outcome ? <><b>{r.outcome === 'CORRECT' ? '예상과 같았어요' : r.outcome === 'NEUTRAL' ? '가격이 같았어요' : '예상과 달랐어요'}</b><span className={tone(r.subsequentReturnRate!)}>{percent(r.subsequentReturnRate!)}</span><small>이후 5거래일 실제 등락</small></> : <small>5거래일 뒤 확인해요</small>}</div></article>)}
           {finished && <p className="practice-result-note">같은 사건에도 시장은 예상과 다르게 움직일 수 있어요. 이번 결과는 사건의 원인이나 매수·매도의 정답을 뜻하지 않아요.</p>}
@@ -175,5 +176,42 @@ export default function Simulation() {
     <dialog ref={dialog} className="practice-modal" onCancel={e => e.preventDefault()} aria-labelledby="practiceEventTitle">
       {visibleEvent && <form onSubmit={choose}><div className="practice-modal-top"><span>{isSample ? '예시 사건' : '공시 도착'}</span><time>{visibleEvent.publishedDate}</time></div><h2 id="practiceEventTitle">{visibleEvent.title}</h2><p className="practice-muted">{isSample ? '연습을 위해 만든 가상 사건이에요.' : <a href={visibleEvent.sourceUrl} target="_blank" rel="noopener noreferrer">{visibleEvent.sourceName} 원문 확인 ↗</a>} 시세 재생을 잠시 멈췄어요.</p><fieldset disabled={busy}><legend>이 사건 이후, 주가는 어떻게 움직일까요?</legend><div className="practice-choice-row">{(['POSITIVE', 'NEGATIVE'] as const).map(v => <button key={v} type="button" className={prediction === v ? 'selected' : ''} aria-pressed={prediction === v} onClick={() => setPrediction(v)}>{v === 'POSITIVE' ? '↗ 긍정적 영향' : '↘ 부정적 영향'}</button>)}</div><legend>나는 어떤 선택을 할까요?</legend><div className="practice-choice-row">{(['SELL', 'HOLD', 'BUY'] as const).map(v => <button key={v} type="button" className={action === v ? 'selected' : ''} aria-pressed={action === v} onClick={() => setAction(v)}>{v === 'SELL' ? '매도' : v === 'BUY' ? '매수' : '유지'}</button>)}</div>{action && action !== 'HOLD' && <div className="practice-trade-allocation"><span>{action === 'BUY' ? '남은 현금의' : '보유 주식의'}</span>{[25, 50, 100].map(n => <button type="button" key={n} aria-pressed={allocation === n} className={allocation === n ? 'selected' : ''} onClick={() => setAllocation(n)}>{n}%</button>)}</div>}</fieldset><p className="practice-modal-help">현재 현금 {money(portfolio!.cash)} · 보유 {portfolio!.shares}주<br />거래는 다음 거래일 시가에 정수 주로 체결해요. 예상 방향은 이후 5거래일 등락과 비교해요.</p>{error && <p role="alert" className="practice-rise">{error}</p>}<button className="btn btn-primary practice-start" type="submit" disabled={!prediction || !action || busy || !!pending.current}>{busy ? '선택 반영 중…' : '선택하고 계속하기'}</button>{error && pending.current && <button type="button" className="btn practice-start" onClick={retry} disabled={busy}>같은 선택 다시 보내기</button>}<button type="button" className="practice-modal-end" onClick={reset} disabled={busy}>연습 종료</button></form>}
     </dialog>
+  </>;
+}
+
+const MODES = [
+  { id: 'past', label: '과거 시장 연습', lead: '사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
+  { id: 'virtual', label: '가상 시뮬레이션', lead: '아직 준비 중인 메뉴예요.' },
+] as const;
+type Mode = typeof MODES[number]['id'];
+
+export default function Simulation() {
+  const [mode, setMode] = useState<Mode>('past');
+  const tabs = useRef<Record<Mode, HTMLButtonElement | null>>({ past: null, virtual: null });
+  const select = (next: Mode) => { setMode(next); tabs.current[next]?.focus(); };
+  const onKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = MODES.length - 1;
+    const to = e.key === 'ArrowRight' ? (index === last ? 0 : index + 1) : e.key === 'ArrowLeft' ? (index === 0 ? last : index - 1)
+      : e.key === 'Home' ? 0 : e.key === 'End' ? last : -1;
+    if (to < 0) return;
+    e.preventDefault(); select(MODES[to].id);
+  };
+  return <div className="page practice-page">
+    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{MODES.find(m => m.id === mode)!.lead}</p></div><Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link></header>
+    <div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
+      {MODES.map((m, i) => <button key={m.id} ref={el => { tabs.current[m.id] = el; }} type="button" role="tab" id={`practice-tab-${m.id}`} aria-controls={`practice-panel-${m.id}`}
+        aria-selected={mode === m.id} tabIndex={mode === m.id ? 0 : -1} onClick={() => setMode(m.id)} onKeyDown={e => onKey(e, i)}>
+        {m.label}{m.id === 'virtual' && <span className="practice-mode-badge">준비 중</span>}
+      </button>)}
+    </div>
+    <div role="tabpanel" id="practice-panel-past" aria-labelledby="practice-tab-past" hidden={mode !== 'past'}><PastMarketPractice active={mode === 'past'} /></div>
+    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}>
+      <section className="practice-soon">
+        <span className="practice-mode-badge">준비 중</span>
+        <h2>가상 시뮬레이션은 아직 준비 중이에요</h2>
+        <p>지금은 이용할 수 없어요. 과거 시세로 연습하는 과거 시장 연습은 바로 해 볼 수 있어요.</p>
+        <button type="button" className="btn" onClick={() => select('past')}>과거 시장 연습으로 가기</button>
+      </section>
+    </div>
   </div>;
 }

@@ -12,7 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** 회원이 저장한 목표 시나리오(V21). snapshot은 저장할 때의 계산 결과 JSON이고 다시 계산하지 않는다. */
+/** 회원이 저장한 목표 시나리오(V22). snapshot은 저장할 때의 계산 결과 JSON이고 다시 계산하지 않는다. */
 @Entity
 @Table(name = "goal_scenarios")
 class SavedScenario {

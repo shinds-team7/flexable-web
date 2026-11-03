@@ -18,6 +18,7 @@ import com.flexable.web.market.EventDetector.Stages;
 import com.flexable.web.market.EventDetectorBaseline.Contamination;
 import com.flexable.web.market.EventDetectorBaseline.Line;
 import com.flexable.web.market.EventDetectorBaseline.Null;
+import com.flexable.web.market.EventDetectorBaseline.Pins;
 import com.flexable.web.market.EventDetectorBaseline.Power;
 import com.flexable.web.market.EventDetectorBaseline.YearRow;
 
@@ -95,11 +96,14 @@ class EventDetectorBaselineTest {
 		Map<Integer, Double> yearVol = Map.of(2016, 1.0, 2017, 0.6, 2018, 2.0, 2019, 1.0, 2020, 2.5, 2021, 0.8, 2022, 1.5, 2023, 0.5,
 				2024, 2.0, 2025, 1.0);
 		SyntheticSeries.Market regimes = SyntheticSeries.market(1, CALENDAR, yearVol, Map.of());
-		List<YearRow> years = EventDetectorBaseline.regime(lines(regimes, yearVol, jumps(4)));
+		List<Line> regimeLines = lines(regimes, yearVol, jumps(4));
+		List<YearRow> years = EventDetectorBaseline.regime(regimeLines);
+		// 5. 핀 위치: 흔들림이 바뀌는 해에 사건이 이어 붙어 여러 날 사건이 생긴다
+		Pins pins = EventDetectorBaseline.pins(regimeLines);
 		List<YearRow> calmYears = EventDetectorBaseline.regime(noise);
 
 		System.out.println("[사건 탐지기 " + EventDetector.VERSION + " 기준선: 합성]");
-		System.out.println(EventDetectorBaseline.table(n, power, c, years));
+		System.out.println(EventDetectorBaseline.table(n, power, c, years, pins));
 		System.out.println("체제 비교: 잡음만(흔들림 일정) 잘림 " + EventDetectorBaseline.totalCut(calmYears) + "/"
 				+ EventDetectorBaseline.totalCandidates(calmYears));
 
@@ -111,6 +115,7 @@ class EventDetectorBaselineTest {
 		assertThat(n.ruleRate()).isLessThan(0.01);
 
 		assertThat(power.get("+5σ").rate()).isGreaterThanOrEqualTo(0.90);
+		assertThat(pins.peakOff()).isZero();
 		// 3σ·4σ는 기준선이라 크기 순서만 본다
 		assertThat(power.get("+3σ").rate()).isLessThanOrEqualTo(power.get("+4σ").rate());
 		assertThat(power.get("+4σ").rate()).isLessThanOrEqualTo(power.get("+5σ").rate());
@@ -118,7 +123,7 @@ class EventDetectorBaselineTest {
 
 	/**
 	 * 같은 4개 지표를 로컬 평가 DB 실데이터로(EventDetectorRealDataTest와 같은 환경 변수). 실데이터에는 진짜 사건이 섞여 있어 1번은 귀무가 아니라
-	 * 참고 값이다. 2번은 실제 일봉에 120거래일마다 ±kσ(그날 탐지기가 쓴 σ)를 곱해 넣는다. 통과 조건 없이 표만 찍는다.
+	 * 참고 값이다. 2번은 실제 일봉에 120거래일마다 ±kσ(그날 탐지기가 쓴 σ)를 곱해 넣는다. 핀 위치(peak) 외에는 통과 조건 없이 표만 찍는다.
 	 */
 	@Test
 	@EnabledIfEnvironmentVariable(named = RealData.DB_URL, matches = ".+")
@@ -158,7 +163,9 @@ class EventDetectorBaselineTest {
 
 		System.out.println("[사건 탐지기 " + EventDetector.VERSION + " 기준선: 실데이터 " + real.size() + "종목, 시장 대용 " + data.proxy().code()
 				+ " " + data.proxy().bars().getFirst().date() + "~" + data.proxy().bars().getLast().date() + "]");
+		Pins pins = EventDetectorBaseline.pins(real);
 		System.out.println(EventDetectorBaseline.table(EventDetectorBaseline.nullCalibration(real), power,
-				EventDetectorBaseline.contamination(real, data.proxy().bars()), EventDetectorBaseline.regime(real)));
+				EventDetectorBaseline.contamination(real, data.proxy().bars()), EventDetectorBaseline.regime(real), pins));
+		assertThat(pins.peakOff()).isZero();
 	}
 }

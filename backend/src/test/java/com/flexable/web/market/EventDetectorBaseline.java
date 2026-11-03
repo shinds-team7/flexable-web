@@ -14,7 +14,7 @@ import com.flexable.web.market.EventDetector.Detected;
 import com.flexable.web.market.EventDetector.Stages;
 
 /**
- * 사건 탐지기 v1 기준선 지표 4가지. 탐지기 규칙은 다시 쓰지 않고 EventDetector.stock()·stockStages()의 결과만 센다.
+ * 사건 탐지기 v1 기준선 지표 4가지와 핀 위치. 탐지기 규칙은 다시 쓰지 않고 EventDetector.stock()·stockStages()의 결과만 센다.
  * 합성 데이터(EventDetectorBaselineTest)와 로컬 실데이터(EventDetectorRealDataTest)가 같이 쓴다.
  * 워밍업(β 250일)은 측정에서 뺀다: WARMUP보다 앞선 날의 z·후보·사건은 세지 않는다.
  */
@@ -57,6 +57,13 @@ final class EventDetectorBaseline {
 		double cutRate() {
 			return candidates == 0 ? 0 : (double) cut / candidates;
 		}
+	}
+
+	/**
+	 * 5. 핀 위치. multiDay는 여러 날 사건 수, startOff는 시작일이 기간 중 가장 크게 움직인 날이 아닌 사건(수정 전 핀),
+	 * peakOff는 peak가 그날이 아닌 사건(수정 후 핀, 0이어야 한다). inverted는 같은 해에 사건이 덮지 않은 더 크게 움직인 날이 있는 사건(참고).
+	 */
+	record Pins(int events, int multiDay, int startOff, int peakOff, int inverted) {
 	}
 
 	private EventDetectorBaseline() {
@@ -147,6 +154,44 @@ final class EventDetectorBaseline {
 		return out;
 	}
 
+	/** 하루 등락은 전날 종가 대비. 가장 크게 움직인 날은 같으면 앞선 날(EventDetector.peak와 같은 정의를 따로 센다). */
+	static Pins pins(Collection<Line> lines) {
+		int events = 0, multi = 0, startOff = 0, peakOff = 0, inverted = 0;
+		for (Line l : lines) {
+			List<Bar> b = l.bars();
+			if (b.size() <= WARMUP) {
+				continue;
+			}
+			LocalDate from = b.get(WARMUP).date();
+			Map<LocalDate, Integer> ix = new HashMap<>();
+			double[] move = new double[b.size()];
+			for (int i = 0; i < b.size(); i++) {
+				ix.put(b.get(i).date(), i);
+				move[i] = i == 0 ? 0 : Math.abs((double) b.get(i).close() / b.get(i - 1).close() - 1);
+			}
+			List<Detected> found = EventDetector.stock(b, l.market(), l.etf()).stream().filter(e -> !e.start().isBefore(from)).toList();
+			Map<Integer, Double> uncovered = new HashMap<>();
+			for (int i = WARMUP; i < b.size(); i++) {
+				LocalDate d = b.get(i).date();
+				if (found.stream().noneMatch(e -> !d.isBefore(e.start()) && !d.isAfter(e.end()))) {
+					uncovered.merge(d.getYear(), move[i], Math::max);
+				}
+			}
+			for (Detected e : found) {
+				int s = ix.get(e.start()), t = ix.get(e.end()), best = s;
+				for (int i = s; i <= t; i++) {
+					best = move[i] > move[best] ? i : best;
+				}
+				events++;
+				multi += t > s ? 1 : 0;
+				startOff += best != s ? 1 : 0;
+				peakOff += !b.get(best).date().equals(e.peak()) ? 1 : 0;
+				inverted += move[best] < uncovered.getOrDefault(e.start().getYear(), 0.0) ? 1 : 0;
+			}
+		}
+		return new Pins(events, multi, startOff, peakOff, inverted);
+	}
+
 	static int totalCut(List<YearRow> rows) {
 		return rows.stream().mapToInt(YearRow::cut).sum();
 	}
@@ -159,7 +204,7 @@ final class EventDetectorBaseline {
 		return String.format("%.2f%%", v * 100);
 	}
 
-	static String table(Null n, Map<String, Power> power, Contamination c, List<YearRow> years) {
+	static String table(Null n, Map<String, Power> power, Contamination c, List<YearRow> years, Pins pins) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("| 지표 | 값 |\n|---|---|\n");
 		sb.append("| 1. 귀무: 하루 \\|z\\|≥3.0 비율 | ").append(pct(n.zRate())).append(" (").append(n.zHits()).append('/').append(n.days())
@@ -171,6 +216,11 @@ final class EventDetectorBaseline {
 			.append(c.events()).append(", 시장 ±3% 날 비율 ").append(pct(c.baseDays())).append(") |\n");
 		sb.append("| 4. 체제: 연 6건 상한으로 잘린 후보 | ").append(pct((double) totalCut(years) / Math.max(1, totalCandidates(years))))
 			.append(" (").append(totalCut(years)).append('/').append(totalCandidates(years)).append(") |\n");
+		sb.append("| 5. 핀: 여러 날 사건 중 시작일이 가장 크게 움직인 날이 아님(수정 전) | ").append(pct((double) pins.startOff() / Math.max(1, pins.multiDay())))
+			.append(" (").append(pins.startOff()).append('/').append(pins.multiDay()).append(") |\n");
+		sb.append("| 5. 핀: peak가 가장 크게 움직인 날이 아님(수정 후) | ").append(pins.peakOff()).append('/').append(pins.events()).append(" |\n");
+		sb.append("| 5. 역전(참고): 같은 해에 사건이 덮지 않은 더 큰 날이 있는 사건 | ").append(pct((double) pins.inverted() / Math.max(1, pins.events())))
+			.append(" (").append(pins.inverted()).append('/').append(pins.events()).append(") |\n");
 		sb.append("\n| 연도 | 종목 수 | 후보 | 종목당 평균 | 최대 | 잘림 |\n|---|---|---|---|---|---|\n");
 		for (YearRow y : years) {
 			sb.append(String.format("| %d | %d | %d | %.1f | %d | %s |%n", y.year(), y.lineYears(), y.candidates(),

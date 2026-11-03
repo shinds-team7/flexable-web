@@ -130,7 +130,7 @@ export function useSmoothWheel() {
   }, []);
 }
 
-/** 화면에 들어온 .reveal 요소에 .in을 붙여 아래에서 위로 나타나게 한다(한 번만). 움직임 줄이기면 바로 보인다. */
+/** 화면에 들어온 .reveal 요소에 .in을 붙여 아래에서 위로 나타나게 한다. 화면을 벗어나면 떼어서 다시 돌아올 때마다 나타난다. 움직임 줄이기면 바로 보인다. */
 export function useReveal(root: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const els = root.current ? [...root.current.querySelectorAll<HTMLElement>('.reveal')] : [];
@@ -141,13 +141,12 @@ export function useReveal(root: RefObject<HTMLElement | null>) {
     const io = new IntersectionObserver(
       (entries) => {
         for (const en of entries) {
-          if (en.isIntersecting) {
-            en.target.classList.add('in');
-            io.unobserve(en.target);
-          }
+          // 화면에 들어오면 켜고, 완전히 벗어나면 꺼서 다시 돌아올 때마다 등장 모션이 나오게 한다
+          if (en.isIntersecting && en.intersectionRatio >= 0.15) en.target.classList.add('in');
+          else if (!en.isIntersecting) en.target.classList.remove('in');
         }
       },
-      { threshold: 0.15, rootMargin: '0px 0px -8% 0px' },
+      { threshold: [0, 0.15], rootMargin: '0px 0px -8% 0px' },
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();

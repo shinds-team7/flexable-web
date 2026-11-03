@@ -39,9 +39,12 @@ final class EventDetector {
 	record Bar(LocalDate date, long close, Long volume) {
 	}
 
-	/** 찾은 사건. marketReturn은 시장 대용 시세가 없으면 null, volumeRatio는 거래량을 모르면 null. */
+	/**
+	 * 찾은 사건. marketReturn은 시장 대용 시세가 없으면 null, volumeRatio는 거래량을 모르면 null.
+	 * peak는 기간 중 하루 등락(전날 종가 대비) 절댓값이 가장 큰 날, 같으면 앞선 날. 차트 핀을 이 날에 꽂는다(1일 사건이면 start).
+	 */
 	record Detected(LocalDate start, LocalDate end, int windowDays, String direction, double returnRate, Double marketReturn,
-			double zScore, Double volumeRatio, double score, int rankInYear) {
+			double zScore, Double volumeRatio, double score, int rankInYear, LocalDate peak) {
 	}
 
 	/** 합치기·순위 전 후보. start·end는 bars 번호. */
@@ -296,7 +299,21 @@ final class EventDetector {
 		Double mret = mb == null || ml == null || mb == 0 ? null : (double) ml / mb - 1;
 		String dir = ret > 0 || (ret == 0 && c.z() > 0) ? "RISE" : "FALL";
 		return new Detected(bars.get(c.start()).date(), last.date(), c.end() - c.start() + 1, dir, ret, mret, c.z(), c.vr(), c.score(),
-				rank);
+				rank, bars.get(peak(bars, c.start(), c.end())).date());
+	}
+
+	/** from..to 중 하루 등락 절댓값이 가장 큰 날의 번호. 같으면 앞선 날. */
+	private static int peak(List<Bar> bars, int from, int to) {
+		int best = from;
+		double max = -1;
+		for (int i = from; i <= to; i++) {
+			double move = Math.abs((double) bars.get(i).close() / bars.get(i - 1).close() - 1);
+			if (move > max) {
+				max = move;
+				best = i;
+			}
+		}
+		return best;
 	}
 
 	/** 테스트용: 날짜 축을 맞춘 종가 맵. */

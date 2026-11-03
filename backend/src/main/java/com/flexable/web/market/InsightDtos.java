@@ -24,9 +24,12 @@ public final class InsightDtos {
 			String basis, List<PricePoint> points, List<SourceRow> sources, String noticeKey, String notice, boolean isSample) {
 	}
 
-	/** 사건 핀 한 개. 상세는 /market/events/{id}. code는 종목 사건이면 그 종목, 시장 사건이면 null. */
-	public record PriceEventItem(long id, String code, String scope, LocalDate startDate, LocalDate endDate, int windowDays, String direction,
-			double returnRate, Double marketReturn, String headline, boolean hasExplanation, String sourceName, int sourceCount,
+	/**
+	 * 사건 핀 한 개. 상세는 /market/events/{id}. code는 종목 사건이면 그 종목, 시장 사건이면 null.
+	 * peakDate는 핀을 꽂을 날(기간 중 하루 등락이 가장 큰 날). 다시 탐지하기 전에 저장한 사건이면 null이고 화면은 startDate를 쓴다.
+	 */
+	public record PriceEventItem(long id, String code, String scope, LocalDate startDate, LocalDate endDate, LocalDate peakDate, int windowDays,
+			String direction, double returnRate, Double marketReturn, String headline, boolean hasExplanation, String sourceName, int sourceCount,
 			String topSource, double score) {
 	}
 

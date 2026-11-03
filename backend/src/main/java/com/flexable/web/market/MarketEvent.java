@@ -34,6 +34,10 @@ public class MarketEvent {
 	@Column(name = "end_date", nullable = false)
 	private LocalDate endDate;
 
+	/** 차트 핀 날짜(기간 중 하루 등락이 가장 큰 날). peak_date 이전에 저장한 행은 다시 탐지할 때까지 null. */
+	@Column(name = "peak_date")
+	private LocalDate peakDate;
+
 	@Column(name = "window_days", nullable = false)
 	private int windowDays;
 
@@ -103,6 +107,7 @@ public class MarketEvent {
 		}
 		this.startDate = d.start();
 		this.endDate = d.end();
+		this.peakDate = d.peak();
 		this.windowDays = d.windowDays();
 		this.direction = d.direction();
 		this.returnRate = d.returnRate();
@@ -145,6 +150,10 @@ public class MarketEvent {
 
 	LocalDate getStartDate() {
 		return startDate;
+	}
+
+	LocalDate getPeakDate() {
+		return peakDate;
 	}
 
 	LocalDate getEndDate() {

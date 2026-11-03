@@ -162,12 +162,24 @@ export default function Landing() {
           <div className="land-copy">
             <h1 className="land-display">{'청년을 위한 금융 파트너\n솔파와 함께 성장하세요'}</h1>
             <span className="land-lead">청년들의 자산 증식을 도울 수 있도록, 정확한 금융 정보와 인사이트를 제공합니다.</span>
+            <Link className="land-cta" to="/mypage">
+              <span>체험 시작하기</span>
+              <ArrowCircle />
+            </Link>
           </div>
-          <Link className="land-cta" to="/mypage">
-            <span>체험 시작하기</span>
-            <ArrowCircle />
-          </Link>
         </div>
+        <button
+          type="button"
+          className="land-scroll"
+          aria-label="아래로 스크롤"
+          onClick={() => root.current?.querySelector('.land-app')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <span className="land-scroll-txt">scroll</span>
+          <span className="land-scroll-arrows" aria-hidden="true">
+            <span>»</span>
+            <span>»</span>
+          </span>
+        </button>
       </div>
 
       <div className="land-app">

@@ -467,16 +467,25 @@ dialog::backdrop{background:var(--scrim)}
 .login-modal-x:hover{background:var(--sunken);color:var(--text)}
 
 /* ───────── 랜딩 ───────── */
-.land-sky{position:relative;z-index:1;background:linear-gradient(180deg,var(--color-land-sky-top) 0%,var(--color-land-sky-bottom) 100%);color:var(--color-land-ink);overflow-x:clip}
-.land-sky-in{position:relative;max-width:1344px;margin:0 auto;padding:0 32px;min-height:840px;display:flex;align-items:center;justify-content:center}
-.land-copy{position:relative;z-index:2;align-items:center;text-align:center}
-.land-display{color:var(--color-land-ink);text-align:center;font-size:80px;line-height:104px;font-weight:800;white-space:break-spaces}
-.land-lead{display:block;margin-top:24px;color:var(--color-land-ink);text-align:center;font-size:20px;line-height:35px;font-weight:400;white-space:break-spaces}
-.land-cta{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;padding:18px 20px;border:2px solid var(--color-land-ink);color:var(--color-land-ink);transition:background 140ms var(--ease)}
+.land-sky{position:relative;z-index:1;background:var(--color-land-sky-top) url(/landing/hero.webp) right bottom/cover no-repeat;color:var(--color-land-ink);overflow-x:clip}
+.land-sky-in{position:relative;max-width:1344px;margin:0 auto;padding:0 32px;min-height:840px;display:flex;align-items:center;justify-content:flex-start}
+.land-copy{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:min(720px,56%);text-shadow:0 2px 14px rgba(0,50,190,.45)}
+.land-display{color:var(--color-land-ink);text-align:left;font-size:64px;line-height:84px;font-weight:800;white-space:break-spaces}
+.land-lead{display:block;margin-top:24px;color:var(--color-land-ink);text-align:left;font-size:20px;line-height:35px;font-weight:400;white-space:break-spaces}
+.land-cta{margin-top:40px;display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;padding:18px 20px;border:2px solid var(--color-land-ink);color:var(--color-land-ink);transition:background 140ms var(--ease)}
 .land-cta span{font-size:16px;font-weight:700;line-height:18px}
 .land-cta svg{width:28px;height:28px;fill:currentColor}
 .land-cta:hover{text-decoration:none;background:var(--color-land-glass)}
 .land-cta:focus-visible{outline-color:var(--color-land-ink)}
+/* 히어로 하단 중앙의 고정 스크롤 안내. 화살표만 위에서 아래로 흐른다 */
+.land-scroll{position:absolute;left:50%;bottom:24px;z-index:2;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;padding:8px 12px;color:var(--color-land-ink);cursor:pointer;text-shadow:0 1px 10px rgba(0,50,190,.7),0 0 3px rgba(0,50,190,.6)}
+.land-scroll-txt{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.land-scroll-arrows{display:flex;flex-direction:column;align-items:center;line-height:1}
+.land-scroll-arrows span{display:block;font-size:22px;font-weight:700;transform:rotate(90deg);opacity:0;animation:land-scroll-flow 1.6s var(--ease) infinite}
+.land-scroll-arrows span:nth-child(2){animation-delay:.25s}
+.land-scroll:focus-visible{outline:2px solid var(--color-land-ink);outline-offset:2px;border-radius:var(--radius-soft-sm)}
+@keyframes land-scroll-flow{0%{opacity:0;translate:0 -8px}40%{opacity:1}100%{opacity:0;translate:0 8px}}
+@media (prefers-reduced-motion:reduce){.land-scroll-arrows span{animation:none;opacity:1}}
 /* 카드는 폰 화면 위 레이어이고 화면 좌우로 넘친다 */
 .page.land{padding-top:0}
 .land-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:stretch;padding:48px 0 64px}
@@ -728,7 +737,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .land-sky-in{min-height:560px;padding-top:56px;padding-bottom:136px}
   .land-display{font-size:36px;line-height:48px}
   .land-lead{font-size:16px;line-height:24px;font-weight:500}
-  .land-cta{width:156px;bottom:40px}
+  .land-cta{width:156px;margin-top:28px}
   .land-cta span{font-size:14px;line-height:16px}
   .land-cta svg{width:24px;height:24px}
   .land-app-kicker{font-size:22px;line-height:32px}

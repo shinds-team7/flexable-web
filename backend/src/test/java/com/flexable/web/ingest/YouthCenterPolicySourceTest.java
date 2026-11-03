@@ -127,6 +127,18 @@ class YouthCenterPolicySourceTest {
 	}
 
 	@Test
+	void 신청_대상_코드를_이름으로_바꾼다() {
+		java.util.Map<String, Object> row = new java.util.HashMap<>(java.util.Map.of("plcyNo", "1", "plcyNm", "청년 정책", "jobCd", "0013001,0013006",
+				"mrgSttsCd", "0055003", "schoolCd", "0049005, 0049007", "sbizCd", "0014005"));
+		PolicyDraft d = YouthCenterPolicySource.toDraft(row, java.time.LocalDate.of(2026, 10, 21));
+		assertThat(d.employment()).containsExactly("재직자", "(예비)창업자");
+		assertThat(d.marital()).isEmpty(); // 제한없음 = 빈 목록
+		assertThat(d.schools()).containsExactly("대학 재학", "대학 졸업");
+		assertThat(d.majors()).isNull(); // 필드 없음 = 확인 못 함
+		assertThat(d.special()).containsExactly("장애인");
+	}
+
+	@Test
 	void 금융은_정책명으로_정한다() {
 		// 같은 '금융･복지･문화'(중분류 '취약계층 및 금융지원')에도 금융과 무관한 정책이 섞여 있다(2026-10-23 실제 응답)
 		assertThat(YouthCenterPolicySource.categories("2026 청년내일저축계좌", "금융･복지･문화")).containsExactly(NewsCategory.FINANCE, NewsCategory.CULTURE);

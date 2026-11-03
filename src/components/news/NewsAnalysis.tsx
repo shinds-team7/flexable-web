@@ -76,7 +76,7 @@ export function GuideCard() {
   return (
     <Link className="news-guide-card" to={GUIDE_PATH}>
       <div className="news-guide-art">
-        <img src="/characters/lv3-3.png" alt="" width={220} height={220} />
+        <img src="/cal.png" alt="" width={220} height={220} />
       </div>
       <div className="news-guide-body">
         <p className="news-guide-meta">

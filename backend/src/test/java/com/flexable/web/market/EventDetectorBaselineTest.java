@@ -11,7 +11,10 @@ import java.util.Map;
 import java.util.Random;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
+import com.flexable.web.market.EventDetector.Bar;
+import com.flexable.web.market.EventDetector.Stages;
 import com.flexable.web.market.EventDetectorBaseline.Contamination;
 import com.flexable.web.market.EventDetectorBaseline.Line;
 import com.flexable.web.market.EventDetectorBaseline.Null;
@@ -111,5 +114,51 @@ class EventDetectorBaselineTest {
 		// 3σ·4σ는 기준선이라 크기 순서만 본다
 		assertThat(power.get("+3σ").rate()).isLessThanOrEqualTo(power.get("+4σ").rate());
 		assertThat(power.get("+4σ").rate()).isLessThanOrEqualTo(power.get("+5σ").rate());
+	}
+
+	/**
+	 * 같은 4개 지표를 로컬 평가 DB 실데이터로(EventDetectorRealDataTest와 같은 환경 변수). 실데이터에는 진짜 사건이 섞여 있어 1번은 귀무가 아니라
+	 * 참고 값이다. 2번은 실제 일봉에 120거래일마다 ±kσ(그날 탐지기가 쓴 σ)를 곱해 넣는다. 통과 조건 없이 표만 찍는다.
+	 */
+	@Test
+	@EnabledIfEnvironmentVariable(named = RealData.DB_URL, matches = ".+")
+	void 실데이터_기준선_지표() throws Exception {
+		RealData.Loaded data = RealData.load();
+		Map<LocalDate, Long> market = EventDetector.closes(data.proxy().bars());
+		List<Line> real = data.stocks().stream().map(s -> new Line(s.code(), s.bars(), market, s.etf())).toList();
+
+		Map<String, Power> power = new LinkedHashMap<>();
+		for (double k : new double[] { 3, 4, 5 }) {
+			Random rnd = new Random(42);
+			List<Line> injected = new ArrayList<>();
+			Map<String, List<Integer>> at = new HashMap<>();
+			for (Line l : real) {
+				Stages st = EventDetector.stockStages(l.bars(), market, l.etf());
+				if (st == null) {
+					continue;
+				}
+				List<Bar> bars = new ArrayList<>(l.bars());
+				List<Integer> days = new ArrayList<>();
+				for (int d = EventDetectorBaseline.WARMUP + 20; d < bars.size(); d += 120) {
+					if (Double.isNaN(st.sigma()[d]) || st.sigma()[d] == 0) {
+						continue;
+					}
+					double f = Math.exp((rnd.nextBoolean() ? k : -k) * st.sigma()[d]);
+					for (int i = d; i < bars.size(); i++) {
+						Bar b = bars.get(i);
+						bars.set(i, new Bar(b.date(), Math.round(b.close() * f), b.volume()));
+					}
+					days.add(d);
+				}
+				injected.add(new Line(l.name(), bars, market, l.etf()));
+				at.put(l.name(), days);
+			}
+			power.put("+" + (int) k + "σ", EventDetectorBaseline.power(injected, at));
+		}
+
+		System.out.println("[사건 탐지기 " + EventDetector.VERSION + " 기준선: 실데이터 " + real.size() + "종목, 시장 대용 " + data.proxy().code()
+				+ " " + data.proxy().bars().getFirst().date() + "~" + data.proxy().bars().getLast().date() + "]");
+		System.out.println(EventDetectorBaseline.table(EventDetectorBaseline.nullCalibration(real), power,
+				EventDetectorBaseline.contamination(real, data.proxy().bars()), EventDetectorBaseline.regime(real)));
 	}
 }

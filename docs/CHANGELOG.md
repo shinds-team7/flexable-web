@@ -6,6 +6,7 @@
 
 ## 2026-11-03
 
+- [#174] F7 v2(목표 달성 시나리오) MVP 계산 정책을 `docs/policies.md` §7에, 예시를 `tests/policy/goal-scenarios.json`(`PENDING`)에, API `POST /goal/scenarios`(로그인 없음)를 `web-api.yaml`에 더했다. 입력은 목표 이름·금액·기한(1~3년), 상품은 적금·CMA(예시 금리)·국내/미국 지수 ETF·코스피 상위 5종목, 조합 비중은 AI가 정하고(연결 전·검증 실패 시 데모 조합) 서버가 경로 2,000개로 필요 월 금액(10번 중 8번)·결과 범위·원금 손실 비율을 계산한다. 결정 문서에 11-03 MVP 확정을 기록했다. v1 `/me/goal`·§3·§4는 그대로다. 서버 구현은 #175 — 영향: 프론트(`npm run gen:api`)·백엔드(구현 전까지 `ContractTest` 변화 없음)
 - [#170] 웹 경로를 바꿨다: 랜딩 `/`→`/home`(`/`는 이동), 이전 홈 `/home`→`/mypage`, 이전 `/me`→`/mypage/settings`(`/me`는 이동). solpa 로고는 로그인 여부와 상관없이 `/home`으로 가고 로그인한 사람도 랜딩을 본다. 상단 메뉴 맨 앞에 금융정보(`/finance`, 빈 화면)를 더하고 플러스는 메뉴에서 뺐다(`/plus`는 내 정보에서 진입). `02-design`·`README`·`PRD` F0·`product/README`·`goal-ai`의 경로 표기를 맞췄다. 계약·정책은 바뀌지 않는다 — 영향: 프론트·읽는 문서
 
 ## 2026-10-31

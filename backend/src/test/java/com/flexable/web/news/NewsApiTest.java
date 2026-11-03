@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,6 +73,52 @@ class NewsApiTest {
 	private static PolicyDraft draft(String id, List<NewsCategory> c, Integer min, Integer max, boolean nationwide, List<String> regions, LocalDate asOf) {
 		return new PolicyDraft("FAKE", id, "{\"id\":\"" + id + "\"}", id + " 제목", c, min, max, Boolean.TRUE, nationwide, regions,
 				LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 30), false, "○○기관(예시)", "https://example.com/" + id, asOf, null, List.of("키워드"), null);
+	}
+
+	private void view(String externalId, String viewer, int expected) throws Exception {
+		long id = jdbc.queryForObject("SELECT id FROM youth_news WHERE external_id = ?", Long.class, externalId);
+		mvc.perform(post("/api/v1/youth-news/" + id + "/views").contentType(MediaType.APPLICATION_JSON).content("{\"viewerId\":\"" + viewer + "\"}"))
+			.andExpect(status().is(expected));
+	}
+
+	@Test
+	void 열람은_방문자_소식_날짜당_한_번만_세고_많이_본_순으로_내려준다() throws Exception {
+		jdbc.update("DELETE FROM youth_news_view");
+		String a = "11111111-1111-4111-8111-111111111111";
+		String b = "22222222-2222-4222-8222-222222222222";
+		mvc.perform(get("/api/v1/youth-news/hot")).andExpect(status().isOk()).andExpect(jsonPath("$.items", hasSize(0))).andExpect(jsonPath("$.basis", is("SITE")));
+		view("seoul-rent", a, 204);
+		view("seoul-rent", a, 204); // 같은 방문자·같은 날은 한 번
+		view("seoul-rent", b, 204);
+		view("all-savings", a, 204);
+		mvc.perform(get("/api/v1/youth-news/hot"))
+			.andExpect(status().isOk())
+			.andExpect(header().string("Cache-Control", "max-age=60, public"))
+			.andExpect(jsonPath("$.windowDays", is(7)))
+			.andExpect(jsonPath("$.items", hasSize(2)))
+			.andExpect(jsonPath("$.items[0].visitors", is(2)))
+			.andExpect(jsonPath("$.items[1].visitors", is(1)));
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news_view", Long.class)).isEqualTo(3);
+	}
+
+	@Test
+	void 열람은_잘못된_방문자_값과_없는_소식_반려한_소식을_받지_않는다() throws Exception {
+		view("seoul-rent", "not-a-uuid", 400);
+		mvc.perform(post("/api/v1/youth-news/999999/views").contentType(MediaType.APPLICATION_JSON).content("{\"viewerId\":\"11111111-1111-4111-8111-111111111111\"}"))
+			.andExpect(status().isNotFound());
+		view("rejected", "11111111-1111-4111-8111-111111111111", 404);
+	}
+
+	@Test
+	void 방문자_한_명이_하루에_셀_수_있는_소식은_한도까지다() throws Exception {
+		jdbc.update("DELETE FROM youth_news_view");
+		String viewer = "33333333-3333-4333-8333-333333333333";
+		for (long n = 1; n <= NewsViewService.DAILY_CAP_PER_VIEWER; n++) {
+			jdbc.update("INSERT INTO youth_news_view (news_id, viewer_id, viewed_on) VALUES (?, ?, CURRENT_DATE)", 100000 + n, viewer);
+		}
+		view("seoul-rent", viewer, 204);
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news_view WHERE viewer_id = ?", Long.class, viewer))
+			.isEqualTo((long) NewsViewService.DAILY_CAP_PER_VIEWER);
 	}
 
 	@Test

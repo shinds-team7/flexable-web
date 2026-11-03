@@ -177,7 +177,6 @@ export default function Landing() {
           <span className="land-scroll-txt">scroll</span>
           <span className="land-scroll-arrows" aria-hidden="true">
             <span>»</span>
-            <span>»</span>
           </span>
         </button>
       </div>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { CandleChart } from '@/charts/CandleChart';
+import { CandleChart, type EventBand } from '@/charts/CandleChart';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
 import { ApiError, errorText } from '@/lib/api';
 import '@/styles/practice.css';
@@ -36,6 +36,11 @@ function PastMarketPractice({ active }: { active: boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const playButton = useRef<HTMLButtonElement>(null);
   const latest = useRef<PracticeSnapshot | null>(null);
+  const setup = useRef<HTMLElement>(null);
+  // 다시 설정으로 돌아오면 고른 업종에 포커스를 둔다(키보드로 바로 다른 업종을 고를 수 있게)
+  const focusSetup = useRef(false);
+  // 선택 기록과 차트 사건 기간 띠를 같은 번호로 함께 강조한다
+  const [activeBand, setActiveBand] = useState<number | null>(null);
 
   const loadCategories = useCallback(async () => {
     const current = generation.current;
@@ -117,9 +122,15 @@ function PastMarketPractice({ active }: { active: boolean }) {
 
   const reset = () => {
     generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
+    setActiveBand(null); focusSetup.current = true;
     const old = token.current; token.current = null;
     if (old) void practice('end', { sessionToken: old }).catch(() => {});
   };
+  useEffect(() => {
+    if (snapshot || !focusSetup.current) return;
+    focusSetup.current = false;
+    setup.current?.querySelector<HTMLInputElement>('input[name="industry"]:checked')?.focus();
+  }, [snapshot]);
   const start = (event: React.FormEvent) => {
     event.preventDefault();
     const value = Number(amount);
@@ -138,37 +149,48 @@ function PastMarketPractice({ active }: { active: boolean }) {
   const portfolio = revealing ? (snapshot!.frames[shown - reveal!.from - 1]?.portfolio ?? reveal!.prev.portfolio) : snapshot?.portfolio;
   const decisions = revealing ? reveal!.prev.decisions : snapshot?.decisions ?? [];
   const finished = !revealing && snapshot?.status === 'FINISHED';
+  // 진행 중에는 공개된 봉까지만 그리므로 판정 전 사건의 띠는 오늘 봉에서 끝난다
+  const bands: EventBand[] = decisions.map((r, i) => ({ n: i + 1, from: r.baselineDate, to: r.outcomeDate }));
+  const restartLabel = finished ? '다른 종목으로 다시 연습' : '연습 종료하고 다시 설정';
   const retry = () => { if (pending.current) void send(pending.current); else if (!catalog) void loadCategories(); else setError(''); };
   return <>
     <div className="practice-notice"><span>{isSample ? '예시 모드' : '과거 시장 연습'}</span><p>{isSample ? '학습용으로 만든 가상 기업·시세·사건이에요. 실제 기업의 투자 결과가 아니에요.' : '과거 시세를 따라가는 가상 투자예요. 실제 주문이나 계좌 연결은 이루어지지 않아요.'}</p></div>
     {error && <div className="practice-error" role="alert"><p>{error}</p><button className="btn btn-sm" onClick={retry} disabled={busy}>다시 시도</button></div>}
     <div className="practice-workspace">
-      <aside className="practice-setup">
-        <h2>{snapshot ? '이번 연습' : '어떤 산업을 만나볼까요?'}</h2>
-        <p className="practice-muted">업종을 고르면 종목 하나를 무작위로 골라드려요.</p>
-        <form onSubmit={start}>
-          <fieldset disabled={!!snapshot || busy}><legend>회사 카테고리</legend>
-            {!catalog ? <p role="status">업종을 불러오고 있어요…</p> : catalog.categories.length === 0 ? <p>시세와 사건 자료를 준비하고 있어요. 잠시 후 다시 확인해 주세요.</p> : catalog.categories.map(c => <label className={`practice-category ${category === c.code ? 'selected' : ''}`} key={c.code}>
-              <input type="radio" name="industry" value={c.code} checked={category === c.code} onChange={() => setCategory(c.code)} /><span><b>{c.name}</b><small>{c.eligibleCount}개 종목 중 무작위</small></span><span aria-hidden="true">{category === c.code ? '●' : '○'}</span>
-            </label>)}
-            <label className="practice-amount-label" htmlFor="practiceAmount">연습할 투자금</label>
-            <div className="practice-amount"><input id="practiceAmount" type="text" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} maxLength={9} aria-describedby="practiceAmountHelp" /><span>원</span></div>
-            <small id="practiceAmountHelp">1만 원 ~ 1억 원</small>
-            <div className="practice-amount-presets">{[1000000, 5000000, 10000000].map(n => <button key={n} type="button" onClick={() => setAmount(String(n))}>{fmt.format(n / 10000)}만</button>)}</div>
-          </fieldset>
-          <p className="practice-allocation">처음에는 투자금의 50%로 주식을 사고, 나머지는 추가 매수를 위한 현금으로 남겨요.</p>
-          {!snapshot ? <button className="btn btn-primary practice-start" type="submit" disabled={busy || !category || !catalog?.categories.length}>{busy ? '연습 준비 중…' : '시뮬레이션 시작'}</button> : <button className="btn practice-start" type="button" onClick={reset} disabled={busy}>{finished ? '다른 종목으로 다시 연습' : '연습 종료하고 다시 설정'}</button>}
-        </form>
+      <aside className="practice-setup" ref={setup}>
+        {!snapshot ? <>
+          <div className="practice-setup-title"><h2>어떤 산업을 만나볼까요?</h2>{catalog && catalog.categories.length > 0 && <span>업종 {catalog.categories.length}개</span>}</div>
+          <form onSubmit={start}>
+            <fieldset disabled={busy}><legend className="sr-only">회사 카테고리</legend>
+              {!catalog ? <p role="status">업종을 불러오고 있어요…</p> : catalog.categories.length === 0 ? <p>시세와 사건 자료를 준비하고 있어요. 잠시 후 다시 확인해 주세요.</p> : <div className="practice-category-list">{catalog.categories.map(c => <label className={`practice-category ${category === c.code ? 'selected' : ''}`} key={c.code}>
+                <input type="radio" name="industry" value={c.code} checked={category === c.code} onChange={() => setCategory(c.code)} /><span><b>{c.name}</b><small>{c.eligibleCount}개 종목 중 무작위</small></span><span className="practice-category-check" aria-hidden="true">{category === c.code ? '●' : '○'}</span>
+              </label>)}</div>}
+              <div className="practice-amount-label"><label htmlFor="practiceAmount">연습할 투자금</label><small id="practiceAmountHelp">1만 원 ~ 1억 원</small></div>
+              <div className="practice-amount"><input id="practiceAmount" type="text" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} maxLength={9} aria-describedby="practiceAmountHelp" /><span>원</span></div>
+              <div className="practice-amount-presets">{[1000000, 5000000, 10000000].map(n => <button key={n} type="button" onClick={() => setAmount(String(n))}>{fmt.format(n / 10000)}만</button>)}</div>
+            </fieldset>
+            <button className="btn btn-primary practice-start" type="submit" disabled={busy || !category || !catalog?.categories.length}>{busy ? '연습 준비 중…' : '시뮬레이션 시작'}</button>
+            <p className="practice-allocation">처음에는 투자금의 50%로 주식을 사고, 나머지는 추가 매수를 위한 현금으로 남겨요.</p>
+          </form>
+        </> : <section className="practice-summary" aria-labelledby="practiceSummaryTitle">
+          {/* 설정 폼 밖에 두는 버튼이라 눌렀을 때 폼 제출(새 시작)로 이어지지 않는다 */}
+          <h2 id="practiceSummaryTitle">이번 연습</h2>
+          <dl><div><dt>업종</dt><dd>{snapshot.instrument.categoryName}</dd></div><div><dt>종목</dt><dd>{snapshot.instrument.name}</dd></div><div><dt>투자금</dt><dd>{money(snapshot.initialAmount)}</dd></div></dl>
+          <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
+          <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
+        </section>}
         <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 재생해요.</li><li>사건과 사건 사이 시세가 3초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol></div>
       </aside>
       <main className="practice-market">
-        <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.instrument.categoryName : '나의 투자 연습'}</span><h2>{snapshot?.instrument.name ?? '다음 장면은 아직 몰라요'}</h2></div><span className="practice-state">{finished ? '연습 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span></div>
+        <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.instrument.categoryName : '나의 투자 연습'}</span><h2>{snapshot?.instrument.name ?? '다음 장면은 아직 몰라요'}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '연습 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
         <div className="practice-quote">{snapshot ? <><strong>{money(candles.at(-1)!.close)}</strong><span>{candles.at(-1)!.date} 종가</span></> : <p>미래 가격은 한 번에 공개되지 않아요.<br />나의 판단을 먼저 남겨보세요.</p>}</div>
-        <CandleChart candles={candles} />
+        <CandleChart candles={candles} full={finished} bands={bands} activeBand={activeBand} onActiveBand={setActiveBand} />
         <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : '120거래일 이상의 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : '사건 사이 구간을 3초에 재생 · 사건이 나오면 자동으로 멈춰요'}</span></div><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div>
         <progress className="practice-progress" max={snapshot?.totalDays ?? 120} value={candles.length} aria-label="시뮬레이션 진행" />
         {snapshot && <section className="practice-journal"><div className="practice-section-title"><h2>{finished ? '이번 연습 돌아보기' : '나의 선택 기록'}</h2><span>{decisions.length}개의 선택</span></div>
-          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map(r => <article className="practice-decision" key={r.eventId}><time>{r.publishedDate}</time><div><h3>{r.title}</h3><p>{r.prediction === 'POSITIVE' ? '긍정적 영향 예상' : '부정적 영향 예상'} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${r.allocationPercent}%`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome">{r.outcome ? <><b>{r.outcome === 'CORRECT' ? '예상과 같았어요' : r.outcome === 'NEUTRAL' ? '가격이 같았어요' : '예상과 달랐어요'}</b><span className={tone(r.subsequentReturnRate!)}>{percent(r.subsequentReturnRate!)}</span><small>이후 5거래일 실제 등락</small></> : <small>5거래일 뒤 확인해요</small>}</div></article>)}
+          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map((r, i) => <article className={`practice-decision ${activeBand === i + 1 ? 'active' : ''}`} key={r.eventId} tabIndex={0}
+            onMouseEnter={() => setActiveBand(i + 1)} onMouseLeave={() => setActiveBand(null)} onFocus={() => setActiveBand(i + 1)} onBlur={() => setActiveBand(null)}>
+            <div className="practice-decision-meta"><span className="practice-decision-no"><span className="sr-only">사건 </span>{i + 1}</span><time>{r.publishedDate}</time></div><div><h3>{r.title}</h3><p>{r.prediction === 'POSITIVE' ? '긍정적 영향 예상' : '부정적 영향 예상'} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${r.allocationPercent}%`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome">{r.outcome ? <><b>{r.outcome === 'CORRECT' ? '예상과 같았어요' : r.outcome === 'NEUTRAL' ? '가격이 같았어요' : '예상과 달랐어요'}</b><span className={tone(r.subsequentReturnRate!)}>{percent(r.subsequentReturnRate!)}</span><small>이후 5거래일 실제 등락</small></> : <small>5거래일 뒤 확인해요</small>}</div></article>)}
           {finished && <p className="practice-result-note">같은 사건에도 시장은 예상과 다르게 움직일 수 있어요. 이번 결과는 사건의 원인이나 매수·매도의 정답을 뜻하지 않아요.</p>}
         </section>}
       </main>

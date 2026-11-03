@@ -128,42 +128,116 @@ export function InvestorTypes() {
   return (
     <section className="page col">
       <ProtoNote />
-      {mine && (
-        <div className="card it-start it-mine">
-          <span className="meta">지금 내 성향</span>
-          <h2 className="it-h2">
-            {mine.name} · {mine.oneLine}
+      <div className="it-duo">
+        <article className="card it-about" aria-labelledby="it-about-h">
+          <span className="meta">알아 두면 좋아요</span>
+          <h2 className="it-h2" id="it-about-h">
+            투자성향분석이란?
           </h2>
-          <MixBar t={mine} />
-          <div className="toolbar">
-            <Link className="btn btn-primary" to={`/type/${mine.id}`}>
-              {mine.name} 보러 가기
-            </Link>
+          <p className="it-lead">
+            투자 목적·경험·손실을 견딜 수 있는 정도를 바탕으로, 내가 어느 정도의 위험까지 편하게 감당할 수 있는지 살펴보는 과정이에요.
+          </p>
+
+          <h3 className="it-h3">왜 해요?</h3>
+          <ul className="it-list">
+            <li>수익을 더 기대해도 될지, 안정적인 쪽이 맞을지 기준이 생겨요.</li>
+            <li>결과는 좋고 나쁨이 아니라 내가 감수할 수 있는 위험의 범위예요.</li>
+            <li>투자 목적이나 자금 상황이 달라지면 다시 해 보는 게 좋아요.</li>
+          </ul>
+
+          <h3 className="it-h3">무엇을 물어봐요?</h3>
+          <dl className="it-defs">
+            <div>
+              <dt>투자 경험</dt>
+              <dd>투자해 본 적이 있는지, 상품 구조를 얼마나 이해하는지</dd>
+            </div>
+            <div>
+              <dt>손실 감내</dt>
+              <dd>투자한 돈이 줄었을 때 어디까지 견딜 수 있는지</dd>
+            </div>
+            <div>
+              <dt>목적과 기간</dt>
+              <dd>무엇을 위해, 얼마나 오래 투자할 계획인지</dd>
+            </div>
+          </dl>
+
+          <h3 className="it-h3">성향은 세 가지로 나눠요</h3>
+          <ul className="it-types">
+            {INVESTOR_TYPES.map((t) => (
+              <li key={t.id}>
+                <b>{t.name}</b>
+                <span>{t.oneLine}</span>
+                <span className="meta">
+                  패시브 {100 - t.active} : 액티브 {t.active}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="meta">패시브는 시장 전체(지수 ETF)를 꾸준히, 액티브는 종목을 직접 골라 넣는 방식이에요.</p>
+
+          <h3 className="it-h3">여기서는 이렇게 해요</h3>
+          <ul className="it-list">
+            <li>질문 {TYPE_QUESTIONS.length}개에 답하면 가까운 성향을 알려 드려요.</li>
+            <li>결과는 참고용이에요. 성향은 내가 직접 정하고, 횟수 제한 없이 언제든 바꿀 수 있어요.</li>
+            <li>질문에 답한 내용은 저장하지 않아요.</li>
+          </ul>
+          <p className="meta it-fine">
+            투자 상품은 예금자보호 대상이 아니며 원금을 잃을 수 있어요. 이 분석은 금융회사의 투자자 적합성 진단을 대신하지 않고, 수익이나 달성을 보장하지 않아요.
+          </p>
+        </article>
+
+        <div className="it-side">
+          {mine && (
+            <div className="card it-start it-mine">
+              <span className="meta">지금 내 성향</span>
+              <h2 className="it-h2">
+                {mine.name} · {mine.oneLine}
+              </h2>
+              <MixBar t={mine} />
+              <div className="toolbar">
+                <Link className="btn btn-primary" to={`/type/${mine.id}`}>
+                  {mine.name} 보러 가기
+                </Link>
+              </div>
+            </div>
+          )}
+          <div className="card it-start">
+            <span className="meta">투자 성향 테스트</span>
+            <h1 className="page-title">나는 어떤 투자 성향일까?</h1>
+            <p className="page-desc">
+              투자 계획의 첫걸음은 나의 성향을 이해하는 거예요. 성향에 맞춘 목표와 실행 계획은 꾸준히 나아갈 수 있는 힘이 되어 줘요.
+              <br />
+              질문 {TYPE_QUESTIONS.length}개에 답하면 안정형·균형형·성장형 중 어디에 가까운지 알려 드려요. 결과는 참고용이고, 성향은 직접 정해요.
+            </p>
+            <div className="toolbar">
+              <Link className="btn btn-primary" to="/type/test">
+                테스트 시작
+              </Link>
+              <Link className="btn btn-line" to="/type/choose">
+                건너뛰기
+              </Link>
+            </div>
           </div>
-        </div>
-      )}
-      <div className="card it-start">
-        <h1 className="page-title">내 투자 성향 알아보기</h1>
-        <p className="page-desc">
-          질문 {TYPE_QUESTIONS.length}개에 답하면 안정형·균형형·성장형 중 어디에 가까운지 알려 드려요. 결과는 참고용이고, 성향은 직접 정해요.
-        </p>
-        <div className="toolbar">
-          <Link className="btn btn-primary" to="/type/test">
-            테스트 시작
-          </Link>
-          <Link className="btn btn-line" to="/type/choose">
-            건너뛰기
-          </Link>
         </div>
       </div>
     </section>
   );
 }
 
+// 고르면 ① 고른 선택지 강조(PICK_MS) → ② Q번호·질문·선택지가 위에서부터 차례로 왼쪽으로 빠짐(EXIT_MS + 개수×EXIT_STAGGER_MS). CSS .it-qa.picking/.leaving과 같은 값
+const PICK_MS = 420;
+const EXIT_MS = 300;
+const EXIT_STAGGER_MS = 55;
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 /** /type/test: 한 화면에 한 문항. 답을 고르면 다음 문항, 다 답하면 결과(참고). 답은 저장하지 않는다 */
 export function InvestorTypeTest() {
   const nav = useNavigate();
   const [answers, setAnswers] = useState<number[]>([]);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   const total = TYPE_QUESTIONS.length;
   const step = answers.length;
   // 문항이 바뀌면 누른 버튼이 사라지므로 새 질문(또는 결과) 제목으로 포커스를 옮긴다. 처음 들어올 때는 옮기지 않는다
@@ -211,39 +285,72 @@ export function InvestorTypeTest() {
   }
 
   const { q, a } = TYPE_QUESTIONS[step];
+  // 진행 막대는 고르는 순간 먼저 한 칸 차오르고, 선택지가 왼쪽으로 빠진 뒤 다음 문항이 들어온다
+  const shown = step + (picked !== null ? 1 : 0);
+  const pick = (i: number) => {
+    if (picked !== null) return;
+    setPicked(i);
+    const quick = reduceMotion();
+    const next = () => {
+      setPicked(null);
+      setLeaving(false);
+      setAnswers((prev) => [...prev, i]);
+    };
+    timer.current = window.setTimeout(
+      () => {
+        setLeaving(true);
+        timer.current = window.setTimeout(next, quick ? 0 : EXIT_MS + (a.length + 1) * EXIT_STAGGER_MS);
+      },
+      quick ? 0 : PICK_MS,
+    );
+  };
   return (
     <section className="page col">
       <ProtoNote />
-      <div className="card it-start">
-        <div className="row-between">
-          <span className="meta num">
-            {step + 1} / {total}
+      <div className="it-test">
+        <div className="it-prog">
+          <span className="meta num it-prog-n">
+            {shown} / {total}
           </span>
+          <div className="it-progress" role="progressbar" aria-label="진행" aria-valuemin={0} aria-valuemax={total} aria-valuenow={shown}>
+            <i style={{ width: `${(shown / total) * 100}%` }} />
+          </div>
+        </div>
+        <div key={step} className={'it-qa' + (picked !== null ? (leaving ? ' leaving' : ' picking') : '')}>
+          <p className="it-qno" style={{ ['--i' as string]: 0 }} aria-hidden="true">
+            Q{step + 1}.
+          </p>
+          <h1 className="it-q" ref={headRef} tabIndex={-1} style={{ ['--i' as string]: 1 }}>
+            <span className="sr-only">
+              {step + 1}번째 질문.{' '}
+            </span>
+            {q}
+          </h1>
+          <div className="it-answers">
+            {a.map((label, i) => (
+              <button
+                key={label}
+                type="button"
+                className={'it-answer' + (picked === i ? ' on' : '')}
+                style={{ ['--i' as string]: i + 2 }}
+                disabled={picked !== null}
+                onClick={() => pick(i)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="it-test-foot">
+          {step > 0 && (
+            <button type="button" className="btn-text" disabled={picked !== null} onClick={() => setAnswers(answers.slice(0, -1))}>
+              ← 이전
+            </button>
+          )}
           <Link className="btn-text" to="/type/choose">
             건너뛰기
           </Link>
         </div>
-        <div className="it-progress" role="progressbar" aria-label="진행" aria-valuemin={0} aria-valuemax={total} aria-valuenow={step}>
-          <i style={{ width: `${(step / total) * 100}%` }} />
-        </div>
-        <h1 className="it-q" ref={headRef} tabIndex={-1}>
-          <span className="sr-only">
-            {step + 1}번째 질문.{' '}
-          </span>
-          {q}
-        </h1>
-        <div className="it-answers">
-          {a.map((label, i) => (
-            <button key={label} type="button" className="card it-answer" onClick={() => setAnswers([...answers, i])}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {step > 0 && (
-          <button type="button" className="btn-text" onClick={() => setAnswers(answers.slice(0, -1))}>
-            ← 이전
-          </button>
-        )}
       </div>
     </section>
   );

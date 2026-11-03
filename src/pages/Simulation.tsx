@@ -47,6 +47,8 @@ function PastMarketPractice({ active }: { active: boolean }) {
     const existing = token.current; token.current = null;
     if (existing) void practice('end', { sessionToken: existing }).catch(() => {});
   }; }, [loadCategories]);
+  // 응답이 늦게 와도 숨겨진 탭에서는 재생을 다시 켜지 않도록 지금 보이는지를 ref로 본다
+  const activeRef = useRef(active); activeRef.current = active;
   useEffect(() => { if (!active) setPlaying(false); }, [active]);
   useEffect(() => {
     const hide = () => { if (document.hidden) setPlaying(false); };
@@ -79,7 +81,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
       const next = 'snapshot' in result ? result.snapshot : result;
       if ('sessionToken' in result) token.current = result.sessionToken;
       show(next); pending.current = null;
-      if (request.path !== 'step') setPlaying(true);
+      if (request.path !== 'step' && activeRef.current) setPlaying(true);
     } catch (e) {
       if (current !== generation.current) return;
       setPlaying(false); setError(errorText(e));
@@ -95,9 +97,9 @@ function PastMarketPractice({ active }: { active: boolean }) {
   }, [show]);
 
   useEffect(() => {
-    if (!playing || !snapshot || error || revealing || busy || snapshot.status !== 'RUNNING' || document.hidden) return;
+    if (!active || !playing || !snapshot || error || revealing || busy || snapshot.status !== 'RUNNING' || document.hidden) return;
     void send({ path: 'step', body: { sessionToken: token.current, commandId: crypto.randomUUID(), expectedVersion: snapshot.version } });
-  }, [playing, busy, snapshot, revealing, error, send]);
+  }, [active, playing, busy, snapshot, revealing, error, send]);
   useEffect(() => {
     if (!playing || !revealing || error) return;
     // 렌더링이 늦어도 구간 전체가 3초에 끝나도록 타이머 횟수가 아니라 경과 시간으로 그릴 봉 수를 정한다(일시정지하면 그 자리에서 이어서)

@@ -19,6 +19,7 @@ import com.flexable.web.market.PracticeMarketData.*;
 
 /**
  * 기존 시세·사건 수집 뒤 신규 기능용 자료를 보충한다. 실패 시 마지막 성공 자료 보존.
+ * 종목마다 최근 5년 일봉에서 문제를 3개 이상 만나는 120~250거래일 구간을 골라 저장한다(decisions/2026-11-03-practice-event-window).
  * 받은 키움 종목정보 리스트(ka10099)의 업종(upName)은 instruments에도 저장해 투자 인사이트 업종별 목록에 쓴다(decisions/2026-10-26-invest-insight-redesign ⑦).
  */
 @Component
@@ -32,12 +33,22 @@ public class PracticeSyncJob {
     private final IngestProperties props;
     private final Clock clock;
     private final InstrumentSource industries;
+    /** 재생 구간을 찾는 범위(policies §5 "재생 구간 고르기") */
+    static final int SEARCH_YEARS = 5;
+    @org.springframework.beans.factory.annotation.Autowired
     public PracticeSyncJob(MarketService market, EventService events, PracticeMarketService store,
             PriceSource prices, IngestProperties props, Clock clock, KiwoomTokenClient tokens) {
+        this(market, events, store, prices, props, clock, kiwoomListing(props, clock, tokens));
+    }
+    PracticeSyncJob(MarketService market, EventService events, PracticeMarketService store,
+            PriceSource prices, IngestProperties props, Clock clock, InstrumentSource industries) {
         this.market = market; this.events = events; this.store = store; this.prices = prices; this.props = props; this.clock = clock;
+        this.industries = industries;
+    }
+    private static InstrumentSource kiwoomListing(IngestProperties props, Clock clock, KiwoomTokenClient tokens) {
         var factory = new org.springframework.http.client.JdkClientHttpRequestFactory();
         factory.setReadTimeout(java.time.Duration.ofSeconds(10));
-        this.industries = new KiwoomInstrumentSource(RestClient.builder().requestFactory(factory).build(),
+        return new KiwoomInstrumentSource(RestClient.builder().requestFactory(factory).build(),
                 props.kiwoom().baseUrl(), tokens, clock, IngestConfig.SEOUL);
     }
     public void runOnce() {
@@ -59,18 +70,22 @@ public class PracticeSyncJob {
                 var info = byCode.get(ranked.id());
                 if (info == null || PracticeMarketService.categoryName(info.industry()).isEmpty()) continue;
                 try {
-                    var raw = prices.dailyBars(info.code(), today.minusMonths(9), today).stream()
+                    var raw = prices.dailyBars(info.code(), today.minusYears(SEARCH_YEARS), today).stream()
                             .sorted(Comparator.comparing(DailyBar::date)).toList();
-                    if (raw.size() < 120) continue;
-                    var tail = raw.subList(raw.size() - 120, raw.size());
-                    if (tail.stream().anyMatch(b -> b.open() == null || b.high() == null || b.low() == null)) continue;
-                    var candles = tail.stream().map(b -> new Candle(b.date().toString(), b.open(), b.high(), b.low(), b.close())).toList();
-                    var news = events.eventsBetween(List.of(info.code()), tail.getFirst().date(), today).stream()
+                    if (raw.size() < PracticeWindow.MIN_LENGTH) continue;
+                    // OHLC가 빠진 봉은 0으로 넣어 무효로 두고, 그 봉이 섞인 창은 고르지 않는다
+                    var candles = raw.stream().map(b -> b.open() == null || b.high() == null || b.low() == null
+                            ? new Candle(b.date().toString(), 0, 0, 0, b.close())
+                            : new Candle(b.date().toString(), b.open(), b.high(), b.low(), b.close())).toList();
+                    var news = events.eventsBetween(List.of(info.code()), raw.getFirst().date(), today).stream()
                             .filter(e -> info.code().equals(e.code())).flatMap(e -> e.sources().stream())
                             .map(s -> new News(s.externalId(), s.title(), s.date().toString(), s.url(), "금융감독원 DART")).distinct().toList();
+                    // 문제를 3개 이상 만나는 창이 없으면 이번에는 저장하지 않는다(직전 묶음은 그대로, 세션 후보 검사에서 빠진다)
+                    var window = PracticeWindow.select(candles, news).orElse(null);
+                    if (window == null) continue;
                     String industry = PracticeMarketService.categoryName(info.industry());
                     store.save(new Dataset(new PracticeMarketData.Instrument(info.code(), info.name(), PracticeMarketService.categoryCode(industry),
-                            industry, "KIWOOM_UPNAME_V1", today.toString()), candles, news, false,
+                            industry, "KIWOOM_UPNAME_V1", today.toString()), window.candles(), window.news(), false,
                             List.of(prices.source(), "키움증권 업종 분류", "금융감독원 DART")));
                 } catch (RuntimeException e) { log.warn("시뮬레이션 자료 보충 실패: {}", info.code()); }
             }

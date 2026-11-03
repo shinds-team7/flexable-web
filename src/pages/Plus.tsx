@@ -52,7 +52,7 @@ function PlanCards({ plans, period }: { plans: Plans; period: Period }) {
             {isFree ? '지금 쓰는 요금제' : '무료 요금제'}
           </button>
         ) : (
-          <button className="btn btn-line btn-block plan-cta" onClick={() => navigate('/home')} disabled={status === 'loading'}>
+          <button className="btn btn-line btn-block plan-cta" onClick={() => navigate('/mypage')} disabled={status === 'loading'}>
             무료로 시작하기
           </button>
         )}

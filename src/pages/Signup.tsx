@@ -18,7 +18,7 @@ export default function Signup() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (status === 'member') return <Navigate to="/home" replace />;
+  if (status === 'member') return <Navigate to="/mypage" replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,7 +30,7 @@ export default function Signup() {
         json: usesWebBackend ? { email: email.trim(), password, agreeTerms } : { email: email.trim(), password, agreeTerms, agreePrivacy },
       });
       signIn(r);
-      navigate('/home', { replace: true });
+      navigate('/mypage', { replace: true });
     } catch (err) {
       setError(errorText(err));
     } finally {

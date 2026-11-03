@@ -13,6 +13,7 @@ import { LoginModalProvider, useLoginModal } from './LoginModal';
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
 type NavItem = { to: string; label: string; sub?: { to: string; label: string }[] };
 const NAV: NavItem[] = [
+  { to: '/finance', label: '금융정보' },
   { to: '/type', label: '투자성향' },
   {
     to: '/invest',
@@ -36,7 +37,6 @@ const NAV: NavItem[] = [
   },
   { to: '/goal', label: 'AI 계획' },
   { to: '/news', label: '청년소식' },
-  { to: '/plus', label: '플러스' },
 ];
 
 function SeedChip() {
@@ -89,14 +89,14 @@ function LayoutBody() {
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const member = status === 'member';
-  const exploring = status === 'guest' && !['/', '/login', '/signup', '/oauth/callback'].includes(pathname);
+  const exploring = status === 'guest' && !['/', '/home', '/login', '/signup', '/oauth/callback'].includes(pathname);
   useEffect(() => setMenu(false), [pathname]);
 
   return (
     <>
       <header className="topnav">
         <div className="wrap">
-          <Link className="logo" to={member || exploring ? '/home' : '/'} aria-label="solpa 홈으로">
+          <Link className="logo" to="/home" aria-label="solpa 홈으로">
             <Logo />
             <span className="logo-word">solpa</span>
           </Link>
@@ -122,7 +122,7 @@ function LayoutBody() {
             </button>
             {member && <SeedChip />}
             {member && (
-              <Link className="avatar" to="/me" aria-label="내 정보">
+              <Link className="avatar" to="/mypage/settings" aria-label="내 정보">
                 {displayName(user).slice(0, 1).toUpperCase()}
               </Link>
             )}
@@ -132,7 +132,7 @@ function LayoutBody() {
               </button>
             )}
             {status === 'guest' && (
-              <Link className="btn btn-primary btn-sm" to="/home">
+              <Link className="btn btn-primary btn-sm" to="/mypage">
                 체험하기
               </Link>
             )}
@@ -143,8 +143,8 @@ function LayoutBody() {
         <div className="demo-banner" role="status">
           <div className="wrap">
             <span>체험 중이에요. 예시 데이터로 모든 기능을 써 볼 수 있고, 체험 내용은 저장되지 않아요.</span>
-            <Link to="/home">체험 홈</Link>
-            <Link to="/me">내 정보</Link>
+            <Link to="/mypage">체험 홈</Link>
+            <Link to="/mypage/settings">내 정보</Link>
           </div>
         </div>
       )}

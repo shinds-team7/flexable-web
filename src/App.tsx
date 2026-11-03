@@ -25,11 +25,13 @@ export const router = createBrowserRouter([
   {
     element: <Layout />,
     children: [
-      { path: '/', element: <Landing /> },
+      { path: '/', element: <Navigate to="/home" replace /> },
+      { path: '/home', element: <Landing /> },
       { path: '/login', element: <Login /> },
       { path: '/signup', element: <Signup /> },
       { path: '/oauth/callback', element: <OAuthCallback /> },
       // 투자 성향 시연 화면(docs/product/proposal-investor-type.md)
+      { path: '/finance', element: <Placeholder title="금융정보" desc="금융정보 카테고리" wireframe="금융정보" /> },
       { path: '/type', element: <InvestorTypes /> },
       { path: '/type/test', element: <InvestorTypeTest /> },
       { path: '/type/choose', element: <InvestorTypePick /> },
@@ -51,10 +53,11 @@ export const router = createBrowserRouter([
       { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <BillingResult /> },
       { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
-      { path: '/home', element: <Home /> },
+      { path: '/mypage', element: <Home /> },
       { path: '/goal', element: <GoalPage /> },
       { path: '/goal/demo', element: <GoalDemo /> },
-      { path: '/me', element: <Me /> },
+      { path: '/mypage/settings', element: <Me /> },
+      { path: '/me', element: <Navigate to="/mypage/settings" replace /> },
       { path: '/privacy', element: <Privacy /> },
       {
         path: '*',

@@ -25,7 +25,7 @@ export default function OAuthCallback() {
     exchangeCode(code)
       .then((r) => {
         signIn(r);
-        navigate('/home', { replace: true });
+        navigate('/mypage', { replace: true });
       })
       .catch((e) => fail(errorText(e, OAUTH_MESSAGES.failed)));
   }, [navigate, signIn]);

@@ -101,7 +101,7 @@ export default function BillingResult() {
             <span>모의 결제 결과예요. 실제로 청구되지 않았고, 계정 요금제는 무료 그대로예요.</span>
           </p>
           <div className="bill-acts">
-            <Link className="btn btn-primary" to="/home">
+            <Link className="btn btn-primary" to="/mypage">
               홈으로
             </Link>
             <Link className="btn btn-line" to="/plus">
@@ -141,7 +141,7 @@ export default function BillingResult() {
             <Link className="btn btn-primary" to="/plus">
               요금표로
             </Link>
-            <Link className="btn btn-line" to="/home">
+            <Link className="btn btn-line" to="/mypage">
               홈으로
             </Link>
           </div>
@@ -158,7 +158,7 @@ export default function BillingResult() {
             <span>해지 흐름을 보여 주는 시연 화면이에요. 모의 결제는 요금제를 저장하지 않아 실제로 바뀌는 것은 없어요.</span>
           </p>
           <div className="bill-acts">
-            <Link className="btn btn-primary" to="/me">
+            <Link className="btn btn-primary" to="/mypage/settings">
               계속 쓰기
             </Link>
             <button type="button" className="btn btn-line" onClick={() => go('revoked')}>
@@ -178,7 +178,7 @@ export default function BillingResult() {
             <span>모의 해지 결과예요. 실제 청구·환불은 없어요.</span>
           </p>
           <div className="bill-acts">
-            <Link className="btn btn-primary" to="/me">
+            <Link className="btn btn-primary" to="/mypage/settings">
               내 정보로
             </Link>
             <Link className="btn btn-line" to="/plus">

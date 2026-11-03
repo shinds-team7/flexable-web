@@ -5,12 +5,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
+import com.flexable.web.market.PracticeMarketData.Candle;
+import com.flexable.web.market.PracticeMarketData.News;
+import com.flexable.web.market.PracticeWindow;
 import com.flexable.web.practice.PracticeDtos.Action;
 import com.flexable.web.practice.PracticeDtos.Portfolio;
 import com.flexable.web.practice.PracticeDtos.Prediction;
@@ -77,6 +84,46 @@ class PracticePolicyTest {
 				.isEqualTo(c.get("expected").asString());
 			assertThat(PracticeEngine.rate(after - baseline, baseline))
 				.isEqualByComparingTo(new BigDecimal(c.get("returnRate").asString()));
+		}));
+	}
+
+	@Test
+	void windowRuleConstants() throws Exception {
+		JsonNode c = root().get("windowSelection");
+		assertThat(PracticeWindow.MIN_LENGTH).isEqualTo(c.get("minLength").asInt());
+		assertThat(PracticeWindow.MAX_LENGTH).isEqualTo(c.get("maxLength").asInt());
+		assertThat(PracticeWindow.LEAD_DAYS).isEqualTo(c.get("leadDays").asInt());
+		assertThat(PracticeWindow.FOLLOW_DAYS).isEqualTo(c.get("followDays").asInt());
+		assertThat(PracticeWindow.MIN_QUESTIONS).isEqualTo(c.get("minQuestions").asInt());
+	}
+
+	/** 봉 위치 = 평일 날짜, 공시는 그 봉 날짜에 접수한 것으로 둔다. invalidBars는 OHLC가 빠진 봉(0)이다. */
+	@TestFactory
+	Stream<DynamicTest> windowSelection() throws Exception {
+		return root().get("windowSelection").get("cases").valueStream().map(c -> DynamicTest.dynamicTest(c.get("name").asString(), () -> {
+			var invalid = c.get("invalidBars").valueStream().map(JsonNode::asInt).toList();
+			var candles = new ArrayList<Candle>();
+			for (var d = LocalDate.of(2024, 1, 1); candles.size() < c.get("bars").asInt(); d = d.plusDays(1)) {
+				if (d.getDayOfWeek() == DayOfWeek.SATURDAY || d.getDayOfWeek() == DayOfWeek.SUNDAY) continue;
+				candles.add(invalid.contains(candles.size()) ? new Candle(d.toString(), 0, 0, 0, 1000) : new Candle(d.toString(), 1000, 1000, 1000, 1000));
+			}
+			List<News> news = c.get("disclosureBars").valueStream().map(JsonNode::asInt)
+				.map(i -> new News("d" + i, "공시 " + i, candles.get(i).date(), "https://dart.fss.or.kr/", "DART")).toList();
+			var choice = PracticeWindow.select(candles, news);
+			JsonNode expected = c.get("expected");
+			if (expected.isNull()) {
+				assertThat(choice).isEmpty();
+				return;
+			}
+			int start = expected.get("start").asInt();
+			assertThat(choice).get().extracting(PracticeWindow.Choice::start).isEqualTo(start);
+			assertThat(choice.get().candles()).hasSize(expected.get("length").asInt()).first().extracting(Candle::date).isEqualTo(candles.get(start).date());
+			assertThat(choice.get().questions()).extracting(q -> q.index() + start)
+				.containsExactlyElementsOf(expected.get("questionBars").valueStream().map(JsonNode::asInt).toList());
+			// 저장하는 공시는 구간 안의 것만이고, 세션이 다시 계산해도 같은 문제가 나온다
+			assertThat(choice.get().news()).allMatch(n -> n.publishedDate().compareTo(choice.get().candles().getFirst().date()) >= 0
+				&& n.publishedDate().compareTo(choice.get().candles().getLast().date()) <= 0);
+			assertThat(PracticeWindow.questions(choice.get().candles(), choice.get().news())).isEqualTo(choice.get().questions());
 		}));
 	}
 }

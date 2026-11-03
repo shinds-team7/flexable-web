@@ -29,6 +29,7 @@ public final class PracticeDtos {
             Long executedPrice, Long executedShares, String outcome, String outcomeDate, BigDecimal subsequentReturnRate) { }
     /** 이번 진행 요청으로 새로 공개된 봉의 날짜와 그날 종가 기준 자산 */
     public record Frame(String date, Portfolio portfolio) { }
-    public record Snapshot(int version, String status, Instrument instrument, long initialAmount, boolean isSample,
+    /** totalDays: 이번 실행의 전체 거래일 수(120~250). 가격·사건은 공개한 봉까지만 */
+    public record Snapshot(int version, String status, Instrument instrument, long initialAmount, boolean isSample, int totalDays,
             List<Candle> candles, List<Frame> frames, Portfolio portfolio, Event event, List<Result> decisions, String notice, List<String> sources) { }
 }

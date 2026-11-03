@@ -29,6 +29,10 @@
 
 **남은 확인(운영자)**: ① 대한상공회의소의 정확한 기관명·재수탁·VM 스냅숏/백업 여부와 보관 기간(아카데미에 문의) ② 위탁 관계 문서(목적 외 처리 금지·안전조치·종료 시 파기)를 아카데미와 주고받을 수 있는지 ③ 오늘 solpa에서 만든 시험 계정 정리 ④ 문의 메일 30일 삭제 습관 ⑤ 만 14세 미만 가입 제한을 화면 문구 말고 확인 절차로 둘지.
 
+## 0-5. 2026-11-03 목표 달성 시나리오 계산·저장(#175)
+
+F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7)는 누구나 목표 이름·금액·기한을 넣어 계산한다. 화면이 보낸 숫자를 믿지 않고 본 결과를 그대로 저장하도록, 서버가 계산 결과를 **30분 동안 메모리**(`goalscenario.ScenarioResultCache`, 2,000개 상한, 재시작 시 삭제)에 둔다. 회원이 저장하면 `goal_scenarios`(V21)에 그때 결과를 남긴다(최대 5개, 삭제 가능, 탈퇴 시 `SavedScenarioService.onWithdraw`와 외래 키로 삭제). 제2조(목표 달성 시나리오 저장, 계약 이행 근거), 제3조(로그인 전 체험의 계산), 제4조(30분 메모리·저장분 보유 기간)를 고치고 변경 이력에 적었다. 외부 전송은 없다(AI 제안기를 붙여 목표 정보를 외부로 보내게 되면 그 PR에서 위탁·국외 이전을 더한다). 목표 이름은 로그에 남기지 않는다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
+
 ## 0-4. 2026-10-27 웹에서 고친 시드머니를 앱에 반영(#83)
 
 연동 회원이 홈 [수정하기]로 고친 총액을 웹 서버가 앱 서버(`PUT /internal/v1/web-links/{linkId}/seed-money`, 서비스 키)로 보낸다. 웹 → 앱 방향 전송이 처음 생겨 제2조 2(앱 연동 목적에 "웹에서 고친 시드머니를 앱에 반영"), 제3조(웹이 앱으로 보내는 정보에 고친 금액), 제4조(직접 고친 시드머니: 앱에 반영되면 웹에 따로 보관하지 않음, 실패할 때만 보관)를 고치고 변경 이력에 적었다. 새 수집 항목은 없고(금액은 이미 처리하는 항목), 앱은 같은 운영자다. 앱 방침 §4의 웹 연동 목적 문구는 앱 저장소 PR(flexable-app #189)에서 리드가 정한다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
@@ -82,6 +86,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 실패 기록 메모리 10분 | `common.AttemptLimiter`(로그인: 이메일별, 연동 코드: 웹 회원 번호별 실패 시각). 지난 기록은 다음 정리·재시작 때 삭제 |
 | 목표·AI 목표 안내(10-23 시행) | `goals`·`goal_coaches`·`goal_coach_usage`(engagement, V8). 탈퇴 시 `UserWithdrawalListener`로 삭제, `goal_coach_usage`는 날짜로부터 7일 지나면 매일 정리 작업이 삭제. 서버 전체 횟수 `ai_daily_usage`는 회원 정보 없음 |
 | OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. 수탁·이전받는 자는 OpenAI OpCo, LLC([서비스 계약](https://openai.com/policies/services-agreement/), 비EEA·스위스 고객), 요청 창구 privacy.openai.com([개인정보 안내](https://openai.com/policies/kr-privacy-policy/)). OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
+| 목표 달성 시나리오(11-03) | 계산 결과 30분 메모리(`goalscenario.ScenarioResultCache`), 회원 저장 `goal_scenarios`(V21, 최대 5개). 탈퇴 시 `SavedScenarioService.onWithdraw`와 `ON DELETE CASCADE`. 방침 제2조·제3조·제4조 |
 | 비회원 체험은 서버 저장 없음 | 홈 시드머니·지수·소식·적금은 예시 데이터(`isSample`). 투자 시뮬레이션은 공개 API(`GET /market/**`, `POST /simulations/run`)로 고른 조건(시작 시점·금액·종목·비율)을 보내 서버가 계산하지만 저장하지 않는다(`SimulationService`, DB 쓰기 없음). 요청 본문은 접속 기록에 남지 않는다(`nginx.conf`는 메서드·경로만) |
 
 ## 3. 시행 전 확인 항목(10-21 모두 채움)

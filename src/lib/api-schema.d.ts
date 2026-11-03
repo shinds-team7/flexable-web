@@ -1043,6 +1043,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/goal/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 저장한 목표 시나리오 목록(최신순, 최대 5개). policies §7-8 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 목록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["SavedGoalScenarioSummary"][];
+                            /** @description 저장할 수 있는 개수(5) */
+                            limit: number;
+                        };
+                    };
+                };
+                401: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        /** 방금 계산한 결과(resultId) 중 시나리오 하나를 그때 값 그대로 저장. 5개가 차 있으면 409 GOAL_SCENARIO_LIMIT, 30분이 지났거나 없는 resultId면 409 GOAL_SCENARIO_EXPIRED */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        resultId: string;
+                        scenarioId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description 저장한 시나리오 */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavedGoalScenario"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/goal/scenarios/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        /** 저장한 시나리오 하나(저장할 때 값 그대로). 남의 것이거나 없으면 404 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 저장한 시나리오 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SavedGoalScenario"];
+                    };
+                };
+                401: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** 저장한 시나리오 지우기. 남의 것이거나 없으면 404 */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 지움 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/market/instruments": {
         parameters: {
             query?: never;
@@ -2372,7 +2507,24 @@ export interface components {
          * @enum {string}
          */
         GoalScenarioProductType: "SAVINGS" | "CMA" | "KR_INDEX_ETF" | "US_INDEX_ETF" | "KOSPI_TOP5";
+        GoalScenarioProduct: {
+            type: components["schemas"]["GoalScenarioProductType"];
+            /** @description KOSPI_TOP5는 5개, CMA는 이름만(code null), 나머지 1개 */
+            items: {
+                /** @description 종목 코드 또는 적금 상품 id */
+                code: string | null;
+                name: string;
+                /** @description 적금 금융회사. 그 밖에는 null */
+                company: string | null;
+            }[];
+            /** @description 적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null */
+            ratePercent: string | null;
+            /** @description CMA 예시 금리면 true */
+            isSample: boolean;
+        };
         GoalScenarioResult: {
+            /** @description 이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8) */
+            resultId: string;
             name: string;
             /** Format: int64 */
             targetAmount: number;
@@ -2405,27 +2557,60 @@ export interface components {
             /** @description 필요 월 금액의 기준 비율(0.8 = 10번 중 8번) */
             reachShare: number;
             /** @description 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함) */
-            products: {
-                type: components["schemas"]["GoalScenarioProductType"];
-                /** @description KOSPI_TOP5는 5개, CMA는 이름만(code null), 나머지 1개 */
-                items: {
-                    /** @description 종목 코드 또는 적금 상품 id */
-                    code: string | null;
-                    name: string;
-                    /** @description 적금 금융회사. 그 밖에는 null */
-                    company: string | null;
-                }[];
-                /** @description 적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null */
-                ratePercent: string | null;
-                /** @description CMA 예시 금리면 true */
-                isSample: boolean;
-            }[];
+            products: components["schemas"]["GoalScenarioProduct"][];
             scenarios: components["schemas"]["GoalScenario"][];
             /** @description 세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정 */
             assumptions: string[];
             /** @description 고지 GOAL_SCENARIO_EST(추정·비보장·원금 손실·기준일 확인) */
             notice: string;
             /** @description 예시 값(CMA 예시 금리 또는 데모 조합)이 하나라도 있으면 true */
+            isSample: boolean;
+        };
+        SavedGoalScenarioSummary: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            savedAt: string;
+            name: string;
+            /** Format: int64 */
+            targetAmount: number;
+            years: number;
+            /**
+             * Format: date
+             * @description 저장한 결과의 자료 기준일
+             */
+            asOf: string;
+            /** @description 저장한 시나리오 제목 */
+            title: string;
+            reachable: boolean;
+            /** Format: int64 */
+            monthly: number | null;
+            /** @enum {string|null} */
+            kind: "FIXED" | "RANGE" | null;
+        };
+        /** @description 저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다 */
+        SavedGoalScenario: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            savedAt: string;
+            name: string;
+            /** Format: int64 */
+            targetAmount: number;
+            years: number;
+            months: number;
+            /** @enum {string} */
+            proposer: "AI" | "DEMO";
+            /** Format: date */
+            asOf: string;
+            returnsFrom: string;
+            returnsTo: string;
+            paths: number;
+            reachShare: number;
+            products: components["schemas"]["GoalScenarioProduct"][];
+            scenario: components["schemas"]["GoalScenario"];
+            assumptions: string[];
+            notice: string;
             isSample: boolean;
         };
         GoalScenario: {
@@ -2491,7 +2676,7 @@ export interface components {
         };
         Error: {
             /** @enum {string} */
-            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "GOAL_CHANGED" | "EMAIL_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "MARKET_UNAVAILABLE" | "LINK_CODE_INVALID" | "APP_LINK_EXISTS" | "APP_LINK_IN_PROGRESS" | "APP_LINK_RESULT_UNKNOWN" | "APP_UNAVAILABLE" | "INTERNAL_ERROR" | "PRACTICE_CONFLICT" | "PRACTICE_EXPIRED" | "PRACTICE_UNAVAILABLE" | "PRACTICE_CAPACITY";
+            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "GOAL_CHANGED" | "EMAIL_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "MARKET_UNAVAILABLE" | "LINK_CODE_INVALID" | "APP_LINK_EXISTS" | "APP_LINK_IN_PROGRESS" | "APP_LINK_RESULT_UNKNOWN" | "APP_UNAVAILABLE" | "INTERNAL_ERROR" | "PRACTICE_CONFLICT" | "PRACTICE_EXPIRED" | "PRACTICE_UNAVAILABLE" | "PRACTICE_CAPACITY" | "GOAL_SCENARIO_LIMIT" | "GOAL_SCENARIO_EXPIRED";
             message: string;
             /** @description VALIDATION_FAILED에서 필드별 문장 */
             fields?: {

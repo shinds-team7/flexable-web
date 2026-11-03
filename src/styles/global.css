@@ -467,7 +467,7 @@ dialog::backdrop{background:var(--scrim)}
 .login-modal-x:hover{background:var(--sunken);color:var(--text)}
 
 /* ───────── 랜딩 ───────── */
-.land-sky{position:relative;z-index:1;background:var(--color-land-sky-top) url(/landing/hero.webp) right bottom/cover no-repeat;color:var(--color-land-ink);overflow-x:clip}
+.land-sky{position:relative;z-index:1;background:var(--color-land-sky-top) url(/landing/hero.png) right bottom/cover no-repeat;color:var(--color-land-ink);overflow-x:clip}
 .land-sky-in{position:relative;max-width:1344px;margin:0 auto;padding:0 32px;min-height:840px;display:flex;align-items:center;justify-content:flex-start}
 .land-copy{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:min(720px,56%);text-shadow:0 2px 14px rgba(0,50,190,.45)}
 .land-display{color:var(--color-land-ink);text-align:left;font-size:64px;line-height:84px;font-weight:800;white-space:break-spaces}
@@ -482,7 +482,6 @@ dialog::backdrop{background:var(--scrim)}
 .land-scroll-txt{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
 .land-scroll-arrows{display:flex;flex-direction:column;align-items:center;line-height:1}
 .land-scroll-arrows span{display:block;font-size:22px;font-weight:700;transform:rotate(90deg);opacity:0;animation:land-scroll-flow 1.6s var(--ease) infinite}
-.land-scroll-arrows span:nth-child(2){animation-delay:.25s}
 .land-scroll:focus-visible{outline:2px solid var(--color-land-ink);outline-offset:2px;border-radius:var(--radius-soft-sm)}
 @keyframes land-scroll-flow{0%{opacity:0;translate:0 -8px}40%{opacity:1}100%{opacity:0;translate:0 8px}}
 @media (prefers-reduced-motion:reduce){.land-scroll-arrows span{animation:none;opacity:1}}

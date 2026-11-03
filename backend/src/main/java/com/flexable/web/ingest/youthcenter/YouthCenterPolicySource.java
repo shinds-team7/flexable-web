@@ -43,16 +43,16 @@ public class YouthCenterPolicySource implements YouthPolicySource {
 	private static final int ATTEMPTS = 3;
 	private static final Pattern RANGE = Pattern.compile("(\\d{8})\\s*~\\s*(\\d{8})");
 	private static final Pattern ISO_DATE = Pattern.compile("^(\\d{4})-?(\\d{2})-?(\\d{2})");
-	/** [미확인] 신청기간 구분 코드: 특정기간 · 상시 · 마감 */
+	/** 신청기간 구분 코드(공식 코드표 확인 2026-11-03): 특정기간 · 상시 · 마감 */
 	static final String APPLY_ALWAYS = "0057002";
-	/** [미확인] 소득 조건 구분 코드: 무관 · 연소득 · 기타 */
+	/** 소득 조건 구분 코드(공식 코드표 확인 2026-11-03): 무관 · 연소득 · 기타 */
 	static final String INCOME_ANY = "0043001";
 	static final String INCOME_ANNUAL = "0043002";
 
-	/** [미확인] 신청 대상 조건 코드표(공식 코드표로 다시 확인). 제한없음 코드는 빈 목록(제한 없음)이 된다 */
+	/** 신청 대상 조건 코드표(공식 API코드정보.xlsx와 대조 2026-11-03). 제한없음 코드는 빈 목록(제한 없음)이 된다 */
 	static final Map<String, String> JOB = codes("0013", "재직자", "자영업자", "미취업자", "프리랜서", "일용근로자", "(예비)창업자", "단기근로자", "영농종사자", "기타", null);
 	static final Map<String, String> MARITAL = codes("0055", "기혼", "미혼", null);
-	static final Map<String, String> SCHOOL = codes("0049", "고졸 미만", "고교 재학", "고졸 예정", "고교 졸업", "대학 재학", "대학 예정", "대학 졸업", "석·박사", "기타", null);
+	static final Map<String, String> SCHOOL = codes("0049", "고졸 미만", "고교 재학", "고졸 예정", "고교 졸업", "대학 재학", "대졸 예정", "대학 졸업", "석·박사", "기타", null);
 	static final Map<String, String> MAJOR = codes("0011", "인문계열", "사회계열", "상경계열", "이학계열", "공학계열", "예체능계열", "농산업계열", "기타", null);
 	static final Map<String, String> SPECIAL = codes("0014", "중소기업", "여성", "기초생활수급자", "한부모가정", "장애인", "농업인", "군인", "지역인재", "기타", null);
 

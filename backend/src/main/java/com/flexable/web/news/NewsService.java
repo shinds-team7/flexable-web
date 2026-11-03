@@ -80,7 +80,7 @@ public class NewsService {
 		CalcTarget c = n.getCalcTarget();
 		List<NewsCategory> cats = n.categoryList();
 		return new NewsItem(String.valueOf(n.getId()), cats.getFirst(), cats, n.getTitle(), n.getSummary(), n.getBenefit(),
-				new Audience(n.getAudienceSummary(), n.getAgeMin(), n.getAgeMax(), n.getIncomeLimit()),
+				new Audience(n.getAudienceSummary(), n.getAgeMin(), n.getAgeMax(), n.getIncomeLimit(), n.employment(), n.marital(), n.schools(), n.majors(), n.special()),
 				n.regionsValue(), n.getApplyStart(), n.getApplyDeadline(), n.isAlwaysOpen(), n.getAction(),
 				new Source(n.getSourceOrg(), n.getSourceUrl(), n.getAsOf()), n.getPostedAt(), n.keywordList(),
 				c == null ? null : new CalcLink(c.to(), c.label()), n.getCorrectedAt(), n.getSlot());

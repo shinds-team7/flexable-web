@@ -36,6 +36,12 @@ export type YouthNews = {
     ageMin: number | null; // null = 원문에서 확인 못 함(조건 없음이 아님)
     ageMax: number | null;
     incomeLimit: boolean | null; // 소득 기준이 원문에 있으면 true. 원문에 언급이 없으면 null(카드에 표시 안 함)
+    // 신청 대상 조건(온통청년 코드를 이름으로 바꾼 값). null = 원문에서 확인 못 함, [] = 제한 없음, 값이 있으면 그중 하나에 해당해야 한다
+    employment: string[] | null; // 취업 상태
+    marital: string[] | null; // 혼인(기혼·미혼)
+    schools: string[] | null; // 학력
+    majors: string[] | null; // 전공
+    special: string[] | null; // 특화 대상(중소기업·여성·장애인…)
   };
   regions: 'NATIONWIDE' | RegionName[];
   applyStart: string | null; // KST YYYY-MM-DD
@@ -59,6 +65,8 @@ const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
 
 // 예시 소식은 모두 가상이다(기관·금액 포함). D-day 경우(임박·여유·오늘·상시·미정·접수 전·마감)가 날짜가 지나도 유지되도록
 // 예시에서만 오늘 기준 상대 날짜로 만든다. 실제 API는 원문 날짜를 그대로 쓴다. 링크는 실제 공고가 아니라 온통청년 첫 화면이다.
+const NO_CONDS = { employment: null, marital: null, schools: null, majors: null, special: null };
+
 function sampleNews(): YouthNews[] {
   const t = todayKst();
   const d = (n: number) => addDays(t, n);
@@ -68,7 +76,7 @@ function sampleNews(): YouthNews[] {
       id: 'n1', category: 'TRANSPORT', slot: 'MAIN',
       title: '청년 대중교통비 환급 비율 올라요',
       summary: '한 달 교통비의 최대 30% 돌려받기',
-      audience: { summary: '소득 조건은 공고문 확인', ageMin: 19, ageMax: 34, incomeLimit: null },
+      audience: { summary: '소득 조건은 공고문 확인', ageMin: 19, ageMax: 34, incomeLimit: null, ...NO_CONDS },
       regions: 'NATIONWIDE', applyStart: d(-10), applyDeadline: d(3), alwaysOpen: false,
       action: '쓰고 있는 교통카드 앱에서 환급 서비스 신청하기',
       source: src('○○부(예시)'), postedAt: d(-2), keywords: ['교통비', '환급', '교통카드', '지하철', '버스'],
@@ -77,7 +85,7 @@ function sampleNews(): YouthNews[] {
       id: 'n2', category: 'HOUSING', slot: 'SUB',
       title: '○○시 청년 월세 지원 2차 신청',
       summary: '월 최대 20만 원 · 12개월',
-      audience: { summary: '서울 거주 · 소득 기준 있음', ageMin: 19, ageMax: 34, incomeLimit: true },
+      audience: { summary: '서울 거주 · 소득 기준 있음', ageMin: 19, ageMax: 34, incomeLimit: true, ...NO_CONDS },
       regions: ['서울'], applyStart: d(-6), applyDeadline: d(5), alwaysOpen: false,
       action: '임대차계약서와 월세 이체 내역 준비하기',
       source: src('○○시청(예시)'), postedAt: d(-6), correctedAt: d(-1), keywords: ['월세', '임대료', '자취'],
@@ -86,7 +94,7 @@ function sampleNews(): YouthNews[] {
       id: 'n3', category: 'FINANCE', slot: 'SUB',
       title: '청년 자산형성 적금 하반기 가입 신청',
       summary: '매달 넣은 돈에 정부 기여금 더해 받기',
-      audience: { summary: '개인·가구 소득 기준 있음', ageMin: 19, ageMax: 34, incomeLimit: true },
+      audience: { summary: '개인·가구 소득 기준 있음', ageMin: 19, ageMax: 34, incomeLimit: true, ...NO_CONDS },
       regions: 'NATIONWIDE', applyStart: d(-3), applyDeadline: d(12), alwaysOpen: false,
       action: '소득 정보 제공 동의를 미리 해 두기',
       source: src('○○금융기관(예시)'), postedAt: d(-1), keywords: ['적금', '저축', '기여금', '자산'],
@@ -96,7 +104,7 @@ function sampleNews(): YouthNews[] {
       id: 'n4', category: 'CULTURE', slot: 'SUB',
       title: '청년 문화 이용권 하반기 접수',
       summary: '공연·전시에 연 최대 10만 원',
-      audience: { summary: '그 밖의 조건은 공고문 확인', ageMin: 19, ageMax: 24, incomeLimit: null },
+      audience: { summary: '그 밖의 조건은 공고문 확인', ageMin: 19, ageMax: 24, incomeLimit: null, ...NO_CONDS },
       regions: 'NATIONWIDE', applyStart: d(-14), applyDeadline: d(0), alwaysOpen: false,
       action: '오늘 자정 전에 온라인으로 신청하기',
       source: src('○○재단(예시)'), postedAt: d(-9), keywords: ['문화', '공연', '전시', '이용권'],
@@ -105,7 +113,7 @@ function sampleNews(): YouthNews[] {
       id: 'n5', category: 'JOB',
       title: '구직 청년 면접 정장 무료 대여',
       summary: '대여비 1회 약 5만 원 아끼기',
-      audience: { summary: '경기 거주 구직자', ageMin: 18, ageMax: 39, incomeLimit: null },
+      audience: { summary: '경기 거주 구직자', ageMin: 18, ageMax: 39, incomeLimit: null, ...NO_CONDS },
       regions: ['경기'], applyStart: null, applyDeadline: null, alwaysOpen: true,
       action: '면접 3일 전까지 대여 예약하기',
       source: src('○○구 일자리센터(예시)'), postedAt: d(-30), keywords: ['면접', '정장', '취업'],
@@ -114,7 +122,7 @@ function sampleNews(): YouthNews[] {
       id: 'n6', category: 'HOUSING',
       title: '전월세 보증금 대출 이자 지원 접수',
       summary: '대출 이자 연 최대 2%p 지원',
-      audience: { summary: '무주택 · 부산 거주 · 소득 기준 있음', ageMin: null, ageMax: null, incomeLimit: true },
+      audience: { summary: '무주택 · 부산 거주 · 소득 기준 있음', ageMin: null, ageMax: null, incomeLimit: true, ...NO_CONDS },
       regions: ['부산'], applyStart: null, applyDeadline: null, alwaysOpen: false,
       action: '공고문에서 모집 기간 확인하기',
       source: src('○○도청(예시)'), postedAt: d(-4), keywords: ['전세', '보증금', '대출', '이자'],
@@ -123,7 +131,7 @@ function sampleNews(): YouthNews[] {
       id: 'n7', category: 'TRANSPORT',
       title: '심야 대중교통 청년 할인 시범 운영',
       summary: '심야 이용 1회 최대 1,000원 할인',
-      audience: { summary: '인천 대중교통 이용자', ageMin: 19, ageMax: 29, incomeLimit: null },
+      audience: { summary: '인천 대중교통 이용자', ageMin: 19, ageMax: 29, incomeLimit: null, ...NO_CONDS },
       regions: ['인천'], applyStart: d(3), applyDeadline: d(20), alwaysOpen: false,
       action: '시작일에 교통카드 등록하기',
       source: src('○○시 교통공사(예시)'), postedAt: d(0), keywords: ['심야', '버스', '할인'],
@@ -132,7 +140,7 @@ function sampleNews(): YouthNews[] {
       id: 'n8', category: 'TAX',
       title: '중소기업 취업 청년 소득세 감면 신청',
       summary: '소득세 최대 90% 감면(연 200만 원 한도)',
-      audience: { summary: '중소기업 재직', ageMin: 15, ageMax: 34, incomeLimit: null },
+      audience: { summary: '중소기업 재직', ageMin: 15, ageMax: 34, incomeLimit: null, ...NO_CONDS },
       regions: 'NATIONWIDE', applyStart: null, applyDeadline: null, alwaysOpen: true,
       action: '회사에 감면 신청서 내기',
       source: src('○○청(예시)'), postedAt: d(-15), keywords: ['소득세', '감면', '세금', '중소기업'],
@@ -141,7 +149,7 @@ function sampleNews(): YouthNews[] {
       id: 'n9', category: 'CULTURE',
       title: '청년 마음건강 상담 바우처 추가 모집',
       summary: '상담 8회 지원(본인 부담 일부)',
-      audience: { summary: '대구 거주', ageMin: 19, ageMax: 34, incomeLimit: null },
+      audience: { summary: '대구 거주', ageMin: 19, ageMax: 34, incomeLimit: null, ...NO_CONDS },
       regions: ['대구'], applyStart: d(-2), applyDeadline: d(9), alwaysOpen: false,
       action: '주민센터나 온라인으로 신청하기',
       source: src('○○시(예시)'), postedAt: d(-3), keywords: ['상담', '마음건강', '바우처'],
@@ -150,7 +158,7 @@ function sampleNews(): YouthNews[] {
       id: 'n10', category: 'JOB',
       title: '청년 일경험 프로그램 참여자 모집',
       summary: '참여 수당 월 최대 50만 원',
-      audience: { summary: '미취업', ageMin: 15, ageMax: 34, incomeLimit: null },
+      audience: { summary: '미취업', ageMin: 15, ageMax: 34, incomeLimit: null, ...NO_CONDS },
       regions: 'NATIONWIDE', applyStart: d(-7), applyDeadline: d(40), alwaysOpen: false,
       action: '관심 직무를 골라 참여 신청하기',
       source: src('○○부(예시)'), postedAt: d(-7), keywords: ['일경험', '인턴', '수당'],
@@ -159,7 +167,7 @@ function sampleNews(): YouthNews[] {
       id: 'n11', category: 'FINANCE',
       title: '사회초년생 금융 교육 무료 강좌',
       summary: '수강료 약 3만 원 아끼기',
-      audience: { summary: '광주 거주', ageMin: 19, ageMax: 34, incomeLimit: null },
+      audience: { summary: '광주 거주', ageMin: 19, ageMax: 34, incomeLimit: null, ...NO_CONDS },
       regions: ['광주'], applyStart: d(-5), applyDeadline: d(6), alwaysOpen: false,
       action: '원하는 강좌 날짜 고르기',
       source: src('○○센터(예시)'), postedAt: d(-5), keywords: ['금융교육', '강좌', '신용'],
@@ -168,7 +176,7 @@ function sampleNews(): YouthNews[] {
       id: 'n12', category: 'HOUSING',
       title: '청년 이사비 지원 접수',
       summary: '이사비 최대 40만 원',
-      audience: { summary: '경기 거주 · 소득 기준 있음', ageMin: 19, ageMax: 39, incomeLimit: true },
+      audience: { summary: '경기 거주 · 소득 기준 있음', ageMin: 19, ageMax: 39, incomeLimit: true, ...NO_CONDS },
       regions: ['경기'], applyStart: d(-30), applyDeadline: d(-2), alwaysOpen: false,
       action: '다음 모집 공고 기다리기',
       source: src('○○시(예시)'), postedAt: d(-20), keywords: ['이사', '이사비'],
@@ -177,7 +185,7 @@ function sampleNews(): YouthNews[] {
       id: 'n13', category: 'CULTURE',
       title: '청년 독서 지원금',
       summary: '도서 구입비 연 최대 5만 원',
-      audience: { summary: '세종 거주', ageMin: 19, ageMax: 29, incomeLimit: null },
+      audience: { summary: '세종 거주', ageMin: 19, ageMax: 29, incomeLimit: null, ...NO_CONDS },
       regions: ['세종'], applyStart: d(-1), applyDeadline: d(25), alwaysOpen: false,
       action: '지역 서점 목록 확인하기',
       source: src('○○시(예시)'), postedAt: null, keywords: ['독서', '책', '도서'],

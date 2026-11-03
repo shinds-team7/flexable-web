@@ -4,6 +4,7 @@
 // 나에게 얼마·오늘 할 일은 사람이 쓰던 항목이라 지금은 카드에서 뺀다(2026-10-26 결정).
 import { Link } from 'react-router-dom';
 import { categoryLabel, newsCategories, type YouthNews } from '@/data/news';
+import { recordNewsView } from '@/data/newsHot';
 import { fmtMonthDay } from '@/lib/format';
 import { cardTags, periodText } from '@/lib/newsList';
 import { DeadlineBadge, NoticeLink, SaveButton, ShareButton } from './NewsBits';
@@ -39,7 +40,7 @@ export function NewsCard({ n, today, isSample, saved, onToggleSave, onToast }: P
         )}
       </div>
       <div className="news-card-cta">
-        <NoticeLink url={n.source.url} className="btn btn-line btn-sm news-notice" arrow={false} title={n.title} />
+        <NoticeLink url={n.source.url} className="btn btn-line btn-sm news-notice" arrow={false} title={n.title} onOpen={isSample ? undefined : () => recordNewsView(n.id)} />
       </div>
       <div className="news-card-foot">
         <ul className="news-chips" aria-label="분야·지역·대상·기관">

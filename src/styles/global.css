@@ -452,7 +452,6 @@ dialog::backdrop{background:var(--scrim)}
 .news-card .save-line{font-weight:700;color:var(--text);font-size:14px}
 .news-card .aud{font-size:13px;color:var(--text-muted)}
 .news-card .src{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:8px;border-top:1px solid var(--line);font-size:13px}
-.news-feature{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:center}
 .dday{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:800;background:var(--card);color:var(--brand-text);border:1px solid var(--brand);white-space:nowrap}
 .dday.calm{background:var(--sunken);color:var(--text-sub);border-color:transparent;font-weight:600}
 .bookmark{border:0;background:none;padding:6px;border-radius:var(--radius-soft-sm);color:var(--text-muted)}
@@ -467,16 +466,24 @@ dialog::backdrop{background:var(--scrim)}
 .login-modal-x:hover{background:var(--sunken);color:var(--text)}
 
 /* ───────── 랜딩 ───────── */
-.land-sky{position:relative;z-index:1;background:linear-gradient(180deg,var(--color-land-sky-top) 0%,var(--color-land-sky-bottom) 100%);color:var(--color-land-ink);overflow-x:clip}
-.land-sky-in{position:relative;max-width:1344px;margin:0 auto;padding:0 32px;min-height:840px;display:flex;align-items:center;justify-content:center}
-.land-copy{position:relative;z-index:2;align-items:center;text-align:center}
-.land-display{color:var(--color-land-ink);text-align:center;font-size:80px;line-height:104px;font-weight:800;white-space:break-spaces}
-.land-lead{display:block;margin-top:24px;color:var(--color-land-ink);text-align:center;font-size:20px;line-height:35px;font-weight:400;white-space:break-spaces}
-.land-cta{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;padding:18px 20px;border:2px solid var(--color-land-ink);color:var(--color-land-ink);transition:background 140ms var(--ease)}
+.land-sky{position:relative;z-index:1;background:var(--color-land-sky-top) url(/landing/hero.png) right bottom/cover no-repeat;color:var(--color-land-ink);overflow-x:clip}
+.land-sky-in{position:relative;max-width:1344px;margin:0 auto;padding:0 32px;min-height:840px;display:flex;align-items:center;justify-content:flex-start}
+.land-copy{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;text-align:left;max-width:min(720px,56%);text-shadow:0 2px 14px rgba(0,50,190,.45)}
+.land-display{color:var(--color-land-ink);text-align:left;font-size:64px;line-height:84px;font-weight:800;white-space:break-spaces}
+.land-lead{display:block;margin-top:24px;color:var(--color-land-ink);text-align:left;font-size:20px;line-height:35px;font-weight:400;white-space:break-spaces}
+.land-cta{margin-top:40px;display:flex;justify-content:space-between;align-items:center;width:200px;height:60px;padding:18px 20px;border:2px solid var(--color-land-ink);background:var(--color-land-ink);color:var(--color-land-sky-top);text-shadow:none;transition:background 140ms var(--ease)}
 .land-cta span{font-size:16px;font-weight:700;line-height:18px}
 .land-cta svg{width:28px;height:28px;fill:currentColor}
-.land-cta:hover{text-decoration:none;background:var(--color-land-glass)}
-.land-cta:focus-visible{outline-color:var(--color-land-ink)}
+.land-cta:hover{text-decoration:none;background:rgba(255,255,255,.88)}
+.land-cta:focus-visible{outline-color:var(--color-land-ink);outline-offset:3px}
+/* 히어로 하단 중앙의 고정 스크롤 안내. 화살표만 위에서 아래로 흐른다 */
+.land-scroll{position:absolute;left:50%;bottom:24px;z-index:2;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:none;padding:8px 12px;color:var(--color-land-ink);cursor:pointer;text-shadow:0 1px 10px rgba(0,50,190,.7),0 0 3px rgba(0,50,190,.6)}
+.land-scroll-txt{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.land-scroll-arrows{display:flex;flex-direction:column;align-items:center;line-height:1}
+.land-scroll-arrows span{display:block;font-size:22px;font-weight:700;transform:rotate(90deg);opacity:0;animation:land-scroll-flow 1.6s var(--ease) infinite}
+.land-scroll:focus-visible{outline:2px solid var(--color-land-ink);outline-offset:2px;border-radius:var(--radius-soft-sm)}
+@keyframes land-scroll-flow{0%{opacity:0;translate:0 -8px}40%{opacity:1}100%{opacity:0;translate:0 8px}}
+@media (prefers-reduced-motion:reduce){.land-scroll-arrows span{animation:none;opacity:1}}
 /* 카드는 폰 화면 위 레이어이고 화면 좌우로 넘친다 */
 .page.land{padding-top:0}
 .land-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:48px;align-items:stretch;padding:48px 0 64px}
@@ -683,7 +690,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .subnav a{justify-content:flex-start}
   .mainnav.open{display:flex}
   .menu-btn{display:inline-flex;align-items:center}
-  .g84,.sim,.sim.no-rail,.plan-grid,.news-feature{grid-template-columns:minmax(0,1fr)}
+  .g84,.sim,.sim.no-rail,.plan-grid{grid-template-columns:minmax(0,1fr)}
   .sim > .cond-col > .cond-full{display:none}
   .sim > .cond-col.expanded > .cond-full{display:flex}
   .sim.no-rail > #tmConditions{min-height:0}
@@ -728,7 +735,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
   .land-sky-in{min-height:560px;padding-top:56px;padding-bottom:136px}
   .land-display{font-size:36px;line-height:48px}
   .land-lead{font-size:16px;line-height:24px;font-weight:500}
-  .land-cta{width:156px;bottom:40px}
+  .land-cta{width:156px;margin-top:28px}
   .land-cta span{font-size:14px;line-height:16px}
   .land-cta svg{width:24px;height:24px}
   .land-app-kicker{font-size:22px;line-height:32px}
@@ -963,36 +970,11 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .ev-list-scroll{max-height:320px;overflow:auto;border-top:1px solid var(--line)}
 
 /* 청년 금융 소식 /news: 배너 · 오늘의 한 장 · 필터 · 목록(왼쪽 2열) · 저장함(오른쪽 레일, 좁으면 목록 위에서 접기) */
-.news-banner{display:flex;align-items:center;justify-content:space-between;gap:24px;background:var(--brand-soft);border-radius:var(--radius-soft);padding:20px 24px 20px 28px;margin-bottom:24px;min-height:152px}
-.news-banner-copy{min-width:0}
-.news-banner-main{font-size:24px;line-height:32px;font-weight:800;color:var(--text)}
-.news-banner-sub{color:var(--text-sub);margin-top:6px}
-.news-banner-art{flex:none;width:300px;height:112px;border-radius:var(--radius-soft-sm);overflow:hidden}
-.news-banner-art img{width:100%;height:100%;object-fit:cover;display:block}
-.news-banner-ph{width:100%;height:100%;display:grid;place-items:center;border:1.5px dashed var(--text-faint);border-radius:var(--radius-soft-sm);background:var(--card);color:var(--text-muted);font-size:12px}
 .news-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.news-main-title{font-size:20px;line-height:1.4;margin-top:10px}
-.news-main-benefit{font-weight:700;font-size:16px;margin-top:4px}
 .news-age{font-size:12px;font-weight:600;color:var(--text-muted)}
-.news-page .news-feature{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;padding:20px 24px;min-height:276px}
-.news-facts-box{padding:10px 14px;display:flex;flex-direction:column;justify-content:center}
-.news-facts{margin:0}
-.news-facts dt{flex:none;white-space:nowrap;font-size:13px}
-.news-facts dd{margin:0;text-align:right;font-size:13px}
-.news-facts .set-row{padding:5px 0;flex-wrap:nowrap;gap:12px}
-.news-filters{display:flex;flex-direction:column;gap:12px;background:var(--sunken);border-radius:var(--radius-soft);padding:20px 24px;scroll-margin-top:80px}
 /* 검색 · 지역 · 나이: 왼쪽에 이름표, 오른쪽에 입력 */
-.news-fields{gap:12px 24px;margin-top:4px;padding-top:16px;border-top:1px solid var(--line)}
-.news-fields .input{height:38px;font-size:14px}
-.news-field{display:flex;align-items:center;gap:10px;min-width:0}
-.news-field-k{flex:none;font-size:14px;font-weight:700;color:var(--text-sub)}
-.news-search{flex:1 1 240px}
-.news-search .input{flex:1;min-width:0}
 /* 회색 필터 박스(--sunken)와 구별되도록 선택 전 칩·입력은 카드색 + 테두리 */
-.news-filters .chip:not([aria-pressed="true"]),.news-filters .input{background-color:var(--card);border-color:var(--line)}
-.news-filters button.chip:not([aria-pressed="true"]):hover{background:var(--brand-softer)}
 /* 기본 화살표 대신 오른쪽 여백을 둔 꺾쇠(글자색 토큰을 따라 다크에서도 보임) */
-select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appearance:none;padding-right:40px;background-image:linear-gradient(45deg,transparent 50%,var(--text-sub) 50%),linear-gradient(135deg,var(--text-sub) 50%,transparent 50%);background-position:right 19px center,right 14px center;background-size:5px 5px;background-repeat:no-repeat}
 /* 필터 박스 아래 한 줄: 왼쪽 개수 · 필터 지우기 / 오른쪽 진행중 | 정렬(글자 버튼, 고른 것은 밑줄) */
 .news-count{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 12px;min-height:32px}
 /* 소식 목록 페이지 번호(12개씩). 숫자 버튼은 .chip의 aria-pressed 모양을 그대로 쓴다 */
@@ -1043,12 +1025,7 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 /* 7일 안 마감은 주황(오늘 마감은 빨강) */
 .news-page .dday.soon{background:var(--warn-soft);color:var(--warn)}
 /* 소식 화면은 목록을 넓게: 저장함을 320px로 고정(홈의 .g84는 그대로). 1023px 이하는 한 단 */
-@media (min-width:1024px){.news-page .g84{grid-template-columns:minmax(0,1fr) 320px}}
 /* 저장함: 제목(박스 밖) + 박스. 간격 16px은 왼쪽 "전체 소식" 제목과 필터 박스 사이와 같아 두 박스의 윗변이 맞는다 */
-.news-rail{display:flex;flex-direction:column;gap:16px}
-.news-rail-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.news-saved-body{max-height:calc(100vh - 138px);overflow:auto}
-.news-saved-toggle{display:none}
 /* 조건에 맞는 소식이 없을 때: 문구와 [필터 지우기]를 가운데로 */
 .news-empty{align-items:center;text-align:center}
 .news-saved-empty{padding:8px 0}
@@ -1063,23 +1040,10 @@ select.news-select{height:38px;width:auto;min-width:120px;max-width:100%;appeara
 .news-remove:hover{background:var(--sunken);color:var(--text)}
 .news-remove svg{width:14px;height:14px}
 @media (max-width:1023px){
-  .news-rail{order:-1}
-  .news-saved-body{max-height:none}
-  .news-saved-toggle{display:inline-flex}
-  .news-rail.collapsed .news-saved-body{display:none}
-}
-@media (max-width:1279px){
   .news-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media (max-width:767px){
-  .news-banner{min-height:0;padding:20px}
-  .news-banner-art{display:none}
-  .news-banner-main{font-size:20px;line-height:28px}
   .news-list{grid-template-columns:minmax(0,1fr)}
-  .news-filters .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
-  .news-filters .news-field:not(.news-search){flex:1 1 140px}
-  select.news-select{flex:1;min-width:0}
-  .news-filters{padding:16px}
 }
 
 /* ───────── AI 목표 달성(/goal) ───────── */
@@ -1346,3 +1310,104 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .ii-ind-list .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ii-ind-list .cap.on{display:inline-flex;align-items:center;gap:4px;color:var(--brand-text);font-weight:700;font-size:12px}
 @media (max-width:767px){.ii-strip-cell{padding:6px 14px}}
+
+/* ───────── 청년 금융 소식(/news) 리디자인: 검색 히어로 · 빠른 카드 · 분석 · 조건으로 찾기 · 글 ───────── */
+.news-hero{display:flex;flex-direction:column;align-items:center;gap:16px;padding:40px 24px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
+.news-hero-search{display:flex;align-items:center;gap:10px;width:min(672px,100%);height:56px;padding:0 8px 0 18px;background:var(--card);border:2px solid var(--brand);border-radius:var(--radius-soft);color:var(--text-muted)}
+.news-hero-search:focus-within{box-shadow:0 0 0 3px var(--brand-soft)}
+.news-hero-search input{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;font:inherit;font-size:16px;color:var(--text)}
+.news-hero-search input::placeholder{color:var(--text-faint)}
+.news-hero-search .btn{height:40px;padding:0 20px}
+.news-hero-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.news-pill{height:34px;padding:0 14px;border:0;border-radius:999px;background:var(--sunken);color:var(--text-sub);font-size:14px;font-weight:600;cursor:pointer}
+.news-pill:hover{background:var(--brand-soft);color:var(--brand-text)}
+.news-hero-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;border:0;background:none;padding:6px 8px;font-size:15px;font-weight:600;color:var(--brand-text);cursor:pointer}
+.news-hero-link:hover{text-decoration:underline;text-underline-offset:3px}
+.news-band{background:var(--sunken)}
+.news-band .page{display:flex;flex-direction:column;gap:32px;padding-top:24px}
+.news-sample-note{align-self:flex-start;margin-bottom:-16px}
+.news-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.news-quick-card{display:flex;align-items:center;gap:16px;padding:20px 24px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);min-width:0}
+.news-quick-art{flex:none;width:72px;height:72px;border-radius:var(--radius-soft);background:var(--brand-soft);object-fit:contain;padding:4px}
+.news-quick-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.news-quick-body h2{font-size:16px;line-height:24px;font-weight:700;display:flex;align-items:center;gap:8px}
+.news-quick-body .meta{font-size:13px}
+.news-quick-acts{display:flex;gap:8px;margin-top:8px}
+.news-hot{align-items:flex-start}
+.news-hot-list{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.news-hot-list li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:center;gap:10px}
+.news-hot-rank{font-weight:800;color:var(--brand-text);text-align:center}
+.news-hot-title{font-size:14px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-underline-offset:2px}
+.news-hot-meta{font-size:12px;white-space:nowrap}
+.news-sec{display:flex;flex-direction:column;gap:16px}
+.news-sec-title{font-size:20px;line-height:28px;font-weight:700;scroll-margin-top:96px}
+.news-analysis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+.news-insight{display:flex;flex-direction:column;gap:6px;padding:20px 20px 16px;border-radius:var(--radius-soft);background:var(--brand);color:var(--on-brand)}
+.news-insight-eyebrow{font-size:13px;opacity:.85;display:flex;align-items:center;gap:8px}
+.news-insight-ex{padding:0 6px;border-radius:var(--radius-xs);background:color-mix(in srgb,var(--on-brand) 22%,transparent);font-size:11px;font-weight:700}
+.news-insight-title{font-size:26px;line-height:34px;font-weight:800;color:inherit}
+.news-insight-sub{font-size:14px;line-height:22px}
+.news-insight-sub b{font-weight:800}
+.news-insight-k{font-size:12px;opacity:.85;margin-top:14px}
+.news-bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.news-bars li{display:grid;grid-template-columns:72px minmax(0,1fr) 48px;align-items:center;gap:10px;font-size:13px}
+.news-bar-track{height:8px;border-radius:999px;background:color-mix(in srgb,var(--on-brand) 22%,transparent);overflow:hidden}
+.news-bar-fill{display:block;height:100%;border-radius:999px;background:var(--on-brand)}
+.news-bar-v{text-align:right}
+.news-insight-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:auto 0 0;padding-top:16px}
+.news-insight-tiles>div{padding:10px 8px;border-radius:var(--radius-soft-sm);background:color-mix(in srgb,var(--on-brand) 14%,transparent);text-align:center}
+.news-insight-tiles dt{font-size:11px;opacity:.85}
+.news-insight-tiles dd{margin:2px 0 0;font-size:17px;font-weight:800}
+.news-insight-foot{font-size:12px;opacity:.85;margin-top:8px}
+.news-guide-card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);overflow:hidden;color:inherit;text-decoration:none;min-width:0}
+.news-guide-card:hover{border-color:var(--color-border-strong);text-decoration:none}
+.news-guide-card:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+.news-guide-art{flex:1;min-height:200px;display:grid;place-items:center;background:var(--brand-soft)}
+.news-guide-art img{width:min(220px,60%);height:auto;object-fit:contain}
+.news-guide-body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:6px}
+.news-guide-meta{display:flex;align-items:center;gap:8px}
+.news-guide-body h3{font-size:18px;line-height:26px;font-weight:700}
+.news-guide-desc{font-size:14px;line-height:22px;color:var(--text-sub);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.news-cond{display:flex;flex-direction:column;gap:16px;padding:24px 28px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);scroll-margin-top:96px}
+.news-cond-title{font-size:20px;line-height:28px;font-weight:700}
+.news-cond-group{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:start;padding-top:16px;border-top:1px solid var(--line)}
+.news-cond-k{font-size:14px;font-weight:700;color:var(--text-sub);line-height:34px}
+.news-cond-chips{display:flex;flex-wrap:wrap;gap:8px}
+.news-cond-chips .chip{cursor:pointer}
+.news-cond-chips.topics{gap:12px 8px}
+.news-topic{display:flex;flex-direction:column;align-items:center;gap:8px;width:88px;padding:0;border:0;background:none;color:var(--text);font-size:14px;font-weight:600;cursor:pointer}
+.news-topic-ico{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--sunken);border:1px solid var(--line);color:var(--text-sub);transition:background-color .15s var(--ease),border-color .15s var(--ease)}
+.news-topic-ico svg{width:30px;height:30px}
+.news-topic:hover .news-topic-ico{border-color:var(--color-border-strong)}
+.news-topic:focus-visible{outline:none}
+.news-topic:focus-visible .news-topic-ico{outline:2px solid var(--color-focus);outline-offset:2px}
+.news-topic[aria-pressed="true"]{color:var(--brand-text)}
+.news-topic[aria-pressed="true"] .news-topic-ico{background:var(--brand-soft);border:2px solid var(--brand);color:var(--brand-text)}
+.news-cond-act{display:flex;justify-content:center;align-items:center;gap:12px;padding-top:8px}
+.news-cond-act .btn-primary{min-width:200px}
+.news-article{max-width:760px;display:flex;flex-direction:column;gap:14px;line-height:1.75}
+.news-article-back{font-size:14px;font-weight:600;align-self:flex-start}
+.news-article-title{font-size:28px;line-height:38px;font-weight:800}
+.news-article-lead{font-size:16px;color:var(--text-sub)}
+.news-article h2{font-size:20px;line-height:28px;font-weight:700;margin-top:16px}
+.news-article ul,.news-article ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.news-article-table{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius-soft-sm)}
+.news-article-table td{padding:10px 12px;border-top:1px solid var(--line)}
+.news-faq{margin:0;display:flex;flex-direction:column;gap:16px}
+.news-faq dt{font-weight:700}
+.news-faq dd{margin:4px 0 0;color:var(--text-sub)}
+@media (max-width:1023px){
+  .news-quick,.news-analysis{grid-template-columns:minmax(0,1fr)}
+  .news-guide-art{min-height:160px}
+}
+@media (max-width:767px){
+  .news-hero{padding:28px 16px 24px}
+  .news-cond{padding:20px 16px}
+  .news-cond-group{grid-template-columns:minmax(0,1fr);gap:6px}
+  .news-cond-k{line-height:22px}
+  .news-topic{width:72px;font-size:13px}
+  .news-topic-ico{width:56px;height:56px}
+  .news-bars li{grid-template-columns:60px minmax(0,1fr) 44px}
+  .news-article-title{font-size:23px;line-height:32px}
+}

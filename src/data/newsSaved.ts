@@ -1,7 +1,7 @@
-// 저장한 소식과 필터 선택값. 지금은 이 브라우저에만 저장한다.
-// TODO(BE): 저장은 로그인 사용자 서버 저장으로 옮긴다(01-product.md F4 [챙기기]). 필터는 계속 브라우저에만 둔다.
+// 저장한 소식과 정렬 선택값. 지금은 이 브라우저에만 저장한다.
+// TODO(BE): 저장은 로그인 사용자 서버 저장으로 옮긴다(01-product.md F4 [챙기기]). 정렬은 계속 브라우저에만 둔다.
 import { useCallback, useSyncExternalStore } from 'react';
-import { AGE_BANDS, NEWS_CATEGORIES, REGIONS, type YouthNews } from './news';
+import type { YouthNews } from './news';
 import { DEFAULT_FILTER, type NewsFilter } from '@/lib/newsList';
 
 const SAVED_KEY = 'fx.news.saved';
@@ -83,17 +83,11 @@ export function useSavedNews() {
 
 const oneOf = <T,>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
 
-/** 검색어는 저장하지 않는다. 목록이 바뀌어 없는 값이 남아 있으면 기본값으로 돌린다. */
+/** 검색어와 조건으로 찾기 선택은 저장하지 않는다. 정렬만 남기고, 예전 값(분야·지역·나이)이 있어도 읽지 않는다. */
 export function readNewsFilter(): NewsFilter {
   try {
     const v = JSON.parse(localStorage.getItem(FILTER_KEY) ?? '{}') ?? {};
-    return {
-      category: oneOf(v.category, ['ALL', ...NEWS_CATEGORIES.map((c) => c.id)], DEFAULT_FILTER.category),
-      region: oneOf(v.region, ['ALL', ...REGIONS], DEFAULT_FILTER.region),
-      age: oneOf(v.age, ['ALL', ...AGE_BANDS.map((b) => b.id)], DEFAULT_FILTER.age),
-      sort: oneOf(v.sort, ['deadline', 'new'] as const, DEFAULT_FILTER.sort),
-      query: '',
-    };
+    return { sort: oneOf(v.sort, ['deadline', 'new'] as const, DEFAULT_FILTER.sort), query: '' };
   } catch {
     return DEFAULT_FILTER;
   }
@@ -101,8 +95,7 @@ export function readNewsFilter(): NewsFilter {
 
 export function writeNewsFilter(f: NewsFilter) {
   try {
-    const { query: _q, ...rest } = f;
-    localStorage.setItem(FILTER_KEY, JSON.stringify(rest));
+    localStorage.setItem(FILTER_KEY, JSON.stringify({ sort: f.sort }));
   } catch {
     /* 저장 못 해도 화면은 그대로 */
   }

@@ -1,21 +1,19 @@
 // 소식 목록 거르기·정렬·오늘의 한 장 고르기. 화면과 분리한 순수 함수라 서버 쿼리로 옮기기 쉽다.
 // '추천' 정렬은 두지 않는다(01-product.md §7). 정렬은 사용자가 고른 기준(마감 임박순·새로운 순)만.
-import { AGE_BANDS, newsCategories, REGIONS, type AgeBandId, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
+import { newsCategories, REGIONS, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
 import { daysBetween, deadlineState, type ApplyPeriod } from './deadline';
 
 export type NewsSort = 'deadline' | 'new';
-export type NewsFilter = {
-  category: NewsCategory | 'ALL';
-  region: RegionName | 'ALL';
-  age: AgeBandId | 'ALL';
-  sort: NewsSort;
-  query: string;
-};
+export type NewsFilter = { sort: NewsSort; query: string };
 
-export const DEFAULT_FILTER: NewsFilter = { category: 'ALL', region: 'ALL', age: 'ALL', sort: 'deadline', query: '' };
+export const DEFAULT_FILTER: NewsFilter = { sort: 'deadline', query: '' };
 
-export const isDefaultFilter = (f: NewsFilter) =>
-  f.category === 'ALL' && f.region === 'ALL' && f.age === 'ALL' && f.query.trim() === '';
+/** 조건으로 찾기에서 고른 값. 칸이 비어 있으면 그 칸은 조건이 아니다 */
+export type NewsConditions = { regions: RegionName[]; ages: number[]; topics: NewsCategory[] };
+
+export const EMPTY_CONDITIONS: NewsConditions = { regions: [], ages: [], topics: [] };
+
+export const conditionCount = (c: NewsConditions) => c.regions.length + c.ages.length + c.topics.length;
 
 // 띄어쓰기는 지우지 않고 하나로만 줄인다. 지우면 낱말 경계를 넘어 걸린다(예: "채용 인센티브" → "채용인센티브"가 "용인"에 걸림).
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -54,15 +52,17 @@ function matchesQuery(n: YouthNews, q: string, places: Set<string>) {
   );
 }
 
-const matchesRegion = (n: YouthNews, r: NewsFilter['region']) => r === 'ALL' || n.regions === 'NATIONWIDE' || n.regions.includes(r);
-
-// 나이 조건을 원문에서 확인하지 못한 소식은 숨기지 않는다(카드에 "공고문 확인"으로 표시).
-function matchesAge(n: YouthNews, a: NewsFilter['age']) {
-  const band = AGE_BANDS.find((b) => b.id === a);
-  if (!band) return true;
+/**
+ * 합집합: 고른 지역·나이·주제 중 하나라도 맞으면 보인다. 전국 소식은 지역을 하나라도 골랐으면 맞는 것으로 본다.
+ * 나이 조건을 원문에서 확인 못 한 소식(둘 다 null)은 나이로는 맞는 것으로 치지 않는다(목록 전체에서는 숨기지 않는다).
+ */
+export function matchesAnyCondition(n: YouthNews, c: NewsConditions) {
+  if (conditionCount(c) === 0) return true;
+  if (c.regions.some((r) => n.regions === 'NATIONWIDE' || n.regions.includes(r))) return true;
   const { ageMin, ageMax } = n.audience;
-  if (ageMin == null && ageMax == null) return true;
-  return (ageMin ?? 0) <= band.max && (ageMax ?? Infinity) >= band.min;
+  if ((ageMin != null || ageMax != null) && c.ages.some((a) => (ageMin ?? 0) <= a && (ageMax ?? Infinity) >= a)) return true;
+  const cats = newsCategories(n);
+  return c.topics.some((t) => cats.includes(t));
 }
 
 /** 마감 임박순 키. 마감일 있는 것 → 상시 → 마감일 미정 순 */
@@ -78,13 +78,12 @@ export const savedDeadlineKey = (p: ApplyPeriod, today: string) => (deadlineStat
 const postedKey = (n: YouthNews, today: string) => (n.postedAt ? daysBetween(today, n.postedAt) : -Infinity);
 
 /** 마감된 소식은 목록에서 내린다(저장함에만 '마감됨'으로 남는다, 02-design.md §5-7). */
-export function selectNews(items: YouthNews[], f: NewsFilter, today: string): YouthNews[] {
+export function selectNews(items: YouthNews[], f: NewsFilter, today: string, conditions: NewsConditions = EMPTY_CONDITIONS): YouthNews[] {
   const places = f.query.trim() ? placeNames(items) : new Set<string>();
   const list = items.filter((n) => {
     const s = deadlineState(n, today);
     if (s.kind === 'closed') return false;
-    if (f.category !== 'ALL' && !newsCategories(n).includes(f.category)) return false;
-    return matchesRegion(n, f.region) && matchesAge(n, f.age) && matchesQuery(n, f.query, places);
+    return matchesAnyCondition(n, conditions) && matchesQuery(n, f.query, places);
   });
   const byPosted = (a: YouthNews, b: YouthNews) => postedKey(b, today) - postedKey(a, today);
   return list.sort(f.sort === 'deadline' ? (a, b) => deadlineKey(a, today) - deadlineKey(b, today) || byPosted(a, b) : byPosted);
@@ -104,10 +103,6 @@ export function pageWindow(current: number, total: number): (number | null)[] {
   }
   return out;
 }
-
-/** 오늘의 한 장(편집자 지정 MAIN 1개). 화면에서 점수로 고르지 않는다. 마감됐으면 보여 주지 않는다. */
-export const pickMain = (items: YouthNews[], today: string) =>
-  items.find((n) => n.slot === 'MAIN' && deadlineState(n, today).kind !== 'closed') ?? null;
 
 export const regionText = (n: YouthNews) => (n.regions === 'NATIONWIDE' ? '전국' : n.regions.join('·'));
 

@@ -2110,6 +2110,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/youth-news/hot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 요즘 많이 본 지원금(최근 7일 서로 다른 방문자 수 순, 최대 10건). 1분 캐시(Cache-Control max-age=60, public)
+         * @description - 소식을 연 방문자 수만 센다. 같은 방문자가 같은 소식을 같은 날 여러 번 열어도 1이다.
+         *     - basis: 순위를 만든 근거. 지금은 SITE(이 사이트 열람)뿐이다. 구글 검색량은 공식 API·키가 없어 쓰지 않는다.
+         *     - 열람이 아직 없으면 items는 빈 목록이다. 화면은 이때 마감 임박 순으로 대신 채운다.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 많이 본 소식 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        /**
+                         * @example {
+                         *       "basis": "SITE",
+                         *       "windowDays": 7,
+                         *       "items": [
+                         *         {
+                         *           "newsId": "1",
+                         *           "visitors": 12
+                         *         }
+                         *       ]
+                         *     }
+                         */
+                        "application/json": components["schemas"]["HotNews"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/youth-news/{id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 소식을 열었다고 센다(방문자·소식·날짜당 한 번). 계정과 연결하지 않는다
+         * @description - viewerId는 브라우저가 처음 한 번 만들어 localStorage에 둔 임의 UUID이다. 계정·IP와 이어 두지 않고 30일 뒤 지운다.
+         *     - 이미 센 열람, 방문자 한 명의 하루 한도(40개 소식)를 넘은 열람은 오류 없이 204로 넘어간다.
+         *     - 없거나 반려한 소식은 404, viewerId가 UUID가 아니면 400.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        viewerId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description 셈 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2986,6 +3089,20 @@ export interface components {
          * @enum {string}
          */
         NewsCategory: "TRANSPORT" | "HOUSING" | "JOB" | "EDUCATION" | "FINANCE" | "CULTURE" | "TAX" | "ETC";
+        HotNews: {
+            /**
+             * @description 순위 근거. SITE = 이 사이트 열람
+             * @enum {string}
+             */
+            basis: "SITE";
+            windowDays: number;
+            items: {
+                /** @description YouthNewsItem.id */
+                newsId: string;
+                /** @description 최근 windowDays일 이 소식을 연 서로 다른 방문자 수 */
+                visitors: number;
+            }[];
+        };
         YouthNewsFeed: {
             items: components["schemas"]["YouthNewsItem"][];
         };

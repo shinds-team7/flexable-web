@@ -27,6 +27,18 @@ public final class NewsDtos {
 			List<String> keywords, CalcLink calcLink, LocalDate correctedAt, String slot) {
 	}
 
+	/** GET /youth-news/hot 응답. basis는 순위를 만든 근거(지금은 SITE = 이 사이트 열람만) */
+	public record HotNews(String basis, int windowDays, List<HotItem> items) {
+	}
+
+	/** 최근 windowDays일 동안 이 소식을 연 서로 다른 방문자 수 */
+	public record HotItem(String newsId, int visitors) {
+	}
+
+	/** POST /youth-news/{id}/views 요청. viewerId는 브라우저가 만든 임의 UUID */
+	public record ViewRequest(String viewerId) {
+	}
+
 	/** summary는 나이 외 조건 요약. incomeLimit은 원문에 소득 기준이 있으면 true, 언급이 없으면 null */
 	public record Audience(String summary, Integer ageMin, Integer ageMax, Boolean incomeLimit) {
 	}

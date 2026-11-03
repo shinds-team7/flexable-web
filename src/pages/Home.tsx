@@ -1,4 +1,4 @@
-// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선). 오른쪽 레일: 코스피·코스닥 → 오늘의 청년 금융 소식.
+// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선). 오른쪽 레일: 목표 → 저장한 소식 → 오늘의 청년 금융 소식.
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -10,12 +10,14 @@ import { DDay } from '@/components/Icons';
 import { RollingNumber } from '@/components/RollingNumber';
 import { useAppLink } from '@/data/appLink';
 import { fmtMonth, useGoal } from '@/data/goal';
-import { useIndices, useSeedMoney, useSetSeedManual, type MarketIndices, type SeedMoney } from '@/data/home';
+import { useSeedMoney, useSetSeedManual, type SeedMoney } from '@/data/home';
+import { SavedNews } from '@/components/news/SavedNews';
 import { categoryLabel, useNews } from '@/data/news';
+import { useSavedNews } from '@/data/newsSaved';
 import { deadlineState, todayKst } from '@/lib/deadline';
 import { cardTags, DEFAULT_FILTER, selectNews } from '@/lib/newsList';
 import { errorText } from '@/lib/api';
-import { fmtMonthDay, upDown, won } from '@/lib/format';
+import { fmtMonthDay, won } from '@/lib/format';
 
 /** 서버 SeedMoneyDtos.MAX_MANUAL_TOTAL과 같다(10억 원) */
 const MAX_MANUAL = 1_000_000_000;
@@ -212,43 +214,11 @@ function SeedHistory({ seed }: { seed: SeedMoney }) {
   );
 }
 
-function MarketCard({ m }: { m: MarketIndices | undefined }) {
-  return (
-    <div className="card">
-      <div className="card-head" style={{ marginBottom: 12 }}>
-        <h2>오늘의 시장</h2>
-        {m?.isSample && <span className="tag-ex">예시</span>}
-      </div>
-      {!m ? (
-        <div className="market">
-          <div className="skel" style={{ height: 76 }} />
-          <div className="skel" style={{ height: 76 }} />
-        </div>
-      ) : (
-        <>
-          <div className="market">
-            {m.items.map((i) => {
-              const ud = upDown(i.change);
-              return (
-                <div key={i.code} className="idx">
-                  <p className="nm">{i.name}</p>
-                  <p className="val num">
-                    <CountUp value={i.value} decimals={2} format={(n) => n.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
-                  </p>
-                  <p className={'chg num ' + ud}>
-                    {ud === 'up' ? '▲' : ud === 'down' ? '▼' : ''} {Math.abs(i.change).toFixed(2)} ({(Math.abs(i.changeRate) * 100).toFixed(2)}%)
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-          <p className="meta" style={{ marginTop: 10 }}>
-            {fmtMonthDay(m.asOf)} 종가 기준 · 출처 {m.source}
-          </p>
-        </>
-      )}
-    </div>
-  );
+/** 소식 화면에서 책갈피로 저장한 소식(이 브라우저에만 저장). 목록에서 빠진 소식도 '마감됨'으로 남는다 */
+function MySavedNews() {
+  const { saved, remove } = useSavedNews();
+  const { data } = useNews();
+  return <SavedNews saved={saved} items={data?.items ?? []} today={todayKst()} onRemove={remove} />;
 }
 
 /** 소식 화면과 같은 목록(GET /youth-news)에서 마감 임박순 3건. 마감된 소식은 빠진다. */
@@ -375,7 +345,6 @@ function AppLinkIntro() {
 
 export default function Home() {
   const seed = useSeedMoney();
-  const indices = useIndices();
   return (
     <section>
       <div className="page">
@@ -414,9 +383,9 @@ export default function Home() {
               </>
             )}
           </div>
-          <aside className="col rail stagger" aria-label="목표와 오늘의 시장·소식">
+          <aside className="col rail stagger" aria-label="목표와 저장한 소식·오늘의 소식">
             <GoalMini />
-            <MarketCard m={indices.data} />
+            <MySavedNews />
             <HomeNews />
           </aside>
         </div>

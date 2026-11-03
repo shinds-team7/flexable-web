@@ -3113,6 +3113,11 @@ export interface components {
                 startDate: string;
                 /** Format: date */
                 endDate: string;
+                /**
+                 * Format: date
+                 * @description 핀을 꽂을 날. 기간 중 하루 등락(전날 종가 대비) 절댓값이 가장 큰 날, 같으면 앞선 날. 1일 사건이면 startDate. 다시 탐지하기 전에 저장한 사건이면 null이고 화면은 startDate를 쓴다
+                 */
+                peakDate: string | null;
                 windowDays: number;
                 /** @enum {string} */
                 direction: "RISE" | "FALL";

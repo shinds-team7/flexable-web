@@ -93,6 +93,9 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
+/** 핀을 꽂을 날: 서버가 고른 기간 중 가장 크게 움직인 날. 다시 탐지하기 전에 저장한 사건(null)이면 시작일 */
+const pinDate = (e: PriceEvent) => e.peakDate ?? e.startDate;
+
 /** 서버 종가·사건을 차트 모양으로. 계산 없이 옮기기만 한다. */
 function toChart(p: PriceSeries, events: PriceEvent[]): ChartData {
   const closes = p.points.map((pt) => pt.close);
@@ -105,7 +108,7 @@ function toChart(p: PriceSeries, events: PriceEvent[]): ChartData {
     legs: [{ name: p.name, color: 'var(--brand)', values: closes, invested: [] }],
     startIdx: 0,
     events: events.flatMap((e) => {
-      const idx = p.points.findIndex((pt) => pt.date >= e.startDate);
+      const idx = p.points.findIndex((pt) => pt.date >= pinDate(e));
       if (idx < 0) return [];
       return [
         {
@@ -450,7 +453,7 @@ function toCombined(items: { slot: Slot; p: PriceSeries; events: PriceEvent[] }[
     startIdx: 0,
     // 여러 종목의 사건을 합치면 순서가 섞이므로 시작일순으로 둔다
     events: [...byId.values()].sort((a, b) => a.startDate.localeCompare(b.startDate)).flatMap((e) => {
-      const idx = dates.findIndex((dt) => dt >= e.startDate);
+      const idx = dates.findIndex((dt) => dt >= pinDate(e));
       if (idx < 0) return [];
       const leg = e.code == null ? -1 : items.findIndex((it) => it.p.id === e.code);
       return [

@@ -46,7 +46,7 @@ class EventNewsServiceTest {
 
 	private void event(long id, String scope, LocalDate start, LocalDate end, String direction) {
 		MarketEvent e = new MarketEvent(7L, scope, EventDetector.VERSION);
-		e.apply(new EventDetector.Detected(start, end, 3, direction, 0.1, 0.01, 3.0, 2.0, 1.0, 1), NOW);
+		e.apply(new EventDetector.Detected(start, end, 3, direction, 0.1, 0.01, 3.0, 2.0, 1.0, 1, start), NOW);
 		when(events.findById(id)).thenReturn(Optional.of(e));
 	}
 

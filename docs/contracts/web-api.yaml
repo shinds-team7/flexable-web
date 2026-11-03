@@ -1852,7 +1852,7 @@ components:
           type: array
           items:
             type: object
-            required: [id, code, scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline,
+            required: [id, code, scope, startDate, endDate, peakDate, windowDays, direction, returnRate, marketReturn, headline,
               hasExplanation, sourceName, sourceCount, topSource, score]
             additionalProperties: false
             properties:
@@ -1861,6 +1861,11 @@ components:
               scope: { type: string, enum: [STOCK, MARKET] }
               startDate: { type: string, format: date }
               endDate: { type: string, format: date }
+              peakDate:
+                type: string
+                format: date
+                nullable: true
+                description: '핀을 꽂을 날. 기간 중 하루 등락(전날 종가 대비) 절댓값이 가장 큰 날, 같으면 앞선 날. 1일 사건이면 startDate. 다시 탐지하기 전에 저장한 사건이면 null이고 화면은 startDate를 쓴다'
               windowDays: { type: integer }
               direction: { type: string, enum: [RISE, FALL] }
               returnRate: { type: number }

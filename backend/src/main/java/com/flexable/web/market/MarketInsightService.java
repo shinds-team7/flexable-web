@@ -90,8 +90,9 @@ public class MarketInsightService {
 		List<PriceEventItem> items = events.eventsBetween(List.of(code), start, range.asOf()).stream().map(e -> {
 			boolean marketWide = MarketEvent.MARKET.equals(e.scope());
 			var top = e.sources().isEmpty() ? null : e.sources().getFirst();
-			return new PriceEventItem(e.id(), marketWide ? null : e.code(), e.scope(), e.startDate(), e.endDate(), e.windowDays(), e.direction(),
-					e.returnRate(), e.marketReturn(), EventDtos.headline(inst.getName(), e.scope(), e.direction(), e.windowDays()), false,
+			return new PriceEventItem(e.id(), marketWide ? null : e.code(), e.scope(), e.startDate(), e.endDate(), e.peakDate(),
+					e.windowDays(), e.direction(), e.returnRate(), e.marketReturn(),
+					EventDtos.headline(inst.getName(), e.scope(), e.direction(), e.windowDays()), false,
 					top == null ? null : "DART 공시", e.sources().size(), top == null ? null : top.title(), e.score());
 		}).toList();
 		return new PriceEvents(inst.getCode(), period.code(), start, range.asOf(), items, EventDtos.NOTICE_KEY);

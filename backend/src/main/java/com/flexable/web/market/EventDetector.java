@@ -2,6 +2,7 @@ package com.flexable.web.market;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -38,12 +39,23 @@ final class EventDetector {
 	record Bar(LocalDate date, long close, Long volume) {
 	}
 
-	/** 찾은 사건. marketReturn은 시장 대용 시세가 없으면 null, volumeRatio는 거래량을 모르면 null. */
+	/**
+	 * 찾은 사건. marketReturn은 시장 대용 시세가 없으면 null, volumeRatio는 거래량을 모르면 null.
+	 * peak는 기간 중 하루 등락(전날 종가 대비) 절댓값이 가장 큰 날, 같으면 앞선 날. 차트 핀을 이 날에 꽂는다(1일 사건이면 start).
+	 */
 	record Detected(LocalDate start, LocalDate end, int windowDays, String direction, double returnRate, Double marketReturn,
-			double zScore, Double volumeRatio, double score, int rankInYear) {
+			double zScore, Double volumeRatio, double score, int rankInYear, LocalDate peak) {
 	}
 
-	private record Candidate(int start, int end, double z, Double vr, double score) {
+	/** 합치기·순위 전 후보. start·end는 bars 번호. */
+	record Candidate(int start, int end, double z, Double vr, double score) {
+	}
+
+	/**
+	 * 평가용 중간 단계. z[i]는 그날의 1일 z(σ를 잴 수 없거나 거래정지가 풀린 첫날·워밍업이면 NaN), sigma[i]는 그날 z의 분모(직전 60일 초과수익률 흔들림),
+	 * merged는 연 6건 상한을 적용하기 전 후보.
+	 */
+	record Stages(double[] z, double[] sigma, List<Candidate> merged) {
 	}
 
 	private EventDetector() {
@@ -54,9 +66,15 @@ final class EventDetector {
 	 * etf면 하루 등락 기준을 3%로 낮춘다.
 	 */
 	static List<Detected> stock(List<Bar> bars, Map<LocalDate, Long> market, boolean etf) {
+		Stages s = stockStages(bars, market, etf);
+		return s == null ? List.of() : rank(s.merged(), bars, market, true);
+	}
+
+	/** stock()에서 순위를 매기기 전까지. 시세가 너무 짧으면 null. */
+	static Stages stockStages(List<Bar> bars, Map<LocalDate, Long> market, boolean etf) {
 		int n = bars.size();
 		if (n < SIGMA_MIN + 2) {
-			return List.of();
+			return null;
 		}
 		double[] r = new double[n];
 		double[] m = new double[n];
@@ -74,12 +92,15 @@ final class EventDetector {
 		}
 		double move = etf ? MOVE_ETF : MOVE_STOCK;
 		boolean[] oneDay = new boolean[n];
+		double[] zs = new double[n];
+		Arrays.fill(zs, Double.NaN);
 		List<Candidate> found = new ArrayList<>();
 		for (int i = Math.max(1, SKIP_FIRST); i < n; i++) {
 			if (Double.isNaN(sigma[i]) || sigma[i] == 0 || halted(bars, i)) {
 				continue;
 			}
 			double z = abn[i] / sigma[i];
+			zs[i] = z;
 			double ret = Math.expm1(r[i]);
 			if ((Math.abs(z) >= Z_ONE_DAY && Math.abs(ret) >= move) || Math.abs(ret) >= MOVE_ALWAYS) {
 				oneDay[i] = true;
@@ -107,7 +128,7 @@ final class EventDetector {
 				found.add(new Candidate(from, i, z, vr, score(z, vr)));
 			}
 		}
-		return rank(merge(found), bars, market, true);
+		return new Stages(zs, sigma, merge(found));
 	}
 
 	/** 시장 사건. bars는 시장 대용 종목(코스피200 추종 ETF 등)의 일봉, 날짜 오름차순. 하루 ±3% 이상인 날. */
@@ -278,7 +299,21 @@ final class EventDetector {
 		Double mret = mb == null || ml == null || mb == 0 ? null : (double) ml / mb - 1;
 		String dir = ret > 0 || (ret == 0 && c.z() > 0) ? "RISE" : "FALL";
 		return new Detected(bars.get(c.start()).date(), last.date(), c.end() - c.start() + 1, dir, ret, mret, c.z(), c.vr(), c.score(),
-				rank);
+				rank, bars.get(peak(bars, c.start(), c.end())).date());
+	}
+
+	/** from..to 중 하루 등락 절댓값이 가장 큰 날의 번호. 같으면 앞선 날. */
+	private static int peak(List<Bar> bars, int from, int to) {
+		int best = from;
+		double max = -1;
+		for (int i = from; i <= to; i++) {
+			double move = Math.abs((double) bars.get(i).close() / bars.get(i - 1).close() - 1);
+			if (move > max) {
+				max = move;
+				best = i;
+			}
+		}
+		return best;
 	}
 
 	/** 테스트용: 날짜 축을 맞춘 종가 맵. */

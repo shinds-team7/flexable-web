@@ -3,6 +3,7 @@
 // 실행 코드는 없다. 새 API를 화면에 붙이면 여기에도 한 줄을 더한다.
 import type { AppLink, SeedEntry } from '@/data/appLink';
 import type { Coach, GoalInput, GoalState } from '@/data/goal';
+import type { GoalScenarioRequest, GoalScenarioResult, SaveScenarioRequest, SavedGoalScenario, SavedScenarioList } from '@/data/goalScenarios';
 import type { SeedMoneyResponse } from '@/data/home';
 import type { BoardListing, EventDetail, EventNews, IndexStrip, IndustryListing, PriceEvents, PriceSeries } from '@/data/market';
 import type { YouthNews } from '@/data/news';
@@ -35,6 +36,12 @@ export type ContractChecks = [
   Narrows<GoalState, { goal: S['GoalView'] | null; ai: S['AiStatus'] }>,
   Narrows<Coach, S['Coach']>,
   Narrows<GoalInput, Body<'/me/goal', 'put'>>,
+  // 목표 달성 시나리오(F7 v2)
+  Expect<Mutual<GoalScenarioResult, Ok<'/goal/scenarios', 'post'>>>,
+  Narrows<GoalScenarioRequest, Body<'/goal/scenarios', 'post'>>,
+  Expect<Mutual<SavedScenarioList, Ok<'/me/goal/scenarios', 'get'>>>,
+  Expect<Mutual<SavedGoalScenario, Ok<'/me/goal/scenarios/{id}', 'get'>>>,
+  Narrows<SaveScenarioRequest, Body<'/me/goal/scenarios', 'post'>>,
   // 투자 인사이트(#89). 화면은 POST /simulations/run을 부르지 않는다(API는 남음)
   Reads<S['BoardListing'], BoardListing>,
   Reads<S['EventDetail'], EventDetail>,

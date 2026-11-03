@@ -1,6 +1,6 @@
 # 정책 — 계산·상태 규칙
 
-웹 서버가 계산하는 규칙과 입력→기대값 예시다. **예시 표는 [`tests/policy/`](../tests/policy/)의 테스트 케이스와 같은 내용**이고, 백엔드 테스트(`GoalPolicyTest`·`SimulationPolicyTest`·`PracticePolicyTest`·`DepositPolicyTest`, §7은 구현 후 `GoalScenarioPolicyTest`)가 코드와 맞는지 확인한다. 표를 고치면 같은 PR에서 JSON도 고치고 `spec-change` 라벨과 [CHANGELOG](CHANGELOG.md) 한 줄을 붙인다. 정책에 없는 상황을 만나면 임의로 정하지 않고 알린다.
+웹 서버가 계산하는 규칙과 입력→기대값 예시다. **예시 표는 [`tests/policy/`](../tests/policy/)의 테스트 케이스와 같은 내용**이고, 백엔드 테스트(`GoalPolicyTest`·`SimulationPolicyTest`·`PracticePolicyTest`·`DepositPolicyTest`, §7은 `GoalScenarioPolicyTest`)가 코드와 맞는지 확인한다. 표를 고치면 같은 PR에서 JSON도 고치고 `spec-change` 라벨과 [CHANGELOG](CHANGELOG.md) 한 줄을 붙인다. 정책에 없는 상황을 만나면 임의로 정하지 않고 알린다.
 
 공통: 금액은 **원 단위 정수**, 나눗셈은 **내림**(목표의 필요 금액만 부족하게 보이지 않게 올림). 계산은 서버만 하고 화면은 결과를 그린다(ADR-3). 오류는 `400 VALIDATION_FAILED` + `fields`.
 
@@ -207,7 +207,7 @@ worker가 종목마다 한 번 고르고 세션은 고른 구간을 그대로 �
 
 ## 7. 목표 달성 시나리오(F7 v2, `POST /goal/scenarios`)
 
-[F7 개편](decisions/2026-10-29-goal-scenarios.md)의 MVP 계산이다(11-03 확정, [#174](https://github.com/shinds-team7/flexable-web/issues/174)). 구현은 [#175](https://github.com/shinds-team7/flexable-web/issues/175)에서 하며 그 전까지 `tests/policy/goal-scenarios.json`은 `PENDING`이다. §3·§4(v1 `/me/goal`)는 그대로 둔다. 테스트 입력 정본은 `tests/policy/goal-scenarios.json`이고 `GoalScenarioPolicyTest`(#175)가 실행한다.
+[F7 개편](decisions/2026-10-29-goal-scenarios.md)의 MVP 계산이다(11-03 확정, [#174](https://github.com/shinds-team7/flexable-web/issues/174)). 구현: [#175](https://github.com/shinds-team7/flexable-web/issues/175)(`goalscenario` 패키지). §3·§4(v1 `/me/goal`)는 그대로 둔다. 테스트 입력 정본은 `tests/policy/goal-scenarios.json`이고 `GoalScenarioPolicyTest`가 실행한다.
 
 **역할**: 조합(상품 유형과 비중)은 **제안기**가 정하고, 서버는 제안을 검증한 뒤 숫자를 모두 계산한다. 제안기는 AI 키가 있으면 AI, 없거나 AI 제안이 검증에 실패하면 **데모 제안기**(아래 고정 조합)다. 응답의 `proposer`가 어느 쪽인지 알린다. AI가 말한 숫자(금액·확률·수익률)는 쓰지 않는다.
 
@@ -220,7 +220,7 @@ worker가 종목마다 한 번 고르고 세션은 고른 구간을 그대로 �
 | 기한 | 1·2·3년(`years`). 개월 수 = 연 × 12 |
 | 시작 금액 | 0원으로 고정(입력받지 않음) |
 
-입력과 결과는 저장하지 않는다. 범위를 벗어나면 `400 VALIDATION_FAILED`.
+계산만으로는 저장하지 않는다(회원이 고른 시나리오만 7-8로 저장). 범위를 벗어나면 `400 VALIDATION_FAILED`.
 
 ### 7-2. 상품 유형
 
@@ -311,4 +311,16 @@ worker가 종목마다 한 번 고르고 세션은 고른 구간을 그대로 �
 | 해설에 "수익 보장" | 데모 조합, `AI_REJECTED` |
 | AI 키 없음 | 데모 조합, `fallbackReason=AI_UNAVAILABLE` |
 
-검사(#175): `GoalScenarioPolicyTest`(이 표), 같은 입력을 두 번 보내면 같은 응답(seed 고정), `ContractTest`.
+### 7-8. 시나리오 저장(회원만, 11-03 추가)
+
+| 규칙 | 내용 |
+|---|---|
+| 누가 | 로그인한 회원만. 로그인하지 않으면 `401` |
+| 무엇을 | 방금 계산한 결과(`resultId`) 중 시나리오 하나를 **그때 값 그대로** 저장한다: 목표 이름·금액·기한, 고른 시나리오(비중·필요 월 금액·결과 범위·확률), 상품 목록, 자료 기준일·수익률 기간, 가정·고지. 저장한 결과는 다시 계산하지 않는다 |
+| `resultId` | 계산 응답마다 새로 붙는다. 서버가 그 결과를 **메모리에 30분** 둔다(다시 띄우면 사라짐, 2,000개가 넘으면 먼저 끝나는 것부터 버림). 화면이 보낸 숫자는 쓰지 않는다. 30분이 지났거나 없는 값이면 `409 GOAL_SCENARIO_EXPIRED`(다시 계산) |
+| 개수 | 회원당 **최대 5개**. 다 찼으면 `409 GOAL_SCENARIO_LIMIT`(지운 뒤 저장) |
+| 목록 | 저장한 시각 최신순. 제목·필요 월 금액·자료 기준일 |
+| 삭제 | 회원이 하나씩 지운다. 남의 것·없는 것은 `404`. 탈퇴하면 모두 지운다 |
+| 화면 | 저장한 결과는 "○○ 기준 결과"로 보여 주고, 같은 조건으로 [다시 계산하기]를 둔다 |
+
+검사: `GoalScenarioPolicyTest`(이 표), `GoalScenarioApiTest`(200 계약 검사·같은 입력이면 같은 응답·제안 검증과 데모 대체·503·저장·5개 제한·삭제·남의 것 404·탈퇴 삭제), `ScenarioResultCacheTest`(30분), `ContractTest`(400·401·404·409·503).

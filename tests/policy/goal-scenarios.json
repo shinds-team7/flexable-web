@@ -1,7 +1,7 @@
 {
-  "status": "PENDING",
-  "note": "docs/policies.md §7 예시. 구현(#175) 전이라 PENDING. 금액은 원, 수익률은 소수(0.10 = 10%), 비율은 만분율(bp).",
-  "constants": { "paths": 2000, "seed": 20261103, "blockMonths": 12, "historyMonths": 60, "reachShare": "0.8", "cmaRatePercent": "2.5", "taxRate": "0.154" },
+  "status": "IMPLEMENTED",
+  "note": "docs/policies.md §7 예시. 금액은 원, 수익률은 소수(0.10 = 10%), 비율은 만분율(bp).",
+  "constants": { "paths": 2000, "seed": 20261103, "blockMonths": 12, "historyMonths": 60, "reachShare": "0.8", "cmaRatePercent": "2.5", "taxRate": "0.154", "saveLimit": 5, "resultTtlMinutes": 30 },
   "savings": [
     { "name": "적금 단리 월 1,231,000원", "monthly": 1231000, "months": 12, "ratePercent": "3.50", "compound": false,
       "expected": { "principal": 14772000, "interestPreTax": 280047, "tax": 43127, "final": 15008920 } },

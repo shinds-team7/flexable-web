@@ -2175,7 +2175,15 @@ export interface paths {
                          *             "summary": null,
                          *             "ageMin": 19,
                          *             "ageMax": 34,
-                         *             "incomeLimit": true
+                         *             "incomeLimit": true,
+                         *             "employment": [],
+                         *             "marital": [],
+                         *             "schools": [
+                         *               "대학 재학",
+                         *               "대학 졸업"
+                         *             ],
+                         *             "majors": [],
+                         *             "special": []
                          *           },
                          *           "regions": "NATIONWIDE",
                          *           "applyStart": "2026-10-01",
@@ -2208,7 +2216,12 @@ export interface paths {
                          *             "summary": null,
                          *             "ageMin": null,
                          *             "ageMax": null,
-                         *             "incomeLimit": null
+                         *             "incomeLimit": null,
+                         *             "employment": null,
+                         *             "marital": null,
+                         *             "schools": null,
+                         *             "majors": null,
+                         *             "special": null
                          *           },
                          *           "regions": [
                          *             "서울"
@@ -3605,6 +3618,10 @@ export interface components {
              */
             slot: "MAIN" | "SUB" | null;
         };
+        /**
+         * @description 신청 대상 조건. employment·marital·schools·majors·special은 온통청년 코드(jobCd·mrgSttsCd·schoolCd·plcyMajorCd·sbizCd)를 이름으로 바꾼 값이다.
+         *     null = 원문에서 확인 못 함(조건 없음이 아님), 빈 배열 = 제한 없음, 값이 있으면 그중 하나에 해당해야 한다.
+         */
         YouthNewsAudience: {
             /** @description 나이 외 조건 요약 */
             summary: string | null;
@@ -3612,6 +3629,16 @@ export interface components {
             ageMax: number | null;
             /** @description 원문에 소득 기준이 있으면 true, 언급이 없으면 null */
             incomeLimit: boolean | null;
+            /** @description 취업 상태(재직자·자영업자·미취업자·프리랜서·일용근로자·(예비)창업자·단기근로자·영농종사자·기타) */
+            employment: string[] | null;
+            /** @description 혼인(기혼·미혼) */
+            marital: string[] | null;
+            /** @description 학력(고졸 미만·고교 재학·고졸 예정·고교 졸업·대학 재학·대학 예정·대학 졸업·석·박사·기타) */
+            schools: string[] | null;
+            /** @description 전공(인문계열·사회계열·상경계열·이학계열·공학계열·예체능계열·농산업계열·기타) */
+            majors: string[] | null;
+            /** @description 특화 대상(중소기업·여성·기초생활수급자·한부모가정·장애인·농업인·군인·지역인재·기타) */
+            special: string[] | null;
         };
         YouthNewsSource: {
             org: string;

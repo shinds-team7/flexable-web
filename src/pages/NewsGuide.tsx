@@ -25,6 +25,7 @@ export default function NewsGuide() {
   return (
     <section>
       <article className="page news-article" aria-labelledby="news-guide-h1">
+        <img className="news-article-hero" src="/cal.png" alt="" />
         <Link to="/news" className="news-article-back">
           ‹ 청년 금융 소식
         </Link>

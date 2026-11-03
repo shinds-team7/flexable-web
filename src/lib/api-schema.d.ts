@@ -3633,7 +3633,7 @@ export interface components {
             employment: string[] | null;
             /** @description 혼인(기혼·미혼) */
             marital: string[] | null;
-            /** @description 학력(고졸 미만·고교 재학·고졸 예정·고교 졸업·대학 재학·대학 예정·대학 졸업·석·박사·기타) */
+            /** @description 학력(고졸 미만·고교 재학·고졸 예정·고교 졸업·대학 재학·대졸 예정·대학 졸업·석·박사·기타) */
             schools: string[] | null;
             /** @description 전공(인문계열·사회계열·상경계열·이학계열·공학계열·예체능계열·농산업계열·기타) */
             majors: string[] | null;

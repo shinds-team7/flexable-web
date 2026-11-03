@@ -16,7 +16,7 @@ export const EMPLOY_OPTIONS: { id: EmployStatus; label: string }[] = [
 ];
 export const JOB_DETAILS = ['재직자', '자영업자', '미취업자', '프리랜서', '일용근로자', '(예비)창업자', '단기근로자', '영농종사자', '기타'] as const;
 export const MARITAL_OPTIONS = ['미혼', '기혼'] as const;
-export const SCHOOL_OPTIONS = ['고졸 미만', '고교 재학', '고졸 예정', '고교 졸업', '대학 재학', '대학 예정', '대학 졸업', '석·박사', '기타', '제한없음'] as const;
+export const SCHOOL_OPTIONS = ['고졸 미만', '고교 재학', '고졸 예정', '고교 졸업', '대학 재학', '대졸 예정', '대학 졸업', '석·박사', '기타', '제한없음'] as const;
 export const MAJOR_OPTIONS = ['인문계열', '사회계열', '상경계열', '이학계열', '공학계열', '예체능계열', '농산업계열', '기타', '제한없음'] as const;
 export const SPECIAL_OPTIONS = ['중소기업', '여성', '기초생활수급자', '한부모가정', '장애인', '농업인', '군인', '지역인재', '기타'] as const;
 export type IncomeKind = 'YEAR' | 'MONTH' | 'UNKNOWN';

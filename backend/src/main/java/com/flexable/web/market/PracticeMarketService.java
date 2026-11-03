@@ -27,8 +27,9 @@ public class PracticeMarketService {
     }
     @Transactional
     public void save(Dataset data) {
-        if (data.candles().size() != 120 || data.candles().stream().anyMatch(c -> !c.valid())) {
-            throw new IllegalArgumentException("120개의 유효 OHLC가 필요합니다");
+        int size = data.candles().size();
+        if (size < PracticeWindow.MIN_LENGTH || size > PracticeWindow.MAX_LENGTH || data.candles().stream().anyMatch(c -> !c.valid())) {
+            throw new IllegalArgumentException("120~250개의 유효 OHLC가 필요합니다");
         }
         for (int i = 1; i < data.candles().size(); i++) {
             if (data.candles().get(i - 1).date().compareTo(data.candles().get(i).date()) >= 0)

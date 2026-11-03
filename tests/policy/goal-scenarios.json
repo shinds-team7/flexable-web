@@ -1,0 +1,66 @@
+{
+  "status": "PENDING",
+  "note": "docs/policies.md §7 예시. 구현(#175) 전이라 PENDING. 금액은 원, 수익률은 소수(0.10 = 10%), 비율은 만분율(bp).",
+  "constants": { "paths": 2000, "seed": 20261103, "blockMonths": 12, "historyMonths": 60, "reachShare": "0.8", "cmaRatePercent": "2.5", "taxRate": "0.154" },
+  "savings": [
+    { "name": "적금 단리 월 1,231,000원", "monthly": 1231000, "months": 12, "ratePercent": "3.50", "compound": false,
+      "expected": { "principal": 14772000, "interestPreTax": 280047, "tax": 43127, "final": 15008920 } },
+    { "name": "적금 단리 월 1,230,000원", "monthly": 1230000, "months": 12, "ratePercent": "3.50", "compound": false,
+      "expected": { "principal": 14760000, "interestPreTax": 279822, "tax": 43092, "final": 14996730 } }
+  ],
+  "cma": [
+    { "name": "CMA 월복리 2.5%", "monthly": 1000000, "months": 12, "ratePercent": "2.5",
+      "expected": { "principal": 12000000, "interestPreTax": 163743, "tax": 25216, "final": 12138527 } }
+  ],
+  "invest": [
+    { "name": "비과세 투자", "monthly": 1000000, "returns": ["0.10", "-0.05", "0.02", "0", "0", "0", "0", "0", "0", "0", "0", "0.031"], "taxed": false,
+      "expected": { "principal": 12000000, "value": 12428601, "tax": 0, "final": 12428601 } },
+    { "name": "미국 지수 ETF 이익 과세", "monthly": 1000000, "returns": ["0.10", "-0.05", "0.02", "0", "0", "0", "0", "0", "0", "0", "0", "0.031"], "taxed": true,
+      "expected": { "principal": 12000000, "value": 12428601, "tax": 66004, "final": 12362597 } },
+    { "name": "미국 지수 ETF 손실은 세금 없음", "monthly": 1000000, "returns": ["-0.10", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"], "taxed": true,
+      "expected": { "principal": 12000000, "value": 11900000, "tax": 0, "final": 11900000 } }
+  ],
+  "allocation": [
+    { "name": "나눠서 키우기 배분과 금액 보존", "monthly": 1231000,
+      "mix": { "SAVINGS": 40, "CMA": 10, "KR_INDEX_ETF": 20, "US_INDEX_ETF": 20, "KOSPI_TOP5": 10 },
+      "expected": { "SAVINGS": 492400, "CMA": 123100, "KR_INDEX_ETF": 246200, "US_INDEX_ETF": 246200, "KOSPI_TOP5": 123100, "kospiEach": 24620, "sum": 1231000 } }
+  ],
+  "mixFixed": [
+    { "name": "적금 70 · CMA 30", "monthly": 1000000, "months": 12, "savingsRatePercent": "3.50", "savingsCompound": false,
+      "mix": { "SAVINGS": 70, "CMA": 30 },
+      "expected": { "SAVINGS": 8534723, "CMA": 3641555, "final": 12176278 } }
+  ],
+  "required": [
+    { "name": "적금만: 목표 1,500만 원 1년", "target": 15000000, "years": 1, "savingsRatePercent": "3.50", "savingsCompound": false,
+      "mix": { "SAVINGS": 100 },
+      "expected": { "reachable": true, "monthly": 1231000, "paid": 14772000, "fixedAmount": 15008920, "chanceBp": 10000, "lossBp": 0 } },
+    { "name": "경로 5개, 국내 지수 100%, 4개 이상 닿는 월 금액", "target": 12000000, "years": 1, "reachShare": "0.8",
+      "mix": { "KR_INDEX_ETF": 100 },
+      "pathMonthlyReturns": ["0", "0.01", "-0.01", "0.02", "-0.02"],
+      "expected": { "reachable": true, "monthly": 1067000, "paid": 12804000,
+        "finals": [12804000, 13667553, 12001506, 14596913, 11255655],
+        "low": 11255655, "median": 12804000, "high": 14596913, "chanceBp": 8000, "lossBp": 4000 },
+      "below": { "monthly": 1066000, "reached": 3, "worstReachingPathFinal": 11990258 } }
+  ],
+  "quantileIndex": [ { "n": 2000, "expected": { "low": 199, "median": 999, "high": 1799 } }, { "n": 5, "expected": { "low": 0, "median": 2, "high": 4 } } ],
+  "validation": [
+    { "name": "기한 4년", "request": { "name": "목돈", "targetAmount": 15000000, "years": 4 }, "expected": { "status": 400, "field": "years" } },
+    { "name": "목표 하한 미만", "request": { "name": "목돈", "targetAmount": 999999, "years": 1 }, "expected": { "status": 400, "field": "targetAmount" } },
+    { "name": "목표 상한 초과", "request": { "name": "목돈", "targetAmount": 1000000001, "years": 1 }, "expected": { "status": 400, "field": "targetAmount" } },
+    { "name": "이름 공백만", "request": { "name": "   ", "targetAmount": 15000000, "years": 1 }, "expected": { "status": 400, "field": "name" } },
+    { "name": "이름 21자", "request": { "name": "가나다라마바사아자차카타파하가나다라마바사", "targetAmount": 15000000, "years": 1 }, "expected": { "status": 400, "field": "name" } }
+  ],
+  "proposal": [
+    { "name": "비중 합 90", "scenarios": [ { "mix": { "SAVINGS": 60, "CMA": 30 } }, { "mix": { "SAVINGS": 50, "KR_INDEX_ETF": 50 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "목록 밖 유형", "scenarios": [ { "mix": { "BITCOIN": 100 } }, { "mix": { "SAVINGS": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "시나리오 1개", "scenarios": [ { "mix": { "SAVINGS": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "시나리오 4개", "scenarios": [ { "mix": { "SAVINGS": 100 } }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } }, { "mix": { "US_INDEX_ETF": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "해설에 보장 표현", "scenarios": [ { "mix": { "SAVINGS": 100 }, "explanation": "수익 보장 조합이에요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "AI 키 없음", "scenarios": null, "expected": { "proposer": "DEMO", "fallbackReason": "AI_UNAVAILABLE" } }
+  ],
+  "demoPlans": [
+    { "id": "steady", "title": "차근차근 모으기", "mix": { "SAVINGS": 70, "CMA": 30, "KR_INDEX_ETF": 0, "US_INDEX_ETF": 0, "KOSPI_TOP5": 0 } },
+    { "id": "spread", "title": "나눠서 키우기", "mix": { "SAVINGS": 40, "CMA": 10, "KR_INDEX_ETF": 20, "US_INDEX_ETF": 20, "KOSPI_TOP5": 10 } },
+    { "id": "bold", "title": "적극적으로 키우기", "mix": { "SAVINGS": 10, "CMA": 10, "KR_INDEX_ETF": 20, "US_INDEX_ETF": 30, "KOSPI_TOP5": 30 } }
+  ]
+}

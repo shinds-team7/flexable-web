@@ -468,6 +468,37 @@ paths:
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
 
+  /goal/scenarios:
+    post:
+      tags: [goal]
+      summary: 'F7 v2 목표 달성 시나리오(로그인 없이). 조합은 제안기(AI 또는 데모), 숫자는 서버 계산. docs/policies.md §7'
+      description: |
+        - 입력·결과를 저장하지 않는다. 목표 이름은 계산에 쓰지 않고 그대로 돌려주며 로그에 남기지 않는다.
+        - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason).
+        - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
+        - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 적금 후보가 없으면 field = SAVINGS.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, targetAmount, years]
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 20, description: '앞뒤 공백을 뺀 1~20자' }
+                targetAmount: { type: integer, format: int64, minimum: 1000000, maximum: 1000000000 }
+                years: { type: integer, enum: [1, 2, 3] }
+      responses:
+        '200':
+          description: 시나리오 2~3개
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoalScenarioResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+
   /market/instruments:
     get:
       tags: [market]
@@ -1119,7 +1150,7 @@ components:
     PracticeSnapshot:
       type: object
       additionalProperties: false
-      required: [version, status, instrument, initialAmount, isSample, candles, frames, portfolio, event, decisions, notice, sources]
+      required: [version, status, instrument, initialAmount, isSample, totalDays, candles, frames, portfolio, event, decisions, notice, sources]
       properties:
         version: { type: integer, minimum: 0 }
         status: { type: string, enum: [RUNNING, AWAITING_DECISION, FINISHED] }
@@ -1136,10 +1167,11 @@ components:
             classificationAsOf: { type: string, format: date }
         initialAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000 }
         isSample: { type: boolean }
+        totalDays: { type: integer, minimum: 120, maximum: 250, description: '이번 실행의 전체 거래일 수. 종목마다 문제 3개 이상을 만나는 가장 짧은 구간(policies §5 재생 구간 고르기). 가격·사건은 공개한 봉까지만 준다' }
         candles:
           type: array
           minItems: 1
-          maxItems: 120
+          maxItems: 250
           description: '공개된 봉만 날짜 오름차순. 아직 진행하지 않은 봉 없음'
           items:
             type: object
@@ -1153,7 +1185,7 @@ components:
               close: { type: integer, format: int64, minimum: 1 }
         frames:
           type: array
-          maxItems: 120
+          maxItems: 250
           description: 'step 응답에서만 이번에 새로 공개된 봉마다 그날 종가 기준 자산(날짜 오름차순, 마지막 항목 = portfolio). 화면은 이 구간을 3초에 나눠 재생한다. start·state·decision 응답은 빈 배열'
           items:
             type: object
@@ -1178,8 +1210,8 @@ components:
             sourceName: { type: string }
         decisions:
           type: array
-          maxItems: 3
-          description: '이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null'
+          maxItems: 39
+          description: '이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null. 한 실행의 문제는 3개 이상이고 250거래일 간격 규칙상 최대 39개'
           items:
             type: object
             additionalProperties: false
@@ -1205,6 +1237,96 @@ components:
           type: array
           minItems: 1
           items: { type: string }
+    GoalScenarioProductType:
+      type: string
+      enum: [SAVINGS, CMA, KR_INDEX_ETF, US_INDEX_ETF, KOSPI_TOP5]
+      description: 'SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2'
+    GoalScenarioResult:
+      type: object
+      required: [name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        targetAmount: { type: integer, format: int64 }
+        years: { type: integer }
+        months: { type: integer, description: 'years × 12' }
+        proposer: { type: string, enum: [AI, DEMO], description: 'DEMO면 화면에 "AI 연결 전 예시 조합" 표시' }
+        fallbackReason: { type: string, nullable: true, enum: [AI_UNAVAILABLE, AI_FAILED, AI_REJECTED, null], description: 'proposer=DEMO일 때 이유. AI면 null' }
+        asOf: { type: string, format: date, description: '자료 기준일(수집된 마지막 거래일)' }
+        returnsFrom: { type: string, description: 'YYYY-MM. 수익률 자료 첫 달' }
+        returnsTo: { type: string, description: 'YYYY-MM. 수익률 자료 마지막 달' }
+        paths: { type: integer, description: '경로 수(2000)' }
+        seed: { type: integer, format: int64 }
+        reachShare: { type: number, description: '필요 월 금액의 기준 비율(0.8 = 10번 중 8번)' }
+        products:
+          type: array
+          description: 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함)
+          items:
+            type: object
+            required: [type, items, ratePercent, isSample]
+            additionalProperties: false
+            properties:
+              type: { $ref: '#/components/schemas/GoalScenarioProductType' }
+              items:
+                type: array
+                minItems: 1
+                description: 'KOSPI_TOP5는 5개, CMA는 이름만(code null), 나머지 1개'
+                items:
+                  type: object
+                  required: [code, name, company]
+                  additionalProperties: false
+                  properties:
+                    code: { type: string, nullable: true, description: '종목 코드 또는 적금 상품 id' }
+                    name: { type: string }
+                    company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
+              ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
+              isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
+        scenarios:
+          type: array
+          minItems: 2
+          maxItems: 3
+          items: { $ref: '#/components/schemas/GoalScenario' }
+        assumptions: { type: array, items: { type: string }, description: '세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정' }
+        notice: { type: string, description: '고지 GOAL_SCENARIO_EST(추정·비보장·원금 손실·기준일 확인)' }
+        isSample: { type: boolean, description: '예시 값(CMA 예시 금리 또는 데모 조합)이 하나라도 있으면 true' }
+    GoalScenario:
+      type: object
+      required: [id, title, summary, explanation, mix, reachable, monthly, paid, outcome]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        title: { type: string, maxLength: 20 }
+        summary: { type: string, maxLength: 40 }
+        explanation: { type: string, maxLength: 300, description: '제안기 해설. 숫자·보장 표현 없음(§7-6)' }
+        mix:
+          type: array
+          minItems: 1
+          description: 비중이 0보다 큰 유형만, 비중 합 100
+          items:
+            type: object
+            required: [type, ratioPercent, monthly]
+            additionalProperties: false
+            properties:
+              type: { $ref: '#/components/schemas/GoalScenarioProductType' }
+              ratioPercent: { type: integer, minimum: 1, maximum: 100 }
+              monthly: { type: integer, format: int64, nullable: true, description: '유형별 월 금액. reachable=false면 null' }
+        reachable: { type: boolean, description: '목표 금액 이하의 월 금액으로 기준 비율을 채울 수 있는지' }
+        monthly: { type: integer, format: int64, nullable: true, description: '필요 월 금액(천 원 단위 올림)' }
+        paid: { type: integer, format: int64, nullable: true, description: '넣은 돈 = monthly × months' }
+        outcome:
+          type: object
+          nullable: true
+          description: 'reachable=false면 null'
+          required: [kind, fixedAmount, low, median, high, chanceBp, lossBp]
+          additionalProperties: false
+          properties:
+            kind: { type: string, enum: [FIXED, RANGE], description: 'FIXED 적금·CMA만(결과 하나), RANGE 투자 포함' }
+            fixedAmount: { type: integer, format: int64, nullable: true, description: 'FIXED일 때 기한 말 금액' }
+            low: { type: integer, format: int64, nullable: true, description: 'RANGE 하위 10%' }
+            median: { type: integer, format: int64, nullable: true, description: 'RANGE 중간값' }
+            high: { type: integer, format: int64, nullable: true, description: 'RANGE 상위 10%' }
+            chanceBp: { type: integer, description: '목표에 닿은 경로 비율(만분율, 내림)' }
+            lossBp: { type: integer, description: '기한 말 금액 < 넣은 돈인 경로 비율(만분율, 내림)' }
     Error:
       type: object
       required: [code, message]

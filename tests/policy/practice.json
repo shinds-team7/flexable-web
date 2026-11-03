@@ -26,5 +26,22 @@
     { "baseline": 1000, "afterFiveSessions": 1000, "prediction": "NEGATIVE", "expected": "NEUTRAL", "returnRate": 0 },
     { "baseline": 100000, "afterFiveSessions": 100001, "prediction": "POSITIVE", "expected": "CORRECT", "returnRate": 0 },
     { "baseline": 3, "afterFiveSessions": 2, "prediction": "NEGATIVE", "expected": "CORRECT", "returnRate": -0.3334 }
-  ]
+  ],
+  "windowSelection": {
+    "minLength": 120,
+    "maxLength": 250,
+    "leadDays": 14,
+    "followDays": 5,
+    "minQuestions": 3,
+    "cases": [
+      { "name": "120거래일에 3개: 최근 창은 공시 5건이지만 출제 1건", "bars": 200, "invalidBars": [], "disclosureBars": [30, 45, 60, 180, 181, 182, 183, 184], "expected": { "start": 16, "length": 120, "questionBars": [30, 45, 60] } },
+      { "name": "같은 길이에서는 문제가 많은 창(4개도 모두 출제)", "bars": 200, "invalidBars": [], "disclosureBars": [20, 30, 40, 50, 150, 160, 170], "expected": { "start": 6, "length": 120, "questionBars": [20, 30, 40, 50] } },
+      { "name": "문제 수가 같으면 가장 최근 창", "bars": 300, "invalidBars": [], "disclosureBars": [30, 45, 60, 230, 245, 260], "expected": { "start": 180, "length": 120, "questionBars": [230, 245, 260] } },
+      { "name": "120거래일에 3개가 안 되면 3개가 되는 가장 짧은 길이", "bars": 300, "invalidBars": [], "disclosureBars": [30, 90, 145], "expected": { "start": 16, "length": 135, "questionBars": [30, 90, 145] } },
+      { "name": "OHLC가 빠진 봉이 든 창은 쓰지 않는다", "bars": 260, "invalidBars": [130], "disclosureBars": [30, 45, 60, 125, 200], "expected": { "start": 10, "length": 120, "questionBars": [30, 45, 60] } },
+      { "name": "후보 없음: 250거래일 안에 3개가 안 된다", "bars": 400, "invalidBars": [], "disclosureBars": [30, 150, 290], "expected": null },
+      { "name": "후보 없음: 출제 가능한 공시가 2개뿐", "bars": 200, "invalidBars": [], "disclosureBars": [20, 170], "expected": null },
+      { "name": "후보 없음: 120거래일이 안 된다", "bars": 119, "invalidBars": [], "disclosureBars": [20, 40, 60], "expected": null }
+    ]
+  }
 }

@@ -1,6 +1,7 @@
 // 30초 진단: [맞춤 판별 | 빠른 검색] 두 가지 방식. 고른 값은 이 화면(메모리)에만 있고 저장·전송하지 않는다.
 // 맞춤 판별은 나이·지역·취업·소득/혼인·학력/특화를 5단계로 받아 소식과 맞춰 보고, 빠른 검색은 조건 없이 소식을 하나씩 무작위로 뽑는다.
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from 'react';
+import { NewsConditionsBox } from './NewsConditions';
 import { NEWS_CATEGORIES, REGIONS, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
 import {
   AGE_RANGE,
@@ -33,30 +34,42 @@ const SORTS: { id: NewsSort; label: string }[] = [
   { id: 'new', label: '새로운 순' },
 ];
 
-type Mode = 'MATCH' | 'QUICK';
+export type FinderTab = 'COND' | 'MATCH' | 'QUICK';
+const TABS: { id: FinderTab; label: string }[] = [
+  { id: 'COND', label: '조건으로 찾기' },
+  { id: 'MATCH', label: '맞춤 판별' },
+  { id: 'QUICK', label: '빠른 검색' },
+];
+
 type Props = { items: YouthNews[]; today: string; renderCard: (n: YouthNews) => ReactNode };
+type FinderProps = Props & { tab: FinderTab; onTab: (t: FinderTab) => void; conditions: ComponentProps<typeof NewsConditionsBox> };
 
 const toNum = (s: string) => (s.trim() === '' ? null : Number(s));
 
-/** 진단 영역: 위 두 버튼으로 맞춤 판별과 빠른 검색을 바꾼다(예적금 화면의 상품 종류 버튼과 같은 모양) */
-export function NewsFinder({ items, today, renderCard }: Props) {
-  const [mode, setMode] = useState<Mode>('MATCH');
+/** 조건으로 찾기·맞춤 판별·빠른 검색을 한 상자에 묶는다. 위 탭(상품 종류 탭과 같은 모양)을 누르면 흰 알약이 그쪽으로 밀려가고 내용이 그 방향에서 들어온다 */
+export function NewsFinder({ items, today, renderCard, tab, onTab, conditions }: FinderProps) {
+  const index = TABS.findIndex((t) => t.id === tab);
+  const prev = useRef(index);
+  const dir = index === prev.current ? 'none' : index > prev.current ? 'right' : 'left';
+  useEffect(() => {
+    prev.current = index;
+  }, [index]);
   return (
-    <div id="news-diagnosis" className="news-finder">
-      <div className="cf-pgroup news-finder-tabs" role="group" aria-label="진단 방식">
-        <button type="button" className="cf-opt" aria-pressed={mode === 'MATCH'} onClick={() => setMode('MATCH')}>
-          맞춤 판별
-        </button>
-        <button type="button" className="cf-opt" aria-pressed={mode === 'QUICK'} onClick={() => setMode('QUICK')}>
-          빠른 검색
-        </button>
+    <section id="news-conditions" className="news-cond news-finder" aria-label="소식 찾는 방법">
+      <div className="pt-tabs news-finder-tabs" role="group" aria-label="찾는 방법" style={{ '--idx': index } as CSSProperties}>
+        <span className="news-finder-pill" aria-hidden="true" />
+        {TABS.map((t) => (
+          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-pressed={tab === t.id} onClick={() => onTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
       </div>
-      {mode === 'MATCH' ? (
-        <NewsDiagnosis items={items} today={today} renderCard={renderCard} />
-      ) : (
-        <QuickSearch items={items} today={today} renderCard={renderCard} onMatch={() => setMode('MATCH')} />
-      )}
-    </div>
+      <div key={tab} className="news-finder-panel" data-dir={dir}>
+        {tab === 'COND' && <NewsConditionsBox {...conditions} />}
+        {tab === 'MATCH' && <NewsDiagnosis items={items} today={today} renderCard={renderCard} />}
+        {tab === 'QUICK' && <QuickSearch items={items} today={today} renderCard={renderCard} onMatch={() => onTab('MATCH')} />}
+      </div>
+    </section>
   );
 }
 

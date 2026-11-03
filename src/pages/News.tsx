@@ -3,8 +3,7 @@
 // 저장한 소식은 마이페이지(/mypage)에서 본다.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { InsightCard, GuideCard } from '@/components/news/NewsAnalysis';
-import { NewsConditionsBox } from '@/components/news/NewsConditions';
-import { NewsFinder } from '@/components/news/NewsDiagnosis';
+import { NewsFinder, type FinderTab } from '@/components/news/NewsDiagnosis';
 import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
 import { NewsHero } from '@/components/news/NewsHero';
 import { FindMine, HotNewsCard } from '@/components/news/NewsQuick';
@@ -39,7 +38,7 @@ export default function News() {
   // 조건으로 찾기: draft는 칩을 누르는 대로 바뀌고, [검색하기]를 눌러야 applied로 옮겨져 목록에 반영된다
   const [draft, setDraft] = useState<NewsConditions>(EMPTY_CONDITIONS);
   const [applied, setApplied] = useState<NewsConditions>(EMPTY_CONDITIONS);
-  const [diagOpen, setDiagOpen] = useState(false);
+  const [finderTab, setFinderTab] = useState<FinderTab>('COND');
   const [toast, setToast] = useState<string | null>(null);
   const today = todayKst();
 
@@ -68,11 +67,9 @@ export default function News() {
     setPage(p);
     resultsTop.current?.scrollIntoView({ block: 'start' });
   };
-  const goConditions = () => document.getElementById('news-conditions')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-
-  const openDiagnosis = () => {
-    setDiagOpen(true);
-    setTimeout(() => document.getElementById('news-diagnosis')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
+  const openFinder = (tab: FinderTab) => {
+    setFinderTab(tab);
+    setTimeout(() => document.getElementById('news-conditions')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
   };
 
   const search = (query: string) => {
@@ -98,11 +95,11 @@ export default function News() {
 
   return (
     <section className="news-screen">
-      <NewsHero query={filter.query} onSearch={search} onGoConditions={openDiagnosis} />
+      <NewsHero query={filter.query} onSearch={search} onGoConditions={() => openFinder('MATCH')} />
       <div className="news-band">
         <div className="page news-page">
           <div className="news-quick">
-            <FindMine onGoConditions={goConditions} onGoDeadline={goDeadline} />
+            <FindMine onGoConditions={() => openFinder('COND')} onGoDeadline={goDeadline} />
             <HotNewsCard picks={picks} hot={hot.data} today={today} isSample={isSample} />
           </div>
 
@@ -116,15 +113,14 @@ export default function News() {
             </div>
           </section>
 
-          {diagOpen && (
-            <NewsFinder
-              items={items}
-              today={today}
-              renderCard={(n) => <NewsCard n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} onToast={setToast} />}
-            />
-          )}
-
-          <NewsConditionsBox value={draft} onChange={setDraft} onSearch={searchConditions} />
+          <NewsFinder
+            tab={finderTab}
+            onTab={setFinderTab}
+            conditions={{ value: draft, onChange: setDraft, onSearch: searchConditions }}
+            items={items}
+            today={today}
+            renderCard={(n) => <NewsCard n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} onToast={setToast} />}
+          />
 
           <section aria-labelledby="news-all-title" className="news-sec">
             <h2 id="news-all-title" className="news-sec-title" ref={resultsTop}>

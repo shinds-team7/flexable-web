@@ -10,13 +10,13 @@ export const useLoginModal = () => useContext(LoginModalContext);
 export function LoginModalProvider({ children }: { children: ReactNode }) {
   const { pathname, search } = useLocation();
   const ref = useRef<HTMLDialogElement>(null);
-  const [from, setFrom] = useState('/home');
+  const [from, setFrom] = useState('/mypage');
   const [open, setOpen] = useState(false);
 
   const openLogin = useCallback(
     (to?: string) => {
       // 랜딩에서 열면 체험 홈으로, 그 밖에서는 보던 화면으로 돌아온다
-      setFrom(to ?? (pathname === '/' ? '/home' : pathname + search));
+      setFrom(to ?? (pathname === '/home' ? '/mypage' : pathname + search));
       setOpen(true);
     },
     [pathname, search],

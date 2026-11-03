@@ -94,7 +94,7 @@ export default function Me() {
             <div className="card">
               <p className="k">로그인 없이 체험 중</p>
               <p className="v">예시 데이터로 둘러보고 있어요. 내 계정으로 이용하려면 로그인해 주세요.</p>
-              <button type="button" className="btn btn-line btn-sm" onClick={() => openLogin('/me')}>로그인</button>
+              <button type="button" className="btn btn-line btn-sm" onClick={() => openLogin('/mypage/settings')}>로그인</button>
             </div>
           ) : status === 'member' && <div className="card">
             <div className="set-row">

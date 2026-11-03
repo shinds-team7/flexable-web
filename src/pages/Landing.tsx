@@ -1,8 +1,7 @@
 // 랜딩. 예시 차트는 빌드에 포함된 예시 데이터로 그린다. 기능 소개 이미지는 운영 화면 캡처(public/landing/screens),
 // 앱 소개 목업 화면은 시연 앱(/m) 캡처와 앱 스플래시 이미지(public/landing/app)다.
 import { useMemo, useRef } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { useSession } from '@/auth/session';
+import { Link, useNavigate } from 'react-router-dom';
 import { placePinNote, removePinNote } from '@/charts/pinNote';
 import { TimeChart } from '@/charts/TimeChart';
 import { Footer, PLAY_URL } from '@/components/Layout';
@@ -145,13 +144,11 @@ function PlayBadge() {
 }
 
 export default function Landing() {
-  const { status } = useSession();
   const navigate = useNavigate();
   const root = useRef<HTMLElement>(null);
   const chart = useMemo(() => sampleChartData(simulateSample({ amount: 470000, how: 'lump', startIdx: 0 })), []);
   useSmoothWheel();
   useReveal(root);
-  if (status === 'member') return <Navigate to="/home" replace />;
 
   const placeHint = (wrap: HTMLDivElement) => {
     if (!seen()) placePinNote(wrap);
@@ -166,7 +163,7 @@ export default function Landing() {
             <h1 className="land-display">{'청년을 위한 금융 파트너\n솔파와 함께 성장하세요'}</h1>
             <span className="land-lead">청년들의 자산 증식을 도울 수 있도록, 정확한 금융 정보와 인사이트를 제공합니다.</span>
           </div>
-          <Link className="land-cta" to="/home">
+          <Link className="land-cta" to="/mypage">
             <span>체험 시작하기</span>
             <ArrowCircle />
           </Link>

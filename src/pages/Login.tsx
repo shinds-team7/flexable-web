@@ -62,7 +62,7 @@ export function LoginPanel({ from, initialError = null, onSignedIn }: { from: st
       const r = await api<AuthResponse>('/auth/login', { method: 'POST', json: { email: email.trim(), password } });
       signIn(r);
       onSignedIn?.();
-      navigate(linkAfter ? '/me#app-link' : from, { replace: true });
+      navigate(linkAfter ? '/mypage/settings#app-link' : from, { replace: true });
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -137,7 +137,7 @@ export default function Login() {
   const { status } = useSession();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
-  const from = (location.state as { from?: string } | null)?.from ?? '/home';
+  const from = (location.state as { from?: string } | null)?.from ?? '/mypage';
   if (status === 'member') return <Navigate to={from} replace />;
   return (
     <section>

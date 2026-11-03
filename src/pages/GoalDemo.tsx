@@ -81,7 +81,7 @@ export default function GoalDemo() {
 
   return <div className="gd-page" data-sample={sample.isSample}>
     <div className="gd-wrap">
-      <div className="gd-breadcrumb"><Link to="/home">홈</Link><span>/</span><span>AI 목표 달성</span><span className="gd-sample-badge">시연 · 예시</span></div>
+      <div className="gd-breadcrumb"><Link to="/mypage">홈</Link><span>/</span><span>AI 목표 달성</span><span className="gd-sample-badge">시연 · 예시</span></div>
       <header className="gd-heading">
         <div><div className="gd-eyebrow"><MarkIcon kind="spark" size={17} /> 나의 목표, 나다운 방법으로</div><h1>목표까지 가는 길은<br className="gd-mobile-break" /> 하나가 아니니까.</h1><p>내 성향과 상황에 맞는 조합을 찾고, 가능성과 위험을 함께 살펴보세요.</p></div>
         <div className="gd-heading-note"><span className="gd-dot" /> 예시 데이터로 체험 중<small>입력·선택 내용은 저장되지 않아요</small></div>

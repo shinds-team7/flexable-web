@@ -25,7 +25,7 @@ export function AppLinkCard({ member }: { member: boolean }) {
   const { hash } = useLocation();
   const hidden = !member || (q.data !== undefined && !q.data.enabled && !q.data.linked);
 
-  // 홈 안내의 [앱 연동하기](/me#app-link)로 들어오면 페이지 맨 위에서 시작하고 코드 입력칸에 커서를 둔다.
+  // 홈 안내의 [앱 연동하기](/mypage/settings#app-link)로 들어오면 페이지 맨 위에서 시작하고 코드 입력칸에 커서를 둔다.
   useEffect(() => {
     if (hash !== '#app-link' || hidden || q.isPending) return;
     window.scrollTo({ top: 0 });

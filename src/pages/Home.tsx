@@ -362,7 +362,7 @@ function AppLinkIntro() {
         solpa 앱 설정에서 받은 연동 코드를 입력하면 앱에서 확정한 시드머니를 웹에서 볼 수 있어요. 웹만 써도 괜찮아요.
       </p>
       <div className="toolbar" style={{ marginTop: 12 }}>
-        <Link className="btn btn-primary btn-sm" to="/me#app-link">
+        <Link className="btn btn-primary btn-sm" to="/mypage/settings#app-link">
           앱 연동하기
         </Link>
         <button className="btn btn-line btn-sm" onClick={dismiss}>

@@ -315,7 +315,7 @@ function GoalForm({ goal, onDone, onCancel }: { goal: Goal | null; onDone: () =>
           {link.data?.enabled && (
             <p className="meta">
               {link.data.linked ? '앱에서 예산을 정하고 시드머니를 반영하면 자동으로 채워져요. ' : '앱을 연동하면 자동으로 채워져요. '}
-              <Link to="/me#app-link">앱 연동 보기</Link>
+              <Link to="/mypage/settings#app-link">앱 연동 보기</Link>
             </p>
           )}
         </fieldset>

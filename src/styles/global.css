@@ -1325,7 +1325,6 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 .news-hero-link:hover{background:rgba(0,0,0,.06);text-decoration:none}
 .news-band{background:var(--sunken)}
 .news-band .page{display:flex;flex-direction:column;gap:32px;padding-top:24px}
-.news-sample-note{align-self:flex-start;margin-bottom:-16px}
 .news-quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .news-quick-card{display:flex;align-items:center;gap:16px;padding:20px 24px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-soft);min-width:0}
 .news-find-body{padding-left:8px}

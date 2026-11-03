@@ -6,6 +6,7 @@
 
 ## 2026-11-03
 
+- [#188] 청년 금융 소식 화면을 리디자인하고(검색 히어로·내 지원금 찾기·요즘 핫한 지원금·지원금 분석·조건으로 찾기(지역·나이·주제 합집합), 저장한 소식은 `/mypage`로 이동), 열람 집계 API `GET /youth-news/hot`·`POST /youth-news/{id}/views`와 `youth_news_view`(V20)를 더했다. 개인정보 방침·`privacy-web.md`에 임의 방문자 값(`fx.news.viewer`)·30일 보관을 반영했다 — 영향: 프론트·백엔드. 결정: [2026-11-03-news-hot](decisions/2026-11-03-news-hot.md)
 - [#170] 웹 경로를 바꿨다: 랜딩 `/`→`/home`(`/`는 이동), 이전 홈 `/home`→`/mypage`, 이전 `/me`→`/mypage/settings`(`/me`는 이동). solpa 로고는 로그인 여부와 상관없이 `/home`으로 가고 로그인한 사람도 랜딩을 본다. 상단 메뉴 맨 앞에 금융정보(`/finance`, 빈 화면)를 더하고 플러스는 메뉴에서 뺐다(`/plus`는 내 정보에서 진입). `02-design`·`README`·`PRD` F0·`product/README`·`goal-ai`의 경로 표기를 맞췄다. 계약·정책은 바뀌지 않는다 — 영향: 프론트·읽는 문서
 
 ## 2026-10-31

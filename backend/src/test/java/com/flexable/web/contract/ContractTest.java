@@ -339,6 +339,13 @@ class ContractTest {
 		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary == null && @.benefit == null && @.action == null)]")).hasSize(1);
 		call(get("/api/v1/youth-news?age=25&region=서울&category=HOUSING"), 200);
 		call(get("/api/v1/youth-news?category=NOPE"), 400);
+		// 열람 집계: 센 뒤 많이 본 목록에 나오고, 잘못된 값은 400·없는 소식은 404
+		long viewedId = Long.parseLong(JsonPath.read(feedBody, "$.items[0].id"));
+		String viewBody = "{\"viewerId\":\"11111111-1111-4111-8111-111111111111\"}";
+		call(json(post("/api/v1/youth-news/" + viewedId + "/views"), viewBody), 204);
+		call(json(post("/api/v1/youth-news/" + viewedId + "/views"), "{\"viewerId\":\"nope\"}"), 400);
+		call(json(post("/api/v1/youth-news/999999/views"), viewBody), 404);
+		call(get("/api/v1/youth-news/hot"), 200);
 	}
 
 	/** 목 서버(npm run mock:api)가 돌려주는 응답 example도 스펙에 맞아야 한다. 경로 변수가 없는 GET·PUT·POST의 200만 본다. */

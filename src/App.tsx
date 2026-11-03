@@ -12,6 +12,7 @@ import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Me from '@/pages/Me';
 import News from '@/pages/News';
+import NewsGuide from '@/pages/NewsGuide';
 import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
       { path: '/lab/savings', element: <Navigate to="/savings" replace /> },
       { path: '/lab/mix', element: <Navigate to="/mix" replace /> },
       { path: '/news', element: <News /> },
+      { path: '/news/guide', element: <NewsGuide /> },
       { path: '/news/:id', element: <Placeholder title="소식 상세" desc="소식 한 건의 자세한 내용" wireframe="청년 돈 소식" /> },
       { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <BillingResult /> },

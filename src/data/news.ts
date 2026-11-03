@@ -21,13 +21,8 @@ export const categoryLabel = (c: NewsCategory) => NEWS_CATEGORIES.find((x) => x.
 export const REGIONS = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'] as const;
 export type RegionName = (typeof REGIONS)[number];
 
-export const AGE_BANDS = [
-  { id: '19-24', label: '만 19~24세', min: 19, max: 24 },
-  { id: '25-29', label: '만 25~29세', min: 25, max: 29 },
-  { id: '30-34', label: '만 30~34세', min: 30, max: 34 },
-  { id: '35-39', label: '만 35~39세', min: 35, max: 39 },
-] as const;
-export type AgeBandId = (typeof AGE_BANDS)[number]['id'];
+/** 조건으로 찾기에서 고르는 만 나이. 그 나이가 신청 가능 나이(ageMin~ageMax)에 드는 소식을 찾는다 */
+export const AGE_PICKS = [19, 24, 30, 34, 39] as const;
 
 export type YouthNews = {
   id: string;

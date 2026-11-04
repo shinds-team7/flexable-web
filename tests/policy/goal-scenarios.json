@@ -55,7 +55,14 @@
     { "name": "목록 밖 유형", "scenarios": [ { "mix": { "BITCOIN": 100 } }, { "mix": { "SAVINGS": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
     { "name": "시나리오 1개", "scenarios": [ { "mix": { "SAVINGS": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
     { "name": "시나리오 4개", "scenarios": [ { "mix": { "SAVINGS": 100 } }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } }, { "mix": { "US_INDEX_ETF": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
-    { "name": "해설에 보장 표현", "scenarios": [ { "mix": { "SAVINGS": 100 }, "explanation": "수익 보장 조합이에요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "해설에 보장 단정", "scenarios": [ { "mix": { "SAVINGS": 100 }, "explanation": "수익 보장 조합이에요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "해설에 보장 부정문", "scenarios": [ { "mix": { "SAVINGS": 50, "US_INDEX_ETF": 50 }, "explanation": "지수 ETF는 수익이 보장되지 않아요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "AI" } },
+    { "name": "해설에 입력과 같은 숫자", "facts": { "targetAmount": 15000000, "months": 12, "names": ["TIGER 미국S&P500"], "percents": ["3.50", "2.50", "15.4"] },
+      "scenarios": [ { "mix": { "SAVINGS": 70, "US_INDEX_ETF": 30 }, "explanation": "1년 안에 1,500만 원을 모으려고 적금 70%에 연 3.5% 금리를 받고, S&P 500 지수에 30%를 둬요. 이익에는 15.4% 세금이 붙어요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "AI" } },
+    { "name": "해설에 입력에 없는 수익률", "facts": { "targetAmount": 15000000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"] },
+      "scenarios": [ { "mix": { "SAVINGS": 50, "US_INDEX_ETF": 50 }, "explanation": "연 7% 수익을 노려요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
+    { "name": "해설에 입력과 다른 금액", "facts": { "targetAmount": 15000000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"] },
+      "scenarios": [ { "mix": { "SAVINGS": 100 }, "explanation": "매달 50만 원이면 돼요" }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
     { "name": "AI 키 없음", "scenarios": null, "expected": { "proposer": "DEMO", "fallbackReason": "AI_UNAVAILABLE" } }
   ],
   "demoPlans": [

@@ -24,6 +24,9 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -328,6 +331,30 @@ class GoalScenarioApiTest {
 		// 결과를 못 받았으니 회원 횟수는 되돌린다(서비스 전체 횟수는 그대로)
 		assertThat((Integer) JsonPath.read(rejected, "$.aiUsage.remainingToday")).isEqualTo(3);
 		assertThat((Integer) JsonPath.read(failed, "$.aiUsage.remainingToday")).isEqualTo(3);
+	}
+
+	@Test
+	void AI_문구에_서버가_확인할_수_있는_숫자는_쓸_수_있다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(List.of(
+				new Proposals.Draft("a", "적금으로 1년", "연 3.5% 적금으로 모아요",
+						"1년 안에 1,500만 원을 모으도록 적금 100%로 정했어요. 수익이 보장되지 않는 상품은 넣지 않았어요.", Map.of("SAVINGS", 100)),
+				new Proposals.Draft("b", "반반", "적금과 S&P 500 지수",
+						"적금 50%와 미국 S&P 500 지수 50%로 나눴어요. 이익에는 15.4% 세금이 붙어요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+		String body = member(BODY.formatted("목돈", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+	}
+
+	@Test
+	@ExtendWith(OutputCaptureExtension.class)
+	void AI가_새로_만든_숫자는_막고_로그에는_이유만_남긴다(CapturedOutput output) throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(List.of(
+				new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
+				new Proposals.Draft("b", "반반", "적금과 지수 ETF", "연 7% 수익을 노려 반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
+		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation").doesNotContain("연 7%").doesNotContain("비밀 목표");
 	}
 
 	@Test

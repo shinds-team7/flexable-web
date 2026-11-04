@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /** 제안기가 낸 조합과 그 검증(policies §7-6). 제안은 유형 이름을 문자열로 받아 목록 밖 유형도 검사한다. */
 final class Proposals {
@@ -20,9 +19,6 @@ final class Proposals {
 	/** 검증을 통과한 시나리오. mix는 비중이 0보다 큰 유형만, ProductType 순서. */
 	record Plan(String id, String title, String summary, String explanation, Map<ProductType, Integer> mix) {
 	}
-
-	private static final Pattern DIGIT = Pattern.compile("[0-9]");
-	private static final List<String> BANNED = List.of("확실", "보장", "무조건");
 
 	/** AI 연결 전·검증 실패 시 쓰는 데모 조합. 문구에도 숫자·보장 표현을 넣지 않는다. */
 	static final List<Draft> DEMO = List.of(
@@ -47,44 +43,77 @@ final class Proposals {
 		return m;
 	}
 
-	/** 규칙을 하나라도 어기면 빈 값(제안 전체를 버린다). */
+	/** 규칙을 하나라도 어기면 빈 값(제안 전체를 버린다). 대조할 사실이 없으므로 문구에 숫자를 쓰면 걸린다(데모 조합용). */
 	static Optional<List<Plan>> validate(List<Draft> drafts) {
+		return Optional.ofNullable(check(drafts, ProposalText.Facts.NONE).plans());
+	}
+
+	/**
+	 * 검사 결과. 통과하면 plans, 걸리면 problem(어긴 규칙·몇 번째 시나리오·칸, 예: "TEXT_NUMBER #2.explanation").
+	 * problem에는 AI가 쓴 문구를 넣지 않는다(로그용).
+	 */
+	record Checked(List<Plan> plans, String problem) {
+		static Checked fail(String problem) {
+			return new Checked(null, problem);
+		}
+	}
+
+	/** facts는 AI에게 보낸 사실(목표 금액·기한·상품 이름·금리·세율). 문구 속 숫자를 이 값과 대조한다(ProposalText). */
+	static Checked check(List<Draft> drafts, ProposalText.Facts facts) {
 		if (drafts == null || drafts.size() < 2 || drafts.size() > 3) {
-			return Optional.empty();
+			return Checked.fail("COUNT");
 		}
 		List<Plan> out = new ArrayList<>();
 		Set<String> ids = new HashSet<>();
-		for (Draft d : drafts) {
-			if (d == null || d.mix() == null || d.id() == null || d.id().isBlank() || !ids.add(d.id())
-					|| !text(d.title(), 20) || !text(d.summary(), 40) || !text(d.explanation(), 300)) {
-				return Optional.empty();
+		for (int i = 0; i < drafts.size(); i++) {
+			Draft d = drafts.get(i);
+			String at = "#" + (i + 1);
+			if (d == null || d.mix() == null) {
+				return Checked.fail("MISSING " + at);
+			}
+			if (d.id() == null || d.id().isBlank() || !ids.add(d.id())) {
+				return Checked.fail("ID " + at);
 			}
 			Map<ProductType, Integer> mix = new EnumMap<>(ProductType.class);
 			int sum = 0;
 			for (var e : d.mix().entrySet()) {
 				ProductType t = type(e.getKey());
 				Integer ratio = e.getValue();
-				if (t == null || ratio == null || ratio < 0 || ratio > 100 || mix.containsKey(t)) {
-					return Optional.empty();
+				if (t == null || mix.containsKey(t)) {
+					return Checked.fail("MIX_TYPE " + at);
+				}
+				if (ratio == null || ratio < 0 || ratio > 100) {
+					return Checked.fail("MIX_RANGE " + at);
 				}
 				sum += ratio;
 				mix.put(t, ratio);
 			}
 			mix.values().removeIf(r -> r == 0);
 			if (sum != 100 || mix.isEmpty()) {
-				return Optional.empty();
+				return Checked.fail("MIX_SUM " + at);
+			}
+			String[][] fields = { { "title", d.title(), "20" }, { "summary", d.summary(), "40" }, { "explanation", d.explanation(), "300" } };
+			for (String[] f : fields) {
+				String problem = text(f[1], Integer.parseInt(f[2]), facts, mix.values());
+				if (problem != null) {
+					return Checked.fail(problem + " " + at + "." + f[0]);
+				}
 			}
 			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), d.explanation().strip(), mix));
 		}
-		return Optional.of(out);
+		return new Checked(out, null);
 	}
 
-	private static boolean text(String s, int max) {
-		if (s == null) {
-			return false;
+	/** 문구 규칙을 어기면 이유 코드, 지키면 null. */
+	private static String text(String s, int max, ProposalText.Facts facts, java.util.Collection<Integer> mix) {
+		if (s == null || s.strip().isEmpty()) {
+			return "TEXT_EMPTY";
 		}
 		String t = s.strip();
-		return !t.isEmpty() && t.length() <= max && !DIGIT.matcher(t).find() && BANNED.stream().noneMatch(t::contains);
+		if (t.length() > max) {
+			return "TEXT_LENGTH";
+		}
+		return ProposalText.problem(t, facts, mix);
 	}
 
 	private static ProductType type(String name) {

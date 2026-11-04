@@ -2870,7 +2870,7 @@ export interface components {
                  */
                 date: string;
             } | null;
-            /** @description 이미 제출한 선택만 반환. 판정 전 결과와 수익률은 null. 한 실행의 문제는 3~5개 */
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 한 실행의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상 */
             decisions: {
                 eventId: string;
                 category: components["schemas"]["VirtualSimCategory"];
@@ -2893,7 +2893,7 @@ export interface components {
                 /** Format: int64 */
                 executedShares: number | null;
                 /**
-                 * @description 이후 5거래일 가상 등락과 비교(policies §5)
+                 * @description 이번 결과: 이후 5거래일 가상 등락과 비교(policies §5 판정). 점수에 넣지 않는다
                  * @enum {string|null}
                  */
                 outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
@@ -2904,8 +2904,18 @@ export interface components {
                 categoryUpShare: number | null;
                 /** @description 판정 뒤만. categoryUpShare를 센 공시 수. 판정 전에는 null */
                 categorySampleCount: number | null;
+                /**
+                 * @description 판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null
+                 * @enum {string|null}
+                 */
+                trend: "UP" | "DOWN" | "MIXED" | null;
+                /**
+                 * @description 판정 뒤만. 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED면 NEUTRAL. 판정 전에는 null
+                 * @enum {string|null}
+                 */
+                trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
             }[];
-            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
+            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 과거 경향으로 채점하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
             notice: string;
             sources: string[];
         };

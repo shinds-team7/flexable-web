@@ -9,6 +9,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.context.WebApplicationContext;
+import com.flexable.web.ingest.CashCatalogJob;
 
 /** worker 프로필은 HTTP 없이 뜬다(04 §8). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -22,5 +23,6 @@ class WorkerProfileTest {
 	void startsWithoutWebLayer() {
 		assertThat(context).isNotInstanceOf(WebApplicationContext.class);
 		assertThat(context.getBeanNamesForType(SecurityFilterChain.class)).isEmpty();
+		assertThat(context.getBeanNamesForType(CashCatalogJob.class)).isEmpty();
 	}
 }

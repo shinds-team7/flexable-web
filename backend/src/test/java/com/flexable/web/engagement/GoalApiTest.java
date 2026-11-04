@@ -60,6 +60,7 @@ class GoalApiTest {
 	@Autowired GoalService goals;
 	@Autowired UserService users;
 	@Autowired PlatformTransactionManager transactions;
+	@Autowired Clock clock;
 	@MockitoBean GoalCoachClient ai;
 	@MockitoBean AppApiClient app;
 	private String token;
@@ -283,6 +284,12 @@ class GoalApiTest {
 			var earlier = pool.submit(() -> goals.coach(userId));
 			try {
 				assertThat(firstEntered.await(10, TimeUnit.SECONDS)).isTrue();
+				// 순서는 requestedAt으로 비교한다. Windows의 거친 Clock 해상도에서도
+				// 두 요청의 시작 시각을 구별한 뒤 응답 순서 역전을 검증한다.
+				Instant firstStarted = clock.instant();
+				long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+				while (!clock.instant().isAfter(firstStarted) && System.nanoTime() < deadline) Thread.onSpinWait();
+				assertThat(clock.instant()).isAfter(firstStarted);
 				assertThat(goals.coach(userId).coach().headline()).isEqualTo("나중에 시작한 안내예요");
 			}
 			finally {

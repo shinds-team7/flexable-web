@@ -192,3 +192,14 @@
 .vsim-order-limits span { font-size:11px; color:var(--color-text-tertiary); }
 .vsim-order-limits b { font-size:16px; color:var(--color-brand-text); font-variant-numeric:tabular-nums; }
 .vsim-modal form>.practice-start { margin-top:var(--density-gap); }
+/* 판정 뒤 사건 기록 바탕: 이후 5거래일 가상 등락이 오르면 빨강, 내리면 파랑(상승 빨강·하락 파랑 토큰), 그대로면 바탕 없음 */
+.practice-decision.vsim-moved-up { background:var(--color-rise-wash); }
+.practice-decision.vsim-moved-down { background:var(--color-fall-wash); }
+.practice-decision.vsim-moved-up.active, .practice-decision.vsim-moved-down.active { box-shadow:inset 0 0 0 2px var(--color-brand-primary); }
+.practice-journal:focus { outline:none; }
+/* 끝나고 돌아보기로 스크롤할 때 위에 붙은 상단 메뉴(--nav-h)에 제목이 가리지 않게 그만큼 띄워 멈춘다 */
+.vsim-journal { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
+/* 가상 시뮬레이션 기록은 바탕색이 있어 사건 카드끼리 띄우고 밑줄 대신 둥근 카드로 나눈다 */
+.vsim-journal .practice-decision { border-bottom:0; padding:calc(var(--density-gap)*.75) calc(var(--density-gap)/2); }
+.vsim-journal .practice-decision + .practice-decision { margin-top:calc(var(--density-gap)/2); }
+.vsim-journal .practice-decision:not(.vsim-moved-up):not(.vsim-moved-down) { box-shadow:inset 0 0 0 1px var(--color-border); }

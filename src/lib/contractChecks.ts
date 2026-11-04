@@ -2,7 +2,6 @@
 // 화면 타입은 판별 유니언·설명을 위해 손으로 쓴 것을 그대로 쓰고, 계약이 바뀌어 필드 이름·종류·null 여부가 어긋나면 npm run typecheck가 이 파일에서 실패한다.
 // 실행 코드는 없다. 새 API를 화면에 붙이면 여기에도 한 줄을 더한다.
 import type { AppLink, SeedEntry } from '@/data/appLink';
-import type { Coach, GoalInput, GoalState } from '@/data/goal';
 import type { GoalScenarioRequest, GoalScenarioResult, SaveScenarioRequest, SavedGoalScenario, SavedScenarioList } from '@/data/goalScenarios';
 import type { SeedMoneyResponse } from '@/data/home';
 import type { BoardListing, EventDetail, EventNews, IndexStrip, IndustryListing, PriceEvents, PriceSeries } from '@/data/market';
@@ -32,11 +31,7 @@ export type ContractChecks = [
   Narrows<AppLink, S['AppLink']>,
   Narrows<SeedEntry, S['SeedEntry']>,
   Narrows<SeedMoneyResponse, S['SeedMoneyResponse']>,
-  // 목표
-  Narrows<GoalState, { goal: S['GoalView'] | null; ai: S['AiStatus'] }>,
-  Narrows<Coach, S['Coach']>,
-  Narrows<GoalInput, Body<'/me/goal', 'put'>>,
-  // 목표 달성 시나리오(F7 v2)
+  // 목표 달성 시나리오(F7 v2). v1 /me/goal 화면은 #201에서 뺐다(API는 남음)
   Expect<Mutual<GoalScenarioResult, Ok<'/goal/scenarios', 'post'>>>,
   Narrows<GoalScenarioRequest, Body<'/goal/scenarios', 'post'>>,
   Expect<Mutual<SavedScenarioList, Ok<'/me/goal/scenarios', 'get'>>>,

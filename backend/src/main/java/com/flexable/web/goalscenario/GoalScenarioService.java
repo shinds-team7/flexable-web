@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.util.SplittableRandom;
 import java.util.function.LongFunction;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -40,6 +42,7 @@ import com.flexable.web.savings.SavingsService.FixedCandidate;
  */
 @Service
 public class GoalScenarioService {
+	private static final Logger log = LoggerFactory.getLogger(GoalScenarioService.class);
 
 	static final int PATHS = 2000;
 	static final long SEED = 20261103L;
@@ -137,7 +140,8 @@ public class GoalScenarioService {
 			reason = "GUEST";
 		}
 		else {
-			Optional<List<Plan>> reused = quota.cached(userId, target, years, asOf).flatMap(Proposals::validate);
+			ProposalText.Facts facts = facts(target, months, picked);
+			Optional<List<Plan>> reused = quota.cached(userId, target, years, asOf).map(d -> Proposals.check(d, facts).plans());
 			if (reused.isPresent()) {
 				return new Chosen(reused.get(), null, usage(userId), true);
 			}
@@ -149,11 +153,13 @@ public class GoalScenarioService {
 			if (r == ScenarioAiQuota.Reserve.OK) {
 				try {
 					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, years, months, stats(picked)));
-					Optional<List<Plan>> proposed = Proposals.validate(drafts);
-					if (proposed.isPresent()) {
+					Proposals.Checked checked = Proposals.check(drafts, facts);
+					if (checked.plans() != null) {
 						quota.cache(userId, target, years, asOf, drafts, "openai");
-						return new Chosen(proposed.get(), null, usage(userId), false);
+						return new Chosen(checked.plans(), null, usage(userId), false);
 					}
+					// 어긴 규칙·위치만 남긴다(AI 문구·목표 이름·회원 번호는 남기지 않음)
+					log.warn("goal scenario AI rejected: {}", checked.problem());
 					reason = "AI_REJECTED";
 				}
 				catch (ScenarioProposer.Failed e) {
@@ -167,6 +173,17 @@ public class GoalScenarioService {
 		}
 		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason,
 				userId == null ? null : usage(userId), false);
+	}
+
+	/** AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름·목표 금액·기한·적금·CMA 금리·세율 15.4%. */
+	private static ProposalText.Facts facts(long target, int months, Picked picked) {
+		java.util.Set<String> names = new java.util.HashSet<>();
+		names.add(picked.saving().name());
+		names.add(picked.saving().company());
+		picked.items().values().forEach(items -> items.forEach(i -> names.add(i.name())));
+		names.remove(null);
+		return new ProposalText.Facts(target, months, names,
+				List.of(picked.saving().baseRate(), CMA_RATE, new BigDecimal("15.4")));
 	}
 
 	private GoalScenarioDtos.AiUsage usage(long userId) {

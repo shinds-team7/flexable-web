@@ -218,7 +218,22 @@ class GoalScenarioPolicyTest {
 					String explanation = s.has("explanation") ? s.get("explanation").asString() : "조합 해설이에요";
 					drafts.add(new Proposals.Draft("s" + i++, "조합", "한 줄 설명", explanation, m));
 				}
-				assertThat(Proposals.validate(drafts)).isEmpty();
+				ProposalText.Facts facts = ProposalText.Facts.NONE;
+				JsonNode f = c.get("facts");
+				if (f != null) {
+					java.util.Set<String> names = new java.util.HashSet<>();
+					f.get("names").forEach(n -> names.add(n.asString()));
+					List<java.math.BigDecimal> percents = new ArrayList<>();
+					f.get("percents").forEach(n -> percents.add(new java.math.BigDecimal(n.asString())));
+					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.get("months").asInt(), names, percents);
+				}
+				Proposals.Checked checked = Proposals.check(drafts, facts);
+				if ("AI".equals(c.get("expected").get("proposer").asString())) {
+					assertThat(checked.problem()).isNull();
+				}
+				else {
+					assertThat(checked.plans()).isNull();
+				}
 			}));
 	}
 

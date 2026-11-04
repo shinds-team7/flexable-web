@@ -10,8 +10,8 @@ type FindProps = { onGoConditions: () => void; onGoDeadline: () => void };
 export function FindMine({ onGoConditions, onGoDeadline }: FindProps) {
   return (
     <section className="news-quick-card" aria-labelledby="news-find-title">
-      <img className="news-quick-art" src="/characters/lv3-3.png" alt="" width={72} height={72} />
-      <div className="news-quick-body">
+      <img className="news-quick-art" src="/cat-icon.png" alt="" width={72} height={72} />
+      <div className="news-quick-body news-find-body">
         <h2 id="news-find-title">내 지원금 찾기</h2>
         <p className="meta">나이·지역·주제를 고르면 해당하는 지원금을 모아 보여 드려요.</p>
         <div className="news-quick-acts">
@@ -37,9 +37,7 @@ export function HotNewsCard({ picks, hot, today, isSample }: HotProps) {
         <h2 id="news-hot-title">
           요즘 핫한 지원금 {isSample && <span className="tag-ex">예시</span>}
         </h2>
-        <p className="meta">
-          {counted ? `최근 ${hot?.windowDays ?? 7}일 동안 이 사이트에서 많이 연 순서예요.` : '열람 집계가 쌓이기 전이라 마감이 가까운 순서로 보여 드려요.'}
-        </p>
+        {counted && <p className="meta">{`최근 ${hot?.windowDays ?? 7}일 동안 이 사이트에서 많이 연 순서예요.`}</p>}
         {picks.length === 0 ? (
           <p className="meta">보여 드릴 지원금이 아직 없어요.</p>
         ) : (

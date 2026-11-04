@@ -69,6 +69,22 @@ class YouthNews {
 	@Column(name = "income_limit")
 	private Boolean incomeLimit;
 
+	/** 신청 대상 조건(쉼표로 이은 이름). null = 확인 못 함, ANY = 제한 없음 */
+	@Column(name = "job_conds", length = 120)
+	private String jobConds;
+
+	@Column(name = "marital_conds", length = 30)
+	private String maritalConds;
+
+	@Column(name = "school_conds", length = 120)
+	private String schoolConds;
+
+	@Column(name = "major_conds", length = 120)
+	private String majorConds;
+
+	@Column(name = "special_conds", length = 120)
+	private String specialConds;
+
 	@Column(length = 200)
 	private String regions;
 
@@ -150,6 +166,11 @@ class YouthNews {
 		this.ageMin = d.ageMin();
 		this.ageMax = d.ageMax();
 		this.incomeLimit = d.incomeLimit();
+		this.jobConds = packConds(d.employment());
+		this.maritalConds = packConds(d.marital());
+		this.schoolConds = packConds(d.schools());
+		this.majorConds = packConds(d.majors());
+		this.specialConds = packConds(d.special());
 		this.regions = d.nationwide() ? NATIONWIDE : d.regions() == null || d.regions().isEmpty() ? null : cut(String.join(",", d.regions()), 200);
 		this.applyStart = d.applyStart();
 		this.applyDeadline = d.applyDeadline();
@@ -168,7 +189,7 @@ class YouthNews {
 	}
 
 	private List<Object> draftState() {
-		return Arrays.asList(rawId, title, categories, ageMin, ageMax, incomeLimit, regions, applyStart, applyDeadline, alwaysOpen, bizEnd,
+		return Arrays.asList(rawId, title, categories, ageMin, ageMax, incomeLimit, jobConds, maritalConds, schoolConds, majorConds, specialConds, regions, applyStart, applyDeadline, alwaysOpen, bizEnd,
 				sourceOrg, sourceUrl, asOf, postedAt, keywords);
 	}
 
@@ -198,6 +219,37 @@ class YouthNews {
 
 	String getSummaryHash() {
 		return summaryHash;
+	}
+
+	private static final String ANY = "ANY";
+
+	/** 조건 목록 → 열 값. null(확인 못 함)은 null, 빈 목록(제한 없음)은 ANY */
+	private static String packConds(List<String> v) {
+		return v == null ? null : v.isEmpty() ? ANY : cut(String.join(",", v), 120);
+	}
+
+	private static List<String> unpackConds(String s) {
+		return s == null ? null : ANY.equals(s) ? List.of() : split(s);
+	}
+
+	List<String> employment() {
+		return unpackConds(jobConds);
+	}
+
+	List<String> marital() {
+		return unpackConds(maritalConds);
+	}
+
+	List<String> schools() {
+		return unpackConds(schoolConds);
+	}
+
+	List<String> majors() {
+		return unpackConds(majorConds);
+	}
+
+	List<String> special() {
+		return unpackConds(specialConds);
 	}
 
 	private static String cut(String s, int max) {

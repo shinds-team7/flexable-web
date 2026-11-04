@@ -364,7 +364,7 @@ public class EventService {
 		return list.stream()
 			.map(e -> new EventView(e.getId(), codeOf.get(e.getInstrumentId()), e.getScope(), e.getStartDate(), e.getEndDate(),
 					e.getWindowDays(), e.getDirection(), e.getReturnRate(), e.getMarketReturn(), e.getScore(), e.getRankInYear(),
-					bySource.getOrDefault(e.getId(), List.of())))
+					bySource.getOrDefault(e.getId(), List.of()), e.getPeakDate()))
 			.toList();
 	}
 

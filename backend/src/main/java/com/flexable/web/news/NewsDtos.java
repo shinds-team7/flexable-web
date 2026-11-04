@@ -39,8 +39,13 @@ public final class NewsDtos {
 	public record ViewRequest(String viewerId) {
 	}
 
-	/** summary는 나이 외 조건 요약. incomeLimit은 원문에 소득 기준이 있으면 true, 언급이 없으면 null */
-	public record Audience(String summary, Integer ageMin, Integer ageMax, Boolean incomeLimit) {
+	/**
+	 * summary는 나이 외 조건 요약. incomeLimit은 원문에 소득 기준이 있으면 true, 언급이 없으면 null.
+	 * employment·marital·schools·majors·special은 온통청년 코드(jobCd·mrgSttsCd·schoolCd·plcyMajorCd·sbizCd)를 이름으로 바꾼 신청 대상 조건이다.
+	 * null = 원문에서 확인 못 함, 빈 목록 = 제한 없음, 값이 있으면 그중 하나에 해당해야 한다.
+	 */
+	public record Audience(String summary, Integer ageMin, Integer ageMax, Boolean incomeLimit, List<String> employment, List<String> marital,
+			List<String> schools, List<String> majors, List<String> special) {
 	}
 
 	/** 1차 출처: 기관명 + 원문 링크 + 기준일 */
@@ -60,7 +65,16 @@ public final class NewsDtos {
 	public record PolicyDraft(String source, String externalId, String payload, String title, List<NewsCategory> categories, Integer ageMin,
 			Integer ageMax, Boolean incomeLimit, boolean nationwide, List<String> regions, LocalDate applyStart, LocalDate applyDeadline,
 			boolean alwaysOpen, String sourceOrg, String sourceUrl, LocalDate asOf, LocalDate postedAt, List<String> keywords,
-			LocalDate bizEnd) {
+			LocalDate bizEnd, List<String> employment, List<String> marital, List<String> schools, List<String> majors, List<String> special) {
+
+		/** 신청 대상 조건(취업·혼인·학력·전공·특화)을 모르는 초안(null = 원문에서 확인 못 함) */
+		public PolicyDraft(String source, String externalId, String payload, String title, List<NewsCategory> categories, Integer ageMin,
+				Integer ageMax, Boolean incomeLimit, boolean nationwide, List<String> regions, LocalDate applyStart, LocalDate applyDeadline,
+				boolean alwaysOpen, String sourceOrg, String sourceUrl, LocalDate asOf, LocalDate postedAt, List<String> keywords,
+				LocalDate bizEnd) {
+			this(source, externalId, payload, title, categories, ageMin, ageMax, incomeLimit, nationwide, regions, applyStart, applyDeadline,
+					alwaysOpen, sourceOrg, sourceUrl, asOf, postedAt, keywords, bizEnd, null, null, null, null, null);
+		}
 	}
 
 	/** 요약할 카드 한 건(news → worker). payload는 저장한 원문, contentHash는 그 원문의 hash(요약을 넣을 때 되돌려 준다) */

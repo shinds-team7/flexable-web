@@ -15,6 +15,8 @@ public enum ErrorCode {
 	OAUTH_CODE_INVALID(HttpStatus.UNAUTHORIZED, "로그인 시간이 지났어요. 다시 시도해 주세요"),
 	NOT_FOUND(HttpStatus.NOT_FOUND, "찾을 수 없어요"),
 	GOAL_CHANGED(HttpStatus.CONFLICT, "목표가 바뀌었어요. 다시 확인해 주세요"),
+	GOAL_SCENARIO_LIMIT(HttpStatus.CONFLICT, "시나리오는 5개까지 저장할 수 있어요. 지운 뒤 다시 저장해 주세요"),
+	GOAL_SCENARIO_EXPIRED(HttpStatus.CONFLICT, "계산한 지 오래돼서 저장할 수 없어요. 다시 계산해 주세요"),
 	EMAIL_UNAVAILABLE(HttpStatus.CONFLICT, "이 이메일로 가입할 수 없어요. 로그인해 주세요"),
 	TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, "잠시 후 다시 시도해 주세요"),
 	MARKET_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "주가를 불러오지 못했어요"),

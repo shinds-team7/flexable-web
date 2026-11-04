@@ -31,7 +31,7 @@ export function NewsHero({ query, onSearch, onGoConditions }: Props) {
         ))}
       </div>
       <button type="button" className="news-hero-link" onClick={onGoConditions}>
-        뭘 받을지 모르겠다면 조건으로 찾기 <span aria-hidden="true">›</span>
+        뭘 받을지 모르겠다면 30초 진단 <span aria-hidden="true">›</span>
       </button>
     </div>
   );

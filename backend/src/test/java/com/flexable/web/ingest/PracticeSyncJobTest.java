@@ -64,7 +64,7 @@ class PracticeSyncJobTest {
 		for (int p : positions) {
 			LocalDate date = bars.get(p).date();
 			out.add(new EventView(p, code, "STOCK", date, date, 5, "UP", 0.1, null, 1.0, 1,
-					List.of(new EvidenceRow("DISCLOSURE", code + "-" + p, "공시 " + p, "DART", date, "https://dart.fss.or.kr/", 1))));
+					List.of(new EvidenceRow("DISCLOSURE", code + "-" + p, "공시 " + p, "DART", date, "https://dart.fss.or.kr/", 1)), date));
 		}
 		return out;
 	}

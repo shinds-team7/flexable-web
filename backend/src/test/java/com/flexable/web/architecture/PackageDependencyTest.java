@@ -47,6 +47,7 @@ class PackageDependencyTest {
 			Map.entry("news", Set.of("common")),
 			Map.entry("billing", Set.of("user")),
 			Map.entry("engagement", Set.of("simulation", "user", "seedmoney", "ai")),
+			Map.entry("goalscenario", Set.of("market", "savings", "user")),
 			Map.entry("ai", Set.of("common")),
 			Map.entry("newssearch", Set.of("market")),
 			// ingest는 각 도메인의 저장 인터페이스를 쓴다. 도메인 패키지가 생기면 좁힌다.

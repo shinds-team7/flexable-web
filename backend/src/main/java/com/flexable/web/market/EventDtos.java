@@ -18,9 +18,9 @@ public final class EventDtos {
 	public record EvidenceRow(String type, String externalId, String title, String publisher, LocalDate date, String url, int weight) {
 	}
 
-	/** 저장된 사건. returnRate·marketReturn은 비율(0.05 = 5%). */
+	/** 저장된 사건. returnRate·marketReturn은 비율(0.05 = 5%). peakDate는 차트 핀 날짜, 이전 행이면 null. */
 	public record EventView(long id, String code, String scope, LocalDate startDate, LocalDate endDate, int windowDays, String direction,
-			double returnRate, Double marketReturn, double score, int rankInYear, List<EvidenceRow> sources) {
+			double returnRate, Double marketReturn, double score, int rankInYear, List<EvidenceRow> sources, LocalDate peakDate) {
 	}
 
 	/** 사건 설명 고지(03 §8-3 EVENT_EXPLAIN). */

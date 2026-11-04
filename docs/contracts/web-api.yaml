@@ -499,6 +499,67 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
 
+  /me/goal/scenarios:
+    get:
+      tags: [goal]
+      summary: '저장한 목표 시나리오 목록(최신순, 최대 5개). policies §7-8'
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, limit]
+                additionalProperties: false
+                properties:
+                  items: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/SavedGoalScenarioSummary' } }
+                  limit: { type: integer, description: '저장할 수 있는 개수(5)' }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [goal]
+      summary: '방금 계산한 결과(resultId) 중 시나리오 하나를 그때 값 그대로 저장. 5개가 차 있으면 409 GOAL_SCENARIO_LIMIT, 30분이 지났거나 없는 resultId면 409 GOAL_SCENARIO_EXPIRED'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resultId, scenarioId]
+              additionalProperties: false
+              properties:
+                resultId: { type: string }
+                scenarioId: { type: string }
+      responses:
+        '201':
+          description: 저장한 시나리오
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedGoalScenario' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /me/goal/scenarios/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+    get:
+      tags: [goal]
+      summary: '저장한 시나리오 하나(저장할 때 값 그대로). 남의 것이거나 없으면 404'
+      responses:
+        '200':
+          description: 저장한 시나리오
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedGoalScenario' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [goal]
+      summary: '저장한 시나리오 지우기. 남의 것이거나 없으면 404'
+      responses:
+        '204': { description: 지움 }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /market/instruments:
     get:
       tags: [market]
@@ -958,7 +1019,7 @@ paths:
                     title: 청년 저축 지원(예시)
                     summary: 매달 저축하면 정부가 돈을 더 얹어 줘요.
                     benefit: null
-                    audience: { summary: null, ageMin: 19, ageMax: 34, incomeLimit: true }
+                    audience: { summary: null, ageMin: 19, ageMax: 34, incomeLimit: true, employment: [], marital: [], schools: [대학 재학, 대학 졸업], majors: [], special: [] }
                     regions: NATIONWIDE
                     applyStart: '2026-10-01'
                     applyDeadline: '2026-11-30'
@@ -976,7 +1037,7 @@ paths:
                     title: 청년 월세 지원(예시)
                     summary: null
                     benefit: null
-                    audience: { summary: null, ageMin: null, ageMax: null, incomeLimit: null }
+                    audience: { summary: null, ageMin: null, ageMax: null, incomeLimit: null, employment: null, marital: null, schools: null, majors: null, special: null }
                     regions: [서울]
                     applyStart: null
                     applyDeadline: null
@@ -1241,11 +1302,32 @@ components:
       type: string
       enum: [SAVINGS, CMA, KR_INDEX_ETF, US_INDEX_ETF, KOSPI_TOP5]
       description: 'SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2'
-    GoalScenarioResult:
+    GoalScenarioProduct:
       type: object
-      required: [name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample]
+      required: [type, items, ratePercent, isSample]
       additionalProperties: false
       properties:
+        type: { $ref: '#/components/schemas/GoalScenarioProductType' }
+        items:
+          type: array
+          minItems: 1
+          description: 'KOSPI_TOP5는 5개, CMA는 이름만(code null), 나머지 1개'
+          items:
+            type: object
+            required: [code, name, company]
+            additionalProperties: false
+            properties:
+              code: { type: string, nullable: true, description: '종목 코드 또는 적금 상품 id' }
+              name: { type: string }
+              company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
+        ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
+        isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
+    GoalScenarioResult:
+      type: object
+      required: [resultId, name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample]
+      additionalProperties: false
+      properties:
+        resultId: { type: string, description: '이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8)' }
         name: { type: string }
         targetAmount: { type: integer, format: int64 }
         years: { type: integer }
@@ -1261,26 +1343,7 @@ components:
         products:
           type: array
           description: 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함)
-          items:
-            type: object
-            required: [type, items, ratePercent, isSample]
-            additionalProperties: false
-            properties:
-              type: { $ref: '#/components/schemas/GoalScenarioProductType' }
-              items:
-                type: array
-                minItems: 1
-                description: 'KOSPI_TOP5는 5개, CMA는 이름만(code null), 나머지 1개'
-                items:
-                  type: object
-                  required: [code, name, company]
-                  additionalProperties: false
-                  properties:
-                    code: { type: string, nullable: true, description: '종목 코드 또는 적금 상품 id' }
-                    name: { type: string }
-                    company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
-              ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
-              isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
+          items: { $ref: '#/components/schemas/GoalScenarioProduct' }
         scenarios:
           type: array
           minItems: 2
@@ -1289,6 +1352,44 @@ components:
         assumptions: { type: array, items: { type: string }, description: '세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정' }
         notice: { type: string, description: '고지 GOAL_SCENARIO_EST(추정·비보장·원금 손실·기준일 확인)' }
         isSample: { type: boolean, description: '예시 값(CMA 예시 금리 또는 데모 조합)이 하나라도 있으면 true' }
+    SavedGoalScenarioSummary:
+      type: object
+      required: [id, savedAt, name, targetAmount, years, asOf, title, reachable, monthly, kind]
+      additionalProperties: false
+      properties:
+        id: { type: integer, format: int64 }
+        savedAt: { type: string, format: date-time }
+        name: { type: string }
+        targetAmount: { type: integer, format: int64 }
+        years: { type: integer }
+        asOf: { type: string, format: date, description: '저장한 결과의 자료 기준일' }
+        title: { type: string, description: '저장한 시나리오 제목' }
+        reachable: { type: boolean }
+        monthly: { type: integer, format: int64, nullable: true }
+        kind: { type: string, nullable: true, enum: [FIXED, RANGE, null] }
+    SavedGoalScenario:
+      type: object
+      required: [id, savedAt, name, targetAmount, years, months, proposer, asOf, returnsFrom, returnsTo, paths, reachShare, products, scenario, assumptions, notice, isSample]
+      additionalProperties: false
+      description: '저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다'
+      properties:
+        id: { type: integer, format: int64 }
+        savedAt: { type: string, format: date-time }
+        name: { type: string }
+        targetAmount: { type: integer, format: int64 }
+        years: { type: integer }
+        months: { type: integer }
+        proposer: { type: string, enum: [AI, DEMO] }
+        asOf: { type: string, format: date }
+        returnsFrom: { type: string }
+        returnsTo: { type: string }
+        paths: { type: integer }
+        reachShare: { type: number }
+        products: { type: array, items: { $ref: '#/components/schemas/GoalScenarioProduct' } }
+        scenario: { $ref: '#/components/schemas/GoalScenario' }
+        assumptions: { type: array, items: { type: string } }
+        notice: { type: string }
+        isSample: { type: boolean }
     GoalScenario:
       type: object
       required: [id, title, summary, explanation, mix, reachable, monthly, paid, outcome]
@@ -1337,7 +1438,7 @@ components:
           enum: [VALIDATION_FAILED, UNAUTHORIZED, INVALID_CREDENTIALS, SOCIAL_ACCOUNT, OAUTH_CODE_INVALID, NOT_FOUND,
             GOAL_CHANGED, EMAIL_UNAVAILABLE, TOO_MANY_ATTEMPTS, MARKET_UNAVAILABLE, LINK_CODE_INVALID, APP_LINK_EXISTS,
             APP_LINK_IN_PROGRESS, APP_LINK_RESULT_UNKNOWN, APP_UNAVAILABLE, INTERNAL_ERROR,
-            PRACTICE_CONFLICT, PRACTICE_EXPIRED, PRACTICE_UNAVAILABLE, PRACTICE_CAPACITY]
+            PRACTICE_CONFLICT, PRACTICE_EXPIRED, PRACTICE_UNAVAILABLE, PRACTICE_CAPACITY, GOAL_SCENARIO_LIMIT, GOAL_SCENARIO_EXPIRED]
         message: { type: string }
         fields:
           type: object
@@ -1751,7 +1852,7 @@ components:
           type: array
           items:
             type: object
-            required: [id, code, scope, startDate, endDate, windowDays, direction, returnRate, marketReturn, headline,
+            required: [id, code, scope, startDate, endDate, peakDate, windowDays, direction, returnRate, marketReturn, headline,
               hasExplanation, sourceName, sourceCount, topSource, score]
             additionalProperties: false
             properties:
@@ -1760,6 +1861,11 @@ components:
               scope: { type: string, enum: [STOCK, MARKET] }
               startDate: { type: string, format: date }
               endDate: { type: string, format: date }
+              peakDate:
+                type: string
+                format: date
+                nullable: true
+                description: '핀을 꽂을 날. 기간 중 하루 등락(전날 종가 대비) 절댓값이 가장 큰 날, 같으면 앞선 날. 1일 사건이면 startDate. 다시 탐지하기 전에 저장한 사건이면 null이고 화면은 startDate를 쓴다'
               windowDays: { type: integer }
               direction: { type: string, enum: [RISE, FALL] }
               returnRate: { type: number }
@@ -2222,13 +2328,21 @@ components:
         slot: { type: string, enum: [MAIN, SUB], nullable: true, description: 'MAIN = 오늘의 한 장' }
     YouthNewsAudience:
       type: object
-      required: [summary, ageMin, ageMax, incomeLimit]
+      required: [summary, ageMin, ageMax, incomeLimit, employment, marital, schools, majors, special]
       additionalProperties: false
+      description: |
+        신청 대상 조건. employment·marital·schools·majors·special은 온통청년 코드(jobCd·mrgSttsCd·schoolCd·plcyMajorCd·sbizCd)를 이름으로 바꾼 값이다.
+        null = 원문에서 확인 못 함(조건 없음이 아님), 빈 배열 = 제한 없음, 값이 있으면 그중 하나에 해당해야 한다.
       properties:
         summary: { type: string, nullable: true, description: '나이 외 조건 요약' }
         ageMin: { type: integer, nullable: true }
         ageMax: { type: integer, nullable: true }
         incomeLimit: { type: boolean, nullable: true, description: '원문에 소득 기준이 있으면 true, 언급이 없으면 null' }
+        employment: { type: array, nullable: true, items: { type: string }, description: '취업 상태(재직자·자영업자·미취업자·프리랜서·일용근로자·(예비)창업자·단기근로자·영농종사자·기타)' }
+        marital: { type: array, nullable: true, items: { type: string }, description: '혼인(기혼·미혼)' }
+        schools: { type: array, nullable: true, items: { type: string }, description: '학력(고졸 미만·고교 재학·고졸 예정·고교 졸업·대학 재학·대졸 예정·대학 졸업·석·박사·기타)' }
+        majors: { type: array, nullable: true, items: { type: string }, description: '전공(인문계열·사회계열·상경계열·이학계열·공학계열·예체능계열·농산업계열·기타)' }
+        special: { type: array, nullable: true, items: { type: string }, description: '특화 대상(중소기업·여성·기초생활수급자·한부모가정·장애인·농업인·군인·지역인재·기타)' }
     YouthNewsSource:
       type: object
       required: [org, url, asOf]

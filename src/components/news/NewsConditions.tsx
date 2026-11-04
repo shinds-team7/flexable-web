@@ -13,10 +13,7 @@ const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x
 export function NewsConditionsBox({ value: c, onChange, onSearch }: Props) {
   const n = conditionCount(c);
   return (
-    <section id="news-conditions" className="news-cond" aria-labelledby="news-cond-title">
-      <h2 id="news-cond-title" className="news-cond-title">
-        조건으로 찾기
-      </h2>
+    <div className="news-cond-body">
       <p className="meta">여러 개를 눌러도 돼요. 고른 것 중 하나라도 맞는 소식을 모두 보여 드려요.</p>
       <Group id="region" label="지역">
         {REGION_ORDER.map((r) => (
@@ -58,7 +55,7 @@ export function NewsConditionsBox({ value: c, onChange, onSearch }: Props) {
           </button>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 

@@ -43,11 +43,18 @@ public class YouthCenterPolicySource implements YouthPolicySource {
 	private static final int ATTEMPTS = 3;
 	private static final Pattern RANGE = Pattern.compile("(\\d{8})\\s*~\\s*(\\d{8})");
 	private static final Pattern ISO_DATE = Pattern.compile("^(\\d{4})-?(\\d{2})-?(\\d{2})");
-	/** [미확인] 신청기간 구분 코드: 특정기간 · 상시 · 마감 */
+	/** 신청기간 구분 코드(공식 코드표 확인 2026-11-03): 특정기간 · 상시 · 마감 */
 	static final String APPLY_ALWAYS = "0057002";
-	/** [미확인] 소득 조건 구분 코드: 무관 · 연소득 · 기타 */
+	/** 소득 조건 구분 코드(공식 코드표 확인 2026-11-03): 무관 · 연소득 · 기타 */
 	static final String INCOME_ANY = "0043001";
 	static final String INCOME_ANNUAL = "0043002";
+
+	/** 신청 대상 조건 코드표(공식 API코드정보.xlsx와 대조 2026-11-03). 제한없음 코드는 빈 목록(제한 없음)이 된다 */
+	static final Map<String, String> JOB = codes("0013", "재직자", "자영업자", "미취업자", "프리랜서", "일용근로자", "(예비)창업자", "단기근로자", "영농종사자", "기타", null);
+	static final Map<String, String> MARITAL = codes("0055", "기혼", "미혼", null);
+	static final Map<String, String> SCHOOL = codes("0049", "고졸 미만", "고교 재학", "고졸 예정", "고교 졸업", "대학 재학", "대졸 예정", "대학 졸업", "석·박사", "기타", null);
+	static final Map<String, String> MAJOR = codes("0011", "인문계열", "사회계열", "상경계열", "이학계열", "공학계열", "예체능계열", "농산업계열", "기타", null);
+	static final Map<String, String> SPECIAL = codes("0014", "중소기업", "여성", "기초생활수급자", "한부모가정", "장애인", "농업인", "군인", "지역인재", "기타", null);
 
 	private final RestClient http;
 	private final String baseUrl;
@@ -155,7 +162,7 @@ public class YouthCenterPolicySource implements YouthPolicySource {
 	 * earnCndSeCd 소득 조건, zipCd 법정시군구코드(쉼표), aplyPrdSeCd·aplyYmd 신청기간, sprvsnInstCdNm 주관기관,
 	 * aplyUrlAddr·refUrlAddr1 신청·참고 링크, plcyKywdNm 키워드, frstRegDt·lastMdfcnDt 등록·수정일
 	 */
-	static PolicyDraft toDraft(Map<?, ?> row, LocalDate today) {
+	public static PolicyDraft toDraft(Map<?, ?> row, LocalDate today) {
 		String id = text(row.get("plcyNo"));
 		String title = text(row.get("plcyNm"));
 		if (id == null || title == null) {
@@ -198,7 +205,9 @@ public class YouthCenterPolicySource implements YouthPolicySource {
 		return new PolicyDraft(SOURCE, id, payload, title, categories(title, text(row.get("lclsfNm"))),
 				age(row.get("sprtTrgtMinAge")), age(row.get("sprtTrgtMaxAge")), incomeLimit, nationwide, nationwide ? null : regions,
 				start, deadline, always, text(row.get("sprvsnInstCdNm")), url, modified == null ? today : modified,
-				date(text(row.get("frstRegDt"))), keywords(text(row.get("plcyKywdNm"))), date(text(row.get("bizPrdEndYmd"))));
+				date(text(row.get("frstRegDt"))), keywords(text(row.get("plcyKywdNm"))), date(text(row.get("bizPrdEndYmd"))),
+				conds(row.get("jobCd"), JOB), conds(row.get("mrgSttsCd"), MARITAL), conds(row.get("schoolCd"), SCHOOL),
+				conds(row.get("plcyMajorCd"), MAJOR), conds(row.get("sbizCd"), SPECIAL));
 	}
 
 	/** 정책명에 이 낱말이 있으면 저축·금융. 온통청년 분류는 금융과 복지·문화가 한 칸이라(중분류 '취약계층 및 금융지원'에도 급식·의료비가 섞임) 분류만으로는 못 가른다. */
@@ -231,6 +240,39 @@ public class YouthCenterPolicySource implements YouthPolicySource {
 			out.add(NewsCategory.CULTURE);
 		}
 		return out;
+	}
+
+	/** 코드표 하나: 접두 + 3자리 번호(001부터) → 이름. 이름이 null인 자리는 제한없음 */
+	private static Map<String, String> codes(String prefix, String... names) {
+		Map<String, String> m = new LinkedHashMap<>();
+		for (int i = 0; i < names.length; i++) {
+			m.put(prefix + String.format("%03d", i + 1), names[i]);
+		}
+		return m;
+	}
+
+	/**
+	 * 쉼표로 이은 코드 → 이름 목록. 값이 없으면 null(확인 못 함), 제한없음이 들어 있으면 빈 목록(제한 없음).
+	 * 코드표에 없는 값은 건너뛰고, 하나도 알아보지 못했으면 null로 둔다.
+	 */
+	static List<String> conds(Object v, Map<String, String> table) {
+		String s = text(v);
+		if (s == null) {
+			return null;
+		}
+		List<String> out = new ArrayList<>();
+		for (String code : s.split(",")) {
+			String c = code.trim();
+			if (!table.containsKey(c)) {
+				continue;
+			}
+			String name = table.get(c);
+			if (name == null) {
+				return List.of();
+			}
+			out.add(name);
+		}
+		return out.isEmpty() ? null : List.copyOf(out);
 	}
 
 	private static List<String> keywords(String s) {

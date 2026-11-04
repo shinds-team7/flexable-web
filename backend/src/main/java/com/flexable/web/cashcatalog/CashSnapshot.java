@@ -5,7 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** 출처·종류 단위 전체 스냅샷. 승인된 수집 어댑터만 서비스 경계로 발행한다. */
+/** 출처·종류 단위 전체 스냅샷. 등록된 공식 수집 어댑터만 서비스 경계로 발행한다. */
 @Entity
 @Table(name = "cash_catalog_snapshots")
 class CashSnapshot {

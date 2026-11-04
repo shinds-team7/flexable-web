@@ -1,4 +1,13 @@
 # ingest
+
+## cash-catalog (공식 공개 페이지)
+
+`CashCatalogJob`이 케이뱅크 플러스박스·유진 RP CMA의 robots와 공식 HTML을 읽어 `CashCatalogService.publish`로 출처별 반영한다. worker 프로필은 기본 켜짐이며 `CASH_CATALOG_INGEST_ENABLED=false`로 중지할 수 있다. 일반 API 프로필은 기본 꺼짐이며 로컬에서 이 수집만 켜려면 `CASH_CATALOG_INGEST_ENABLED=true`로 실행한다. 실제 `.env`를 이 작업에서 수정하지 않는다.
+
+매일 10:00(KST) 및 시작 시 확인하되 6시간 이내 정상 검증본은 재취득하지 않는다. 키·로그인·스크립트 실행·내부 조회 API 호출은 없다. 상품별 표가 달라지거나 robots 제한·HTTP 오류가 발생하면 해당 출처의 정상본을 유지하고 다른 출처를 계속 처리한다. 회사 전체 상품을 포괄하지 않는다. 기관 허가를 받았다는 의미는 아니며 판단 근거는 [결정](../../../../../../../../docs/decisions/2026-11-04-official-cash-ingest.md)에 있다.
+
+검증·실행 방법은 루트 `postman/README.md` 참조. 실제 출처 읽기 테스트는 H2에서만 opt-in으로 실행한다. 운영 배포·수집 성공 여부는 별도 확인 사항이다.
+
 외부 데이터 수집 작업(`worker` 프로필에서만 켜짐). 지금 구현은 시장 띠(`IndexSyncJob`, 키움·KRX·수출입은행 8칸, 맨 먼저)·시세 수집(`MarketSyncJob`)과 이어서 도는 사건 탐지·공시 근거(`MarketEventJob`)·업종과 시뮬레이션 자료(`PracticeSyncJob`), 적금 공시·청년정책 수집(`SavingsSnapshotJob`, 아래 savings-snapshot)이다. 실행 시점·소스·환경 변수는 `backend/README.md` "로컬 실행" 아래 설명이 정본이다.
 
 - 실행: 켜질 때 한 번(`MARKET_SYNC_ON_START`, 기본 켬)과 평일 18:30 KST(`MARKET_SYNC_CRON`). 시세 수집이 끝나면 사건 탐지·공시 근거를 이어 돌리고, 이어서 사건 AI 개요(`EventOverviewJob`, `EventOverviewWriter` 구현 `gemini.GeminiEventOverviewWriter`·예시 `fake.FakeEventOverviewWriter`, ingest_runs `event-overview`)를 만든다([결정](../../../../../../../../docs/decisions/2026-10-29-event-ai-summary.md)).

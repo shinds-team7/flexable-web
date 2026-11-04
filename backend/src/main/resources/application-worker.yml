@@ -5,5 +5,7 @@ spring:
 
 app:
   ingest:
+    cash:
+      enabled: ${CASH_CATALOG_INGEST_ENABLED:true}
     savings:
       enabled: true

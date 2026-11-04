@@ -32,16 +32,16 @@ public class CashCatalogService {
                 .sorted(Comparator.comparing(Product::company).thenComparing(Product::name).thenComparing(Product::id))
                 .toList();
         String notice = items.isEmpty() ? "확인된 공시 자료를 준비 중이에요. 실제 상품 데이터는 아직 등록되지 않았어요."
-                : "공시 금리·수익률은 세전 연 기준이며 변경될 수 있어요. 금액·기간 구간과 우대조건, 기준일을 함께 확인해 주세요. 수익을 보장하지 않아요.";
+                : "현재 연결된 일부 금융회사의 공식 자료예요. 공시 금리·수익률은 세전 연 기준이며 변경될 수 있어요. 금액·기간 구간과 우대조건, 기준일을 함께 확인해 주세요. 수익을 보장하지 않아요.";
         return new ProductList(items, false, notice);
     }
 
-    /** 내부 수집 경계. 허가 근거는 어댑터가 확인한 공개 약관 URL/문서 식별자다. 공개 입력 API는 없다. */
+    /** 내부 수집 경계. reference는 수집 판단 근거이며 기관 허가를 뜻하지 않는다(11-04 후속 결정). */
     @Transactional
     public void publish(String kind, String sourceKey, String permissionReference, List<Product> products) {
         checkKind(kind);
         require(sourceKey != null && sourceKey.matches("[a-z0-9][a-z0-9-]{0,99}"), "출처 식별자");
-        require(text(permissionReference) && permissionReference.length() <= 2000, "이용 허가 근거");
+        require(text(permissionReference) && permissionReference.length() <= 2000, "수집 판단 근거");
         require(products != null && !products.isEmpty(), "빈 공시 스냅샷");
         Set<String> ids = new HashSet<>();
         for (Product p : products) {
@@ -71,6 +71,14 @@ public class CashCatalogService {
         checkKind(kind);
         require(text(sourceKey), "출처 식별자");
         snapshots.deleteById(key(kind + ":" + sourceKey));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean needsRefresh(String kind, String sourceKey, java.time.Instant olderThan) {
+        checkKind(kind);
+        return snapshots.findById(key(kind + ":" + sourceKey)).map(s ->
+                Arrays.stream(JSON.readValue(s.payload, Product[].class))
+                        .anyMatch(p -> p.verifiedAt().toInstant().isBefore(olderThan))).orElse(true);
     }
 
     private static void checkKind(String kind) { require("parking".equals(kind) || "cma".equals(kind), "상품 종류"); }

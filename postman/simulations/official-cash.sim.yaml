@@ -1,0 +1,6 @@
+simulation: official-cash
+routing: path
+mocks:
+  - name: official-cash
+    routeKey: official
+    path: postman/mocks/official-cash/config.yaml

@@ -1,0 +1,358 @@
+package com.flexable.web.virtualsim;
+
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+import com.flexable.web.common.ApiException;
+import com.flexable.web.common.ErrorCode;
+import com.flexable.web.market.PracticeMarketData.Candle;
+import com.flexable.web.practice.PracticeDtos.Action;
+import com.flexable.web.practice.PracticeDtos.Command;
+import com.flexable.web.practice.PracticeDtos.Frame;
+import com.flexable.web.practice.PracticeDtos.Prediction;
+import com.flexable.web.practice.PracticeEngine;
+import com.flexable.web.virtualsim.VirtualSimDtos.*;
+import com.flexable.web.virtualsim.VirtualSimGenerator.Plan;
+import com.flexable.web.virtualsim.VirtualSimGenerator.Planned;
+import com.flexable.web.virtualsim.VirtualSimRuleset.CategoryStats;
+import com.flexable.web.virtualsim.VirtualSimStore.Company;
+
+/**
+ * 가상 시뮬레이션 세션(decisions/2026-11-04-virtual-simulation 2·6·7·9, policies §8). 과거 시장 연습(PracticeService)과 같은 방식으로
+ * 서버 메모리에만 두고(30분 절대 만료, 1분 간격 정리, 최대 1,000세션, 과거 시장 연습과 따로 셈), startId·commandId로 중복을 막는다.
+ * 시작할 때 최신 룰셋과 고른 가상 회사의 글을 복사하고 시드로 구간·사건·OHLC를 한 번에 만든다. 시드는 응답·로그에 넣지 않는다.
+ * VIRTUAL_SIM_SOURCE=fake면 예시 룰셋·예시 회사만, 아니면 실제 것만 쓴다(한 실행에 섞지 않음). 세션 시작에서 AI를 부르지 않는다.
+ */
+@Service
+@EnableScheduling
+public class VirtualSimService {
+
+	static final String NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 매수는 오른다, 매도는 내린다는 예상으로 보고 그 유형 공시의 과거 경향과 비교해 채점하며(유지는 채점하지 않아요), 이번 움직임은 따로 보여 줘요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 뒤 움직임은 같은 유형의 과거 공시 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	static final String SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 사건 뒤 움직임은 예시 통계에서 무작위로 뽑았고, 매수·매도는 예시 통계의 경향과 비교해 채점해요(유지는 채점하지 않아요). 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+	private static final int MAX_COMMANDS = 128;
+	/** 초까지 쓰는 날짜·시각(계약 date-time) */
+	private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+
+	private final VirtualSimStore store;
+	private final Clock clock;
+	private final boolean sample;
+	private final int capacity;
+	private final SecureRandom random = new SecureRandom();
+	private final Map<String, Session> sessions = new HashMap<>();
+	private final Map<UUID, String> starts = new HashMap<>();
+
+	public VirtualSimService(VirtualSimStore store, Clock clock, @Value("${app.ingest.virtual-sim.source:gemini}") String source,
+			@Value("${app.virtual-sim.capacity:1000}") int capacity) {
+		this.store = store;
+		this.clock = clock;
+		this.sample = "fake".equals(source);
+		this.capacity = capacity;
+	}
+
+	private record Saved(Object input, Snapshot snapshot) {
+	}
+
+	/** 판정에 쓰는 사건 하나: 사건 봉 위치와 복사해 둔 유형 통계 */
+	private record Question(Planned planned, String id, String body, CategoryStats stats) {
+	}
+
+	private static final class Session {
+		final Start input;
+		final Instant expires;
+		final Company company;
+		final VirtualSimRuleset rules;
+		final List<Candle> candles;
+		final List<Question> questions = new ArrayList<>();
+		final Map<UUID, Saved> commands = new HashMap<>();
+		final List<Result> decisions = new ArrayList<>();
+		final List<Integer> decisionIndices = new ArrayList<>();
+		final Snapshot first;
+		int index = 0, version = 0;
+		PracticeEngine.Holding holding;
+
+		Session(Start input, Instant expires, Company company, VirtualSimRuleset rules, Plan plan) {
+			this.input = input;
+			this.expires = expires;
+			this.company = company;
+			this.rules = rules;
+			this.candles = plan.candles();
+			for (int k = 0; k < plan.events().size(); k++) {
+				Planned p = plan.events().get(k);
+				questions.add(new Question(p, "ve" + (k + 1), company.bodies().get(p.category()), rules.stats(p.category()).orElseThrow()));
+			}
+			holding = PracticeEngine.trade(new PracticeEngine.Holding(input.initialAmount().longValueExact(), 0), Action.BUY, 50, candles.getFirst().open())
+				.holding();
+			first = snapshot(this, List.of());
+		}
+	}
+
+	/** 룰셋. fake면 코드에 넣은 예시 룰셋 */
+	private Optional<VirtualSimRuleset> rules() {
+		return sample ? Optional.of(VirtualSimSample.ruleset()) : store.latestRuleset(false);
+	}
+
+	/** 공개 가능한 사건(지금 룰셋에 있는 유형)이 3개 이상이고 그중 뚜렷한 유형이 2개 이상인 회사 */
+	private List<Company> candidates(VirtualSimRuleset rules) {
+		return store.companies(sample, VirtualSimChecker.VERSION).stream().filter(c -> {
+			var usable = c.bodies().keySet().stream().map(rules::stats).flatMap(Optional::stream).toList();
+			return usable.size() >= VirtualSimGenerator.MIN_QUESTIONS && usable.stream().filter(CategoryStats::clear).count() >= VirtualSimGenerator.CLEAR_QUESTIONS;
+		}).toList();
+	}
+
+	public Status status() {
+		return new Status(rules().map(r -> !candidates(r).isEmpty()).orElse(false), sample);
+	}
+
+	public synchronized Started start(Start input) {
+		clean();
+		String prior = starts.get(input.startId());
+		if (prior != null) {
+			Session s = sessions.get(prior);
+			if (!s.input.equals(input)) {
+				throw conflict();
+			}
+			return started(prior, s);
+		}
+		if (sessions.size() >= capacity) {
+			throw new ApiException(ErrorCode.PRACTICE_CAPACITY);
+		}
+		VirtualSimRuleset rules = rules().orElseThrow(() -> new ApiException(ErrorCode.PRACTICE_UNAVAILABLE));
+		List<Company> choices = candidates(rules);
+		if (choices.isEmpty()) {
+			throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
+		}
+		Company company = choices.get(random.nextInt(choices.size()));
+		Plan plan = VirtualSimGenerator.generate(random.nextLong(), rules, company.bodies().keySet(), LocalDate.now(clock.withZone(SEOUL)));
+		Session session = new Session(input, clock.instant().plusSeconds(1800), company, rules, plan);
+		byte[] bytes = new byte[32];
+		random.nextBytes(bytes);
+		String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+		sessions.put(token, session);
+		starts.put(input.startId(), token);
+		return started(token, session);
+	}
+
+	private static Started started(String token, Session s) {
+		return new Started(token, s.expires.atOffset(ZoneOffset.ofHours(9)).toString(), s.first);
+	}
+
+	@Scheduled(fixedDelay = 60000)
+	public synchronized void clean() {
+		var expired = sessions.entrySet().stream().filter(e -> !clock.instant().isBefore(e.getValue().expires)).map(Map.Entry::getKey).toList();
+		expired.forEach(this::end);
+	}
+
+	private synchronized Session session(String token) {
+		clean();
+		Session s = sessions.get(token);
+		if (s == null) {
+			throw new ApiException(ErrorCode.PRACTICE_EXPIRED);
+		}
+		return s;
+	}
+
+	public synchronized void end(String token) {
+		Session s = sessions.remove(token);
+		if (s != null) {
+			starts.remove(s.input.startId());
+		}
+	}
+
+	public synchronized Snapshot state(String token) {
+		return snapshot(session(token), List.of());
+	}
+
+	private static ApiException conflict() {
+		return new ApiException(ErrorCode.PRACTICE_CONFLICT);
+	}
+
+	private static Snapshot replay(Session s, UUID id, int version, Object input) {
+		Saved saved = s.commands.get(id);
+		if (saved != null) {
+			if (!saved.input().equals(input)) {
+				throw conflict();
+			}
+			return saved.snapshot();
+		}
+		if (s.version != version || s.commands.size() >= MAX_COMMANDS) {
+			throw conflict();
+		}
+		return null;
+	}
+
+	public synchronized Snapshot step(Command input) {
+		Session s = session(input.sessionToken());
+		Snapshot old = replay(s, input.commandId(), input.expectedVersion(), input);
+		if (old != null) {
+			return old;
+		}
+		if (!status(s).equals("RUNNING")) {
+			throw conflict();
+		}
+		// 다음 사건 또는 마지막 봉까지 한 번에 진행하고, 화면이 하루씩 그리도록 날마다의 자산을 함께 준다
+		List<Frame> frames = new ArrayList<>();
+		do {
+			advance(s);
+			Candle candle = s.candles.get(s.index);
+			frames.add(new Frame(candle.date(), PracticeEngine.value(s.holding, candle.close(), s.input.initialAmount().longValueExact())));
+		}
+		while (status(s).equals("RUNNING"));
+		return save(s, input.commandId(), input, frames);
+	}
+
+	private static void advance(Session s) {
+		s.index++;
+		Candle candle = s.candles.get(s.index);
+		for (int n = 0; n < s.decisions.size(); n++) {
+			Result r = s.decisions.get(n);
+			if ("PENDING".equals(r.execution())) {
+				var trade = trade(s.holding, r.action(), r.quantity(), candle.open());
+				s.holding = trade.holding();
+				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
+						r.action() == Action.HOLD ? "HOLD" : trade.shares() == 0 ? "NO_FILL" : "FILLED", candle.date(), candle.open(), trade.shares(), null,
+						null, null, null, null, null, null, null);
+			}
+			int baseline = s.decisionIndices.get(n);
+			if (s.index == baseline + VirtualSimRules.FOLLOW_DAYS) {
+				long price = s.candles.get(baseline).close();
+				String eventId = r.eventId();
+				CategoryStats stats = s.questions.stream().filter(q -> q.id().equals(eventId)).findFirst().orElseThrow().stats();
+				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
+						r.execution(), r.executedDate(), r.executedPrice(), r.executedShares(),
+						r.prediction() == null ? "NEUTRAL" : PracticeEngine.outcome(price, candle.close(), r.prediction()), candle.date(),
+						PracticeEngine.rate(candle.close() - price, price), movement(price, candle.close()), stats.upShare(), stats.paths(), stats.trend(),
+						trendOutcome(stats.trend(), r.prediction()));
+			}
+			s.decisions.set(n, r);
+		}
+	}
+
+	/** 매매 방향의 예상: 매수는 오른다, 매도는 내린다, 유지는 예상 없음(채점 제외) */
+	static Prediction prediction(Action action) {
+		return switch (action) {
+			case BUY -> Prediction.POSITIVE;
+			case SELL -> Prediction.NEGATIVE;
+			case HOLD -> null;
+		};
+	}
+
+	/** 이번 5거래일 가상 등락의 방향(원 가격 비교) */
+	static String movement(long baseline, long after) {
+		return after > baseline ? "UP" : after < baseline ? "DOWN" : "FLAT";
+	}
+
+	/**
+	 * 요청 수량으로 다음 봉 시가에 정수 주 체결(policies §8 "매매"). 매수는 그 시가로 지금 현금에 살 수 있는 만큼까지(부분 체결),
+	 * 매도는 보유 수량까지. 0주면 미체결. 현금 보존·초과 매도 금지는 PracticeEngine과 같다.
+	 */
+	static PracticeEngine.Trade trade(PracticeEngine.Holding h, Action action, long quantity, long price) {
+		if (price <= 0 || quantity < 0) {
+			throw new IllegalArgumentException();
+		}
+		return switch (action) {
+			case BUY -> {
+				long n = Math.min(quantity, h.cash() / price);
+				yield new PracticeEngine.Trade(new PracticeEngine.Holding(h.cash() - Math.multiplyExact(n, price), Math.addExact(h.shares(), n)), n);
+			}
+			case SELL -> {
+				long n = Math.min(quantity, h.shares());
+				yield new PracticeEngine.Trade(new PracticeEngine.Holding(Math.addExact(h.cash(), Math.multiplyExact(n, price)), h.shares() - n), n);
+			}
+			case HOLD -> new PracticeEngine.Trade(h, 0);
+		};
+	}
+
+	/** 수량 입력 상한: 기준 가격(지금 종가)과 그 가격에 지금 현금으로 살 수 있는 수량, 보유 수량 */
+	static OrderLimits limits(PracticeEngine.Holding h, long close) {
+		return new OrderLimits(close, h.cash() / close, h.shares());
+	}
+
+	/** 경향 채점(policies §8-6): UP에 POSITIVE, DOWN에 NEGATIVE면 CORRECT, 반대면 INCORRECT, MIXED이거나 유지(예상 없음)면 NEUTRAL */
+	static String trendOutcome(String trend, Prediction prediction) {
+		if (prediction == null || VirtualSimRules.MIXED.equals(trend)) {
+			return "NEUTRAL";
+		}
+		return VirtualSimRules.UP.equals(trend) == (prediction == Prediction.POSITIVE) ? "CORRECT" : "INCORRECT";
+	}
+
+	public synchronized Snapshot decide(Decision input) {
+		if (input.action() == Action.HOLD ? input.quantity() != 0 : input.quantity() < 1) {
+			throw ApiException.invalid("quantity", "매매 수량을 확인해 주세요");
+		}
+		Session s = session(input.sessionToken());
+		Snapshot old = replay(s, input.commandId(), input.expectedVersion(), input);
+		if (old != null) {
+			return old;
+		}
+		Question q = current(s);
+		if (q == null || !q.id().equals(input.eventId())) {
+			throw conflict();
+		}
+		OrderLimits limit = limits(s.holding, s.candles.get(s.index).close());
+		if (input.action() == Action.BUY && input.quantity() > limit.maxBuyShares() || input.action() == Action.SELL && input.quantity() > limit.maxSellShares()) {
+			throw ApiException.invalid("quantity", input.action() == Action.BUY ? "지금 현금으로 살 수 있는 수량을 넘었어요" : "보유 수량보다 많이 팔 수 없어요");
+		}
+		Planned p = q.planned();
+		s.decisions.add(new Result(q.id(), p.category(), p.category().displayName(), p.title(), s.candles.get(s.index).date(), prediction(input.action()),
+				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null));
+		s.decisionIndices.add(s.index);
+		return save(s, input.commandId(), input, List.of());
+	}
+
+	private static Snapshot save(Session s, UUID id, Object input, List<Frame> frames) {
+		s.version++;
+		Snapshot result = snapshot(s, frames);
+		s.commands.put(id, new Saved(input, result));
+		return result;
+	}
+
+	private static Question current(Session s) {
+		return s.questions.stream()
+			.filter(q -> q.planned().index() == s.index)
+			.filter(q -> s.decisions.stream().noneMatch(r -> r.eventId().equals(q.id())))
+			.findFirst()
+			.orElse(null);
+	}
+
+	private static String status(Session s) {
+		return current(s) != null ? "AWAITING_DECISION" : s.index == s.candles.size() - 1 ? "FINISHED" : "RUNNING";
+	}
+
+	private static Snapshot snapshot(Session s, List<Frame> frames) {
+		long initial = s.input.initialAmount().longValueExact();
+		Question q = current(s);
+		Event event = q == null ? null
+				: new Event(q.id(), q.planned().category(), q.planned().category().displayName(), q.planned().title(), q.body(),
+						s.candles.get(s.index).date(), limits(s.holding, s.candles.get(s.index).close()));
+		Company c = s.company;
+		boolean sample = s.rules.isSample();
+		List<String> sources = new ArrayList<>(s.rules.sources());
+		if (!sample) {
+			sources.add("Google Gemini(가상 회사·사건 글)");
+		}
+		return new Snapshot(s.version, status(s), new VirtualSimDtos.Company(c.name(), c.industry(), c.intro()),
+				new Generator(!c.sample(), c.model(), DATE_TIME.format(c.generatedAt().atOffset(ZoneOffset.ofHours(9)))),
+				new RulesetInfo(s.rules.version(), s.rules.dataFrom(), s.rules.dataTo()), initial, sample, s.candles.size(),
+				List.copyOf(s.candles.subList(0, s.index + 1)), List.copyOf(frames),
+				PracticeEngine.value(s.holding, s.candles.get(s.index).close(), initial), event, List.copyOf(s.decisions),
+				sample ? SAMPLE_NOTICE : NOTICE, List.copyOf(sources));
+	}
+}

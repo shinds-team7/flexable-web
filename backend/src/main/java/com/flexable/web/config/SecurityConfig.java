@@ -61,6 +61,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/practice/categories").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/practice/start", "/api/v1/practice/state", "/api/v1/practice/step",
                         "/api/v1/practice/decision", "/api/v1/practice/end").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/virtual-sim/status").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/virtual-sim/start", "/api/v1/virtual-sim/state", "/api/v1/virtual-sim/step",
+                        "/api/v1/virtual-sim/decision", "/api/v1/virtual-sim/end").permitAll()
 				.requestMatchers("/api/v1/health", "/actuator/health/**", "/error").permitAll()
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(rs -> rs

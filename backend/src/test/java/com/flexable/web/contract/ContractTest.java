@@ -64,6 +64,9 @@ import com.flexable.web.market.MarketInsightService;
 import com.flexable.web.market.MarketDtos.InstrumentRow;
 import com.flexable.web.market.MarketService;
 import com.flexable.web.market.PracticeMarketService;
+import com.flexable.web.virtualsim.VirtualSimChecker;
+import com.flexable.web.virtualsim.VirtualSimSample;
+import com.flexable.web.virtualsim.VirtualSimStore;
 import com.flexable.web.news.NewsCategory;
 import com.flexable.web.news.NewsDtos.PolicyDraft;
 import com.flexable.web.news.NewsDtos.SummaryResult;
@@ -126,6 +129,8 @@ class ContractTest {
 	NewsService news;
 	@Autowired
 	PracticeMarketService practice;
+	@Autowired
+	VirtualSimStore virtualSim;
 	@Autowired
 	SavingsCatalogService savings;
 
@@ -253,6 +258,9 @@ class ContractTest {
 						null, 0, 0, null, null, null, "2026-10-20 00:00:00", null)));
 		// 사건 퀴즈 시뮬레이션: 가상 기업 예시 자료(테스트는 price-source=fake라 예시만 후보)
 		FakePracticeData.create(today).forEach(practice::save);
+		// 가상 시뮬레이션: 예시 회사(테스트는 VIRTUAL_SIM_SOURCE=fake라 예시 회사·예시 룰셋만 쓴다)
+		VirtualSimSample.companies().forEach(d -> virtualSim.saveCompany(d, VirtualSimSample.MODEL, VirtualSimSample.PROMPT_VERSION,
+				VirtualSimChecker.VERSION, true, java.time.Instant.parse("2026-11-04T00:00:00Z")));
 	}
 
 	/** 요청을 보내고 상태 코드를 확인한 뒤 응답을 스펙으로 검사한다. */
@@ -489,6 +497,79 @@ class ContractTest {
 		call(json(post("/api/v1/practice/end"), tokenBody), 204);
 		call(json(post("/api/v1/practice/end"), tokenBody), 204);
 		call(json(post("/api/v1/practice/state"), tokenBody), 410);
+	}
+
+	@Test
+	void 가상_시뮬레이션() throws Exception {
+		MvcResult status = call(get("/api/v1/virtual-sim/status"), 200);
+		assertThat((Boolean) JsonPath.read(body(status), "$.available")).isTrue();
+		assertThat((Boolean) JsonPath.read(body(status), "$.isSample")).isTrue();
+		call(json(post("/api/v1/virtual-sim/start"), "{\"startId\":\"" + UUID.randomUUID() + "\",\"initialAmount\":500}"), 400);
+		String start = "{\"startId\":\"" + UUID.randomUUID() + "\",\"initialAmount\":1000000}";
+		MvcResult started = call(json(post("/api/v1/virtual-sim/start"), start), 200);
+		assertThat(started.getResponse().getHeader("Cache-Control")).contains("no-store");
+		String first = body(started);
+		// 같은 startId·같은 입력은 같은 세션
+		assertThat((String) JsonPath.read(body(call(json(post("/api/v1/virtual-sim/start"), start), 200)), "$.sessionToken"))
+			.isEqualTo(JsonPath.read(first, "$.sessionToken"));
+		String token = JsonPath.read(first, "$.sessionToken");
+		String tokenBody = "{\"sessionToken\":\"" + token + "\"}";
+		assertThat((Integer) JsonPath.read(first, "$.snapshot.candles.length()")).isEqualTo(1);
+		assertThat((Boolean) JsonPath.read(first, "$.snapshot.generator.aiGenerated")).isFalse();
+		assertThat(first).doesNotContain("seed");
+		int totalDays = JsonPath.read(first, "$.snapshot.totalDays");
+		assertThat(LocalDate.parse(JsonPath.read(first, "$.snapshot.candles[0].date")).getYear()).isEqualTo(LocalDate.now().getYear() + 10);
+		call(json(post("/api/v1/virtual-sim/state"), tokenBody), 200);
+
+		int version = 0, asked = 0;
+		String snapshot = first;
+		while (true) {
+			String stepCommand = command(token, version);
+			MvcResult stepped = call(json(post("/api/v1/virtual-sim/step"), stepCommand), 200);
+			snapshot = body(stepped);
+			version++;
+			// 같은 명령 재전송은 같은 응답, 같은 id로 다른 본문은 409
+			assertThat(body(call(json(post("/api/v1/virtual-sim/step"), stepCommand), 200))).isEqualTo(snapshot);
+			// 공개한 봉까지만 준다
+			assertThat((Integer) JsonPath.read(snapshot, "$.candles.length()")).isLessThanOrEqualTo(totalDays);
+			// 판정 전 결과·경향은 null이고 판정 뒤에는 둘 다 있다
+			List<Map<String, Object>> decisions = JsonPath.read(snapshot, "$.decisions");
+			for (Map<String, Object> d : decisions) {
+				assertThat(d.get("trend") == null).isEqualTo(d.get("outcome") == null);
+				assertThat(d.get("categoryUpShare") == null).isEqualTo(d.get("outcome") == null);
+			}
+			String state = JsonPath.read(snapshot, "$.status");
+			if ("FINISHED".equals(state)) {
+				break;
+			}
+			assertThat(state).isEqualTo("AWAITING_DECISION");
+			call(json(post("/api/v1/virtual-sim/step"), command(token, version)), 409);
+			String eventId = JsonPath.read(snapshot, "$.event.id");
+			assertThat((String) JsonPath.read(snapshot, "$.event.title")).isNotBlank();
+			// 첫 사건은 살 수 있는 만큼 매수, 그다음은 유지. 상한을 넘는 수량·유지에 수량은 400
+			long maxBuy = ((Number) JsonPath.read(snapshot, "$.event.orderLimits.maxBuyShares")).longValue();
+			String action = asked == 0 && maxBuy > 0 ? "BUY" : "HOLD";
+			String decision = "{\"sessionToken\":\"" + token + "\",\"commandId\":\"" + UUID.randomUUID() + "\",\"expectedVersion\":" + version
+					+ ",\"eventId\":\"" + eventId + "\",\"action\":\"" + action + "\",\"quantity\":";
+			call(json(post("/api/v1/virtual-sim/decision"), decision + ("BUY".equals(action) ? maxBuy + 1 : 1) + "}"), 400);
+			String decided = body(call(json(post("/api/v1/virtual-sim/decision"), decision + ("BUY".equals(action) ? maxBuy : 0) + "}"), 200));
+			assertThat((String) JsonPath.read(decided, "$.decisions[" + asked + "].trend")).isNull();
+			version++;
+			asked++;
+		}
+		assertThat(asked).isBetween(3, 5);
+		List<Map<String, Object>> decisions = JsonPath.read(snapshot, "$.decisions");
+		assertThat(decisions).allSatisfy(d -> assertThat(d.get("trendOutcome")).isNotNull());
+		assertThat(decisions.stream().filter(d -> !"MIXED".equals(d.get("trend")))).hasSizeGreaterThanOrEqualTo(2);
+		assertThat(decisions).allSatisfy(d -> assertThat(d.get("movement")).isIn("UP", "DOWN", "FLAT"));
+		assertThat(decisions.stream().filter(d -> "HOLD".equals(d.get("action")))).allSatisfy(d -> assertThat(d.get("trendOutcome")).isEqualTo("NEUTRAL"));
+		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
+		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
+		call(json(post("/api/v1/virtual-sim/state"), tokenBody), 410);
+	}
+
+	private static String body(MvcResult r) throws Exception {
+		return r.getResponse().getContentAsString(StandardCharsets.UTF_8);
 	}
 
 	private static String command(String token, int version) {

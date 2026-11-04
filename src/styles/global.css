@@ -782,6 +782,8 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .hero-copy,.hero-foot{position:relative;z-index:1;--text:var(--color-hero-ink);--text-sub:var(--color-hero-ink-sub);--text-muted:var(--color-hero-ink-muted);--card:var(--color-hero-surface);--sunken:var(--color-hero-subtle);--line:var(--color-hero-line);--color-border-strong:var(--color-hero-line);color:var(--text)}
 .hero-label{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;font-weight:600;color:var(--text-sub)}
 .hero-edit{padding:0;background:none;border:0;font-size:13px;font-weight:500;color:var(--text-muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.hero-gear{position:absolute;top:16px;right:16px;z-index:2;display:grid;place-items:center;width:40px;height:40px;border-radius:50%;color:var(--color-hero-ink-sub);transition:background-color 180ms var(--ease)}
+.hero-gear:is(:hover,:focus-visible){background:var(--color-hero-subtle);color:var(--color-hero-ink);text-decoration:none}
 .hero-edit:hover{color:var(--text-sub)}
 .home-hero .hero-num{margin-top:4px}
 .home-hero .sub{margin-top:6px}

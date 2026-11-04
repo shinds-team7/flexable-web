@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
-import { LinkCards, Notice, PRODUCT_CARD, ProtoNote, SIM_PAST, type LinkCardItem } from '@/components/Proto';
+import { LinkCards, Notice, PRODUCT_CARD, SIM_PAST, type LinkCardItem } from '@/components/Proto';
 import {
   ACCOUNTS,
   CMA_TYPES,
@@ -132,7 +132,6 @@ export function InvestorTypes() {
   const mine = findType(useInvestorType() ?? undefined);
   return (
     <section className="page col">
-      <ProtoNote />
       <div className="it-intro">
         <h1 className="it-intro-h">나는 어떤 투자 성향일까?</h1>
         <p className="it-intro-p">
@@ -168,7 +167,6 @@ export function InvestorTypes() {
 export function InvestorTypeAbout() {
   return (
     <section className="page col">
-      <ProtoNote />
       <article className="card it-about it-about-page" aria-labelledby="it-about-h">
         <span className="meta">알아 두면 좋아요</span>
         <h1 className="it-h2" id="it-about-h">
@@ -262,7 +260,6 @@ export function InvestorTypeTest() {
     const t = findType(typeFromAnswers(answers))!;
     return (
       <section className="page col">
-        <ProtoNote />
         <div className="card it-start">
           <span className="meta">답변으로 보면</span>
           <h1 className="page-title" ref={headRef} tabIndex={-1}>
@@ -316,7 +313,6 @@ export function InvestorTypeTest() {
   };
   return (
     <section className="page col">
-      <ProtoNote />
       <div className="it-test">
         <div className="it-prog">
           <span className="meta num it-prog-n">
@@ -368,7 +364,6 @@ export function InvestorTypePick() {
   const nav = useNavigate();
   return (
     <section className="page col">
-      <ProtoNote />
       <div className="page-head">
         <h1 className="page-title">나는 어떤 투자자에 가까울까요?</h1>
         <p className="page-desc">성향은 시장 전체에 꾸준히 넣는 패시브와, 직접 골라 넣는 액티브를 어떤 비율로 섞는지로 나눴어요. 직접 골라 주세요. 언제든 바꿀 수 있어요.</p>
@@ -403,7 +398,6 @@ export function InvestorTypeDetail() {
 
   return (
     <section className="page col">
-      <ProtoNote />
       <div className="it-head">
         <div className="seg" role="group" aria-label="성향 바꿔 보기">
           {INVESTOR_TYPES.map((x) => (

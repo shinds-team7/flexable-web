@@ -424,7 +424,7 @@ export interface paths {
         put?: never;
         /**
          * 가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 로그인·영구 저장 없음
-         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년
+         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년. 새 세션 시작은 클라이언트(접속 IP)마다 10분에 20번까지이고 넘으면 429 TOO_MANY_ATTEMPTS(retryAfterSeconds). 같은 startId 재전송은 세지 않는다
          */
         post: {
             parameters: {
@@ -460,6 +460,7 @@ export interface paths {
                 };
                 400: components["responses"]["Error"];
                 409: components["responses"]["Error"];
+                429: components["responses"]["Error"];
                 503: components["responses"]["Error"];
             };
         };
@@ -567,8 +568,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 현재 가상 사건의 방향 예상과 가상 매매 선택(no-store)
-         * @description /practice/decision과 같다. AWAITING_DECISION의 eventId만 허용하고 다음 step에서 시가 체결
+         * 현재 가상 사건의 가상 매매 선택(수량 직접 입력, no-store)
+         * @description AWAITING_DECISION의 eventId만 허용하고 다음 step에서 다음 거래일 시가로 체결한다. 예상 버튼은 없고 매매 방향이 예상이다(BUY = 오른다, SELL = 내린다, HOLD = 채점 제외, policies §8-6). quantity는 HOLD면 0, BUY·SELL은 1 이상이고 event.orderLimits 안이어야 한다(넘으면 400 VALIDATION_FAILED, 응답 `fields.quantity`). 매수는 체결 시가로 그때 현금에 살 수 있는 만큼만 체결한다(부분 체결, 0주면 NO_FILL)
          */
         post: {
             parameters: {
@@ -586,14 +587,12 @@ export interface paths {
                         expectedVersion: number;
                         eventId: string;
                         /** @enum {string} */
-                        prediction: "POSITIVE" | "NEGATIVE";
-                        /** @enum {string} */
                         action: "BUY" | "SELL" | "HOLD";
                         /**
-                         * @description HOLD는 0만, BUY/SELL은 25/50/100만 허용
-                         * @enum {integer}
+                         * Format: int64
+                         * @description HOLD는 0만, BUY는 1~orderLimits.maxBuyShares, SELL은 1~orderLimits.maxSellShares
                          */
-                        allocationPercent: 0 | 25 | 50 | 100;
+                        quantity: number;
                     };
                 };
             };
@@ -2943,12 +2942,31 @@ export interface components {
                 categoryName: string;
                 /** @description 유형마다 서버가 정한 실제 DART 보고서명 형식(예: 단일판매ㆍ공급계약체결) */
                 title: string;
+                /** @description AI가 쓴 공시 내용 2~4문장(vsim-check-v3, policies §8-5). 금액·규모·증감·좋고 나쁨 없음 */
                 body: string;
                 /**
                  * Format: date
                  * @description 사건 봉 날짜(= 현재 마지막 봉). 가상 사건은 늘 거래일 종가 뒤에 보인다
                  */
                 date: string;
+                /** @description 수량 입력 상한과 미리보기 기준(서버 계산). 화면은 수량 × referencePrice로 추정 금액만 보이고, 실제 체결은 다음 거래일 시가다 */
+                orderLimits: {
+                    /**
+                     * Format: int64
+                     * @description 지금 마지막 봉 종가
+                     */
+                    referencePrice: number;
+                    /**
+                     * Format: int64
+                     * @description floor(현금 / referencePrice)
+                     */
+                    maxBuyShares: number;
+                    /**
+                     * Format: int64
+                     * @description 보유 수량
+                     */
+                    maxSellShares: number;
+                };
             } | null;
             /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 한 실행의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상 */
             decisions: {
@@ -2958,12 +2976,18 @@ export interface components {
                 title: string;
                 /** Format: date */
                 date: string;
-                /** @enum {string} */
-                prediction: "POSITIVE" | "NEGATIVE";
+                /**
+                 * @description 매매 방향에서 정한 예상. BUY → POSITIVE, SELL → NEGATIVE, HOLD → null
+                 * @enum {string|null}
+                 */
+                prediction: "POSITIVE" | "NEGATIVE" | null;
                 /** @enum {string} */
                 action: "BUY" | "SELL" | "HOLD";
-                /** @enum {integer} */
-                allocationPercent: 0 | 25 | 50 | 100;
+                /**
+                 * Format: int64
+                 * @description 요청 수량. 실제 체결 수량은 executedShares
+                 */
+                quantity: number;
                 /** @enum {string} */
                 execution: "PENDING" | "FILLED" | "NO_FILL" | "HOLD";
                 /** Format: date */
@@ -2973,16 +2997,23 @@ export interface components {
                 /** Format: int64 */
                 executedShares: number | null;
                 /**
-                 * @description 이번 결과: 이후 5거래일 가상 등락과 비교(policies §5 판정). 점수에 넣지 않는다
+                 * @description 이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다
                  * @enum {string|null}
                  */
                 outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
                 /** Format: date */
                 outcomeDate: string | null;
                 subsequentReturnRate: number | null;
+                /**
+                 * @description 판정 뒤만. 이후 5거래일 가상 등락의 방향(원 가격 비교). 판정 전에는 null
+                 * @enum {string|null}
+                 */
+                movement: "UP" | "DOWN" | "FLAT" | null;
                 /** @description 판정 뒤(outcome이 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
                 categoryUpShare: number | null;
-                /** @description 판정 뒤만. categoryUpShare를 센 공시 수. 판정 전에는 null */
+                /** @description 판정 뒤만. 같은 유형 공시 뒤 5거래일 종가가 내린 비율(소수 4자리 내림). 보합은 오름·내림 어디에도 들지 않으므로 1 − categoryUpShare와 다를 수 있다. 판정 전에는 null */
+                categoryDownShare: number | null;
+                /** @description 판정 뒤만. categoryUpShare·categoryDownShare를 센 공시 수. 판정 전에는 null */
                 categorySampleCount: number | null;
                 /**
                  * @description 판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null
@@ -2990,12 +3021,12 @@ export interface components {
                  */
                 trend: "UP" | "DOWN" | "MIXED" | null;
                 /**
-                 * @description 판정 뒤만. 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED면 NEUTRAL. 판정 전에는 null
+                 * @description 판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null
                  * @enum {string|null}
                  */
                 trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
             }[];
-            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 과거 경향으로 채점하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
+            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
             notice: string;
             sources: string[];
         };

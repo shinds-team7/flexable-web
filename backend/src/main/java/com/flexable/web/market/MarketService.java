@@ -85,6 +85,37 @@ public class MarketService {
 	public record Sources(List<String> prices, List<String> instruments) {
 	}
 
+	/** from(포함)부터 저장된 일봉과 거래량, 날짜 오름차순(가상 시뮬레이션 룰셋). 없으면 빈 목록 */
+	@Transactional(readOnly = true)
+	public List<MarketDtos.PriceRow> dailyPrices(String code, LocalDate from) {
+		return instruments.findByCode(code)
+			.map(i -> prices.findByInstrumentIdAndTradeDateGreaterThanEqualOrderByTradeDateAsc(i.getId(), from).stream()
+				.map(p -> new MarketDtos.PriceRow(p.getTradeDate(), p.getClose(), p.getVolume()))
+				.toList())
+			.orElse(List.of());
+	}
+
+	/** 상위 목록 안 STOCK 종목(시장별 순위 순). corpCode는 모르면 null */
+	@Transactional(readOnly = true)
+	public List<MarketDtos.StockRef> rankedStocks() {
+		List<MarketDtos.StockRef> out = new ArrayList<>();
+		for (Board b : Board.values()) {
+			instruments.findByBoardAndCapRankNotNullOrderByCapRankAsc(b).stream()
+				.limit(props.topLimit())
+				.filter(i -> "STOCK".equals(i.getKind()))
+				.forEach(i -> out.add(new MarketDtos.StockRef(i.getCode(), i.getName(), i.getCorpCode())));
+		}
+		return out;
+	}
+
+	/** 저장된 모든 종목 이름(가상 회사 글 검사의 실제 상장사 이름 대조) */
+	@Transactional(readOnly = true)
+	public Set<String> instrumentNames() {
+		Set<String> out = new HashSet<>();
+		instruments.findAll().forEach(i -> out.add(i.getName()));
+		return out;
+	}
+
 	@Transactional(readOnly = true)
 	public Optional<LocalDate> earliestTradeDate(String code) {
 		return instruments.findByCode(code).flatMap(i -> prices.findEarliestTradeDate(i.getId()));

@@ -1,6 +1,7 @@
 package com.flexable.web.ingest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,5 +27,17 @@ class IngestPropertiesTest {
 		IngestProperties.EventOverview own = new IngestProperties.EventOverview("gemini", "event-key", "event-model", null, null, null);
 		assertThat(own.apiKeyOr(SHARED)).isEqualTo("event-key");
 		assertThat(own.modelOr(SHARED)).isEqualTo("event-model");
+	}
+
+	@Test
+	void 가상_시뮬레이션_상한은_1_이상이어야_한다() {
+		assertThat(new IngestProperties.VirtualSim(null, null, null, null, null, null, null).batchSize()).isEqualTo(5);
+		for (int i = 0; i < 4; i++) {
+			Integer[] v = { 5, 2, 2, 2000 };
+			v[i] = 0;
+			Integer[] values = v;
+			assertThatThrownBy(() -> new IngestProperties.VirtualSim("gemini", null, null, values[0], values[1], values[2], values[3]))
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("VIRTUAL_SIM_");
+		}
 	}
 }

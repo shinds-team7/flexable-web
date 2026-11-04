@@ -48,6 +48,10 @@ public class MarketSyncJob implements ApplicationRunner {
 	private final IndexSyncJob indexJob;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private PracticeSyncJob practice;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private DisclosureArchiveJob disclosureArchive;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private VirtualSimRulesetJob virtualSimRules;
 
 	public MarketSyncJob(InstrumentSource instruments, PriceSource prices, MarketService market, MarketProperties marketProps,
 			IngestProperties props, IngestRunRepository runs, Clock clock, MarketEventJob eventJob, IndexSyncJob indexJob) {
@@ -75,7 +79,7 @@ public class MarketSyncJob implements ApplicationRunner {
 		runAll();
 	}
 
-	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
+	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료 → 가상 시뮬레이션 전체 공시·룰셋. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
 	void runAll() {
 		try {
 			indexJob.runOnce();
@@ -83,9 +87,27 @@ public class MarketSyncJob implements ApplicationRunner {
 		catch (RuntimeException e) {
 			log.warn("시장 띠 수집 실패: {}", e.getMessage());
 		}
-		runOnce();
-		eventJob.runOnce();
-        if (practice != null) practice.runOnce();
+		// 단계마다 따로 감싸 앞 단계의 예외가 뒤 단계(사건·시뮬레이션 자료·가상 시뮬레이션 공시·룰셋)를 건너뛰게 하지 않는다
+		step("시세 수집", this::runOnce);
+		step("사건 탐지·공시 근거", eventJob::runOnce);
+		if (practice != null) {
+			step("업종·시뮬레이션 자료", practice::runOnce);
+		}
+		if (disclosureArchive != null) {
+			step("가상 시뮬레이션 전체 공시 수집", disclosureArchive::runOnce);
+		}
+		if (virtualSimRules != null) {
+			step("가상 시뮬레이션 룰셋", virtualSimRules::runOnce);
+		}
+	}
+
+	private static void step(String name, Runnable task) {
+		try {
+			task.run();
+		}
+		catch (RuntimeException e) {
+			log.warn("{} 실패: {}", name, e.getMessage());
+		}
 	}
 
 	public synchronized Result runOnce() {

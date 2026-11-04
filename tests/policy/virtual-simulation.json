@@ -1,9 +1,9 @@
 {
-  "status": "PENDING",
+  "status": "IMPLEMENTED",
   "policy": "docs/policies.md §8",
-  "versions": { "types": "vsim-types-v2", "ruleset": "vsim-rules-v2", "check": "vsim-check-v2" },
+  "versions": { "types": "vsim-types-v2", "ruleset": "vsim-rules-v2", "check": "vsim-check-v3" },
   "tradeAndQuiz": {
-    "note": "매매·평가는 §5 그대로(practice.json 아래 키). quizCases는 점수에 넣지 않는 '이번 결과' 판정으로 다시 쓴다",
+    "note": "평가는 §5 그대로(practice.json 아래 키). 사건 매매는 수량 직접 입력(order). quizCases는 점수에 넣지 않는 '이번 결과' 판정으로 다시 쓴다",
     "source": "practice.json",
     "keys": ["tradeSequence", "insufficientCash", "negativeRounding", "quizCases"]
   },
@@ -124,11 +124,25 @@
       { "paths": 99, "up": 70, "upShare": 0.707, "expected": "MIXED", "note": "경로 100개 미만" }
     ],
     "scoring": [
-      { "trend": "UP", "prediction": "POSITIVE", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "CORRECT", "outcome": "CORRECT" },
-      { "trend": "UP", "prediction": "POSITIVE", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "CORRECT", "outcome": "INCORRECT" },
-      { "trend": "DOWN", "prediction": "POSITIVE", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "INCORRECT", "outcome": "CORRECT" },
-      { "trend": "DOWN", "prediction": "NEGATIVE", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": "CORRECT", "outcome": "NEUTRAL" },
-      { "trend": "MIXED", "prediction": "NEGATIVE", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "NEUTRAL", "outcome": "CORRECT" }
+      { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "CORRECT", "outcome": "CORRECT", "movement": "UP" },
+      { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "CORRECT", "outcome": "INCORRECT", "movement": "DOWN" },
+      { "trend": "DOWN", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "INCORRECT", "outcome": "CORRECT", "movement": "UP" },
+      { "trend": "DOWN", "action": "SELL", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": "CORRECT", "outcome": "NEUTRAL", "movement": "FLAT" },
+      { "trend": "MIXED", "action": "SELL", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "NEUTRAL", "outcome": "CORRECT", "movement": "DOWN" },
+      { "trend": "UP", "action": "HOLD", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "NEUTRAL", "outcome": "NEUTRAL", "movement": "UP", "note": "유지는 예상이 없어 채점하지 않는다" }
+    ]
+  },
+  "order": {
+    "note": "policies §8-7. 예상은 매매 방향(BUY = POSITIVE, SELL = NEGATIVE, HOLD = 없음). 상한은 선택 시점 기준 가격(마지막 종가)으로, 체결은 다음 봉 시가로 정한다",
+    "predictionByAction": { "BUY": "POSITIVE", "SELL": "NEGATIVE", "HOLD": null },
+    "cases": [
+      { "cash": 100000, "shares": 10, "referencePrice": 3000, "action": "BUY", "quantity": 30, "limits": { "maxBuyShares": 33, "maxSellShares": 10 }, "nextOpen": 3000, "expected": { "executedShares": 30, "cash": 10000, "shares": 40 } },
+      { "cash": 100000, "shares": 10, "referencePrice": 3000, "action": "BUY", "quantity": 33, "limits": { "maxBuyShares": 33, "maxSellShares": 10 }, "nextOpen": 3100, "expected": { "executedShares": 32, "cash": 800, "shares": 42 }, "note": "다음 시가가 올라 살 수 있는 만큼만(부분 체결)" },
+      { "cash": 100000, "shares": 10, "referencePrice": 3000, "action": "SELL", "quantity": 4, "limits": { "maxBuyShares": 33, "maxSellShares": 10 }, "nextOpen": 2900, "expected": { "executedShares": 4, "cash": 111600, "shares": 6 } },
+      { "cash": 100000, "shares": 10, "referencePrice": 3000, "action": "BUY", "quantity": 34, "limits": { "maxBuyShares": 33, "maxSellShares": 10 }, "expected": "INVALID" },
+      { "cash": 100000, "shares": 10, "referencePrice": 3000, "action": "SELL", "quantity": 11, "limits": { "maxBuyShares": 33, "maxSellShares": 10 }, "expected": "INVALID" },
+      { "cash": 100000, "shares": 10, "referencePrice": 3000, "action": "HOLD", "quantity": 0, "limits": { "maxBuyShares": 33, "maxSellShares": 10 }, "nextOpen": 3000, "expected": { "executedShares": 0, "cash": 100000, "shares": 10 } },
+      { "cash": 2000, "shares": 0, "referencePrice": 3000, "action": "BUY", "quantity": 1, "limits": { "maxBuyShares": 0, "maxSellShares": 0 }, "expected": "INVALID" }
     ]
   },
   "generation": {
@@ -148,26 +162,27 @@
     "order": ["DIGIT", "CHARSET", "LENGTH", "REAL_COMPANY", "INSTITUTION", "PERSON", "BANNED", "PRICE", "TONE", "TYPE_WORD"],
     "cases": [
       { "field": "name", "text": "누리모빌리티", "expected": "PASS" },
-      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 유럽 완성차 업체와 배터리 팩 공급 계약을 맺었다고 밝혔어요.", "expected": "PASS" },
-      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 이사회에서 올해 결산 배당을 결정했어요.", "expected": "PASS" },
-      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 삼성전자와 공급 계약을 맺었어요.", "expected": "REAL_COMPANY" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 유럽 완성차 업체와 배터리 팩 공급 계약을 맺었다고 밝혔어요. 계약에 따라 회사는 유럽 생산 공장에 배터리 팩을 납품하게 돼요. 공급은 정해진 일정에 맞춰 나누어 이뤄질 예정이에요.", "expected": "PASS" },
+      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 이사회에서 올해 결산 배당을 결정했어요. 배당은 정기 주주총회의 승인을 거쳐 주주에게 지급돼요. 회사는 배당 기준일과 지급 절차를 함께 안내했어요.", "expected": "PASS" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 삼성전자와 공급 계약을 맺었어요. 계약에 따라 회사는 장비 부품을 정해진 일정에 맞춰 차례로 납품하게 돼요.", "expected": "REAL_COMPANY" },
       { "field": "name", "text": "카카오모빌", "expected": "REAL_COMPANY" },
       { "field": "name", "text": "한미", "expected": "REAL_COMPANY" },
       { "field": "name", "text": "삼성바이오텍", "expected": "REAL_COMPANY" },
-      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 연구소를 대상으로 장비 공급 계약을 맺었어요.", "expected": "REAL_COMPANY", "note": "알려진 한계: 흔한 낱말과 같은 회사명" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 연구소를 대상으로 장비 공급 계약을 맺었어요. 회사는 계약에 따라 시험 장비를 연구소에 차례로 납품할 계획이라고 밝혔어요.", "expected": "REAL_COMPANY", "note": "알려진 한계: 흔한 낱말과 같은 회사명" },
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 500억 원 규모 공급 계약을 맺었어요.", "expected": "DIGIT" },
       { "field": "body", "type": "EARNINGS", "text": "누리모빌리티가 AI 사업 실적을 발표했어요.", "expected": "CHARSET" },
       { "field": "intro", "text": "누리모빌리티는 전기차와 수소차에 들어가는 배터리 팩과 구동 부품을 설계하고 만드는 부품 회사로 유럽과 동남아 완성차 업체에 납품해요.", "expected": "LENGTH" },
-      { "field": "body", "type": "DIVIDEND", "text": "배당을 늘렸어요. 주주에게 알렸어요. 이사회가 정했어요.", "expected": "LENGTH" },
-      { "field": "body", "type": "LEGAL", "text": "금융감독원이 누리모빌리티 회계 처리에 대해 소송을 냈어요.", "expected": "INSTITUTION" },
-      { "field": "body", "type": "OWNERSHIP", "text": "누리모빌리티 대표이사가 지분을 넘겨 최대주주가 바뀌었어요.", "expected": "PERSON" },
-      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "새 공급 계약 덕분에 누리모빌리티 실적이 좋아졌어요.", "expected": "BANNED" },
-      { "field": "body", "type": "EARNINGS", "text": "누리모빌리티 매출이 크게 늘어 앞으로 더 좋아질 전망이에요.", "expected": "BANNED" },
-      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 공급 계약을 맺자 주가가 올랐어요.", "expected": "PRICE" },
-      { "field": "body", "type": "EARNINGS", "text": "누리모빌리티 매출이 지난해보다 늘었다고 발표했어요.", "expected": "TONE" },
-      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 대규모 공급 계약을 맺었어요.", "expected": "TONE" },
-      { "field": "body", "type": "OWNERSHIP", "text": "누리모빌리티의 최대주주가 다른 회사로 바뀌었어요.", "expected": "PASS", "note": "최대주주는 TONE의 최대가 아니다" },
-      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 올해 주주 환원 정책을 새로 정했어요.", "expected": "TYPE_WORD" }
+      { "field": "body", "type": "DIVIDEND", "text": "배당을 늘렸어요. 주주에게 알렸어요. 이사회가 정했어요.", "expected": "LENGTH", "note": "60자 미만" },
+      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 이사회에서 결산 배당을 결정했어요. 배당은 주주총회 승인을 거쳐요. 지급일은 따로 알려요. 기준일도 함께 정했어요. 절차는 공시로 안내해요.", "expected": "LENGTH", "note": "5문장" },
+      { "field": "body", "type": "LEGAL", "text": "금융감독원이 누리모빌리티 회계 처리에 대해 소송을 냈어요. 회사는 소송 내용을 검토한 뒤 대응 방안을 정해 알리겠다고 밝혔어요.", "expected": "INSTITUTION" },
+      { "field": "body", "type": "OWNERSHIP", "text": "누리모빌리티 대표이사가 지분을 넘겨 최대주주가 바뀌었어요. 새 최대주주는 다른 회사이고 지분 이전 절차는 이번 달 안에 끝날 예정이에요.", "expected": "PERSON" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "새 공급 계약 덕분에 누리모빌리티 실적이 좋아졌어요. 회사는 계약에 따라 제품을 차례로 납품하게 된다고 밝혔어요.", "expected": "BANNED" },
+      { "field": "body", "type": "EARNINGS", "text": "누리모빌리티 매출이 크게 늘어 앞으로 더 좋아질 전망이에요. 회사는 분기 잠정 실적을 공시하고 사업 내용을 함께 설명했어요.", "expected": "BANNED" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 공급 계약을 맺자 주가가 올랐어요. 회사는 계약에 따라 부품을 정해진 일정에 맞춰 납품하게 된다고 밝혔어요.", "expected": "PRICE" },
+      { "field": "body", "type": "EARNINGS", "text": "누리모빌리티 매출이 지난해보다 늘었다고 발표했어요. 회사는 분기 잠정 실적을 공시하고 사업별 내용을 함께 설명했어요.", "expected": "TONE" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 대규모 공급 계약을 맺었어요. 회사는 계약에 따라 부품을 정해진 일정에 맞춰 유럽 공장에 납품하게 돼요.", "expected": "TONE" },
+      { "field": "body", "type": "OWNERSHIP", "text": "누리모빌리티의 최대주주가 다른 회사로 바뀌었어요. 새 최대주주는 지분을 넘겨받는 절차를 마쳤다고 알렸어요. 회사는 바뀐 내용을 주주에게 안내했어요.", "expected": "PASS", "note": "최대주주는 TONE의 최대가 아니다" },
+      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 올해 주주 환원 정책을 새로 정했어요. 회사는 정책의 세부 내용과 시행 절차를 주주에게 함께 안내했어요.", "expected": "TYPE_WORD" }
     ]
   }
 }

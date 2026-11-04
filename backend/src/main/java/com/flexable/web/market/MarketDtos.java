@@ -24,4 +24,12 @@ public final class MarketDtos {
 	/** pricesAsOf: 저장된 가장 늦은 거래일, instrumentsAsOf: 종목 목록 기준일. empty면 worker가 아직 수집하지 않았다. */
 	public record StatusResponse(LocalDate pricesAsOf, LocalDate instrumentsAsOf, int instruments, boolean empty) {
 	}
+
+	/** 상위 목록 안 STOCK 종목과 OpenDART 고유번호(가상 시뮬레이션 전체 공시 수집) */
+	public record StockRef(String code, String name, String corpCode) {
+	}
+
+	/** 저장된 일봉 한 줄. volume은 비어 있으면 null */
+	public record PriceRow(LocalDate date, long close, Long volume) {
+	}
 }

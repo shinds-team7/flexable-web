@@ -12,11 +12,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * - youth: 청년 정책(소식) 수집. source: youthcenter | fake
  * - gemini: 소식 카드 요약(Gemini API). apiKey가 비어 있으면 요약하지 않는다(게시는 그대로)
  * - eventOverview: 사건 AI 개요. source: gemini | fake | none. 전용 키·모델이 비어 있으면 gemini 설정을 같이 쓴다
+ * - virtualSim: 가상 시뮬레이션 회사·사건 글 생성과 전체 공시 수집. source: gemini | fake | none
  */
 @ConfigurationProperties("app.ingest")
 public record IngestProperties(String priceSource, String instrumentSource, String instrumentFallback, Integer backfillYears,
 		Integer recheckDays, Boolean runOnStart, Kiwoom kiwoom, Krx krx, String disclosureSource, Dart dart, Youth youth, Gemini gemini,
-		EventOverview eventOverview) {
+		EventOverview eventOverview, VirtualSim virtualSim) {
 
 	public IngestProperties {
 		priceSource = priceSource == null ? "kiwoom" : priceSource;
@@ -32,6 +33,7 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 		youth = youth == null ? new Youth(null, null, null, null, null, null, null) : youth;
 		gemini = gemini == null ? new Gemini(null, null, null, null, null, null) : gemini;
 		eventOverview = eventOverview == null ? new EventOverview(null, null, null, null, null, null) : eventOverview;
+		virtualSim = virtualSim == null ? new VirtualSim(null, null, null, null, null, null, null) : virtualSim;
 	}
 
 	public record Kiwoom(String baseUrl, String appKey, String secretKey, Duration pageDelay) {
@@ -99,6 +101,44 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 			batchSize = batchSize == null ? 10 : batchSize;
 			maxCalls = maxCalls == null ? 30 : maxCalls;
 			dailyCap = dailyCap == null ? 100 : dailyCap;
+		}
+
+		/** 전용 키, 없으면 공용 Gemini 키 */
+		public String apiKeyOr(Gemini shared) {
+			return apiKey == null || apiKey.isBlank() ? shared.apiKey() : apiKey;
+		}
+
+		/** 전용 모델, 없으면 공용 Gemini 모델 */
+		public String modelOr(Gemini shared) {
+			return model == null || model.isBlank() ? shared.model() : model;
+		}
+	}
+
+	/**
+	 * 가상 시뮬레이션(decisions/2026-11-04-virtual-simulation 1-8·4).
+	 * source: gemini(키가 없으면 꺼짐) | fake(키 없이 예시 회사·예시 룰셋, isSample) | none(만들지 않음). api도 이 값을 읽어 fake면 예시 자료만 쓴다.
+	 * apiKey·model: 전용 Gemini 키·모델. 비어 있으면 gemini 설정(공용 키·모델)을 쓴다. 호출 간격은 gemini.callDelay를 같이 쓴다.
+	 * 한 번 호출에 회사 batchSize곳, 한 번 실행에 maxCalls번(기본 5곳 × 2번 = 하루 10곳). dailyCap: 하루(KST) 호출 상한(gemini_daily_usage).
+	 * dartMaxCalls: 전체 공시 수집(DisclosureArchiveJob)의 한 번 실행 호출 상한. 사건 근거 수집(dart.maxCalls)과 합쳐 OpenDART 하루 20,000건보다 낮게 둔다.
+	 */
+	public record VirtualSim(String source, String apiKey, String model, Integer batchSize, Integer maxCalls, Integer dailyCap, Integer dartMaxCalls) {
+		public VirtualSim {
+			source = source == null || source.isBlank() ? "gemini" : source;
+			batchSize = batchSize == null ? 5 : batchSize;
+			maxCalls = maxCalls == null ? 2 : maxCalls;
+			dailyCap = dailyCap == null ? 2 : dailyCap;
+			dartMaxCalls = dartMaxCalls == null ? 2000 : dartMaxCalls;
+			// 0 이하면 작업 없이 끝나 실패 신호가 없다(batch-size 0은 하루 호출 상한만 쓴다). 시작할 때 막는다
+			atLeastOne("VIRTUAL_SIM_BATCH_SIZE", batchSize);
+			atLeastOne("VIRTUAL_SIM_MAX_CALLS", maxCalls);
+			atLeastOne("VIRTUAL_SIM_DAILY_CAP", dailyCap);
+			atLeastOne("VIRTUAL_SIM_DART_MAX_CALLS", dartMaxCalls);
+		}
+
+		private static void atLeastOne(String name, int value) {
+			if (value < 1) {
+				throw new IllegalArgumentException(name + "는 1 이상이어야 해요: " + value);
+			}
 		}
 
 		/** 전용 키, 없으면 공용 Gemini 키 */

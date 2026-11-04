@@ -7,6 +7,7 @@ import type { SeedMoneyResponse } from '@/data/home';
 import type { BoardListing, EventDetail, EventNews, IndexStrip, IndustryListing, PriceEvents, PriceSeries } from '@/data/market';
 import type { YouthNews } from '@/data/news';
 import type { CategoryResponse, Started } from '@/data/practice';
+import type { VirtualSimStarted, VirtualSimStatus } from '@/data/virtualSim';
 import type { DepositProduct, DepositProductDetail, DepositProductList, DepositSimulateRequest, DepositSimulation } from '@/data/deposit';
 import type { SavingsProduct, SavingsProductDetail, SavingsProductList, SavingsSimulateRequest, SavingsSimulation } from '@/data/savings';
 import type { components, paths } from './api-schema';
@@ -48,6 +49,9 @@ export type ContractChecks = [
   // 사건 퀴즈
   Expect<Mutual<CategoryResponse, Ok<'/practice/categories', 'get'>>>,
   Reads<Ok<'/practice/start', 'post'>, Started>,
+  // 가상 시뮬레이션
+  Expect<Mutual<VirtualSimStatus, Ok<'/virtual-sim/status', 'get'>>>,
+  Reads<Ok<'/virtual-sim/start', 'post'>, VirtualSimStarted>,
   // 청년 소식
   // 지역은 화면에서 시·도 이름으로 좁혀 쓰므로 그 필드만 화면 타입으로 바꿔 대조한다
   Reads<Omit<S['YouthNewsItem'], 'regions'> & Pick<YouthNews, 'regions'>, YouthNews>,

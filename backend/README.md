@@ -40,6 +40,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `seedmoney` | 앱에서 확정한 시드머니를 받아 웹에서 쓰는 시드머니 | `applink`, `user` |
 | `market` | 종목·일별 시세·사건 | `common` |
 | `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
+| `virtualsim` | 가상 시뮬레이션(`/virtual-sim/*`, policies §8): 전체 공시·룰셋·가상 회사 글 저장소, 시드 가상 시세, 30분 메모리 세션. 매매·평가는 `practice.PracticeEngine` | `market`, `practice` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
 | `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 없음 | `common` |
 | `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |

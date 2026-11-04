@@ -9,8 +9,10 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipInputStream;
 
 import javax.xml.stream.XMLInputFactory;
@@ -19,6 +21,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -38,6 +41,8 @@ public class DartDisclosureSource implements DisclosureSource {
 	private static final int MAX_PAGES = 5;
 	/** 조회된 데이터가 없음 */
 	static final String NO_DATA = "013";
+	/** HTTP 429를 받은 경우의 상태 값(OpenDART 020 한도 초과와 같이 실행을 멈춘다) */
+	static final String TOO_MANY_REQUESTS = "429";
 
 	private final RestClient http;
 	private final String baseUrl;
@@ -63,6 +68,27 @@ public class DartDisclosureSource implements DisclosureSource {
 
 	@Override
 	public Map<String, String> corpCodes() {
+		try (ZipInputStream zip = corpCodeXml()) {
+			return parseCorpCodes(zip);
+		}
+		catch (IOException | XMLStreamException e) {
+			throw new IllegalStateException("DART corpCode.xml을 읽지 못했어요: " + e.getMessage(), e);
+		}
+	}
+
+	/** corpCode.xml에서 종목코드가 있는 회사(상장사)의 이름. 가상 회사 글 검사(REAL_COMPANY)에 쓴다 */
+	@Override
+	public Set<String> listedNames() {
+		try (ZipInputStream zip = corpCodeXml()) {
+			return parseListedNames(zip);
+		}
+		catch (IOException | XMLStreamException e) {
+			throw new IllegalStateException("DART corpCode.xml을 읽지 못했어요: " + e.getMessage(), e);
+		}
+	}
+
+	/** corpCode.xml ZIP을 받아 첫 항목 위치로 연다 */
+	private ZipInputStream corpCodeXml() throws IOException {
 		byte[] body;
 		try {
 			body = http.get().uri(baseUrl + "/api/corpCode.xml?crtfc_key={key}", apiKey).retrieve().body(byte[].class);
@@ -75,23 +101,53 @@ public class DartDisclosureSource implements DisclosureSource {
 			String text = body == null ? "" : new String(body, StandardCharsets.UTF_8);
 			throw new DartException(tag(text, "status"), tag(text, "message"));
 		}
-		try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(body), StandardCharsets.UTF_8)) {
-			if (zip.getNextEntry() == null) {
-				throw new IllegalStateException("DART corpCode.xml: ZIP이 비어 있어요");
+		ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(body), StandardCharsets.UTF_8);
+		if (zip.getNextEntry() == null) {
+			zip.close();
+			throw new IllegalStateException("DART corpCode.xml: ZIP이 비어 있어요");
+		}
+		return zip;
+	}
+
+	/** <list><corp_name>…</corp_name><stock_code>…</stock_code></list> 중 종목코드가 있는 회사 이름 */
+	static Set<String> parseListedNames(InputStream xml) throws XMLStreamException {
+		XMLStreamReader r = reader(xml);
+		Set<String> out = new HashSet<>();
+		String name = null;
+		String stock = null;
+		while (r.hasNext()) {
+			int ev = r.next();
+			if (ev == XMLStreamConstants.START_ELEMENT) {
+				switch (r.getLocalName()) {
+					case "list" -> {
+						name = null;
+						stock = null;
+					}
+					case "corp_name" -> name = r.getElementText().trim();
+					case "stock_code" -> stock = r.getElementText().trim();
+					default -> {
+					}
+				}
 			}
-			return parseCorpCodes(zip);
+			else if (ev == XMLStreamConstants.END_ELEMENT && "list".equals(r.getLocalName()) && name != null && !name.isEmpty() && stock != null
+					&& !stock.isEmpty()) {
+				out.add(name);
+			}
 		}
-		catch (IOException | XMLStreamException e) {
-			throw new IllegalStateException("DART corpCode.xml을 읽지 못했어요: " + e.getMessage(), e);
-		}
+		r.close();
+		return out;
+	}
+
+	private static XMLStreamReader reader(InputStream xml) throws XMLStreamException {
+		XMLInputFactory f = XMLInputFactory.newFactory();
+		f.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+		f.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+		return f.createXMLStreamReader(xml);
 	}
 
 	/** <list><corp_code>…</corp_code><stock_code>…</stock_code></list> 중 종목코드가 있는 것만. */
 	static Map<String, String> parseCorpCodes(InputStream xml) throws XMLStreamException {
-		XMLInputFactory f = XMLInputFactory.newFactory();
-		f.setProperty(XMLInputFactory.SUPPORT_DTD, false);
-		f.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
-		XMLStreamReader r = f.createXMLStreamReader(xml);
+		XMLStreamReader r = reader(xml);
 		Map<String, String> out = new HashMap<>();
 		String corp = null;
 		String stock = null;
@@ -122,46 +178,58 @@ public class DartDisclosureSource implements DisclosureSource {
 	public List<Disclosure> disclosures(String corpCode, LocalDate from, LocalDate to) {
 		List<Disclosure> out = new ArrayList<>();
 		for (int page = 1; page <= MAX_PAGES; page++) {
-			pause();
-			Map<String, Object> res;
-			try {
-				res = http.get()
-					.uri(baseUrl + "/api/list.json?crtfc_key={key}&corp_code={corp}&bgn_de={from}&end_de={to}&page_no={page}&page_count={count}",
-							apiKey, corpCode, from.format(YMD), to.format(YMD), page, PAGE_COUNT)
-					.retrieve()
-					.body(MAP);
-			}
-			catch (RestClientException e) {
-				throw hideKey(e);
-			}
-			if (res == null) {
-				throw new DartException(null, "빈 응답");
-			}
-			String status = String.valueOf(res.get("status"));
-			if (NO_DATA.equals(status)) {
-				return out;
-			}
-			if (!"000".equals(status)) {
-				throw new DartException(status, String.valueOf(res.get("message")));
-			}
-			if (res.get("list") instanceof List<?> rows) {
-				for (Object o : rows) {
-					if (o instanceof Map<?, ?> row && row.get("rcept_no") instanceof String no && row.get("report_nm") instanceof String name
-							&& row.get("rcept_dt") instanceof String dt) {
-						String filer = row.get("flr_nm") instanceof String s && !s.isBlank() ? s.trim() : null;
-						out.add(new Disclosure(no.trim(), name.trim(), filer, LocalDate.parse(dt.trim(), YMD)));
-					}
-				}
-			}
-			int totalPages = res.get("total_page") instanceof Number n ? n.intValue() : 1;
-			if (page >= totalPages) {
+			Page p = page(corpCode, from, to, page);
+			out.addAll(p.items());
+			if (page >= p.totalPages()) {
 				break;
 			}
 		}
 		return out;
 	}
 
+	/** list.json 한 쪽(100건). 조회된 데이터가 없으면(013) 빈 쪽·전체 0쪽 */
+	@Override
+	public Page page(String corpCode, LocalDate from, LocalDate to, int page) {
+		pause();
+		Map<String, Object> res;
+		try {
+			res = http.get()
+				.uri(baseUrl + "/api/list.json?crtfc_key={key}&corp_code={corp}&bgn_de={from}&end_de={to}&page_no={page}&page_count={count}", apiKey,
+						corpCode, from.format(YMD), to.format(YMD), page, PAGE_COUNT)
+				.retrieve()
+				.body(MAP);
+		}
+		catch (RestClientException e) {
+			throw hideKey(e);
+		}
+		if (res == null) {
+			throw new DartException(null, "빈 응답");
+		}
+		String status = String.valueOf(res.get("status"));
+		if (NO_DATA.equals(status)) {
+			return new Page(List.of(), 0);
+		}
+		if (!"000".equals(status)) {
+			throw new DartException(status, String.valueOf(res.get("message")));
+		}
+		List<Disclosure> out = new ArrayList<>();
+		if (res.get("list") instanceof List<?> rows) {
+			for (Object o : rows) {
+				if (o instanceof Map<?, ?> row && row.get("rcept_no") instanceof String no && row.get("report_nm") instanceof String name
+						&& row.get("rcept_dt") instanceof String dt) {
+					String filer = row.get("flr_nm") instanceof String s && !s.isBlank() ? s.trim() : null;
+					out.add(new Disclosure(no.trim(), name.trim(), filer, LocalDate.parse(dt.trim(), YMD)));
+				}
+			}
+		}
+		return new Page(out, res.get("total_page") instanceof Number n ? n.intValue() : 1);
+	}
+
+	/** HTTP 429(요청 한도 초과)는 JSON 020과 같이 실행을 멈추는 DartException으로, 그 밖은 키를 가린 IllegalStateException으로 바꾼다 */
 	private RuntimeException hideKey(RestClientException e) {
+		if (e instanceof HttpStatusCodeException h && h.getStatusCode().value() == 429) {
+			return new DartException(TOO_MANY_REQUESTS, "요청 한도 초과(HTTP 429)");
+		}
 		String msg = String.valueOf(e.getMessage());
 		if (enabled()) {
 			msg = msg.replace(apiKey, "***");
@@ -204,7 +272,7 @@ public class DartDisclosureSource implements DisclosureSource {
 
 		/** 다음 호출도 같은 이유로 실패할 오류인지(키 문제·한도 초과). */
 		public boolean stopsRun() {
-			return status != null && List.of("010", "011", "012", "020", "901").contains(status);
+			return status != null && List.of("010", "011", "012", "020", "901", TOO_MANY_REQUESTS).contains(status);
 		}
 	}
 }

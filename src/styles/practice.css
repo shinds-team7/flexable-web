@@ -92,6 +92,8 @@
 .practice-journal { margin-top:calc(var(--density-gap)*1.5); border-top:1px solid var(--color-border); padding-top:var(--density-gap); }
 .practice-section-title { display:flex; justify-content:space-between; align-items:center; }
 .practice-section-title>span { font-size:12px; color:var(--color-text-tertiary); }
+/* 선택 기록 제목 바로 아래 안내 문장이 제목에 붙지 않게 띄운다 */
+.practice-journal>p { margin-top:calc(var(--density-gap)/2); }
 .practice-decision { display:grid; grid-template-columns:96px minmax(0,1fr); gap:calc(var(--density-gap)/2); padding:calc(var(--density-gap)*.75) calc(var(--density-gap)/3); border-bottom:1px solid var(--color-border); border-radius:var(--radius-soft-sm); outline:none; }
 .practice-decision.active { background:var(--color-brand-subtle); }
 .practice-decision:focus-visible { outline:2px solid var(--color-focus); outline-offset:-2px; }
@@ -145,3 +147,68 @@
 .practice-soon { display:flex; flex-direction:column; align-items:center; gap:calc(var(--density-gap)/2); padding:calc(var(--density-pad)*2) var(--density-gap); border:1px solid var(--color-border); border-radius:var(--radius-soft); background:var(--color-surface); text-align:center; }
 .practice-soon h2 { font-size:19px; margin:0; letter-spacing:-.4px; }
 .practice-soon p { margin:0; font-size:14px; color:var(--color-text-secondary); line-height:1.65; }
+/* 가상 시뮬레이션(decisions/2026-11-04-virtual-simulation 6): 판정 뒤 과거 경향·근거·이번 5거래일 가상 등락 */
+.vsim-notice>span { display:inline-flex; align-items:center; gap:calc(var(--density-gap)/4); }
+.vsim-intro, .vsim-body { font-size:13px; line-height:1.7; color:var(--color-text-secondary); margin:calc(var(--density-gap)/2) 0; }
+.vsim-body { font-size:15px; color:var(--color-text-primary); }
+.vsim-judged { display:grid; gap:calc(var(--density-gap)/4); font-size:12px; }
+.vsim-judged p { margin:0; line-height:1.6; color:var(--color-text-secondary); }
+.vsim-judged b { color:var(--color-text-primary); margin-right:calc(var(--density-gap)/4); }
+.practice-market-head h2 .ai-chip, .practice-market-head h2 .tag-ex { vertical-align:middle; }
+/* 가상 시뮬레이션 사건 창: 공시 제목(브랜드 글자색)·가상 공시 표시·매수(빨강)/매도(파랑)·보유(옅은 바탕)·주문(흰 바탕)·접기 */
+.vsim-modal-tools { display:inline-flex; align-items:center; gap:calc(var(--density-gap)/2); }
+.vsim-collapse { border:1px solid var(--color-border); border-radius:var(--radius-xs); background:var(--color-surface); color:var(--color-text-secondary); font-size:12px; padding:calc(var(--density-gap)/6) calc(var(--density-gap)/3); cursor:pointer; }
+.practice-modal h2.vsim-title { color:var(--color-brand-text); }
+.vsim-written { display:flex; flex-wrap:wrap; align-items:center; gap:calc(var(--density-gap)/3); margin:0 0 calc(var(--density-gap)/3); font-size:12px; line-height:1.6; color:var(--color-text-tertiary); }
+.vsim-trade-row { display:flex; gap:calc(var(--density-gap)/2); }
+.vsim-trade-row button { flex:1; border:1px solid var(--color-border-strong); border-radius:var(--radius-soft-sm); background:var(--color-surface); color:var(--color-text-primary); padding:calc(var(--density-gap)*.75) calc(var(--density-gap)/2); cursor:pointer; font-size:15px; font-weight:700; }
+.vsim-trade-row .vsim-buy { color:var(--color-rise); border-color:var(--color-rise); }
+.vsim-trade-row .vsim-sell { color:var(--color-fall); border-color:var(--color-fall); }
+.vsim-trade-row .vsim-buy.selected { background:var(--color-rise); color:var(--color-on-brand); }
+.vsim-trade-row .vsim-sell.selected { background:var(--color-fall); color:var(--color-on-brand); }
+.vsim-trade-row .vsim-hold.selected { border-color:var(--color-brand-primary); color:var(--color-brand-text); background:var(--color-brand-subtle); }
+.vsim-holding { margin:calc(var(--density-gap)/2) 0 0; padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); background:var(--color-bg-subtle); border-radius:var(--radius-soft-sm); display:grid; gap:calc(var(--density-gap)/4); }
+.vsim-holding>div { display:flex; justify-content:space-between; gap:calc(var(--density-gap)/2); font-size:13px; }
+.vsim-holding dt { color:var(--color-text-tertiary); }
+.vsim-holding dd { margin:0; font-weight:650; font-variant-numeric:tabular-nums; }
+.vsim-trade-row button:disabled { opacity:.4; }
+.vsim-holding b { color:var(--color-brand-text); }
+.vsim-order { margin-top:calc(var(--density-gap)/2); padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); background:var(--color-surface); border:1px solid var(--color-border-strong); border-radius:var(--radius-soft-sm); display:grid; gap:calc(var(--density-gap)/3); font-size:13px; }
+.vsim-order label { font-weight:650; }
+.vsim-order-input { display:flex; align-items:center; gap:calc(var(--density-gap)/3); border:1px solid var(--color-border-strong); border-radius:var(--radius-soft-sm); padding:0 calc(var(--density-gap)/2); height:var(--density-control-sm); background:var(--color-surface); }
+.vsim-order-input:focus-within { outline:2px solid var(--color-focus); }
+.vsim-order-input input { flex:1; min-width:0; border:0; background:transparent; text-align:right; font-size:18px; font-weight:650; color:var(--color-text-primary); }
+.vsim-order-input input:focus { outline:0; }
+.vsim-order-input button { border:1px solid var(--color-border); border-radius:var(--radius-xs); padding:calc(var(--density-gap)/6) calc(var(--density-gap)/3); background:var(--color-surface); color:var(--color-text-secondary); font-size:12px; cursor:pointer; }
+.vsim-order p { margin:0; font-size:12px; color:var(--color-text-tertiary); }
+.vsim-order-total { display:flex; justify-content:space-between; align-items:baseline; }
+.vsim-order-total b { font-size:16px; font-variant-numeric:tabular-nums; }
+.vsim-order small { font-size:11px; color:var(--color-text-tertiary); line-height:1.6; }
+.vsim-reopen { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); margin-bottom:calc(var(--density-gap)/2); background:var(--color-brand-subtle); border-radius:var(--radius-soft-sm); font-size:13px; }
+.vsim-reopen p { margin:0; color:var(--color-text-secondary); }
+.vsim-reopen b { color:var(--color-brand-text); margin-right:calc(var(--density-gap)/4); }
+.vsim-order-limits { display:grid; grid-template-columns:1fr 1fr; gap:calc(var(--density-gap)/3); }
+.vsim-order-limits>div { display:grid; gap:calc(var(--density-gap)/6); padding:calc(var(--density-gap)/3) calc(var(--density-gap)/2); background:var(--color-brand-subtle); border-radius:var(--radius-xs); }
+.vsim-order-limits span { font-size:11px; color:var(--color-text-tertiary); }
+.vsim-order-limits b { font-size:16px; color:var(--color-brand-text); font-variant-numeric:tabular-nums; }
+.vsim-modal form>.practice-start { margin-top:var(--density-gap); }
+/* 판정 뒤 사건 기록 바탕: 이후 5거래일 가상 등락이 오르면 빨강, 내리면 파랑(상승 빨강·하락 파랑 토큰), 그대로면 바탕 없음 */
+.practice-decision.vsim-moved-up { background:var(--color-rise-wash); }
+.practice-decision.vsim-moved-down { background:var(--color-fall-wash); }
+.practice-decision.vsim-moved-up.active, .practice-decision.vsim-moved-down.active { box-shadow:inset 0 0 0 2px var(--color-brand-primary); }
+.practice-journal:focus { outline:none; }
+/* 끝나고 돌아보기로 스크롤할 때 위에 붙은 상단 메뉴(--nav-h)에 제목이 가리지 않게 그만큼 띄워 멈춘다 */
+.vsim-journal { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
+/* 가상 시뮬레이션 기록은 바탕색이 있어 사건 카드끼리 띄우고 밑줄 대신 둥근 카드로 나눈다 */
+.vsim-journal .practice-decision { border-bottom:0; padding:calc(var(--density-gap)*.75) calc(var(--density-gap)/2); }
+.vsim-journal .practice-decision + .practice-decision { margin-top:calc(var(--density-gap)/2); }
+.vsim-journal .practice-decision:not(.vsim-moved-up):not(.vsim-moved-down) { box-shadow:inset 0 0 0 1px var(--color-border); }
+/* 기록의 사건을 누르면 차트로 올라가 그 기간을 강조한다. 상단 메뉴에 가리지 않게 띄워 멈춘다 */
+.vsim-chart-box { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
+.vsim-journal .practice-decision { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
+.vsim-clickable { cursor:pointer; }
+.vsim-journal-hint { font-size:12px; color:var(--color-text-tertiary); }
+.vsim-pinned { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); margin-bottom:calc(var(--density-gap)/2); background:var(--color-brand-subtle); border-radius:var(--radius-soft-sm); font-size:13px; }
+.vsim-pinned p { margin:0; color:var(--color-text-secondary); }
+.vsim-pinned b { color:var(--color-brand-text); margin-right:calc(var(--density-gap)/4); }
+.vsim-pinned span { display:flex; gap:calc(var(--density-gap)/3); }

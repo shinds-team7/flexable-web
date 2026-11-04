@@ -4,6 +4,7 @@ import BillingResult from '@/pages/BillingResult';
 import Diversify from '@/pages/Diversify';
 import FinanceGuide from '@/pages/FinanceGuide';
 import FinanceGuideCategory from '@/pages/FinanceGuideCategory';
+import FinanceGuideDetail from '@/pages/FinanceGuideDetail';
 import GoalScenarios from '@/pages/GoalScenarios';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
       // 금융 가이드(처음 쓰는 사람에게 예적금·주식·ETF 등 개념 안내). 금융정보(/finance)와 다른 화면
       { path: '/guide', element: <FinanceGuide /> },
       { path: '/guide/:category', element: <FinanceGuideCategory /> },
+      { path: '/guide/:category/:id', element: <FinanceGuideDetail /> },
       { path: '/news/:id', element: <Placeholder title="소식 상세" desc="소식 한 건의 자세한 내용" wireframe="청년 돈 소식" /> },
       { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <BillingResult /> },

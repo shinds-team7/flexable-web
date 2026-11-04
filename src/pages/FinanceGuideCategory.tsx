@@ -1,6 +1,6 @@
 // 금융 가이드 카테고리 화면(/guide/basic · /guide/product). 메인(/guide)의 카테고리 카드에서 들어온다.
 // 경로 표시 · 제목 → 꼭 알아야 하는 지식(고정 추천 가이드) → 전체 콘텐츠(검색 · 최신순/많이 본 순 · 콘텐츠 카드).
-// 상세 글은 따로 들어올 예정이라 카드의 '더보기'는 아직 준비 중이다(누를 수 없음). 주소의 #id로 들어오면 그 카드로 내려가 잠깐 강조한다.
+// 고정 추천 카드와 콘텐츠 카드는 상세 화면(/guide/:category/:id)으로 간다. 주소의 #id로 들어오면 그 카드로 내려가 잠깐 강조한다.
 // 검색어는 화면 메모리에만 두고 저장·전송하지 않는다.
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
@@ -74,13 +74,15 @@ function CategoryPage({ category }: { category: GuideCategory }) {
           </div>
           <ul className="fin-pinned">
             {pinned.map((c) => (
-              <li key={c.id} className="fin-pin-card">
-                <span className="fin-pin-art">
-                  <FinanceArt id={c.art} />
-                </span>
-                <b>{c.title}</b>
-                <span className="fin-pin-desc">{c.desc}</span>
-                <span className="fin-tag">#{c.tag}</span>
+              <li key={c.id}>
+                <Link to={`/guide/${c.category}/${c.id}`} className="fin-pin-card">
+                  <span className="fin-pin-art">
+                    <FinanceArt id={c.art} />
+                  </span>
+                  <b>{c.title}</b>
+                  <span className="fin-pin-desc">{c.desc}</span>
+                  <span className="fin-tag">#{c.tag}</span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -131,24 +133,26 @@ function CategoryPage({ category }: { category: GuideCategory }) {
               ))}
             </ul>
           )}
-          {GUIDE_CONTENTS.isSample && <p className="fin-list-foot">많이 본 순과 최신순은 예시 값으로 정렬해요. 콘텐츠 상세는 준비 중이에요.</p>}
+          {GUIDE_CONTENTS.isSample && <p className="fin-list-foot">많이 본 순과 최신순은 예시 값으로 정렬해요.</p>}
         </section>
       </div>
     </section>
   );
 }
 
-/** 콘텐츠 카드: 분류 · 제목 · 설명 · 태그 · 더보기(상세 준비 중이라 누를 수 없음) */
+/** 콘텐츠 카드: 분류 · 제목 · 설명 · 태그 · 더보기. 카드 전체가 상세 화면 링크다 */
 function ContentCard({ c, label, focused }: { c: GuideContent; label: string; focused: boolean }) {
   return (
-    <li id={`fin-c-${c.id}`} className={`fin-card${focused ? ' focused' : ''}`}>
-      <span className="fin-card-label">{label}</span>
-      <h3>{c.title}</h3>
-      <p>{c.desc}</p>
-      <span className="fin-tag">#{c.tag}</span>
-      <span className="fin-card-more" aria-disabled="true">
-        더보기 <span className="fin-card-soon">준비 중</span>
-      </span>
+    <li>
+      <Link id={`fin-c-${c.id}`} to={`/guide/${c.category}/${c.id}`} className={`fin-card${focused ? ' focused' : ''}`}>
+        <span className="fin-card-label">{label}</span>
+        <h3>{c.title}</h3>
+        <p>{c.desc}</p>
+        <span className="fin-tag">#{c.tag}</span>
+        <span className="fin-card-more">
+          더보기 <ChevronIcon />
+        </span>
+      </Link>
     </li>
   );
 }

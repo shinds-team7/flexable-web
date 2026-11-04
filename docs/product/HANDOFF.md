@@ -6,7 +6,7 @@
 
 | 이슈 | 판정·미해결 이유 | 지금 가능한 작업·완료 전제 |
 |---|---|---|
-| [#115 F7 개편 범위](https://github.com/shinds-team7/flexable-web/issues/115) | **종료 대상**. 10-29 결정·11-03 MVP에서 입력·AI 역할·시작 금액 0원(웹 수정값 미사용) 확정. #194 계산·저장, #202 경로, #228 AI·방침 병합 | 범위 확정 완료. AI 거절 버그는 #243. 성향·시작 자산 추가 입력까지 구현한 것은 아님 |
+| [#115 F7 개편 범위](https://github.com/shinds-team7/flexable-web/issues/115) | **완료·종료**. 10-29 결정·11-03 MVP에서 입력·AI 역할·시작 금액 0원(웹 수정값 미사용) 확정. #194 계산·저장, #202 경로, #228 AI·방침 병합 | 범위 확정 완료. AI 거절 버그는 #243. 성향·시작 자산 추가 입력까지 구현한 것은 아님 |
 | [#113 청년미래적금](https://github.com/shinds-team7/flexable-web/issues/113) | **미해결**. `src/data/savings.ts`는 `UNVERIFIED` 고정 예시. 기여금 시점·이자·일수/절사·은행별 입력/계약 미확정 | 공식 원문·검산·정책/fixture/계약 초안 가능. spec-change 선행 병합 뒤 계산 구현 |
 | [#114 F3](https://github.com/shinds-team7/flexable-web/issues/114) | **미해결**. `/mix`·`/p/:id`는 `Placeholder`. 유지/축소/연기·담당·일정·저장/공유 계약 없음 | 제품 범위·담당 결정이 먼저. `/type`·`/diversify`·F7 저장으로 대체 완료하지 않음 |
 | [#143 필터·로고](https://github.com/shinds-team7/flexable-web/issues/143) | **부분 완료**. 범위·금리 고지·출처·조회/비교는 #218·#221·#227·#236 병합. 우대조건 분류 필터 없음, `BankBadge.LOGOS` 비어 있음 | 기존 검색·회사·금융권·CMA 종류 필터와 구분. 분류/원문 매핑 초안 가능, 구조화 필드 추가는 계약 승인 선행. 로고 출처·이용 조건 필요. 확대 #245·운영 #246·계산 #247 별도 |

@@ -15,7 +15,7 @@ const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
  * target까지 숫자를 올린다(처음엔 0부터, 값이 바뀌면 이전 표시값부터). 정수 금액은 decimals 0으로 쓴다.
  * 돌려주는 값은 화면 표시용이다. 스크린 리더에는 최종값을 따로 읽히게 한다.
  */
-export function useCountUp(target: number, { duration = 900, decimals = 0 }: { duration?: number; decimals?: number } = {}) {
+export function useCountUp(target: number, { duration = 900, decimals = 0, delay = 0 }: { duration?: number; decimals?: number; delay?: number } = {}) {
   const [shown, setShown] = useState(() => (prefersReducedMotion() ? target : 0));
   const from = useRef(shown);
 
@@ -25,12 +25,12 @@ export function useCountUp(target: number, { duration = 900, decimals = 0 }: { d
       setShown(target);
       return;
     }
-    const start = performance.now();
+    const start = performance.now() + delay;
     const begin = from.current;
     const k = 10 ** decimals;
     let raf = 0;
     const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
+      const t = Math.min(1, Math.max(0, (now - start) / duration));
       const v = t === 1 ? target : Math.round((begin + (target - begin) * easeOutCubic(t)) * k) / k;
       from.current = v;
       setShown(v);
@@ -38,7 +38,7 @@ export function useCountUp(target: number, { duration = 900, decimals = 0 }: { d
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, duration, decimals]);
+  }, [target, duration, decimals, delay]);
 
   return shown;
 }

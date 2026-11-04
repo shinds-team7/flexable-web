@@ -87,6 +87,7 @@ function LayoutBody() {
   const { status, user } = useSession();
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
+  const [closedSub, setClosedSub] = useState<string | null>(null);
   const member = status === 'member';
   const exploring = status === 'guest' && !['/', '/home', '/login', '/signup', '/oauth/callback'].includes(pathname);
   useEffect(() => setMenu(false), [pathname]);
@@ -101,12 +102,23 @@ function LayoutBody() {
           </Link>
           <nav className={'mainnav' + (menu ? ' open' : '')} id="mainnav" aria-label="주 메뉴">
             {NAV.map((n) => (
-              <div key={n.to} className="navitem">
+              <div
+                key={n.to}
+                className={'navitem' + (closedSub === n.to ? ' closed' : '')}
+                onMouseLeave={() => setClosedSub((v) => (v === n.to ? null : v))}
+              >
                 <NavLink to={n.to}>{n.label}</NavLink>
                 {n.sub && (
                   <div className="subnav">
                     {n.sub.map((c) => (
-                      <Link key={c.to} to={c.to}>
+                      <Link
+                        key={c.to}
+                        to={c.to}
+                        onClick={(e) => {
+                          setClosedSub(n.to);
+                          e.currentTarget.blur();
+                        }}
+                      >
                         {c.label}
                       </Link>
                     ))}

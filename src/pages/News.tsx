@@ -1,7 +1,8 @@
 // 청년 금융 소식(/news). 설계: 02-design.md §5-7, 와이어프레임 「청년 돈 소식」.
-// 검색창 → [내 지원금 찾기 · 요즘 핫한 지원금] → 지원금 분석(파란 카드 + 입력 요령 글) → 조건으로 찾기 → 소식 목록(3열, 전체 너비).
+// 검색창 → [내 지원금 찾기 · 요즘 핫한 청년 소식] → 지원금 분석(파란 카드 + 입력 요령 글) → 조건으로 찾기 → 소식 목록(3열, 전체 너비).
+// 목록은 아래로 내리면 이어서 불러오는 무한 스크롤이고, 오른쪽 아래 버튼으로 맨 위로 올라간다.
 // 저장한 소식은 마이페이지(/mypage)에서 본다.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { InsightCard, GuideCard } from '@/components/news/NewsAnalysis';
 import { NewsFinder, type FinderTab } from '@/components/news/NewsDiagnosis';
 import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
@@ -17,8 +18,6 @@ import {
   DEFAULT_FILTER,
   EMPTY_CONDITIONS,
   NEWS_PAGE_SIZE,
-  pageCount,
-  pageWindow,
   selectNews,
   type NewsConditions,
   type NewsFilter,
@@ -26,8 +25,8 @@ import {
 } from '@/lib/newsList';
 
 const SORTS: { id: NewsSort; label: string }[] = [
-  { id: 'deadline', label: '마감 임박순' },
   { id: 'new', label: '새로운 순' },
+  { id: 'deadline', label: '마감 임박순' },
 ];
 
 export default function News() {
@@ -55,18 +54,28 @@ export default function News() {
   const insight = useMemo(() => monthInsight(items, today), [items, today]);
   const picks = useMemo(() => pickHot(items, hot.data, today), [items, hot.data, today]);
 
-  // 목록은 한 페이지에 NEWS_PAGE_SIZE개. 조건·검색·정렬을 바꾸면 1페이지로 돌아간다
-  const [page, setPage] = useState(1);
-  const pages = pageCount(list.length);
-  const current = Math.min(page, pages);
-  const shown = list.slice((current - 1) * NEWS_PAGE_SIZE, current * NEWS_PAGE_SIZE);
+  // 목록은 NEWS_PAGE_SIZE개씩 이어서 보여 준다. 조건·검색·정렬을 바꾸면 처음부터 다시 쌓는다
+  const [visible, setVisible] = useState(NEWS_PAGE_SIZE);
+  const shown = list.slice(0, visible);
+  const hasMore = visible < list.length;
   const resultsTop = useRef<HTMLHeadingElement>(null);
-  useEffect(() => setPage(1), [filter, applied]);
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => setVisible(NEWS_PAGE_SIZE), [filter, applied]);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && setVisible((v) => v + NEWS_PAGE_SIZE), { rootMargin: '0px 0px 400px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, visible]);
+  const [showTop, setShowTop] = useState(false);
+  useEffect(() => {
+    const on = () => setShowTop(window.scrollY > 600);
+    on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, []);
   const goResults = () => resultsTop.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  const goPage = (p: number) => {
-    setPage(p);
-    resultsTop.current?.scrollIntoView({ block: 'start' });
-  };
   const openFinder = (tab: FinderTab) => {
     setFinderTab(tab);
     setTimeout(() => document.getElementById('news-conditions')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 0);
@@ -178,40 +187,27 @@ export default function News() {
                     <NewsCard key={n.id} n={n} today={today} isSample={isSample} saved={isSaved(n.id)} onToggleSave={() => onToggleSave(n)} onToast={setToast} />
                   ))}
                 </div>
-                {pages > 1 && (
-                  <nav className="news-pager" aria-label="소식 페이지">
-                    <button type="button" className="btn btn-line btn-sm" disabled={current === 1} onClick={() => goPage(current - 1)}>
-                      이전
-                    </button>
-                    {pageWindow(current, pages).map((p, i) =>
-                      p === null ? (
-                        <span key={`gap-${i}`} className="news-pager-gap" aria-hidden="true">
-                          …
-                        </span>
-                      ) : (
-                        <button
-                          key={p}
-                          type="button"
-                          className="chip num"
-                          aria-current={p === current ? 'page' : undefined}
-                          aria-pressed={p === current}
-                          aria-label={`${p}페이지`}
-                          onClick={() => goPage(p)}
-                        >
-                          {p}
-                        </button>
-                      ),
-                    )}
-                    <button type="button" className="btn btn-line btn-sm" disabled={current === pages} onClick={() => goPage(current + 1)}>
-                      다음
-                    </button>
-                  </nav>
+                {hasMore && (
+                  <div ref={sentinel} className="news-more" role="status" aria-label="소식을 더 불러오는 중">
+                    <span className="dots-spinner" aria-hidden="true">
+                      {Array.from({ length: 8 }, (_, i) => (
+                        <i key={i} style={{ '--i': i } as CSSProperties} />
+                      ))}
+                    </span>
+                  </div>
                 )}
               </>
             )}
           </section>
         </div>
       </div>
+      {showTop && (
+        <button type="button" className="news-top" aria-label="맨 위로" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
+        </button>
+      )}
       {/* 알림 영역은 늘 두고 안의 글자만 바꾼다. 새로 끼워 넣은 role=status는 일부 스크린리더가 읽지 않는다 */}
       <div role="status">{toast && <div className="toast">{toast}</div>}</div>
     </section>

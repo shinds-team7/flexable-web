@@ -3,11 +3,11 @@
   "policy": "docs/policies.md §8",
   "versions": { "types": "vsim-types-v2", "ruleset": "vsim-rules-v2", "check": "vsim-check-v2" },
   "tradeAndQuiz": {
-    "note": "매매·평가·판정은 §5를 그대로 쓴다. 테스트는 practice.json의 아래 키를 다시 읽는다",
+    "note": "매매·평가는 §5 그대로(practice.json 아래 키). quizCases는 점수에 넣지 않는 '이번 결과' 판정으로 다시 쓴다",
     "source": "practice.json",
     "keys": ["tradeSequence", "insufficientCash", "negativeRounding", "quizCases"]
   },
-  "window": { "minLength": 120, "maxLength": 250, "minQuestions": 3, "maxQuestions": 5, "leadDays": 14, "followDays": 5 },
+  "window": { "minLength": 120, "maxLength": 250, "minQuestions": 3, "maxQuestions": 5, "minClearQuestions": 2, "leadDays": 14, "followDays": 5 },
   "dates": {
     "yearOffset": 10,
     "baseYear": [
@@ -74,6 +74,7 @@
     "minPathsPerType": 30,
     "maxPathsPerType": 500,
     "minTypes": 3,
+    "minClearTypes": 2,
     "sampleSource": "dart_disclosures(수집 대상 종목의 최근 5년 DART 공시 전체, 5년을 다 받은 종목만). event_sources는 쓰지 않는다",
     "upShare": [
       { "paths": 340, "up": 227, "expected": 0.6676 },
@@ -109,6 +110,27 @@
       { "prevClose": 5003, "r": -7, "g": -3, "u": 1, "d": 1, "expected": { "open": 5001, "high": 5001, "low": 4999, "close": 4999 } }
     ]
   },
+  "trend": {
+    "note": "기준값은 임시. 구현 PR에서 전체 공시 분포로 확정",
+    "upAtLeast": 0.55,
+    "downAtMost": 0.45,
+    "minPaths": 100,
+    "cases": [
+      { "paths": 340, "up": 227, "upShare": 0.6676, "expected": "UP" },
+      { "paths": 200, "up": 110, "upShare": 0.55, "expected": "UP" },
+      { "paths": 200, "up": 109, "upShare": 0.545, "expected": "MIXED" },
+      { "paths": 200, "up": 90, "upShare": 0.45, "expected": "DOWN" },
+      { "paths": 150, "up": 60, "upShare": 0.4, "expected": "DOWN" },
+      { "paths": 99, "up": 70, "upShare": 0.707, "expected": "MIXED", "note": "경로 100개 미만" }
+    ],
+    "scoring": [
+      { "trend": "UP", "prediction": "POSITIVE", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "CORRECT", "outcome": "CORRECT" },
+      { "trend": "UP", "prediction": "POSITIVE", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "CORRECT", "outcome": "INCORRECT" },
+      { "trend": "DOWN", "prediction": "POSITIVE", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "INCORRECT", "outcome": "CORRECT" },
+      { "trend": "DOWN", "prediction": "NEGATIVE", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": "CORRECT", "outcome": "NEUTRAL" },
+      { "trend": "MIXED", "prediction": "NEGATIVE", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "NEUTRAL", "outcome": "CORRECT" }
+    ]
+  },
   "generation": {
     "note": "예시 룰셋(fake)으로 시드 여러 개를 돌려 확인하는 성질. 값은 고정하지 않는다",
     "properties": [
@@ -117,7 +139,7 @@
       "모든 봉이 전날 종가의 ±30% 제한 안이다",
       "길이는 120~250이고 날짜는 평일만, 하루씩 이어진다",
       "시작일 연도 = 세션 시작일 연도 + 10",
-      "문제는 3~5개이고 유형이 서로 다르며 PracticeWindow.questions가 모두 출제한다",
+      "문제는 3~5개이고 유형이 서로 다르며, 경향이 뚜렷한 유형(UP·DOWN)이 2개 이상이고, PracticeWindow.questions가 모두 출제한다",
       "사건 뒤 1~5번째 봉의 종가 등락이 그 유형에서 뽑은 경로 값과 같다(제한에 걸리지 않은 경우)"
     ]
   },

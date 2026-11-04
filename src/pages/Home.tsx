@@ -19,6 +19,7 @@ import { fmtMonthDay, won } from '@/lib/format';
 
 /** 서버 SeedMoneyDtos.MAX_MANUAL_TOTAL과 같다(10억 원) */
 const MAX_MANUAL = 1_000_000_000;
+const MAX_DIGITS = String(MAX_MANUAL).length;
 
 /** 히어로 배경 장면(H.264·소리 없음). 움직임 줄이기를 켠 사용자에게는 첫 프레임만 보여 준다 */
 const SCENE_VIDEO = '/videos/cat-mine.mp4';
@@ -54,8 +55,14 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
       setError('숫자만 입력해 주세요.');
       return;
     }
+    const digits = raw === '' ? '' : String(Number(raw));
+    // 넣을 수 있는 최대 자리수(10억 = 10자리)를 넘으면 더 받지 않는다
+    if (digits.length > MAX_DIGITS) {
+      setError(`${MAX_DIGITS}자리(${won(MAX_MANUAL)}원)까지 넣을 수 있어요.`);
+      return;
+    }
     setError('');
-    setDraft(raw === '' ? '' : String(Number(raw)));
+    setDraft(digits);
   };
 
   const draftText = draft === '' ? '' : won(Number(draft));
@@ -97,23 +104,17 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         <div className="hero-label">
           내 시드머니
           {manual != null && <span className="tag">직접 입력</span>}
-          <span className="hero-edit-controls">
-            <button type="button" className="hero-edit" style={{ visibility: editing ? 'hidden' : undefined }} tabIndex={editing ? -1 : undefined} onClick={() => (setDraft(String(amount)), setEditing(true))}>
+          {editing ? (
+            <button type="submit" form="seed-manual-form" className="hero-edit hero-save" disabled={busy}>
+              {busy ? '저장 중…' : '저장'}
+            </button>
+          ) : (
+            <button type="button" className="hero-edit" onClick={() => (setDraft(String(amount)), setEditing(true))}>
               수정하기
             </button>
-            {editing && (
-              <span className="seed-inline-acts">
-                <button type="button" className="btn btn-line btn-sm" onClick={cancel} disabled={busy}>
-                  취소
-                </button>
-                <button type="submit" form="seed-manual-form" className="btn btn-primary btn-sm" disabled={busy}>
-                  {busy ? '저장 중…' : '저장'}
-                </button>
-              </span>
-            )}
-          </span>
+          )}
         </div>
-        <div className="hero-amount">
+        <div className={'hero-amount' + (editing ? ' is-editing' : '')}>
           <p className="hero-num num" style={{ visibility: editing ? 'hidden' : undefined }} aria-hidden={editing || undefined}>
             <RollingNumber value={amount} />
             <small>원</small>

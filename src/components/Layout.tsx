@@ -61,7 +61,6 @@ function SeedChip() {
   return (
     <div ref={box} style={{ position: 'relative' }}>
       <button className="seed-chip" aria-expanded={open} aria-controls="seedPop" onClick={() => setOpen((v) => !v)}>
-        <span className="lbl">내 시드머니</span>
         <b className="num">{won(amount)}원</b>
         {data.isSample && <span className="tag-ex">예시</span>}
       </button>
@@ -123,8 +122,11 @@ function LayoutBody() {
             </button>
             {member && <SeedChip />}
             {member && (
-              <Link className="avatar" to="/mypage/settings" aria-label="내 정보">
-                {displayName(user).slice(0, 1).toUpperCase()}
+              <Link className="avatar" to="/mypage" aria-label={`${displayName(user)} 마이페이지`}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" />
+                </svg>
               </Link>
             )}
             {status === 'guest' && (

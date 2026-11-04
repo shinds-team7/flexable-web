@@ -1,4 +1,4 @@
-// 저장한 소식 카드(마이페이지 오른쪽). 마감 임박순(마감된 소식은 맨 아래), 목록에서 빠져도 저장한 소식은 남는다. 저장은 이 브라우저에만 한다.
+// 저장한 소식 카드(마이페이지 오른쪽). 마감 임박순(마감된 소식은 맨 아래), 목록에서 빠져도 저장한 소식은 남는다.
 import { Link } from 'react-router-dom';
 import type { YouthNews } from '@/data/news';
 import { recordNewsView } from '@/data/newsHot';
@@ -55,7 +55,7 @@ export function SavedNews({ saved, items, today, onRemove }: Props) {
           </ul>
         )}
         <p className="meta" style={{ marginTop: 12 }}>
-          마감이 지난 소식은 여기에 '마감됨'으로 남아요. 저장은 이 브라우저에만 돼요.
+          마감이 지난 소식은 여기에 '마감됨'으로 남아요.
         </p>
       </div>
     </div>

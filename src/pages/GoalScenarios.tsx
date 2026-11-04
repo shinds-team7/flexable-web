@@ -4,7 +4,7 @@ import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useLoginModal } from '@/components/LoginModal';
 import {
-  GOAL_LIMITS, GOAL_PRESETS, TYPE_LABEL, deleteSavedScenario, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
+  FALLBACK_TEXT, GOAL_LIMITS, GOAL_PRESETS, TYPE_LABEL, deleteSavedScenario, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
   type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
 } from '@/data/goalScenarios';
 import { ApiError, errorText } from '@/lib/api';
@@ -91,7 +91,7 @@ function PlanDetail({ plan, products, targetAmount, years, demo }: {
       </div>
     </div>
     <div className="gp-card gp-ai">
-      <h3 className="gp-h3">{demo ? '조합 해설' : 'AI 해설'} {demo && <span className="gp-badge gp-badge-muted">AI 연결 전 예시 문구</span>}</h3>
+      <h3 className="gp-h3">{demo ? '조합 해설' : 'AI 해설'} {demo && <span className="gp-badge gp-badge-muted">예시 문구</span>}</h3>
       <p>{plan.explanation}</p>
     </div>
   </>;
@@ -330,7 +330,12 @@ export default function GoalScenarios() {
       <div ref={resultRef}>
         {result && plan && !loading && <section aria-labelledby="gp-result-title">
           <h2 id="gp-result-title" className="gp-h2"><span className="gp-step">2</span>{demo ? '세 가지 방법' : 'AI가 고른 방법'}
-            {demo && <span className="gp-badge gp-badge-muted">AI 연결 전 예시 조합</span>}</h2>
+            {demo ? <span className="gp-badge gp-badge-muted">예시 조합</span> : <span className="gp-badge">AI 조합</span>}
+            {result.aiUsage && <span className="gp-badge gp-badge-muted">오늘 AI 조합 {result.aiUsage.remainingToday}/{result.aiUsage.limitPerDay}회 남음</span>}</h2>
+          {demo && result.fallbackReason && <div className="gp-fallback" role="status">
+            <span>{FALLBACK_TEXT[result.fallbackReason]}</span>
+            {result.fallbackReason === 'GUEST' && <button type="button" className="gp-secondary" onClick={() => openLogin(location.pathname)}>로그인하고 AI 조합 받기</button>}
+          </div>}
           <div className="gp-summary">
             <div><b>{result.name}</b> · {result.years}년 뒤 {manwon(result.targetAmount)} · 시작 금액 0원</div>
             <span className="gp-badge">자료 기준일 {result.asOf}</span>

@@ -3,7 +3,7 @@ package com.flexable.web.goalscenario;
 import java.util.List;
 
 /**
- * 조합을 정하는 제안기. AI 제안기는 키를 넣는 작업에서 붙인다. 지금은 AI가 없으므로 서비스가 데모 조합을 쓴다(AI_UNAVAILABLE).
+ * 조합을 정하는 제안기(policies §7-6). 키가 있으면 OpenAI 제안기(OpenAiScenarioProposer)가 붙는다.
  * 제안기는 상품 유형과 비중·문구만 내고, 금액·확률은 서버가 계산한다.
  */
 interface ScenarioProposer {
@@ -12,10 +12,21 @@ interface ScenarioProposer {
 	boolean enabled();
 
 	/**
-	 * 목표 금액·기한에 맞춘 시나리오 2~3개. 실패하면 Failed를 던진다.
-	 * 목표 이름은 넘기지 않는다(외부 전송 항목을 줄인다).
+	 * 목표 금액·기한과 유형별 통계에 맞춘 시나리오 2~3개. 실패하면 Failed를 던진다.
+	 * 목표 이름·회원 식별자는 넘기지 않는다(외부 전송 항목을 줄인다).
 	 */
-	List<Proposals.Draft> propose(long targetAmount, int years);
+	List<Proposals.Draft> propose(Input input);
+
+	/** AI에게 보내는 값 전부. */
+	record Input(long targetAmount, int years, int months, List<TypeStat> stats) {
+	}
+
+	/**
+	 * 유형별 사실. 금리 확정 유형은 ratePercent만, 투자 유형은 지난 60개월 월 수익률의 평균·표준편차와 최대 하락(소수, 0.05 = 5%)만 채운다.
+	 */
+	record TypeStat(String type, String description, String ratePercent, String meanMonthlyReturn, String monthlyVolatility,
+			String maxDrawdown) {
+	}
 
 	class Failed extends RuntimeException {
 		Failed(String message) {

@@ -46,6 +46,11 @@ app:
     coach:
       free-daily-limit: ${GOAL_COACH_FREE_DAILY_LIMIT:3}
       daily-cap: ${GOAL_COACH_DAILY_CAP:300}
+    scenario:
+      ai:
+        # 목표 시나리오 AI 조합(policies §7-6). 키는 위 openai와 같다. 회원당 하루 횟수, 서비스 전체 하루 상한
+        free-daily-limit: ${GOAL_SCENARIO_AI_DAILY_LIMIT:5}
+        daily-cap: ${GOAL_SCENARIO_AI_DAILY_CAP:300}
   auth:
     jwt:
       # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).

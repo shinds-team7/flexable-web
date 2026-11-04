@@ -1,5 +1,5 @@
 // F7 v2 목표 달성 시나리오(POST /goal/scenarios, docs/policies.md §7). 금액·확률·비중은 모두 서버 계산 결과를 그대로 쓴다(ADR-3).
-// 조합은 AI가 정할 자리이고, AI 연결 전에는 서버가 데모 조합을 돌려준다(proposer=DEMO).
+// 조합은 로그인한 회원이면 AI(OpenAI)가 정하고, 비회원·횟수 초과·실패 때는 서버가 데모 조합을 돌려준다(proposer=DEMO, §7-6).
 // 회원은 고른 시나리오를 그때 결과 그대로 최대 5개 저장한다(policies §7-8, /me/goal/scenarios). 저장은 resultId(서버 30분 보관)로만 한다.
 import { api } from '@/lib/api';
 
@@ -43,7 +43,7 @@ export type GoalScenarioResult = {
   years: number;
   months: number;
   proposer: 'AI' | 'DEMO';
-  fallbackReason: 'AI_UNAVAILABLE' | 'AI_FAILED' | 'AI_REJECTED' | null;
+  fallbackReason: ScenarioFallbackReason | null;
   asOf: string;
   returnsFrom: string;
   returnsTo: string;
@@ -55,6 +55,19 @@ export type GoalScenarioResult = {
   assumptions: string[];
   notice: string;
   isSample: boolean;
+  aiUsage: { limitPerDay: number; remainingToday: number } | null;
+};
+
+export type ScenarioFallbackReason = 'AI_UNAVAILABLE' | 'GUEST' | 'LIMIT' | 'DAILY_CAP' | 'AI_FAILED' | 'AI_REJECTED';
+
+/** 데모 조합으로 바꾼 이유를 화면 문구로. */
+export const FALLBACK_TEXT: Record<ScenarioFallbackReason, string> = {
+  AI_UNAVAILABLE: 'AI 연결 전이라 예시 조합을 보여 드려요.',
+  GUEST: '로그인하면 목표에 맞춘 AI 조합을 받을 수 있어요. 지금은 예시 조합이에요.',
+  LIMIT: '오늘 AI 조합 횟수를 다 썼어요. 내일 다시 받을 수 있고, 지금은 예시 조합이에요.',
+  DAILY_CAP: '오늘은 AI 이용이 많아 예시 조합을 보여 드려요. 내일 다시 시도해 주세요.',
+  AI_FAILED: 'AI 조합을 받지 못해 예시 조합을 보여 드려요. 잠시 뒤 다시 시도해 주세요.',
+  AI_REJECTED: 'AI가 낸 조합이 기준에 맞지 않아 예시 조합을 보여 드려요.',
 };
 
 export type SavedScenarioSummary = {

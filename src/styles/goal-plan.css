@@ -136,3 +136,4 @@ dialog.gp-view-dialog{width:min(980px,calc(100vw - 32px));max-height:calc(100vh 
 .gp-saved-actions .gp-text-btn:hover{background:var(--color-brand-subtle)}
 .gp-saved-actions .gp-text-btn.gp-danger{border-color:var(--color-danger)}
 .gp-saved-actions .gp-text-btn.gp-danger:hover{background:var(--color-danger-subtle)}
+.gp-fallback{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:calc(var(--density-gap)/2);margin:calc(var(--density-gap)/2) 0;padding:calc(var(--density-gap)/2) calc(var(--density-gap)*2/3);border:1px solid var(--color-border);border-radius:var(--radius-soft-sm);background:var(--color-surface);font-size:14px;color:var(--color-text-secondary)}

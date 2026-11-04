@@ -180,6 +180,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `NEWS_SEARCH_SOURCE`, `NAVER_API_HUB_KEY_ID`, `NAVER_API_HUB_KEY` | 사건 상세 뉴스 기사(api의 요청 중 외부 호출, 저장·캐시 안 함). `naver`·`fake`(예시 기사), NAVER API HUB 뉴스 검색 Client ID·Secret. 키가 비어 있으면 뉴스 칸만 `UNAVAILABLE` | `naver`, 없음, 없음 |
 | `NAVER_API_HUB_BASE_URL`, `NAVER_NEWS_DAILY_CAP` | NAVER API HUB 주소, 서버 하루(KST) 호출 상한(하루 한도 25,000회보다 낮게) | `https://naverapihub.apigw.ntruss.com`, `20000` |
 | `GOAL_COACH_DAILY_CAP` | 회원 정보 없는 DB 날짜별 전체 상한(탈퇴해도 유지) | `300` |
+| `GOAL_SCENARIO_AI_DAILY_LIMIT`, `GOAL_SCENARIO_AI_DAILY_CAP` | 목표 시나리오 AI 조합(policies §7-6): 회원당 KST 하루 횟수, 회원 정보 없는 서비스 전체 하루 상한. 키는 `OPENAI_API_KEY`(없으면 데모 조합) | `5`, `300` |
 | `MARKET_TOP_LIMIT` | 시장마다 시가총액 상위 몇 종목을 보여 주고 계산·수집할지 | `100` |
 | `MARKET_PRICE_SOURCE`, `MARKET_INSTRUMENT_SOURCE`, `MARKET_INSTRUMENT_FALLBACK` | worker 수집 소스(위 표) | `kiwoom`, `krx`, `kiwoom` |
 | `MARKET_BACKFILL_YEARS`, `MARKET_SYNC_ON_START`, `MARKET_SYNC_CRON` | 처음 받을 기간, 켜질 때 한 번 돌지, 정기 실행 시각(Asia/Seoul) | `5`, `true`, `0 30 18 * * MON-FRI` |

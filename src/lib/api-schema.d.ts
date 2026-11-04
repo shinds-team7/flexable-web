@@ -2822,7 +2822,7 @@ export interface components {
                 /** Format: date-time */
                 generatedAt: string;
             };
-            /** @description 가격 움직임을 뽑은 실제 시장 통계. 예시 룰셋이면 dataFrom·dataTo는 null */
+            /** @description 가격 움직임을 뽑은 통계. 실제 세션은 실제 시장 통계, 예시 세션(isSample=true)은 코드에 넣은 예시 룰셋이고 dataFrom·dataTo는 null */
             ruleset: {
                 version: string;
                 /** Format: date */
@@ -2900,7 +2900,7 @@ export interface components {
                 outcomeDate: string | null;
                 subsequentReturnRate: number | null;
             }[];
-            /** @description 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 시장 통계로 만든 가상 움직임, 사건 문장과 등락이 어긋날 수 있음, 표본 편향, 비권유, 세금/수수료/배당 제외 고지 */
+            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 시장 통계로 만든 가상 움직임, 사건 문장과 등락이 어긋날 수 있음, 표본 편향, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
             notice: string;
             sources: string[];
         };

@@ -102,9 +102,10 @@ public class VirtualSimStore {
 		}
 	}
 
-	/** 공시 목록을 다 받은 종목 코드 */
+	/** 공시 목록을 다 받은 종목 코드. 이어 받는 중(pending_from이 있음)인 종목은 최근 공시가 일부만 모였으므로 뺀다 */
 	public List<String> archivedStocks() {
-		return jdbc.queryForList("SELECT stock_code FROM dart_disclosure_archive WHERE covered_to IS NOT NULL ORDER BY stock_code", String.class);
+		return jdbc.queryForList("SELECT stock_code FROM dart_disclosure_archive WHERE covered_to IS NOT NULL AND pending_from IS NULL ORDER BY stock_code",
+				String.class);
 	}
 
 	// ───────── 룰셋 ─────────

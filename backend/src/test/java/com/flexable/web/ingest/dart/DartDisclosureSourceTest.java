@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.io.ByteArrayOutputStream;
@@ -17,6 +18,7 @@ import java.util.zip.ZipOutputStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -78,6 +80,17 @@ class DartDisclosureSourceTest {
 			assertThat(e.status()).isEqualTo("020");
 			assertThat(e.stopsRun()).isTrue();
 		});
+	}
+
+	@Test
+	void HTTP_429도_실행을_멈추는_한도_초과() {
+		server.expect(requestTo(LIST.formatted(1))).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+		assertThatThrownBy(() -> dart.page("00126380", LocalDate.of(2025, 4, 1), LocalDate.of(2025, 4, 11), 1))
+			.isInstanceOfSatisfying(DartDisclosureSource.DartException.class, e -> {
+				assertThat(e.status()).isEqualTo("429");
+				assertThat(e.stopsRun()).isTrue();
+				assertThat(e.getMessage()).doesNotContain(KEY);
+			});
 	}
 
 	@Test

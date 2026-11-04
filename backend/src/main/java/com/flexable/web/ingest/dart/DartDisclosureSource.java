@@ -21,6 +21,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -40,6 +41,8 @@ public class DartDisclosureSource implements DisclosureSource {
 	private static final int MAX_PAGES = 5;
 	/** 조회된 데이터가 없음 */
 	static final String NO_DATA = "013";
+	/** HTTP 429를 받은 경우의 상태 값(OpenDART 020 한도 초과와 같이 실행을 멈춘다) */
+	static final String TOO_MANY_REQUESTS = "429";
 
 	private final RestClient http;
 	private final String baseUrl;
@@ -222,7 +225,11 @@ public class DartDisclosureSource implements DisclosureSource {
 		return new Page(out, res.get("total_page") instanceof Number n ? n.intValue() : 1);
 	}
 
+	/** HTTP 429(요청 한도 초과)는 JSON 020과 같이 실행을 멈추는 DartException으로, 그 밖은 키를 가린 IllegalStateException으로 바꾼다 */
 	private RuntimeException hideKey(RestClientException e) {
+		if (e instanceof HttpStatusCodeException h && h.getStatusCode().value() == 429) {
+			return new DartException(TOO_MANY_REQUESTS, "요청 한도 초과(HTTP 429)");
+		}
 		String msg = String.valueOf(e.getMessage());
 		if (enabled()) {
 			msg = msg.replace(apiKey, "***");
@@ -265,7 +272,7 @@ public class DartDisclosureSource implements DisclosureSource {
 
 		/** 다음 호출도 같은 이유로 실패할 오류인지(키 문제·한도 초과). */
 		public boolean stopsRun() {
-			return status != null && List.of("010", "011", "012", "020", "901").contains(status);
+			return status != null && List.of("010", "011", "012", "020", "901", TOO_MANY_REQUESTS).contains(status);
 		}
 	}
 }

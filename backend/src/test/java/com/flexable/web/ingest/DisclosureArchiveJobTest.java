@@ -130,6 +130,12 @@ class DisclosureArchiveJobTest {
 		assertThat(store.disclosures("005930")).hasSize(6);
 		assertThat(runs.findFirstByJobOrderByIdDesc(DisclosureArchiveJob.JOB).orElseThrow().getStatus()).isEqualTo("SUCCESS");
 
+		// 이어 받는 중(pending)인 종목은 완료 목록에서 뺀다(최근 공시가 일부만 모였으므로)
+		var a = store.archive("005930").orElseThrow();
+		store.saveArchive(new VirtualSimStore.Archive(a.stockCode(), a.corpCode(), a.coveredFrom(), a.coveredTo(), a.coveredTo(), today, 2));
+		assertThat(store.archivedStocks()).doesNotContain("005930");
+		store.saveArchive(new VirtualSimStore.Archive(a.stockCode(), a.corpCode(), a.coveredFrom(), a.coveredTo(), null, null, null));
+
 		// 같은 접수번호는 다시 넣지 않는다
 		assertThat(store.saveDisclosures(List.of(new VirtualSimStore.DisclosureRow(store.disclosures("005930").getFirst().receiptNo(), "005930", "00126380",
 				"단일판매ㆍ공급계약체결", today)))).isZero();

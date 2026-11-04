@@ -5,6 +5,8 @@
   color-scheme: light;
 
   /* 색 · 브랜드 */
+  --color-card-sky:#0085E5;      /* 투자성향 시작 카드(왼쪽). 레퍼런스 색 */
+  --color-card-violet:#5B44F2;   /* 투자성향 시작 카드(오른쪽) */
   --color-brand-primary:#0046FF;
   --color-brand-primary-hover:#0037CC;
   --color-brand-subtle:#EEF3FF;

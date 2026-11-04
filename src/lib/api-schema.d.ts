@@ -2801,10 +2801,10 @@ export interface components {
             sources: string[];
         };
         /**
-         * @description 가상 사건 유형(vsim-types-v1, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
+         * @description 가상 사건 유형(vsim-types-v2, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
          * @enum {string}
          */
-        VirtualSimCategory: "EARNINGS" | "SUPPLY_CONTRACT" | "NEW_SHARES" | "BONUS_SHARES" | "BONDS" | "BUYBACK" | "DIVIDEND" | "RESTRUCTURE" | "FACILITY" | "LEGAL" | "OWNERSHIP";
+        VirtualSimCategory: "EARNINGS" | "SUPPLY_CONTRACT" | "NEW_SHARES" | "BONUS_SHARES" | "BONDS" | "BUYBACK_ACQUIRE" | "BUYBACK_DISPOSE" | "DIVIDEND" | "RESTRUCTURE" | "FACILITY" | "LEGAL" | "OWNERSHIP";
         VirtualSimSnapshot: {
             version: number;
             /** @enum {string} */
@@ -2856,11 +2856,12 @@ export interface components {
                 portfolio: components["schemas"]["PracticePortfolio"];
             }[];
             portfolio: components["schemas"]["PracticePortfolio"];
-            /** @description AWAITING_DECISION일 때만 현재 가상 사건. 그 밖에는 null. 글은 AI가 썼고 이후 움직임과 따로 정해진다 */
+            /** @description AWAITING_DECISION일 때만 현재 가상 사건. 그 밖에는 null. 제목은 서버가 붙인 실제 공시 제목 형식, 본문은 AI가 쓴 중립 사실(좋고 나쁨·금액 없음). 이후 움직임은 같은 유형 실제 공시 뒤 경로에서 뽑는다 */
             event: {
                 id: string;
                 category: components["schemas"]["VirtualSimCategory"];
                 categoryName: string;
+                /** @description 유형마다 서버가 정한 실제 DART 보고서명 형식(예: 단일판매ㆍ공급계약체결) */
                 title: string;
                 body: string;
                 /**
@@ -2899,8 +2900,12 @@ export interface components {
                 /** Format: date */
                 outcomeDate: string | null;
                 subsequentReturnRate: number | null;
+                /** @description 판정 뒤(outcome이 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
+                categoryUpShare: number | null;
+                /** @description 판정 뒤만. categoryUpShare를 센 공시 수. 판정 전에는 null */
+                categorySampleCount: number | null;
             }[];
-            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 시장 통계로 만든 가상 움직임, 사건 문장과 등락이 어긋날 수 있음, 표본 편향, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
+            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
             notice: string;
             sources: string[];
         };

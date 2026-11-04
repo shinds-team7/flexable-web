@@ -1467,3 +1467,48 @@ a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-un
 
 /* 무한 스크롤 끝 표시 */
 .news-more{display:flex;justify-content:center;padding:28px 0 8px}
+
+/* /type/about: 금융 가이드형 페이지 */
+.ia{display:grid;grid-template-columns:200px minmax(0,720px);gap:48px;justify-content:center;align-items:start;margin:24px auto 0}
+.ia-toc{position:sticky;top:24px;display:flex;flex-direction:column;gap:12px;font-size:14px}
+.ia-toc ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;border-left:2px solid var(--color-border)}
+.ia-toc a{display:block;padding-left:12px;color:var(--color-text-secondary)}
+.ia-toc a:hover{color:var(--color-brand-text)}
+.ia-body{display:flex;flex-direction:column;gap:32px;min-width:0}
+.ia-title{display:flex;flex-direction:column;gap:8px}
+.ia-title h1{margin:0;line-height:1.35}
+.ia-sec{display:flex;flex-direction:column;gap:16px;padding-top:32px;border-top:1px solid var(--color-border)}
+.ia-head{display:flex;flex-direction:column;gap:4px}
+.ia-head h2,.ia-summary h2{margin:0;font-size:24px;line-height:32px;font-weight:800}
+.ia-prose{display:flex;flex-direction:column;gap:12px;line-height:28px}
+.ia-prose p,.ia-step p,.ia-box p{margin:0}
+.ia-prose ul,.ia-box ul,.ia-list,.ia-notice ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:24px}
+.ia-summary{padding:24px 28px;border-radius:var(--radius-soft);background:var(--color-brand-subtle);display:flex;flex-direction:column;gap:12px}
+.ia-summary ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:10px;line-height:26px;font-weight:600}
+.ia-step{display:flex;flex-direction:column;gap:12px;line-height:26px}
+.ia-step h3{margin:8px 0 0;display:flex;gap:8px;align-items:center;font-size:18px;font-weight:800}
+.ia-step h3 i{font-style:normal;color:var(--color-brand-text)}
+.ia-box{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:var(--radius-soft);background:var(--color-bg-subtle);line-height:24px}
+.ia-box.plain{background:transparent;border:1px solid var(--color-border);color:var(--color-text-secondary);font-size:14px}
+.ia-defs{margin:0;display:flex;flex-direction:column;gap:8px}
+.ia-defs div{display:flex;flex-direction:column;gap:2px;padding:12px 16px;border-radius:var(--radius-soft-sm);background:var(--color-surface)}
+.ia-defs dt{font-weight:700}
+.ia-defs dd{margin:0}
+.ia-types{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.ia-types li{display:flex;flex-direction:column;gap:4px;padding:16px 20px;border-radius:var(--radius-soft);background:var(--color-bg-subtle);line-height:24px}
+.ia-table-wrap{overflow-x:auto}
+.ia-table{width:100%;border-collapse:collapse}
+.ia-table th,.ia-table td{padding:14px 16px;text-align:left;border-bottom:1px solid var(--color-border)}
+.ia-table thead th{background:var(--color-bg-subtle);font-weight:700}
+.ia-faq{margin:0;display:flex;flex-direction:column;gap:20px}
+.ia-faq dt{font-weight:800;line-height:26px}
+.ia-faq dd{margin:6px 0 0;line-height:26px;color:var(--color-text-secondary)}
+.ia-tags{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px;color:var(--color-text-tertiary);font-size:14px}
+.ia-cta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px;border-radius:var(--radius-soft);background:var(--color-brand-subtle);font-weight:700}
+.ia-fig{margin:0;display:flex;flex-direction:column;gap:8px}
+.ia-fig img{display:block;width:100%;height:auto;border-radius:var(--radius-soft)}
+.ia-fig figcaption{font-size:14px;line-height:22px;color:var(--color-text-secondary)}
+.ia-fig-empty{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;min-height:180px;padding:16px;border:1px dashed var(--color-border-strong);border-radius:var(--radius-soft);background:var(--color-bg-subtle);color:var(--color-text-tertiary);font-size:13px;text-align:center}
+.ia-shots{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.ia-notice{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:var(--radius-soft);background:var(--color-bg-subtle);color:var(--color-text-secondary);font-size:13px}
+@media (max-width:960px){.ia{grid-template-columns:minmax(0,1fr);gap:24px}.ia-toc{position:static}.ia-toc ol{flex-direction:row;flex-wrap:wrap;border-left:0;gap:6px 14px}.ia-toc a{padding-left:0}.ia-shots{grid-template-columns:minmax(0,1fr)}}

@@ -43,7 +43,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
 | `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 없음 | `common` |
 | `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |
-| `cashcatalog` | 파킹·CMA 공시 조건 조회·출처별 스냅샷. 계산·공개 입력 API·수집기는 없음(#218) | `common` |
+| `cashcatalog` | 파킹·CMA 공시 조건 조회·출처별 스냅샷. 공식 페이지 수집은 `ingest.CashCatalogJob`이 맡으며 계산·공개 입력 API는 없음(#218) | `common` |
 | `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |
 | `goalscenario` | F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7, #175). 제안기(AI 연결 전 데모 조합) 검증·필요 월 금액·결과 범위 계산, 회원의 시나리오 저장(최대 5개, `/me/goal/scenarios`) | `market`, `savings`, `user` |
 | `news` | 청년 금융 소식: 온통청년 수집 카드 자동 게시·AI 요약 저장·`GET /youth-news`(#47·#93) | `common` |

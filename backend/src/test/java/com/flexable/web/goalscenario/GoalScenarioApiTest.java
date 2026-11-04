@@ -277,8 +277,8 @@ class GoalScenarioApiTest {
 		// 적금 100%·3.50%·1년·목표 1,500만 원 = 정책 예시(1,231,000원)
 		assertThat((Integer) JsonPath.read(body, "$.scenarios[0].monthly")).isEqualTo(1_231_000);
 		assertThat((Integer) JsonPath.read(body, "$.scenarios[0].outcome.fixedAmount")).isEqualTo(15_008_920);
-		assertThat((Integer) JsonPath.read(body, "$.aiUsage.limitPerDay")).isEqualTo(5);
-		assertThat((Integer) JsonPath.read(body, "$.aiUsage.remainingToday")).isEqualTo(4);
+		assertThat((Integer) JsonPath.read(body, "$.aiUsage.limitPerDay")).isEqualTo(3);
+		assertThat((Integer) JsonPath.read(body, "$.aiUsage.remainingToday")).isEqualTo(2);
 		org.mockito.ArgumentCaptor<ScenarioProposer.Input> sent = org.mockito.ArgumentCaptor.forClass(ScenarioProposer.Input.class);
 		verify(proposer).propose(sent.capture());
 		assertThat(sent.getValue().targetAmount()).isEqualTo(15_000_000);
@@ -294,11 +294,11 @@ class GoalScenarioApiTest {
 		String a = signup();
 		String first = member(BODY.formatted("목돈", 16_000_000, 1), a, 200);
 		assertThat((Boolean) JsonPath.read(first, "$.aiReused")).isFalse();
-		assertThat((Integer) JsonPath.read(first, "$.aiUsage.remainingToday")).isEqualTo(4);
+		assertThat((Integer) JsonPath.read(first, "$.aiUsage.remainingToday")).isEqualTo(2);
 		String again = member(BODY.formatted("다른 이름", 16_000_000, 1), a, 200);
 		assertThat((String) JsonPath.read(again, "$.proposer")).isEqualTo("AI");
 		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
-		assertThat((Integer) JsonPath.read(again, "$.aiUsage.remainingToday")).isEqualTo(4);
+		assertThat((Integer) JsonPath.read(again, "$.aiUsage.remainingToday")).isEqualTo(2);
 		verify(proposer, times(1)).propose(any());
 	}
 
@@ -309,7 +309,7 @@ class GoalScenarioApiTest {
 		member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
 		String other = member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
 		assertThat((Boolean) JsonPath.read(other, "$.aiReused")).isFalse();
-		assertThat((Integer) JsonPath.read(other, "$.aiUsage.remainingToday")).isEqualTo(4);
+		assertThat((Integer) JsonPath.read(other, "$.aiUsage.remainingToday")).isEqualTo(2);
 		verify(proposer, times(2)).propose(any());
 	}
 
@@ -326,22 +326,22 @@ class GoalScenarioApiTest {
 		String failed = member(BODY.formatted("목돈", 17_000_000, 1), token, 200);
 		assertThat((String) JsonPath.read(failed, "$.fallbackReason")).isEqualTo("AI_FAILED");
 		// 결과를 못 받았으니 회원 횟수는 되돌린다(서비스 전체 횟수는 그대로)
-		assertThat((Integer) JsonPath.read(rejected, "$.aiUsage.remainingToday")).isEqualTo(5);
-		assertThat((Integer) JsonPath.read(failed, "$.aiUsage.remainingToday")).isEqualTo(5);
+		assertThat((Integer) JsonPath.read(rejected, "$.aiUsage.remainingToday")).isEqualTo(3);
+		assertThat((Integer) JsonPath.read(failed, "$.aiUsage.remainingToday")).isEqualTo(3);
 	}
 
 	@Test
-	void 하루_다섯_번을_넘기면_데모() throws Exception {
+	void 하루_세_번을_넘기면_데모() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(GOOD);
 		String token = signup();
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 3; i++) {
 			member(BODY.formatted("목돈", 18_000_000 + i * 1_000_000L, 1), token, 200);
 		}
 		String over = member(BODY.formatted("목돈", 25_000_000, 1), token, 200);
 		assertThat((String) JsonPath.read(over, "$.fallbackReason")).isEqualTo("LIMIT");
 		assertThat((Integer) JsonPath.read(over, "$.aiUsage.remainingToday")).isZero();
-		verify(proposer, times(5)).propose(any());
+		verify(proposer, times(3)).propose(any());
 	}
 
 	@Test
@@ -355,7 +355,7 @@ class GoalScenarioApiTest {
 		try {
 			String capped = member(BODY.formatted("목돈", 26_000_000, 1), token, 200);
 			assertThat((String) JsonPath.read(capped, "$.fallbackReason")).isEqualTo("DAILY_CAP");
-			assertThat((Integer) JsonPath.read(capped, "$.aiUsage.remainingToday")).isEqualTo(5);
+			assertThat((Integer) JsonPath.read(capped, "$.aiUsage.remainingToday")).isEqualTo(3);
 			verify(proposer, times(0)).propose(any());
 		}
 		finally {

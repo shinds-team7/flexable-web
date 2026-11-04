@@ -30,6 +30,9 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 
 	enum Reserve { OK, LIMIT, DAILY_CAP, GONE }
 
+	/** 회원 요금제. 하루 한도를 고른다(무료 3회·플러스 10회). */
+	enum Plan { FREE, PLUS }
+
 	private final JdbcTemplate jdbc;
 	private final TransactionTemplate tx;
 	private final UserService users;
@@ -44,8 +47,16 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		this.props = props;
 	}
 
-	int limitPerDay() {
-		return props.freeDailyLimit();
+	/**
+	 * 회원의 요금제. 플러스는 아직 모의 결제라 서버에 구독 정보가 없어 모든 회원을 무료로 본다(policies §7-6).
+	 * 실결제(billing)가 붙으면 여기서 구독 상태를 읽는다.
+	 */
+	Plan plan(long userId) {
+		return Plan.FREE;
+	}
+
+	int limitPerDay(long userId) {
+		return props.dailyLimit(plan(userId));
 	}
 
 	/** 회원 1회와 서비스 전체 1회를 함께 예약한다. 전체 상한에 걸리면 회원 몫은 되돌린다. */
@@ -59,10 +70,11 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 				return Reserve.GONE;
 			}
 			LocalDate day = today();
+			int limit = limitPerDay(userId);
 			jdbc.update("INSERT INTO goal_scenario_ai_usage (usage_date, user_id, count) VALUES (?, ?, 0) "
 					+ "ON DUPLICATE KEY UPDATE count = count", day, userId);
 			if (jdbc.update("UPDATE goal_scenario_ai_usage SET count = count + 1 WHERE usage_date = ? AND user_id = ? AND count < ?",
-					day, userId, props.freeDailyLimit()) == 0) {
+					day, userId, limit) == 0) {
 				return Reserve.LIMIT;
 			}
 			jdbc.update("INSERT INTO goal_scenario_ai_daily (usage_date, count) VALUES (?, 0) ON DUPLICATE KEY UPDATE count = count", day);
@@ -83,7 +95,7 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	int remaining(long userId) {
 		Integer used = jdbc.query("SELECT count FROM goal_scenario_ai_usage WHERE usage_date = ? AND user_id = ?",
 				rs -> rs.next() ? rs.getInt(1) : 0, today(), userId);
-		return Math.max(0, props.freeDailyLimit() - used);
+		return Math.max(0, limitPerDay(userId) - used);
 	}
 
 	/** 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 AI 초안. */

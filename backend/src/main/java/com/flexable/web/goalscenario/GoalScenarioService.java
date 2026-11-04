@@ -170,7 +170,7 @@ public class GoalScenarioService {
 	}
 
 	private GoalScenarioDtos.AiUsage usage(long userId) {
-		return new GoalScenarioDtos.AiUsage(quota.limitPerDay(), quota.remaining(userId));
+		return new GoalScenarioDtos.AiUsage(quota.limitPerDay(userId), quota.remaining(userId));
 	}
 
 	/** AI에게 보내는 유형별 사실(§7-6). 투자 유형은 지난 60개월 월 수익률의 평균·표준편차·최대 하락. 코스피 5종목은 같은 비중 평균. */

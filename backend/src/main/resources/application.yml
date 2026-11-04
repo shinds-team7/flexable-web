@@ -48,8 +48,9 @@ app:
       daily-cap: ${GOAL_COACH_DAILY_CAP:300}
     scenario:
       ai:
-        # 목표 시나리오 AI 조합(policies §7-6). 키는 위 openai와 같다. 회원당 하루 횟수, 서비스 전체 하루 상한
-        free-daily-limit: ${GOAL_SCENARIO_AI_DAILY_LIMIT:5}
+        # 목표 시나리오 AI 조합(policies §7-6). 키는 위 openai와 같다. 회원당 하루 횟수(무료·플러스), 서비스 전체 하루 상한
+        free-daily-limit: ${GOAL_SCENARIO_AI_DAILY_LIMIT:3}
+        plus-daily-limit: ${GOAL_SCENARIO_AI_PLUS_DAILY_LIMIT:10}
         daily-cap: ${GOAL_SCENARIO_AI_DAILY_CAP:300}
   auth:
     jwt:

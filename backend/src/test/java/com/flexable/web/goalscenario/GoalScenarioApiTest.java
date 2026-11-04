@@ -95,10 +95,11 @@ class GoalScenarioApiTest {
 		// 우선주는 빠지고 다음 순위가 들어온다. ETF는 이름 끝이 200·S&P500인 것 중 시가총액 1위
 		List<InstrumentRow> kospi = List.of(new InstrumentRow("005930", "삼성전자", "KOSPI", "STOCK", 900L),
 				new InstrumentRow("005935", "삼성전자우", "KOSPI", "STOCK", 800L), new InstrumentRow("000660", "SK하이닉스", "KOSPI", "STOCK", 700L),
+				new InstrumentRow("402340", "SK스퀘어", "KOSPI", "STOCK", 650L),
 				new InstrumentRow("373220", "LG에너지솔루션", "KOSPI", "STOCK", 600L), new InstrumentRow("207940", "삼성바이오로직스", "KOSPI", "STOCK", 500L),
 				new InstrumentRow("005380", "현대차", "KOSPI", "STOCK", 400L), new InstrumentRow("000270", "기아", "KOSPI", "STOCK", 300L));
 		List<InstrumentRow> etf = List.of(new InstrumentRow("139260", "TIGER 200 IT", null, "ETF", 300L),
-				new InstrumentRow("069500", "KODEX 200", null, "ETF", 200L), new InstrumentRow("102110", "TIGER 200", null, "ETF", 150L),
+				new InstrumentRow("999200", "새로운 200", null, "ETF", 250L), new InstrumentRow("069500", "KODEX 200", null, "ETF", 200L), new InstrumentRow("102110", "TIGER 200", null, "ETF", 150L),
 				new InstrumentRow("360750", "TIGER 미국S&P500", null, "ETF", 100L));
 		market.replaceBoard(Board.KOSPI, kospi, "테스트 목록", null, today);
 		market.replaceBoard(Board.ETF, etf, "테스트 목록", null, today);
@@ -109,10 +110,16 @@ class GoalScenarioApiTest {
 			}
 		}
 		Random rnd = new Random(7);
+		// SK스퀘어·새로운 200은 상장한 지 3년이라 5년치 월말 종가가 없다(건너뛰고 다음 순위를 쓴다)
+		LocalDate listed = today.minusYears(3);
 		for (InstrumentRow row : concat(kospi, etf)) {
 			List<DailyClose> closes = new ArrayList<>();
 			double v = Math.log(10_000 + rnd.nextInt(50_000));
+			boolean young = row.code().equals("402340") || row.code().equals("999200");
 			for (LocalDate d : dates) {
+				if (young && d.isBefore(listed)) {
+					continue;
+				}
 				v += rnd.nextGaussian() * 0.012 + 0.0002;
 				closes.add(new DailyClose(d, Math.max(1, Math.round(Math.exp(v)))));
 			}
@@ -186,7 +193,7 @@ class GoalScenarioApiTest {
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_UNAVAILABLE");
 		assertThat((Integer) JsonPath.read(body, "$.months")).isEqualTo(12);
 		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).containsExactly("steady", "spread", "bold");
-		// 상품 고르기: 한도·제한 없는 적금, 이름 끝 200 중 1위(KODEX 200), 우선주 뺀 코스피 5개
+		// 상품 고르기: 한도·제한 없는 적금, 이름 끝 200 중 5년치 자료가 있는 1위(KODEX 200), 우선주·신규 상장(SK스퀘어)을 뺀 코스피 5개
 		assertThat((String) JsonPath.read(body, "$.products[0].items[0].name")).isEqualTo("누구나 적금");
 		assertThat((String) JsonPath.read(body, "$.products[0].ratePercent")).isEqualTo("3.50");
 		assertThat((String) JsonPath.read(body, "$.products[2].items[0].code")).isEqualTo("069500");

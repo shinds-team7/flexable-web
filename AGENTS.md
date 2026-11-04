@@ -44,6 +44,7 @@
 - `tests/policy/`를 포함한 아래 검증 명령을 돌리고 결과를 그대로 보고한다.
 - PR 템플릿을 채운다: Issue(`Closes #번호`), 참고한 문서, 영향받는 파트, 새로 내린 결정, 검증 결과.
 - 기준 문서·계약·정책·지침(`AGENTS.md`)을 바꾼 PR에는 `spec-change` 라벨을 붙이고 `docs/CHANGELOG.md`에 한 줄을 더한다. CI(`pr-rules`)가 검사한다.
+- CI는 **필수 체크만** 본다: `gh pr checks <번호> --required`(기다려야 하면 `--required --watch`). CodeRabbit 같은 외부 리뷰 봇은 필수 체크가 아니라서 pending이어도 기다리지 않는다. 옵션 없는 `gh pr checks --watch`는 모든 체크가 끝날 때까지 멈추지 않으니 쓰지 않는다.
 - 브랜치는 `<종류>-<내용>`, 커밋은 `feat(web): 한국어 요약`·`fix(m): …` 형식이다. `main`에는 PR로 머지한다.
 
 ## `spec-change` PR이 병합되면

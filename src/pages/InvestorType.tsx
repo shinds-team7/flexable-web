@@ -122,104 +122,114 @@ export function TypeChoices({ onPick, compact = false }: { onPick: (id: Investor
   );
 }
 
-/** /type: 성향 알아보기 시작. [테스트 시작] → /type/test, [건너뛰기] → /type/choose */
+/** 시작 카드 그림. 왼쪽(투자성향이란?)은 boy, 오른쪽(시작하기)은 girl */
+function StartArt({ kind }: { kind: 'about' | 'start' }) {
+  return <img className="it-art" src={kind === 'about' ? '/type/boy.png' : '/type/girl.png'} alt="" width="320" height="213" />;
+}
+
+/** /type: 성향 알아보기 시작. 왼쪽 [투자성향이란?] → /type/about, 오른쪽 [시작하기] → /type/test */
 export function InvestorTypes() {
   const mine = findType(useInvestorType() ?? undefined);
   return (
     <section className="page col">
       <ProtoNote />
-      <div className="it-duo">
-        <article className="card it-about" aria-labelledby="it-about-h">
-          <span className="meta">알아 두면 좋아요</span>
-          <h2 className="it-h2" id="it-about-h">
-            투자성향분석이란?
-          </h2>
-          <p className="it-lead">
-            투자 목적·경험·손실을 견딜 수 있는 정도를 바탕으로, 내가 어느 정도의 위험까지 편하게 감당할 수 있는지 살펴보는 과정이에요.
-          </p>
-
-          <h3 className="it-h3">왜 해요?</h3>
-          <ul className="it-list">
-            <li>수익을 더 기대해도 될지, 안정적인 쪽이 맞을지 기준이 생겨요.</li>
-            <li>결과는 좋고 나쁨이 아니라 내가 감수할 수 있는 위험의 범위예요.</li>
-            <li>투자 목적이나 자금 상황이 달라지면 다시 해 보는 게 좋아요.</li>
-          </ul>
-
-          <h3 className="it-h3">무엇을 물어봐요?</h3>
-          <dl className="it-defs">
-            <div>
-              <dt>투자 경험</dt>
-              <dd>투자해 본 적이 있는지, 상품 구조를 얼마나 이해하는지</dd>
-            </div>
-            <div>
-              <dt>손실 감내</dt>
-              <dd>투자한 돈이 줄었을 때 어디까지 견딜 수 있는지</dd>
-            </div>
-            <div>
-              <dt>목적과 기간</dt>
-              <dd>무엇을 위해, 얼마나 오래 투자할 계획인지</dd>
-            </div>
-          </dl>
-
-          <h3 className="it-h3">성향은 세 가지로 나눠요</h3>
-          <ul className="it-types">
-            {INVESTOR_TYPES.map((t) => (
-              <li key={t.id}>
-                <b>{t.name}</b>
-                <span>{t.oneLine}</span>
-                <span className="meta">
-                  패시브 {100 - t.active} : 액티브 {t.active}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="meta">패시브는 시장 전체(지수 ETF)를 꾸준히, 액티브는 종목을 직접 골라 넣는 방식이에요.</p>
-
-          <h3 className="it-h3">여기서는 이렇게 해요</h3>
-          <ul className="it-list">
-            <li>질문 {TYPE_QUESTIONS.length}개에 답하면 가까운 성향을 알려 드려요.</li>
-            <li>결과는 참고용이에요. 성향은 내가 직접 정하고, 횟수 제한 없이 언제든 바꿀 수 있어요.</li>
-            <li>질문에 답한 내용은 저장하지 않아요.</li>
-          </ul>
-          <p className="meta it-fine">
-            투자 상품은 예금자보호 대상이 아니며 원금을 잃을 수 있어요. 이 분석은 금융회사의 투자자 적합성 진단을 대신하지 않고, 수익이나 달성을 보장하지 않아요.
-          </p>
-        </article>
-
-        <div className="it-side">
-          {mine && (
-            <div className="card it-start it-mine">
-              <span className="meta">지금 내 성향</span>
-              <h2 className="it-h2">
-                {mine.name} · {mine.oneLine}
-              </h2>
-              <MixBar t={mine} />
-              <div className="toolbar">
-                <Link className="btn btn-primary" to={`/type/${mine.id}`}>
-                  {mine.name} 보러 가기
-                </Link>
-              </div>
-            </div>
-          )}
-          <div className="card it-start">
-            <span className="meta">투자 성향 테스트</span>
-            <h1 className="page-title">나는 어떤 투자 성향일까?</h1>
-            <p className="page-desc">
-              투자 계획의 첫걸음은 나의 성향을 이해하는 거예요. 성향에 맞춘 목표와 실행 계획은 꾸준히 나아갈 수 있는 힘이 되어 줘요.
-              <br />
-              질문 {TYPE_QUESTIONS.length}개에 답하면 안정형·균형형·성장형 중 어디에 가까운지 알려 드려요. 결과는 참고용이고, 성향은 직접 정해요.
-            </p>
-            <div className="toolbar">
-              <Link className="btn btn-primary" to="/type/test">
-                테스트 시작
-              </Link>
-              <Link className="btn btn-line" to="/type/choose">
-                건너뛰기
-              </Link>
-            </div>
-          </div>
-        </div>
+      <div className="it-intro">
+        <h1 className="it-intro-h">나는 어떤 투자 성향일까?</h1>
+        <p className="it-intro-p">
+          투자 계획의 첫걸음은 나의 성향을 이해하는 거예요.
+          <br />
+          성향에 맞춘 목표와 실행 계획은 꾸준히 나아갈 수 있는 힘이 되어 줘요.
+        </p>
       </div>
+      <div className="it-entry">
+        <Link className="it-entry-card sky" to="/type/about">
+          <span className="it-entry-k">알아 두면 좋아요</span>
+          <span className="it-entry-h">투자성향이란?</span>
+          <StartArt kind="about" />
+          <span className="it-entry-go">바로가기</span>
+        </Link>
+        <Link className="it-entry-card violet" to="/type/test">
+          <span className="it-entry-k">투자성향분석</span>
+          <span className="it-entry-h">시작하기</span>
+          <StartArt kind="start" />
+          <span className="it-entry-go">바로가기</span>
+        </Link>
+      </div>
+      {mine && (
+        <p className="it-mine-line">
+          지금 내 성향은 <b>{mine.name}</b>이에요. <Link className="btn-text" to={`/type/${mine.id}`}>{mine.name} 보러 가기</Link>
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** /type/about: 투자성향분석이란? 설명 */
+export function InvestorTypeAbout() {
+  return (
+    <section className="page col">
+      <ProtoNote />
+      <article className="card it-about it-about-page" aria-labelledby="it-about-h">
+        <span className="meta">알아 두면 좋아요</span>
+        <h1 className="it-h2" id="it-about-h">
+          투자성향분석이란?
+        </h1>
+        <p className="it-lead">
+          투자 목적·경험·손실을 견딜 수 있는 정도를 바탕으로, 내가 어느 정도의 위험까지 편하게 감당할 수 있는지 살펴보는 과정이에요.
+        </p>
+
+        <h3 className="it-h3">왜 해요?</h3>
+        <ul className="it-list">
+          <li>수익을 더 기대해도 될지, 안정적인 쪽이 맞을지 기준이 생겨요.</li>
+          <li>결과는 좋고 나쁨이 아니라 내가 감수할 수 있는 위험의 범위예요.</li>
+          <li>투자 목적이나 자금 상황이 달라지면 다시 해 보는 게 좋아요.</li>
+        </ul>
+
+        <h3 className="it-h3">무엇을 물어봐요?</h3>
+        <dl className="it-defs">
+          <div>
+            <dt>투자 경험</dt>
+            <dd>투자해 본 적이 있는지, 상품 구조를 얼마나 이해하는지</dd>
+          </div>
+          <div>
+            <dt>손실 감내</dt>
+            <dd>투자한 돈이 줄었을 때 어디까지 견딜 수 있는지</dd>
+          </div>
+          <div>
+            <dt>목적과 기간</dt>
+            <dd>무엇을 위해, 얼마나 오래 투자할 계획인지</dd>
+          </div>
+        </dl>
+
+        <h3 className="it-h3">성향은 세 가지로 나눠요</h3>
+        <ul className="it-types">
+          {INVESTOR_TYPES.map((t) => (
+            <li key={t.id}>
+              <b>{t.name}</b>
+              <span>{t.oneLine}</span>
+              <span className="meta">
+                패시브 {100 - t.active} : 액티브 {t.active}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="meta">패시브는 시장 전체(지수 ETF)를 꾸준히, 액티브는 종목을 직접 골라 넣는 방식이에요.</p>
+
+        <h3 className="it-h3">여기서는 이렇게 해요</h3>
+        <ul className="it-list">
+          <li>질문 {TYPE_QUESTIONS.length}개에 답하면 가까운 성향을 알려 드려요.</li>
+          <li>결과는 참고용이에요. 성향은 내가 직접 정하고, 횟수 제한 없이 언제든 바꿀 수 있어요.</li>
+          <li>질문에 답한 내용은 저장하지 않아요.</li>
+        </ul>
+        <p className="meta it-fine">
+          투자 상품은 예금자보호 대상이 아니며 원금을 잃을 수 있어요. 이 분석은 금융회사의 투자자 적합성 진단을 대신하지 않고, 수익이나 달성을 보장하지 않아요.
+        </p>
+        <div className="toolbar">
+          <Link className="btn btn-primary" to="/type/test">
+            테스트 시작
+          </Link>
+        </div>
+      </article>
     </section>
   );
 }
@@ -347,9 +357,6 @@ export function InvestorTypeTest() {
               ← 이전
             </button>
           )}
-          <Link className="btn-text" to="/type/choose">
-            건너뛰기
-          </Link>
         </div>
       </div>
     </section>

@@ -37,6 +37,7 @@ const NAV: NavItem[] = [
   },
   { to: '/goal', label: 'AI 계획' },
   { to: '/news', label: '청년소식' },
+  { to: '/guide', label: '금융 가이드' },
 ];
 
 function SeedChip() {

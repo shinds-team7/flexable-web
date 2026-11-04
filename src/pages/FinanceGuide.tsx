@@ -1,6 +1,6 @@
 // 금융 가이드(/guide). 상단 메뉴 '금융정보'(/finance)와는 다른 화면. AI 계획에서 예적금·주식·ETF 등을 고르기 전에, 처음 쓰는 사람에게 개념을 안내한다.
 // 검색 배너 → 검색 결과(용어 설명) → 카테고리 → 추천 콘텐츠(탭·정렬) → AI 목표 달성 안내 띠.
-// 카테고리 카드는 카테고리 화면(/guide/:category)으로, 콘텐츠 카드는 그 콘텐츠를 펼친 카테고리 화면(#id)으로 간다. 검색어·저장 표시는 브라우저 메모리에만 있고 저장·전송하지 않는다.
+// 카테고리 카드는 카테고리 화면(/guide/:category)으로, 콘텐츠 카드·검색 결과는 콘텐츠 상세(/guide/:category/:id)로 간다. 검색어·저장 표시는 브라우저 메모리에만 있고 저장·전송하지 않는다.
 import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react';
 import { Link } from 'react-router-dom';
 import { FinanceArt, FinanceHeroArt, TargetArt } from '@/components/guide/GuideArt';
@@ -133,7 +133,7 @@ export default function FinanceGuide() {
   );
 }
 
-/** 추천 콘텐츠: 전체·금융 기초·금융 상품 탭, 최신순·많이 본 순 정렬, 3열 카드 최대 6개. 저장 표시는 이 화면을 보는 동안만 유지된다 */
+/** 추천 콘텐츠: 전체·금융 기초·저축과 투자 탭, 최신순·많이 본 순 정렬, 3열 카드 최대 6개. 저장 표시는 이 화면을 보는 동안만 유지된다 */
 const MAIN_CONTENT_COUNT = 6;
 function Contents({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const [sort, setSort] = useState<ContentSort>('latest');
@@ -172,7 +172,7 @@ function Contents({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
       <ul className="fin-grid">
         {items.map((c) => (
           <li key={c.id} className="fin-content">
-            <Link to={`/guide/${c.category}#${c.id}`} className="fin-content-main">
+            <Link to={`/guide/${c.category}/${c.id}`} className="fin-content-main">
               <span className="fin-content-art">
                 <FinanceArt id={c.art} />
               </span>
@@ -240,7 +240,7 @@ function SearchResults({ ref, query, onClear }: { ref: Ref<HTMLElement>; query: 
                 {r.contents.map((c) => (
                   <li key={c.id}>
                     <span className="fin-cat">{CATEGORY_LABEL[c.category]}</span>
-                    <Link to={`/guide/${c.category}#${c.id}`} className="fin-results-link">
+                    <Link to={`/guide/${c.category}/${c.id}`} className="fin-results-link">
                       {c.title}
                     </Link>
                   </li>

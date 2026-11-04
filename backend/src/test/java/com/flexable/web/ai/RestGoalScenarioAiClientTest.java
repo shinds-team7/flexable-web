@@ -1,0 +1,67 @@
+package com.flexable.web.ai;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
+
+class RestGoalScenarioAiClientTest {
+	private MockRestServiceServer server;
+	private RestGoalScenarioAiClient client;
+
+	@BeforeEach
+	void setup() {
+		RestClient.Builder builder = RestClient.builder();
+		server = MockRestServiceServer.bindTo(builder).build();
+		client = new RestGoalScenarioAiClient(builder, new OpenAiProperties("fake-test-key", "https://example.com/v1", "gpt-4o-mini"));
+	}
+
+	@Test
+	void 저장하지_않는_엄격한_스키마로_보내고_내용을_돌려준다() {
+		server.expect(requestTo("https://example.com/v1/chat/completions"))
+			.andExpect(method(HttpMethod.POST)).andExpect(header("Authorization", "Bearer fake-test-key"))
+			.andExpect(jsonPath("$.model").value("gpt-4o-mini"))
+			.andExpect(jsonPath("$.store").value(false)).andExpect(jsonPath("$.user").doesNotExist())
+			.andExpect(jsonPath("$.response_format.json_schema.strict").value(true))
+			.andExpect(jsonPath("$.response_format.json_schema.schema.properties.scenarios.items.properties.mix.required.length()").value(5))
+			.andExpect(jsonPath("$.messages[1].content").value("{\"targetAmount\":15000000}"))
+			.andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"stop","message":{"content":"{\\"scenarios\\":[]}","refusal":null}}],
+				 "usage":{"prompt_tokens":300,"completion_tokens":200}}
+				""", MediaType.APPLICATION_JSON));
+		var result = client.propose("{\"targetAmount\":15000000}");
+		assertThat(result.content()).isEqualTo("{\"scenarios\":[]}");
+		assertThat(result.promptTokens()).isEqualTo(300);
+		server.verify();
+	}
+
+	@Test
+	void 잘림_거절_오류는_실패로_돌려준다() {
+		server.expect(requestTo("https://example.com/v1/chat/completions")).andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"length","message":{"content":"{}","refusal":null}}]}
+				""", MediaType.APPLICATION_JSON));
+		assertThatThrownBy(() -> client.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
+		server.reset();
+		server.expect(requestTo("https://example.com/v1/chat/completions")).andRespond(withServerError().body("secret-body"));
+		assertThatThrownBy(() -> client.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class)
+			.hasMessage("AI_FAILED").hasNoCause();
+	}
+
+	@Test
+	void 키가_없으면_부르지_않는다() {
+		var none = new RestGoalScenarioAiClient(RestClient.builder(), new OpenAiProperties("", "https://example.com/v1", "gpt-4o-mini"));
+		assertThat(none.enabled()).isFalse();
+		assertThatThrownBy(() -> none.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
+	}
+}

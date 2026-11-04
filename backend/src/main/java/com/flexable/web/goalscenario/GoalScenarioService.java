@@ -62,23 +62,27 @@ public class GoalScenarioService {
 	private final SavingsService savings;
 	private final ObjectProvider<ScenarioProposer> proposer;
 	private final ScenarioResultCache results;
+	private final ScenarioAiQuota quota;
 
-	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results) {
+	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results,
+			ScenarioAiQuota quota) {
 		this.market = market;
 		this.savings = savings;
 		this.proposer = proposer;
 		this.results = results;
+		this.quota = quota;
 	}
 
 	/** 유형마다 고른 상품(KOSPI_TOP5는 5개, CMA는 이름만)과 투자 상품의 60개월 월 수익률. */
 	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns) {
 	}
 
-	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null). */
-	private record Chosen(List<Plan> plans, String fallbackReason) {
+	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수, 이전 AI 조합을 다시 썼는지. */
+	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage, boolean reused) {
 	}
 
-	Result calculate(Request req) {
+	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(데모 조합, GUEST). */
+	Result calculate(Request req, Long userId) {
 		String name = validate(req);
 		long target = req.targetAmount();
 		int years = req.years();
@@ -92,14 +96,14 @@ public class GoalScenarioService {
 		Map<String, BigDecimal[]> factors = new HashMap<>();
 		picked.returns().forEach((code, r) -> factors.put(code, factors(r, draws)));
 
-		Chosen chosen = choose(target, years);
+		Chosen chosen = choose(target, years, months, asOf, userId, picked);
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Plan plan : chosen.plans()) {
 			scenarios.add(scenario(plan, target, months, picked, factors));
 		}
 		Result result = new Result(null, name, target, years, months, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
 				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, new BigDecimal("0.8"),
-				products(picked), scenarios, ASSUMPTIONS, NOTICE, true);
+				products(picked), scenarios, ASSUMPTIONS, NOTICE, true, chosen.aiUsage(), chosen.reused());
 		return results.remember(result);
 	}
 
@@ -118,26 +122,123 @@ public class GoalScenarioService {
 		return name;
 	}
 
-	/** 제안기 결과를 검증해 쓰고, 없거나 실패·검증 실패면 데모 조합(§7-6). */
-	private Chosen choose(long target, int years) {
+	/**
+	 * 제안기(AI) 결과를 검증해 쓰고, 쓸 수 없으면 데모 조합(§7-6).
+	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 금액·기한·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
+	 * → 호출 실패(AI_FAILED)·규칙 위반(AI_REJECTED). 결과를 못 받으면 회원 횟수는 되돌리고 전체 횟수는 그대로 둔다.
+	 */
+	private Chosen choose(long target, int years, int months, LocalDate asOf, Long userId, Picked picked) {
 		ScenarioProposer p = proposer.getIfAvailable();
 		String reason;
 		if (p == null || !p.enabled()) {
 			reason = "AI_UNAVAILABLE";
 		}
+		else if (userId == null) {
+			reason = "GUEST";
+		}
 		else {
-			try {
-				Optional<List<Plan>> proposed = Proposals.validate(p.propose(target, years));
-				if (proposed.isPresent()) {
-					return new Chosen(proposed.get(), null);
-				}
-				reason = "AI_REJECTED";
+			Optional<List<Plan>> reused = quota.cached(userId, target, years, asOf).flatMap(Proposals::validate);
+			if (reused.isPresent()) {
+				return new Chosen(reused.get(), null, usage(userId), true);
 			}
-			catch (ScenarioProposer.Failed e) {
-				reason = "AI_FAILED";
+			ScenarioAiQuota.Reserve r = quota.reserve(userId);
+			if (r == ScenarioAiQuota.Reserve.GONE) {
+				// 토큰은 유효하지만 회원이 없다(탈퇴). 다른 회원 API와 같이 401
+				throw new ApiException(ErrorCode.UNAUTHORIZED);
+			}
+			if (r == ScenarioAiQuota.Reserve.OK) {
+				try {
+					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, years, months, stats(picked)));
+					Optional<List<Plan>> proposed = Proposals.validate(drafts);
+					if (proposed.isPresent()) {
+						quota.cache(userId, target, years, asOf, drafts, "openai");
+						return new Chosen(proposed.get(), null, usage(userId), false);
+					}
+					reason = "AI_REJECTED";
+				}
+				catch (ScenarioProposer.Failed e) {
+					reason = "AI_FAILED";
+				}
+				quota.refund(userId);
+			}
+			else {
+				reason = r == ScenarioAiQuota.Reserve.DAILY_CAP ? "DAILY_CAP" : "LIMIT";
 			}
 		}
-		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason);
+		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason,
+				userId == null ? null : usage(userId), false);
+	}
+
+	private GoalScenarioDtos.AiUsage usage(long userId) {
+		return new GoalScenarioDtos.AiUsage(quota.limitPerDay(userId), quota.remaining(userId));
+	}
+
+	/** AI에게 보내는 유형별 사실(§7-6). 투자 유형은 지난 60개월 월 수익률의 평균·표준편차·최대 하락. 코스피 5종목은 같은 비중 평균. */
+	private static List<ScenarioProposer.TypeStat> stats(Picked picked) {
+		List<ScenarioProposer.TypeStat> out = new ArrayList<>();
+		FixedCandidate s = picked.saving();
+		out.add(new ScenarioProposer.TypeStat("SAVINGS", "은행 정액적립식 적금(" + s.company() + " " + s.name() + "), 금리 확정, 이자 15.4% 과세",
+				s.baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString(), null, null, null));
+		out.add(new ScenarioProposer.TypeStat("CMA", "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세", CMA_RATE.toPlainString(), null, null, null));
+		for (ProductType t : INVEST) {
+			List<BigDecimal[]> series = picked.items().get(t).stream().map(i -> picked.returns().get(i.code())).toList();
+			BigDecimal[] avg = averageSeries(series);
+			String name = picked.items().get(t).stream().map(Item::name).reduce((a, b) -> a + "·" + b).orElse("");
+			String desc = switch (t) {
+				case KR_INDEX_ETF -> "국내 대표 지수 ETF(" + name + "), 비과세";
+				case US_INDEX_ETF -> "미국 대표 지수 ETF(" + name + ", 국내 상장, 원화), 이익에 15.4% 과세";
+				default -> "코스피 시가총액 상위 다섯 종목(" + name + ")에 같은 금액, 비과세";
+			};
+			out.add(new ScenarioProposer.TypeStat(t.name(), desc, null, fmt(mean(avg)), fmt(stdev(avg)), fmt(maxDrawdown(avg))));
+		}
+		return out;
+	}
+
+	static BigDecimal[] averageSeries(List<BigDecimal[]> series) {
+		int n = series.getFirst().length;
+		BigDecimal[] out = new BigDecimal[n];
+		for (int m = 0; m < n; m++) {
+			BigDecimal sum = BigDecimal.ZERO;
+			for (BigDecimal[] s : series) {
+				sum = sum.add(s[m]);
+			}
+			out[m] = sum.divide(BigDecimal.valueOf(series.size()), ScenarioMath.MC);
+		}
+		return out;
+	}
+
+	static double mean(BigDecimal[] r) {
+		double sum = 0;
+		for (BigDecimal x : r) {
+			sum += x.doubleValue();
+		}
+		return sum / r.length;
+	}
+
+	static double stdev(BigDecimal[] r) {
+		double m = mean(r);
+		double sq = 0;
+		for (BigDecimal x : r) {
+			sq += (x.doubleValue() - m) * (x.doubleValue() - m);
+		}
+		return Math.sqrt(sq / r.length);
+	}
+
+	/** 누적 가치의 직전 최고점 대비 가장 큰 하락(0 이상, 0.3 = 30%). */
+	static double maxDrawdown(BigDecimal[] r) {
+		double v = 1;
+		double peak = 1;
+		double worst = 0;
+		for (BigDecimal x : r) {
+			v *= 1 + x.doubleValue();
+			peak = Math.max(peak, v);
+			worst = Math.max(worst, 1 - v / peak);
+		}
+		return worst;
+	}
+
+	private static String fmt(double d) {
+		return BigDecimal.valueOf(d).setScale(4, RoundingMode.HALF_UP).toPlainString();
 	}
 
 	/**

@@ -1361,9 +1361,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * F7 v2 목표 달성 시나리오(로그인 없이). 조합은 제안기(AI 또는 데모), 숫자는 서버 계산. docs/policies.md §7
-         * @description - 입력·결과를 저장하지 않는다. 목표 이름은 계산에 쓰지 않고 그대로 돌려주며 로그에 남기지 않는다.
-         *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason).
+         * F7 v2 목표 달성 시나리오(로그인 없이도 씀, 회원이면 AI 조합). 조합은 제안기(AI 또는 데모), 숫자는 서버 계산. docs/policies.md §7
+         * @description - 계산 결과는 DB에 저장하지 않고, 저장(`POST /me/goal/scenarios`)을 위해 30분 동안 서버 메모리에만 둔다(resultId). 목표 이름은 계산에 쓰지 않고 그대로 돌려주며 로그에 남기지 않는다.
+         *     - 로그인 토큰이 있으면 회원으로 보고 AI(OpenAI) 조합을 준다(하루 횟수·서비스 상한). 회원이 받은 AI 조합(유형·비중·문구)은 목표 금액·기한·자료 기준일과 함께 그 회원의 재사용용으로 DB에 두고, 같은 조건이면 다시 부르지 않는다(aiReused). 7일 뒤 삭제, 탈퇴하면 즉시 삭제(§7-6). 토큰이 없으면 데모 조합(GUEST). 토큰이 잘못됐거나 탈퇴한 회원이면 401.
+         *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
          *     - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
          *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 적금 후보가 없으면 field = SAVINGS.
          */
@@ -1397,6 +1398,7 @@ export interface paths {
                     };
                 };
                 400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
                 503: components["responses"]["Error"];
             };
         };
@@ -3032,10 +3034,10 @@ export interface components {
              */
             proposer: "AI" | "DEMO";
             /**
-             * @description proposer=DEMO일 때 이유. AI면 null
+             * @description proposer=DEMO일 때 이유(policies §7-6). AI_UNAVAILABLE 키 없음, GUEST 비회원, LIMIT 회원 하루 횟수 소진, DAILY_CAP 서비스 전체 하루 상한, AI_FAILED 호출 실패, AI_REJECTED 규칙 위반. AI면 null
              * @enum {string|null}
              */
-            fallbackReason: "AI_UNAVAILABLE" | "AI_FAILED" | "AI_REJECTED" | null;
+            fallbackReason: "AI_UNAVAILABLE" | "GUEST" | "LIMIT" | "DAILY_CAP" | "AI_FAILED" | "AI_REJECTED" | null;
             /**
              * Format: date
              * @description 자료 기준일(수집된 마지막 거래일)
@@ -3060,6 +3062,13 @@ export interface components {
             notice: string;
             /** @description 예시 값(CMA 예시 금리 또는 데모 조합)이 하나라도 있으면 true */
             isSample: boolean;
+            /** @description 회원의 AI 조합 횟수(KST 하루). 비회원이면 null */
+            aiUsage: {
+                limitPerDay: number;
+                remainingToday: number;
+            } | null;
+            /** @description 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false */
+            aiReused: boolean;
         };
         SavedGoalScenarioSummary: {
             /** Format: int64 */

@@ -294,6 +294,291 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/virtual-sim/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 가상 시뮬레이션을 시작할 수 있는지 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 공개 가능한 가상 종목(사건 3개 이상)과 룰셋이 있으면 available=true. 없으면 화면은 준비 중 안내 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            available: boolean;
+                            /** @description 예시 작성기·예시 룰셋(VIRTUAL_SIM_SOURCE=fake)이면 true */
+                            isSample: boolean;
+                        };
+                    };
+                };
+                503: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 로그인·영구 저장 없음
+         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        startId: string;
+                        /** Format: int64 */
+                        initialAmount: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description version=0, 첫 봉만 공개. sessionToken은 256비트 이상 임의 토큰, expiresAt은 시작 후 30분 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            sessionToken: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                            snapshot: components["schemas"]["VirtualSimSnapshot"];
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 현재까지의 상태만 재조회(no-store) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PracticeToken"];
+                };
+            };
+            responses: {
+                /** @description 현재 상태 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VirtualSimSnapshot"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 다음 멈춤까지 진행(no-store)
+         * @description /practice/step과 같다. RUNNING에서만 다음 사건이 나오는 거래일 또는 마지막 봉까지 진행하고 version 1 증가. 같은 commandId·같은 본문 재전송은 원래 응답
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PracticeCommand"];
+                };
+            };
+            responses: {
+                /** @description 새 봉까지의 상태. 이후 가격·사건·사건 유형·문제 수·정답은 제외 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VirtualSimSnapshot"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 현재 가상 사건의 방향 예상과 가상 매매 선택(no-store)
+         * @description /practice/decision과 같다. AWAITING_DECISION의 eventId만 허용하고 다음 step에서 시가 체결
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        sessionToken: string;
+                        /** Format: uuid */
+                        commandId: string;
+                        expectedVersion: number;
+                        eventId: string;
+                        /** @enum {string} */
+                        prediction: "POSITIVE" | "NEGATIVE";
+                        /** @enum {string} */
+                        action: "BUY" | "SELL" | "HOLD";
+                        /**
+                         * @description HOLD는 0만, BUY/SELL은 25/50/100만 허용
+                         * @enum {integer}
+                         */
+                        allocationPercent: 0 | 25 | 50 | 100;
+                    };
+                };
+            };
+            responses: {
+                /** @description 선택을 접수한 상태. 판정 전 정답은 없음 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VirtualSimSnapshot"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                410: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 세션 즉시 삭제. 없는 토큰·반복 종료도 204 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PracticeToken"];
+                };
+            };
+            responses: {
+                /** @description 삭제 완료 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/signup": {
         parameters: {
             query?: never;
@@ -2512,6 +2797,125 @@ export interface components {
                 subsequentReturnRate: number | null;
             }[];
             /** @description 과거 계산·원금 손실·비권유, 세금/수수료/배당 제외, 표본 편향과 현재 업종 분류 고지 */
+            notice: string;
+            sources: string[];
+        };
+        /**
+         * @description 가상 사건 유형(vsim-types-v2, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
+         * @enum {string}
+         */
+        VirtualSimCategory: "EARNINGS" | "SUPPLY_CONTRACT" | "NEW_SHARES" | "BONUS_SHARES" | "BONDS" | "BUYBACK_ACQUIRE" | "BUYBACK_DISPOSE" | "DIVIDEND" | "RESTRUCTURE" | "FACILITY" | "LEGAL" | "OWNERSHIP";
+        VirtualSimSnapshot: {
+            version: number;
+            /** @enum {string} */
+            status: "RUNNING" | "AWAITING_DECISION" | "FINISHED";
+            /** @description 가상 종목. 실제 기업이 아니다. 이름·소개는 AI(예시면 예시 작성기)가 썼고 자동 검사를 통과했다. 업종은 서버 목록 */
+            company: {
+                name: string;
+                industry: string;
+                intro: string;
+            };
+            /** @description 회사·사건 글을 누가 썼나. Gemini면 aiGenerated=true, 예시 작성기면 false·model=sample(isSample=true) */
+            generator: {
+                aiGenerated: boolean;
+                model: string;
+                /** Format: date-time */
+                generatedAt: string;
+            };
+            /** @description 가격 움직임을 뽑은 통계. 실제 세션은 실제 시장 통계, 예시 세션(isSample=true)은 코드에 넣은 예시 룰셋이고 dataFrom·dataTo는 null */
+            ruleset: {
+                version: string;
+                /** Format: date */
+                dataFrom: string | null;
+                /** Format: date */
+                dataTo: string | null;
+            };
+            /** Format: int64 */
+            initialAmount: number;
+            /** @description 예시 작성기·예시 룰셋으로 만든 학습용 자료. AI 생성 여부는 generator.aiGenerated */
+            isSample: boolean;
+            /** @description 이번 실행의 전체 거래일 수(평일만 센 가상 날짜). 가격·사건은 공개한 봉까지만 준다 */
+            totalDays: number;
+            /** @description 공개된 봉만 날짜 오름차순. 날짜는 세션 시작일 연도 + 10년의 가상 날짜(평일). 서버가 룰셋으로 만든 값 */
+            candles: {
+                /** Format: date */
+                date: string;
+                /** Format: int64 */
+                open: number;
+                /** Format: int64 */
+                high: number;
+                /** Format: int64 */
+                low: number;
+                /** Format: int64 */
+                close: number;
+            }[];
+            /** @description step 응답에서만 이번에 새로 공개된 봉마다 그날 종가 기준 자산(마지막 항목 = portfolio). start·state·decision 응답은 빈 배열 */
+            frames: {
+                /** Format: date */
+                date: string;
+                portfolio: components["schemas"]["PracticePortfolio"];
+            }[];
+            portfolio: components["schemas"]["PracticePortfolio"];
+            /** @description AWAITING_DECISION일 때만 현재 가상 사건. 그 밖에는 null. 제목은 서버가 붙인 실제 공시 제목 형식, 본문은 AI가 쓴 중립 사실(좋고 나쁨·금액 없음). 이후 움직임은 같은 유형 실제 공시 뒤 경로에서 뽑는다 */
+            event: {
+                id: string;
+                category: components["schemas"]["VirtualSimCategory"];
+                categoryName: string;
+                /** @description 유형마다 서버가 정한 실제 DART 보고서명 형식(예: 단일판매ㆍ공급계약체결) */
+                title: string;
+                body: string;
+                /**
+                 * Format: date
+                 * @description 사건 봉 날짜(= 현재 마지막 봉). 가상 사건은 늘 거래일 종가 뒤에 보인다
+                 */
+                date: string;
+            } | null;
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 한 실행의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상 */
+            decisions: {
+                eventId: string;
+                category: components["schemas"]["VirtualSimCategory"];
+                categoryName: string;
+                title: string;
+                /** Format: date */
+                date: string;
+                /** @enum {string} */
+                prediction: "POSITIVE" | "NEGATIVE";
+                /** @enum {string} */
+                action: "BUY" | "SELL" | "HOLD";
+                /** @enum {integer} */
+                allocationPercent: 0 | 25 | 50 | 100;
+                /** @enum {string} */
+                execution: "PENDING" | "FILLED" | "NO_FILL" | "HOLD";
+                /** Format: date */
+                executedDate: string | null;
+                /** Format: int64 */
+                executedPrice: number | null;
+                /** Format: int64 */
+                executedShares: number | null;
+                /**
+                 * @description 이번 결과: 이후 5거래일 가상 등락과 비교(policies §5 판정). 점수에 넣지 않는다
+                 * @enum {string|null}
+                 */
+                outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
+                /** Format: date */
+                outcomeDate: string | null;
+                subsequentReturnRate: number | null;
+                /** @description 판정 뒤(outcome이 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
+                categoryUpShare: number | null;
+                /** @description 판정 뒤만. categoryUpShare를 센 공시 수. 판정 전에는 null */
+                categorySampleCount: number | null;
+                /**
+                 * @description 판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null
+                 * @enum {string|null}
+                 */
+                trend: "UP" | "DOWN" | "MIXED" | null;
+                /**
+                 * @description 판정 뒤만. 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED면 NEUTRAL. 판정 전에는 null
+                 * @enum {string|null}
+                 */
+                trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
+            }[];
+            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 과거 경향으로 채점하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
             notice: string;
             sources: string[];
         };

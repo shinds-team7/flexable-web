@@ -1,7 +1,7 @@
 # 검증 보고서: isa-vs-pension(ISA vs 연금저축)
 
 - 원고: `src/data/guideArticles.ts`의 `isaVsPension`
-- 상태: draft(사람 승인 전)
+- 상태: published(2026-11-04 사람 승인)
 - 작성·확인일: 2026-11-04
 - 검수: 2026-11-04 독립 검수(출처 9개 재수신·인용 36곳 재대조·계산 재실행) 후 지적 1건 반영. 2차 독립 검수(2026-11-04, 출처 15개 재수신·원본 HTML 대조) 지적 3건 반영·확인 불가 1건
 - 표지: `public/guide/isa-vs-pension.png`(2026-11-04 PNG 이미지로 교체)

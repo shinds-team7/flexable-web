@@ -1,7 +1,7 @@
 # 검증 보고서: housing-subscription(청약통장)
 
 - 원고: `src/data/guideArticles.ts`의 `housingSubscription`
-- 상태: draft(사람 승인 전)
+- 상태: published(2026-11-04 사람 승인)
 - 작성·확인일: 2026-11-04
 - 검수: 2026-11-04 독립 검수(출처 7개 재수신·인용 19곳 재대조·계산 재실행) 후 지적 1건 반영
 - 표지: `public/guide/housing-subscription.png`(2026-11-04 PNG 이미지로 교체)

@@ -1042,8 +1042,8 @@ const parkingVsCma: Published = {
   },
 };
 
-const isaVsPension: Draft = {
-  status: 'draft',
+const isaVsPension: Published = {
+  status: 'published',
   title: 'ISA vs 연금저축',
   hashtags: '📖 #ISA #연금저축 #세액공제',
   cover: { src: '/guide/isa-vs-pension.png', alt: '동전이 그려진 방패와 확인 표시' },
@@ -1128,8 +1128,8 @@ const isaVsPension: Draft = {
   },
 };
 
-const housingSubscription: Draft = {
-  status: 'draft',
+const housingSubscription: Published = {
+  status: 'published',
   title: '청약통장',
   hashtags: '📖 #청약통장 #주택청약종합저축 #소득공제',
   cover: { src: '/guide/housing-subscription.png', alt: '집과 동전' },
@@ -1602,12 +1602,12 @@ const PUBLISHED_ARTICLES: Partial<Record<string, Published>> = {
   'kospi-vs-kosdaq': kospiVsKosdaq,
   'bond-basics': bondBasics,
   'fund-vs-etf': fundVsEtf,
+  'isa-vs-pension': isaVsPension,
+  'housing-subscription': housingSubscription,
 };
 
 /** 승인 전 글. npm run dev에서만 보이고 운영 번들에는 들어가지 않는다 */
 const DRAFT_ARTICLES: Partial<Record<string, Draft>> = {
-  'isa-vs-pension': isaVsPension,
-  'housing-subscription': housingSubscription,
 };
 
 export const GUIDE_ARTICLES: Partial<Record<string, GuideArticle>> = import.meta.env.DEV ? { ...PUBLISHED_ARTICLES, ...DRAFT_ARTICLES } : PUBLISHED_ARTICLES;

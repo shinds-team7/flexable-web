@@ -70,8 +70,8 @@ public class GoalScenarioService {
 		this.results = results;
 	}
 
-	/** 유형마다 고른 상품. KOSPI_TOP5는 5개, CMA는 이름만. */
-	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving) {
+	/** 유형마다 고른 상품(KOSPI_TOP5는 5개, CMA는 이름만)과 투자 상품의 60개월 월 수익률. */
+	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns) {
 	}
 
 	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null). */
@@ -84,19 +84,13 @@ public class GoalScenarioService {
 		int years = req.years();
 		int months = years * 12;
 
-		Picked picked = pick(months);
-		List<String> codes = new ArrayList<>();
-		for (ProductType t : INVEST) {
-			picked.items().get(t).forEach(i -> codes.add(i.code()));
-		}
-		LocalDate asOf = codes.stream().map(market::latestTradeDate).flatMap(Optional::stream).max(LocalDate::compareTo)
-			.orElseThrow(() -> unavailable(codes.getFirst()));
+		// 기준일 = 수집된 마지막 거래일. 수익률은 그 직전 달까지 60개월
+		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
 		YearMonth last = YearMonth.from(asOf).minusMonths(1);
+		Picked picked = pick(months, last);
 		int[][] draws = draws(years);
 		Map<String, BigDecimal[]> factors = new HashMap<>();
-		for (String code : codes) {
-			factors.put(code, factors(monthlyReturns(code, last), draws));
-		}
+		picked.returns().forEach((code, r) -> factors.put(code, factors(r, draws)));
 
 		Chosen chosen = choose(target, years);
 		List<Scenario> scenarios = new ArrayList<>();
@@ -146,28 +140,48 @@ public class GoalScenarioService {
 		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason);
 	}
 
-	private Picked pick(int months) {
+	/**
+	 * 유형마다 시가총액 순으로 조건에 맞는 상품을 보고, 61개 월말 종가가 모두 있는 것만 고른다(policies §7-2).
+	 * 상장한 지 5년이 안 된 종목은 건너뛰고 다음 순위를 쓴다. 다 건너뛰어 모자라면 503(field = 유형 이름).
+	 */
+	private Picked pick(int months, YearMonth last) {
 		FixedCandidate saving = savings.bestOpenFixed(months)
 			.orElseThrow(() -> new ApiException(ErrorCode.MARKET_UNAVAILABLE, "조건에 맞는 적금 공시가 아직 없어요", Map.of("field", "SAVINGS")));
+		Map<String, BigDecimal[]> returns = new HashMap<>();
 		List<InstrumentView> etfs = market.board(Board.ETF).items();
-		InstrumentView kr = etfs.stream().filter(i -> i.name().strip().endsWith("200")).findFirst()
-			.orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
-		InstrumentView us = etfs.stream().filter(i -> i.name().strip().endsWith("S&P500")).findFirst()
-			.orElseThrow(() -> unavailable(ProductType.US_INDEX_ETF.name()));
-		List<InstrumentView> kospi = market.board(Board.KOSPI).items().stream()
-			.filter(i -> !preferred(i.name()))
-			.limit(5)
-			.toList();
-		if (kospi.size() < 5) {
-			throw unavailable(ProductType.KOSPI_TOP5.name());
-		}
+		InstrumentView kr = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("200")).toList(), 1, last, returns,
+				ProductType.KR_INDEX_ETF).getFirst();
+		InstrumentView us = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("S&P500")).toList(), 1, last, returns,
+				ProductType.US_INDEX_ETF).getFirst();
+		List<InstrumentView> kospi = withHistory(market.board(Board.KOSPI).items().stream().filter(i -> !preferred(i.name())).toList(), 5, last,
+				returns, ProductType.KOSPI_TOP5);
 		Map<ProductType, List<Item>> items = new EnumMap<>(ProductType.class);
 		items.put(ProductType.SAVINGS, List.of(new Item(saving.productId(), saving.name(), saving.company())));
 		items.put(ProductType.CMA, List.of(new Item(null, "CMA", null)));
 		items.put(ProductType.KR_INDEX_ETF, List.of(new Item(kr.id(), kr.name(), null)));
 		items.put(ProductType.US_INDEX_ETF, List.of(new Item(us.id(), us.name(), null)));
 		items.put(ProductType.KOSPI_TOP5, kospi.stream().map(i -> new Item(i.id(), i.name(), null)).toList());
-		return new Picked(items, saving);
+		return new Picked(items, saving, returns);
+	}
+
+	/** 후보(시가총액 순) 중 수익률 자료가 모두 있는 앞의 count개. 고른 것의 수익률은 returns에 담는다. */
+	private List<InstrumentView> withHistory(List<InstrumentView> candidates, int count, YearMonth last, Map<String, BigDecimal[]> returns,
+			ProductType type) {
+		List<InstrumentView> out = new ArrayList<>();
+		for (InstrumentView i : candidates) {
+			if (out.size() == count) {
+				break;
+			}
+			Optional<BigDecimal[]> r = monthlyReturns(i.id(), last);
+			if (r.isPresent()) {
+				returns.put(i.id(), r.get());
+				out.add(i);
+			}
+		}
+		if (out.size() < count) {
+			throw unavailable(type.name());
+		}
+		return out;
 	}
 
 	/** 우선주(이름이 우·우B·우C로 끝남). */
@@ -180,8 +194,8 @@ public class GoalScenarioService {
 		return new ApiException(ErrorCode.MARKET_UNAVAILABLE, "계산에 필요한 시세를 아직 모으지 않았어요", Map.of("field", field));
 	}
 
-	/** last 달까지 60개월 월 수익률. 61개 월말 종가 중 하나라도 없으면 503. */
-	private BigDecimal[] monthlyReturns(String code, YearMonth last) {
+	/** last 달까지 60개월 월 수익률. 61개 월말 종가 중 하나라도 없으면 빈 값. */
+	private Optional<BigDecimal[]> monthlyReturns(String code, YearMonth last) {
 		YearMonth first = last.minusMonths(HISTORY);
 		Map<YearMonth, Long> monthEnd = new HashMap<>();
 		for (DailyClose c : market.dailyCloses(code, first.atDay(1))) {
@@ -194,11 +208,11 @@ public class GoalScenarioService {
 		for (int i = 0; i <= HISTORY; i++) {
 			Long c = monthEnd.get(first.plusMonths(i));
 			if (c == null || c <= 0) {
-				throw unavailable(code);
+				return Optional.empty();
 			}
 			closes[i] = c;
 		}
-		return returnsFromCloses(closes);
+		return Optional.of(returnsFromCloses(closes));
 	}
 
 	/** 월말 종가 n+1개 → 월 수익률 n개(종가 ÷ 전달 종가 − 1). */

@@ -35,7 +35,7 @@
 
 ## 0-6. 2026-11-04 목표 달성 시나리오 AI 조합(#215)
 
-로그인한 회원이 [시나리오 보기]를 누르면 웹 서버가 OpenAI(목표 안내와 같은 수탁자·국외 이전)에 **목표 금액·기한과 서버가 계산한 상품 유형별 과거 통계**를 보낸다(`ai.RestGoalScenarioAiClient`, `store: false`, `user` 미전송). 목표 이름·이메일·회원 번호는 보내지 않는다. 같은 목표 금액·기한·자료 기준일의 AI 조합은 회원 정보 없이 `goal_scenario_ai_cache`(V24)에 두고 다시 보내지 않는다(7일 뒤 삭제). 회원·날짜별 이용 횟수 `goal_scenario_ai_usage`는 7일 뒤 `GoalScenarioAiCleanupJob`이 지우고 탈퇴하면 `ScenarioAiQuota.onWithdraw`·외래 키로 지운다. 전체 횟수 `goal_scenario_ai_daily`는 회원 정보 없음. 비회원은 전송하지 않고 예시 조합. 제2조(목표 달성 시나리오 AI 조합)·제4조(횟수·재사용 조합 보유)·제6조(위탁 업무·국외 이전 항목·시기·목적·거부 방법)를 고치고 변경 이력에 적었다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
+로그인한 회원이 [시나리오 보기]를 누르면 웹 서버가 OpenAI(목표 안내와 같은 수탁자·국외 이전)에 **목표 금액·기한과 서버가 계산한 상품 유형별 과거 통계**를 보낸다(`ai.RestGoalScenarioAiClient`, `store: false`, `user` 미전송). 목표 이름·이메일·회원 번호는 보내지 않는다. 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 AI 조합은 `goal_scenario_ai_cache`(V24, 회원 번호와 연결)에 두고 다시 보내지 않는다(7일 뒤 삭제, 탈퇴 시 삭제, 다른 회원과 공유하지 않음). 회원·날짜별 이용 횟수 `goal_scenario_ai_usage`는 7일 뒤 `GoalScenarioAiCleanupJob`이 지우고 탈퇴하면 `ScenarioAiQuota.onWithdraw`·외래 키로 지운다. 전체 횟수 `goal_scenario_ai_daily`는 회원 정보 없음. 비회원은 전송하지 않고 예시 조합. 제2조(목표 달성 시나리오 AI 조합)·제4조(횟수·재사용 조합 보유)·제6조(위탁 업무·국외 이전 항목·시기·목적·거부 방법)를 고치고 변경 이력에 적었다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
 
 ## 0-5. 2026-11-03 목표 달성 시나리오 계산·저장(#175)
 
@@ -95,7 +95,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 목표·AI 목표 안내(10-23 시행) | `goals`·`goal_coaches`·`goal_coach_usage`(engagement, V8). 탈퇴 시 `UserWithdrawalListener`로 삭제, `goal_coach_usage`는 날짜로부터 7일 지나면 매일 정리 작업이 삭제. 서버 전체 횟수 `ai_daily_usage`는 회원 정보 없음 |
 | OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. 수탁·이전받는 자는 OpenAI OpCo, LLC([서비스 계약](https://openai.com/policies/services-agreement/), 비EEA·스위스 고객), 요청 창구 privacy.openai.com([개인정보 안내](https://openai.com/policies/kr-privacy-policy/)). OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
 | 목표 달성 시나리오(11-03) | 계산 결과 30분 메모리(`goalscenario.ScenarioResultCache`), 회원 저장 `goal_scenarios`(V22, 최대 5개). 탈퇴 시 `SavedScenarioService.onWithdraw`와 `ON DELETE CASCADE`. 방침 제2조·제3조·제4조 |
-| 목표 시나리오 AI 조합(11-04) | 회원만 OpenAI 전송(목표 금액·기한·유형별 통계, 이름 제외). `goal_scenario_ai_usage`(회원·날짜별, 7일 뒤 삭제·탈퇴 시 삭제), `goal_scenario_ai_daily`(회원 정보 없음), `goal_scenario_ai_cache`(회원 정보 없음, 7일 뒤 삭제)(V24). 방침 제2조·제4조·제6조 |
+| 목표 시나리오 AI 조합(11-04) | 회원만 OpenAI 전송(목표 금액·기한·유형별 통계, 이름 제외). `goal_scenario_ai_usage`(회원·날짜별, 7일 뒤 삭제·탈퇴 시 삭제), `goal_scenario_ai_daily`(회원 정보 없음), `goal_scenario_ai_cache`(회원별, 7일 뒤 삭제·탈퇴 시 삭제)(V24). 방침 제2조·제4조·제6조 |
 | 비회원 체험은 서버 저장 없음 | 홈 시드머니·지수·소식·적금은 예시 데이터(`isSample`). 투자 시뮬레이션은 공개 API(`GET /market/**`, `POST /simulations/run`)로 고른 조건(시작 시점·금액·종목·비율)을 보내 서버가 계산하지만 저장하지 않는다(`SimulationService`, DB 쓰기 없음). 요청 본문은 접속 기록에 남지 않는다(`nginx.conf`는 메서드·경로만) |
 
 ## 3. 시행 전 확인 항목(10-21 모두 채움)

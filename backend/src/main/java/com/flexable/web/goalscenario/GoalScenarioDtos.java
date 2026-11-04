@@ -33,7 +33,8 @@ final class GoalScenarioDtos {
 
 	record Result(String resultId, String name, long targetAmount, int years, int months, String proposer, String fallbackReason,
 			LocalDate asOf, String returnsFrom, String returnsTo, int paths, long seed, BigDecimal reachShare,
-			List<Product> products, List<Scenario> scenarios, List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage) {
+			List<Product> products, List<Scenario> scenarios, List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage,
+			boolean aiReused) {
 	}
 
 	/** 회원의 AI 조합 횟수(KST 하루). 비회원이면 응답에서 null. */

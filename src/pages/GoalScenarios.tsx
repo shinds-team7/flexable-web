@@ -17,6 +17,7 @@ const COLORS: Record<ScenarioProductType, string> = {
   US_INDEX_ETF: 'var(--color-series-4)', KOSPI_TOP5: 'var(--color-series-5)',
 };
 
+const AI_REUSE_TIP = '같은 조건으로 만든 AI 조합은 횟수가 차감되지 않아요.';
 const won = (n: number) => n.toLocaleString('ko-KR');
 /** 표시용 만 원 단위(내림). 서버 값을 읽기 쉽게 바꿀 뿐 계산 결과를 바꾸지 않는다. */
 function manwon(n: number) {
@@ -331,7 +332,13 @@ export default function GoalScenarios() {
         {result && plan && !loading && <section aria-labelledby="gp-result-title">
           <h2 id="gp-result-title" className="gp-h2"><span className="gp-step">2</span>{demo ? '세 가지 방법' : 'AI가 고른 방법'}
             {demo ? <span className="gp-badge gp-badge-muted">예시 조합</span> : <span className="gp-badge">AI 조합</span>}
-            {result.aiUsage && <span className="gp-badge gp-badge-muted">오늘 AI 조합 {result.aiUsage.remainingToday}/{result.aiUsage.limitPerDay}회 남음</span>}</h2>
+            {result.aiUsage && <span className="gp-usage">
+              <span className="gp-badge gp-badge-muted">오늘 AI 조합 {result.aiUsage.remainingToday}/{result.aiUsage.limitPerDay}회 남음</span>
+              <span className="gp-help-tip">
+                <button type="button" className="gp-help-mark" aria-label="AI 조합 횟수 안내" aria-describedby="gp-usage-tip">?</button>
+                <span id="gp-usage-tip" role="tooltip" className="gp-tip">{AI_REUSE_TIP}</span>
+              </span>
+            </span>}</h2>
           {demo && result.fallbackReason && <div className="gp-fallback" role="status">
             <span>{FALLBACK_TEXT[result.fallbackReason]}</span>
             {result.fallbackReason === 'GUEST' && <button type="button" className="gp-secondary" onClick={() => openLogin(location.pathname)}>로그인하고 AI 조합 받기</button>}

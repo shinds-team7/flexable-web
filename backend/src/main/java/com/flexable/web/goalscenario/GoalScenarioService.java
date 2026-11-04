@@ -77,8 +77,8 @@ public class GoalScenarioService {
 	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns) {
 	}
 
-	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수. */
-	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage) {
+	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수, 이전 AI 조합을 다시 썼는지. */
+	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage, boolean reused) {
 	}
 
 	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(데모 조합, GUEST). */
@@ -103,7 +103,7 @@ public class GoalScenarioService {
 		}
 		Result result = new Result(null, name, target, years, months, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
 				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, new BigDecimal("0.8"),
-				products(picked), scenarios, ASSUMPTIONS, NOTICE, true, chosen.aiUsage());
+				products(picked), scenarios, ASSUMPTIONS, NOTICE, true, chosen.aiUsage(), chosen.reused());
 		return results.remember(result);
 	}
 
@@ -124,7 +124,7 @@ public class GoalScenarioService {
 
 	/**
 	 * 제안기(AI) 결과를 검증해 쓰고, 쓸 수 없으면 데모 조합(§7-6).
-	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 금액·기한·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
+	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 금액·기한·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
 	 * → 호출 실패(AI_FAILED)·규칙 위반(AI_REJECTED). 결과를 못 받으면 회원 횟수는 되돌리고 전체 횟수는 그대로 둔다.
 	 */
 	private Chosen choose(long target, int years, int months, LocalDate asOf, Long userId, Picked picked) {
@@ -137,9 +137,9 @@ public class GoalScenarioService {
 			reason = "GUEST";
 		}
 		else {
-			Optional<List<Plan>> reused = quota.cached(target, years, asOf).flatMap(Proposals::validate);
+			Optional<List<Plan>> reused = quota.cached(userId, target, years, asOf).flatMap(Proposals::validate);
 			if (reused.isPresent()) {
-				return new Chosen(reused.get(), null, usage(userId));
+				return new Chosen(reused.get(), null, usage(userId), true);
 			}
 			ScenarioAiQuota.Reserve r = quota.reserve(userId);
 			if (r == ScenarioAiQuota.Reserve.OK) {
@@ -147,8 +147,8 @@ public class GoalScenarioService {
 					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, years, months, stats(picked)));
 					Optional<List<Plan>> proposed = Proposals.validate(drafts);
 					if (proposed.isPresent()) {
-						quota.cache(target, years, asOf, drafts, "openai");
-						return new Chosen(proposed.get(), null, usage(userId));
+						quota.cache(userId, target, years, asOf, drafts, "openai");
+						return new Chosen(proposed.get(), null, usage(userId), false);
 					}
 					reason = "AI_REJECTED";
 				}
@@ -162,7 +162,7 @@ public class GoalScenarioService {
 			}
 		}
 		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason,
-				userId == null ? null : usage(userId));
+				userId == null ? null : usage(userId), false);
 	}
 
 	private GoalScenarioDtos.AiUsage usage(long userId) {

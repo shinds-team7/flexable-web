@@ -86,10 +86,11 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		return Math.max(0, props.freeDailyLimit() - used);
 	}
 
-	/** 같은 목표 금액·기한·자료 기준일의 AI 초안. */
-	Optional<List<Proposals.Draft>> cached(long targetAmount, int years, LocalDate asOf) {
-		List<String> rows = jdbc.queryForList("SELECT drafts FROM goal_scenario_ai_cache WHERE target_amount = ? AND years = ? AND as_of = ?",
-				String.class, targetAmount, years, asOf);
+	/** 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 AI 초안. */
+	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int years, LocalDate asOf) {
+		List<String> rows = jdbc.queryForList(
+				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND years = ? AND as_of = ?", String.class,
+				userId, targetAmount, years, asOf);
 		if (rows.isEmpty()) {
 			return Optional.empty();
 		}
@@ -102,9 +103,9 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	}
 
 	/** 검증을 통과한 AI 초안만 저장한다. 동시에 저장하면 먼저 들어간 것을 둔다. */
-	void cache(long targetAmount, int years, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
-		jdbc.update("INSERT INTO goal_scenario_ai_cache (target_amount, years, as_of, drafts, model, created_at) VALUES (?, ?, ?, ?, ?, ?) "
-				+ "ON DUPLICATE KEY UPDATE target_amount = target_amount", targetAmount, years, asOf, JSON.writeValueAsString(drafts), model,
+	void cache(long userId, long targetAmount, int years, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
+		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, years, as_of, drafts, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+				+ "ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, years, asOf, JSON.writeValueAsString(drafts), model,
 				Timestamp.from(clock.instant()));
 	}
 
@@ -112,7 +113,7 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		return LocalDate.ofInstant(clock.instant(), SEOUL);
 	}
 
-	/** 방침 제4조: 날짜에서 7일이 지난 회원별 횟수와 재사용 초안을 지운다. 전체 카운터는 남긴다. */
+	/** 방침 제4조: 날짜에서 7일이 지난 회원별 횟수와 재사용 조합을 지운다. 전체 카운터는 남긴다. */
 	int deleteExpired() {
 		LocalDate before = today().minusDays(7);
 		return jdbc.update("DELETE FROM goal_scenario_ai_usage WHERE usage_date <= ?", before)
@@ -122,5 +123,6 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	@Override
 	public void onWithdraw(long userId) {
 		jdbc.update("DELETE FROM goal_scenario_ai_usage WHERE user_id = ?", userId);
+		jdbc.update("DELETE FROM goal_scenario_ai_cache WHERE user_id = ?", userId);
 	}
 }

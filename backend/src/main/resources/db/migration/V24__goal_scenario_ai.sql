@@ -15,13 +15,15 @@ CREATE TABLE goal_scenario_ai_daily (
     PRIMARY KEY (usage_date)
 );
 
--- 같은 목표 금액·기한·자료 기준일이면 AI 조합을 다시 부르지 않고 재사용한다. 회원 정보 없음. 7일 지나면 지운다.
+-- 같은 회원이 같은 목표 금액·기한·자료 기준일로 다시 보면 AI 조합을 다시 부르지 않고 재사용한다. 7일 지나면 지우고, 탈퇴하면 함께 지운다.
 CREATE TABLE goal_scenario_ai_cache (
+    user_id BIGINT NOT NULL,
     target_amount BIGINT NOT NULL,
     years INT NOT NULL,
     as_of DATE NOT NULL,
     drafts TEXT NOT NULL,
     model VARCHAR(100) NOT NULL,
     created_at DATETIME(6) NOT NULL,
-    PRIMARY KEY (target_amount, years, as_of)
+    PRIMARY KEY (user_id, target_amount, years, as_of),
+    CONSTRAINT fk_goal_scenario_ai_cache_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );

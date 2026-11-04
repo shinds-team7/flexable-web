@@ -56,6 +56,8 @@ export type GoalScenarioResult = {
   notice: string;
   isSample: boolean;
   aiUsage: { limitPerDay: number; remainingToday: number } | null;
+  /** 같은 회원이 같은 조건으로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음) */
+  aiReused: boolean;
 };
 
 export type ScenarioFallbackReason = 'AI_UNAVAILABLE' | 'GUEST' | 'LIMIT' | 'DAILY_CAP' | 'AI_FAILED' | 'AI_REJECTED';

@@ -261,6 +261,7 @@ class GoalScenarioApiTest {
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("DEMO");
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("GUEST");
 		assertThat((Object) JsonPath.read(body, "$.aiUsage")).isNull();
+		assertThat((Boolean) JsonPath.read(body, "$.aiReused")).isFalse();
 		verify(proposer, times(0)).propose(any());
 	}
 
@@ -287,16 +288,29 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
-	void 같은_금액과_기한이면_AI를_다시_부르지_않고_차감하지_않는다() throws Exception {
+	void 같은_회원이_같은_조건으로_다시_보면_재사용하고_차감하지_않는다() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(GOOD);
 		String a = signup();
-		String b = signup();
-		member(BODY.formatted("목돈", 16_000_000, 1), a, 200);
-		String again = member(BODY.formatted("다른 이름", 16_000_000, 1), b, 200);
+		String first = member(BODY.formatted("목돈", 16_000_000, 1), a, 200);
+		assertThat((Boolean) JsonPath.read(first, "$.aiReused")).isFalse();
+		assertThat((Integer) JsonPath.read(first, "$.aiUsage.remainingToday")).isEqualTo(4);
+		String again = member(BODY.formatted("다른 이름", 16_000_000, 1), a, 200);
 		assertThat((String) JsonPath.read(again, "$.proposer")).isEqualTo("AI");
-		assertThat((Integer) JsonPath.read(again, "$.aiUsage.remainingToday")).isEqualTo(5);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		assertThat((Integer) JsonPath.read(again, "$.aiUsage.remainingToday")).isEqualTo(4);
 		verify(proposer, times(1)).propose(any());
+	}
+
+	@Test
+	void 다른_회원은_같은_조건이어도_새로_부르고_차감한다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
+		String other = member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
+		assertThat((Boolean) JsonPath.read(other, "$.aiReused")).isFalse();
+		assertThat((Integer) JsonPath.read(other, "$.aiUsage.remainingToday")).isEqualTo(4);
+		verify(proposer, times(2)).propose(any());
 	}
 
 	@Test

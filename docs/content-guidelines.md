@@ -4,11 +4,11 @@
 
 > **현재 구현(2026-11-04)**
 > - 원고(콘텐츠 데이터): `src/data/guideArticles.ts`의 `GUIDE_ARTICLES`. 키는 `src/data/financeGuide.ts`의 `GUIDE_CONTENTS` 카드 `id`다.
-> - 화면(템플릿): `src/pages/FinanceGuideDetail.tsx` 하나. 표지는 `public/guide/{slug}.svg` 이미지 파일(2:1, 640×320)이고, 화면 읽기용 설명은 `docs/content-reviews/cover-alt-text.json`에 있다(원고 `cover.alt`에 옮겨 적는다). 모바일(767px 이하)에서는 표지가 화면 가로 끝까지 찬다.
+> - 화면(템플릿): `src/pages/FinanceGuideDetail.tsx` 하나. 본문 최대 너비는 760px다. 표지는 `public/guide/{slug}.png` 이미지 파일(2:1, 원본 1774×887, 화면에서 최대 760×380)이고, 화면 읽기용 설명은 `docs/content-reviews/cover-alt-text.json`에 있다(원고 `cover.alt`에 옮겨 적는다). 모바일(767px 이하)에서는 표지가 화면 가로 끝까지 찬다.
 > - 별도 `slug` 필드는 없다. 카드 `id`가 주소(`/guide/:category/:id`)와 원고 키를 겸한다. 이 문서의 `{slug}`는 이 `id`를 뜻한다.
 > - 원고마다 `status: 'draft' | 'published'`가 있다. draft는 `npm run dev`에서만 보이고 운영 화면에서는 '준비 중'이다(§7).
-> - 작성된 원고: `interest-rate`('금리와 기준금리', published 2026-11-04 승인), `interest-income-tax`('이자소득세', published 2026-11-04 승인), `simple-vs-compound`('단리 vs 복리', published 2026-11-04 승인), `inflation-real-rate`('인플레이션과 실질금리', published 2026-11-04 승인), `exchange-rate`('환율', published 2026-11-04 승인), `gross-vs-net-pay`('세전 월급 vs 실수령액', published 2026-11-04 승인), `year-end-tax`('연말정산', published 2026-11-04 승인), `credit-score`('신용점수', published 2026-11-04 승인), `loan-rate-repayment`('대출 금리와 상환 방식', published 2026-11-04 승인). 검증 보고서는 `docs/content-reviews/{slug}.md`.
-> - 카드 목록(`GUIDE_CONTENTS`)은 §2 목록과 같다. 카드 제목은 §2의 주제이고, 카드 설명(`desc`)은 비어 있으며 읽는 시간(`minutes`)은 임시 값 4분이다. 원고를 쓸 때 채운다.
+> - 작성된 원고: `interest-rate`('금리와 기준금리', published 2026-11-04 승인), `interest-income-tax`('이자소득세', published 2026-11-04 승인), `simple-vs-compound`('단리 vs 복리', published 2026-11-04 승인), `inflation-real-rate`('인플레이션과 실질금리', published 2026-11-04 승인), `exchange-rate`('환율', published 2026-11-04 승인), `gross-vs-net-pay`('세전 월급 vs 실수령액', published 2026-11-04 승인), `year-end-tax`('연말정산', published 2026-11-04 승인), `credit-score`('신용점수', published 2026-11-04 승인), `loan-rate-repayment`('대출 금리와 상환 방식', published 2026-11-04 승인), `saving-vs-investing`('저축 vs 투자', published 2026-11-04 승인), `deposit-vs-savings`('예금 vs 적금', published 2026-11-04 승인), `parking-vs-cma`('파킹통장 vs CMA', published 2026-11-04 승인), `stock-basics`('주식 기초', published 2026-11-04 승인), `kospi-vs-kosdaq`('코스피 vs 코스닥', published 2026-11-04 승인), `bond-basics`('채권 기초', published 2026-11-04 승인), `fund-vs-etf`('펀드 vs ETF', published 2026-11-04 승인), `isa-vs-pension`('ISA vs 연금저축', published 2026-11-04 승인), `housing-subscription`('청약통장', published 2026-11-04 승인). 검증 보고서는 `docs/content-reviews/{slug}.md`.
+> - 카드 목록(`GUIDE_CONTENTS`)은 §2 목록과 같다. 카드 제목은 §2의 주제다. 카드 설명(`desc`)과 읽는 시간(`minutes`)은 원고를 쓸 때 원고에 맞게 채운다(2026-11-04 기준 18편 모두 채움).
 
 ## 1. 대상
 
@@ -75,7 +75,9 @@
 ## 4. 글 형식
 
 - 친절한 해요체로 쓰되 어린이 대상처럼 쓰지 않는다.
-- 핵심만 담아 짧게 쓴다. 한 글은 FAQ 섹션까지 포함해 섹션 2~4개로 구성한다. FAQ 질문은 0~2개다(0개면 FAQ 섹션을 두지 않는다).
+- 핵심만 담아 짧게 쓴다. 섹션 개수는 정해 두지 않되, 글이 너무 길어지지 않게 꼭 필요한 섹션만 둔다. FAQ 질문은 0~2개다(0개면 FAQ 섹션을 두지 않는다).
+- 용어 모음 섹션: 독자가 자주 마주치는 용어를 모아 두면 정말 도움이 되는 글에만 넣는다. 제목은 '🧭 자주 보는 ○○ 용어', 내용은 `terms` 블록 하나이고 FAQ 바로 앞에 둔다. 모든 글에 넣지 않는다.
+- FAQ 질문·답 앞에 'Q.'·'A.'를 쓰지 않는다. 질문 앞 번호(1️⃣ 2️⃣)는 화면이 붙이고, 답 앞 표시는 `mark`로 정한다: '아니요'로 시작하는 답은 `no`(❌), '네'로 시작하는 답은 `yes`(✅), 그 밖의 설명형 답은 비워 두면 💡.
 - 기존 데이터 형식(§5, TypeScript 객체)을 유지하고, 화면 코드는 수정하지 않는다.
 - 현재 형식으로 표현할 수 없는 내용이 있으면 먼저 알린다. 블록 종류를 더할지는 그다음에 정한다.
 - 원고마다 검증 보고서를 만든다(§6).
@@ -92,7 +94,7 @@
 | `status` | `'draft'`(승인 전) 또는 `'published'`(승인 후). 필수 |
 | `title` | 상세 제목. 없으면 카드 제목을 쓴다 |
 | `hashtags` | 제목 아래 해시태그 줄(문자열 그대로). 없으면 `#카드 태그` |
-| `cover` | 이미지 파일: `{ src, alt }`. `src`는 `/guide/{slug}.svg`(2:1), `alt`는 `docs/content-reviews/cover-alt-text.json`의 설명. |
+| `cover` | 이미지 파일: `{ src, alt }`. `src`는 `/guide/{slug}.png`(2:1), `alt`는 `docs/content-reviews/cover-alt-text.json`의 설명. |
 | `sections` | `{ title, blocks }[]`. `title`이 H2 |
 | `footer` | `{ notes: string[], sources: { label, url }[] }` |
 
@@ -103,7 +105,7 @@
 | `p` | 문단. `**굵게**`는 굵은 글자로 보인다 | `text` |
 | `calc` | 계산식 박스. 칸은 라벨 위·값 아래, 칸 사이 연산자, 마지막 칸이 결과(강조색), 아래 캡션 | `terms: { label, value }[]`, `ops: string[]`(`ops[i]`는 `terms[i]`와 `terms[i+1]` 사이), `caption` |
 | `terms` | 용어 목록(왼쪽 용어·오른쪽 설명). 설명에 `**굵게**` 가능 | `items: { term, desc }[]` |
-| `faq` | 자주 묻는 질문(답은 늘 펼침). 답에 `**굵게**` 가능 | `items: { q, a }[]` |
+| `faq` | 자주 묻는 질문(답은 늘 펼침). 질문 앞 번호는 화면이 붙임. 답에 `**굵게**` 가능 | `items: { q, a, mark? }[]`(`mark`: `'yes'` ✅ · `'no'` ❌ · `'tip'` 💡, 기본값 `'tip'`) |
 
 - 원고가 없는 카드는 상세에서 '준비 중'으로 보인다.
 - 계산식은 좁은 화면(380px)에서도 한 줄로 보여야 하므로 칸 3개 안팎, 값은 짧게 쓴다.

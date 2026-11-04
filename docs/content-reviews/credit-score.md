@@ -4,7 +4,7 @@
 - 상태: published(2026-11-04 사람 승인)
 - 작성·확인일: 2026-11-04
 - 검수: 2026-11-04 독립 검수 2회(1차: 지적 2건, 2차: 수정 필요 1건·확인 불가 1건) 모두 반영
-- 표지: `public/guide/credit-score.svg`
+- 표지: `public/guide/credit-score.png`(2026-11-04 PNG 이미지로 교체)
 - 규칙: [docs/content-guidelines.md](../content-guidelines.md)
 
 ## 확인 표

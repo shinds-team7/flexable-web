@@ -1,4 +1,4 @@
-// 검색창 아래 두 카드: 내 지원금 찾기(조건으로 찾기·마감 임박으로 이어 줌) · 요즘 핫한 지원금(최근 7일 이 사이트에서 많이 연 순서).
+// 검색창 아래 두 카드: 내 지원금 찾기(조건으로 찾기·마감 임박으로 이어 줌) · 요즘 핫한 청년 소식(최근 7일 이 사이트에서 많이 연 순서).
 import type { YouthNews } from '@/data/news';
 import { recordNewsView, type HotNews } from '@/data/newsHot';
 import { deadlineState } from '@/lib/deadline';
@@ -35,7 +35,7 @@ export function HotNewsCard({ picks, hot, today, isSample }: HotProps) {
     <section className="news-quick-card news-hot" aria-labelledby="news-hot-title">
       <div className="news-quick-body">
         <h2 id="news-hot-title">
-          요즘 핫한 지원금 {isSample && <span className="tag-ex">예시</span>}
+          요즘 핫한 청년 소식 {isSample && <span className="tag-ex">예시</span>}
         </h2>
         {counted && <p className="meta">{`최근 ${hot?.windowDays ?? 7}일 동안 이 사이트에서 많이 연 순서예요.`}</p>}
         {picks.length === 0 ? (

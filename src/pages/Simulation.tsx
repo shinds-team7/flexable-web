@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CandleChart, type EventBand } from '@/charts/CandleChart';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
 import { ApiError, errorText } from '@/lib/api';
+import { VirtualSimulation } from '@/pages/VirtualSimulation';
 import '@/styles/practice.css';
 
 const fmt = new Intl.NumberFormat('ko-KR');
@@ -205,7 +206,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
 
 const MODES = [
   { id: 'past', label: '과거 시장 연습', lead: '사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
-  { id: 'virtual', label: '가상 시뮬레이션', lead: '아직 준비 중인 메뉴예요.' },
+  { id: 'virtual', label: '가상 시뮬레이션', lead: '가상 종목의 가상 사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
 ] as const;
 type Mode = typeof MODES[number]['id'];
 
@@ -225,17 +226,10 @@ export default function Simulation() {
     <div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
       {MODES.map((m, i) => <button key={m.id} ref={el => { tabs.current[m.id] = el; }} type="button" role="tab" id={`practice-tab-${m.id}`} aria-controls={`practice-panel-${m.id}`}
         aria-selected={mode === m.id} tabIndex={mode === m.id ? 0 : -1} onClick={() => setMode(m.id)} onKeyDown={e => onKey(e, i)}>
-        {m.label}{m.id === 'virtual' && <span className="practice-mode-badge">준비 중</span>}
+        {m.label}
       </button>)}
     </div>
     <div role="tabpanel" id="practice-panel-past" aria-labelledby="practice-tab-past" hidden={mode !== 'past'}><PastMarketPractice active={mode === 'past'} /></div>
-    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}>
-      <section className="practice-soon">
-        <span className="practice-mode-badge">준비 중</span>
-        <h2>가상 시뮬레이션은 아직 준비 중이에요</h2>
-        <p>지금은 이용할 수 없어요. 과거 시세로 연습하는 과거 시장 연습은 바로 해 볼 수 있어요.</p>
-        <button type="button" className="btn" onClick={() => select('past')}>과거 시장 연습으로 가기</button>
-      </section>
-    </div>
+    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}><VirtualSimulation active={mode === 'virtual'} onGoPast={() => select('past')} /></div>
   </div>;
 }

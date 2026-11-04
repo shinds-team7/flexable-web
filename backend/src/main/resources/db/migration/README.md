@@ -3,7 +3,7 @@
 
 | 버전 | 내용 |
 |---|---|
-| `V25__cash_catalog.sql` | `cash_catalog_snapshots`: 파킹·CMA 출처별 공시 스냅샷, 허가 근거·조건 원문. 운영 시드 없음. V24는 #208 별도 구현 계획용 |
+| `V24__cash_catalog.sql` | `cash_catalog_snapshots`: 파킹·CMA 출처별 공시 스냅샷, 허가 근거·조건 원문. 운영 시드 없음 |
 | `V1__web_accounts.sql` | `users`(user), `user_settings`(user), `user_credentials`(auth) |
 | `V2__social_login.sql` | `user_identities`(auth), `users.email`·`user_credentials.password_hash` NULL 허용 |
 | `V3__app_links.sql` | `app_links`(applink): 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니 |

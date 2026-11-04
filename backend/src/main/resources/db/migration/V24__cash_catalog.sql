@@ -1,4 +1,4 @@
--- V24는 별도 가상 시뮬레이션 구현 계획(#208)을 위해 비워 둔다.
+-- main과 열린 PR의 실제 마이그레이션을 확인한 다음 번호(V24).
 -- 수기 입력·운영 시드 없음. 허용 출처의 검증된 전체 스냅샷만 내부 수집 경계로 반영한다.
 CREATE TABLE cash_catalog_snapshots (
     id VARCHAR(36) NOT NULL PRIMARY KEY,

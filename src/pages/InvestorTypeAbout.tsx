@@ -2,13 +2,13 @@
 import { Link } from 'react-router-dom';
 
 const TOC = [
-  { id: 'what', label: '🔍 투자성향분석이란 무엇인가요?' },
-  { id: 'when', label: '⏰ 언제 하나요?' },
-  { id: 'check', label: '📋 solpa 진단에서 살펴보는 것' },
-  { id: 'types', label: '🧭 투자성향은 어떻게 나뉘나요?' },
-  { id: 'grade', label: '⚖️ 투자성향과 상품 위험등급' },
-  { id: 'pick', label: '🛒 상품을 고르는 기준' },
-  { id: 'remember', label: '💡 설문에 답할 때 기억해 주세요' },
+  { id: 'what', label: '투자성향분석이란 무엇인가요?' },
+  { id: 'when', label: '언제 하나요?' },
+  { id: 'check', label: 'solpa 진단에서 살펴보는 것' },
+  { id: 'types', label: '투자성향은 어떻게 나뉘나요?' },
+  { id: 'grade', label: '투자성향과 상품 위험등급' },
+  { id: 'pick', label: '상품을 고르는 기준' },
+  { id: 'remember', label: '설문에 답할 때 기억해 주세요' },
 ] as const;
 
 const TYPES = [
@@ -107,12 +107,10 @@ function Cta({ children }: { children: string }) {
   );
 }
 
-function Head({ id, emoji, title }: { id: string; emoji: string; title: string }) {
+function Head({ id, title }: { id: string; title: string }) {
   return (
     <header className="ia-head">
-      <h2 id={id}>
-        <span aria-hidden="true">{emoji}</span> {title}
-      </h2>
+      <h2 id={id}>{title}</h2>
     </header>
   );
 }
@@ -150,7 +148,7 @@ export function InvestorTypeAbout() {
         </div>
 
         <section className="ia-sec" aria-labelledby="what">
-          <Head id="what" emoji="🔍" title="투자성향분석이란 무엇인가요?" />
+          <Head id="what" title="투자성향분석이란 무엇인가요?" />
           <div className="ia-prose">
             <p>투자성향분석은 설문 등을 통해 투자자의 상황과 위험을 받아들이는 태도를 살펴보는 절차예요. 주로 다음과 같은 내용을 확인해요.</p>
             <ul>
@@ -169,7 +167,7 @@ export function InvestorTypeAbout() {
         </section>
 
         <section className="ia-sec" aria-labelledby="when">
-          <Head id="when" emoji="⏰" title="투자성향분석은 언제 하나요?" />
+          <Head id="when" title="투자성향분석은 언제 하나요?" />
           <div className="ia-prose">
             <p>금융회사에서 투자성 상품을 권유받거나, 투자자정보 확인이 필요한 상품을 거래할 때 진행해요. 구체적인 절차는 금융회사와 상품에 따라 달라질 수 있어요.</p>
             <p>
@@ -180,35 +178,27 @@ export function InvestorTypeAbout() {
         </section>
 
         <section className="ia-sec" aria-labelledby="check">
-          <Head id="check" emoji="📋" title="solpa 투자성향 진단에서는 무엇을 살펴보나요?" />
+          <Head id="check" title="solpa 투자성향 진단에서는 무엇을 살펴보나요?" />
           <div className="ia-prose">
             <p>solpa에서는 자금 여건, 투자 경험과 이해도, 투자 목표와 태도, 투자 기간을 함께 살펴봐요.</p>
           </div>
           <div className="ia-step">
-            <h3>
-              <span aria-hidden="true">📌</span> 자금 여건과 투자 기반
-            </h3>
+            <h3>자금 여건과 투자 기반</h3>
             <p>나이, 연 소득, 수입원, 금융자산 비중 등을 통해 투자에 활용할 수 있는 자금 상황을 확인해요.</p>
             <p>수익을 기대하는 마음과 실제로 손실을 감당할 수 있는 여건은 함께 살펴봐야 해요. 손실이 나더라도 생활비나 예정된 지출에 문제가 없는지 생각해 보세요.</p>
           </div>
           <div className="ia-step">
-            <h3>
-              <span aria-hidden="true">📌</span> 투자 경험과 이해도
-            </h3>
+            <h3>투자 경험과 이해도</h3>
             <p>금융상품과 파생상품에 투자해 본 경험, 금융상품에 대한 이해 수준을 확인해요.</p>
             <p>투자 경험이 있다면 어떤 상품을 거래했는지, 상품의 구조와 손실 가능성을 어느 정도 이해하고 있는지도 중요해요.</p>
           </div>
           <div className="ia-step">
-            <h3>
-              <span aria-hidden="true">📌</span> 투자 목표와 태도
-            </h3>
+            <h3>투자 목표와 태도</h3>
             <p>투자 목적, 원금 보존에 대한 생각, 감내할 수 있는 손실 수준 등을 살펴봐요.</p>
             <p>높은 수익을 기대하는 만큼 어느 정도의 위험을 받아들일 수 있는지, 손실이 발생했을 때 어떤 선택을 할지 자신의 상황을 기준으로 답해 주세요.</p>
           </div>
           <div className="ia-step">
-            <h3>
-              <span aria-hidden="true">📌</span> 투자 기간
-            </h3>
+            <h3>투자 기간</h3>
             <p>투자한 돈을 언제 사용할 예정인지 확인해요.</p>
             <p>가까운 시일 안에 필요한 돈이라면 가격 변동이나 환매에 걸리는 시간이 부담이 될 수 있어요. 투자 기간이 길더라도 상품별 손실 위험은 따로 확인해야 해요.</p>
           </div>
@@ -216,7 +206,7 @@ export function InvestorTypeAbout() {
         </section>
 
         <section className="ia-sec" aria-labelledby="types">
-          <Head id="types" emoji="🧭" title="투자성향은 어떻게 나뉘나요?" />
+          <Head id="types" title="투자성향은 어떻게 나뉘나요?" />
           <div className="ia-prose">
             <p>
               solpa에서는 설문 결과를 <b>안정형, 안정추구형, 위험중립형, 적극투자형, 공격투자형</b>의 5가지 유형으로 안내해요.
@@ -227,9 +217,7 @@ export function InvestorTypeAbout() {
           </div>
           {TYPES.map((t) => (
             <div className="ia-step" key={t.name}>
-              <h3>
-                <span aria-hidden="true">✔️</span> {t.name}
-              </h3>
+              <h3>{t.name}</h3>
               {t.body.map((p) => (
                 <p key={p}>{p}</p>
               ))}
@@ -238,7 +226,7 @@ export function InvestorTypeAbout() {
         </section>
 
         <section className="ia-sec" aria-labelledby="grade">
-          <Head id="grade" emoji="⚖️" title="투자성향과 상품 위험등급은 어떻게 다른가요?" />
+          <Head id="grade" title="투자성향과 상품 위험등급은 어떻게 다른가요?" />
           <div className="ia-prose">
             <p className="ia-callout">
               <span aria-hidden="true">📌</span> <b>투자성향은 투자자에 대한 평가이고, 상품 위험등급은 상품이 지닌 위험 수준에 대한 평가예요.</b>
@@ -274,15 +262,13 @@ export function InvestorTypeAbout() {
         </section>
 
         <section className="ia-sec" aria-labelledby="pick">
-          <Head id="pick" emoji="🛒" title="투자성향을 확인한 다음에는 어떤 기준으로 상품을 골라야 하나요?" />
+          <Head id="pick" title="투자성향을 확인한 다음에는 어떤 기준으로 상품을 골라야 하나요?" />
           <div className="ia-prose">
             <p>투자성향 결과와 함께 아래 항목을 살펴보면 상품을 더 구체적으로 비교할 수 있어요.</p>
           </div>
           {PICKS.map((p) => (
             <div className="ia-step" key={p.q}>
-              <h3>
-                <span aria-hidden="true">✅</span> {p.q}
-              </h3>
+              <h3>{p.q}</h3>
               {p.body.map((t) => (
                 <p key={t}>{t}</p>
               ))}
@@ -291,7 +277,7 @@ export function InvestorTypeAbout() {
         </section>
 
         <section className="ia-sec" aria-labelledby="remember">
-          <Head id="remember" emoji="💡" title="설문에 답할 때 기억해 주세요" />
+          <Head id="remember" title="설문에 답할 때 기억해 주세요" />
           <div className="ia-prose">
             <p>투자성향 진단에서는 현재의 자금 상황과 경험을 기준으로 솔직하게 답하는 것이 중요해요.</p>
             <p>

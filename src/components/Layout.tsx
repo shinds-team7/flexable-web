@@ -13,7 +13,7 @@ import { LoginModalProvider, useLoginModal } from './LoginModal';
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
 type NavItem = { to: string; label: string; sub?: { to: string; label: string }[] };
 const NAV: NavItem[] = [
-  { to: '/finance', label: '금융정보' },
+  { to: '/guide', label: '금융 가이드' },
   { to: '/type', label: '투자성향' },
   {
     to: '/invest',
@@ -37,7 +37,6 @@ const NAV: NavItem[] = [
   },
   { to: '/goal', label: 'AI 계획' },
   { to: '/news', label: '청년소식' },
-  { to: '/guide', label: '금융 가이드' },
 ];
 
 function SeedChip() {

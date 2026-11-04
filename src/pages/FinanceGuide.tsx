@@ -1,6 +1,6 @@
 // 금융 가이드(/guide). 상단 메뉴 '금융정보'(/finance)와는 다른 화면. AI 계획에서 예적금·주식·ETF 등을 고르기 전에, 처음 쓰는 사람에게 개념을 안내한다.
 // 검색 배너 → 검색 결과(용어 설명) → 카테고리 → 추천 콘텐츠(탭·정렬) → AI 목표 달성 안내 띠.
-// 콘텐츠 상세 글은 아직 없어서 콘텐츠를 누르면 그 주제의 용어 설명(검색 결과)을 연다. 검색어·저장 표시는 브라우저 메모리에만 있고 저장·전송하지 않는다.
+// 카테고리 카드는 카테고리 화면(/guide/:category)으로, 콘텐츠 카드는 그 콘텐츠를 펼친 카테고리 화면(#id)으로 간다. 검색어·저장 표시는 브라우저 메모리에만 있고 저장·전송하지 않는다.
 import { useEffect, useRef, useState, type FormEvent, type Ref } from 'react';
 import { Link } from 'react-router-dom';
 import { FinanceArt, FinanceHeroArt, TargetArt } from '@/components/guide/GuideArt';
@@ -24,30 +24,27 @@ type Tab = GuideCategory | 'all';
 export default function FinanceGuide() {
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
-  const [scrollTo, setScrollTo] = useState<'results' | 'contents' | null>(null);
   const [tab, setTab] = useState<Tab>('all');
   const resultsRef = useRef<HTMLElement>(null);
-  const contentsRef = useRef<HTMLElement>(null);
+  const [scrollResults, setScrollResults] = useState(false);
 
-  const run = (q: string, scroll = false) => {
+  const run = (q: string) => {
     setInput(q);
     setQuery(q.trim());
-    if (scroll && q.trim()) setScrollTo('results');
+    if (q.trim()) setScrollResults(true);
   };
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     run(input);
   };
-  const pickCategory = (c: GuideCategory) => {
-    setTab(c);
-    setScrollTo('contents');
-  };
-
+  // 검색 결과가 화면에서 잘 안 보이면 결과로 내려간다(이미 보이면 움직이지 않는다)
   useEffect(() => {
-    if (!scrollTo) return;
-    (scrollTo === 'results' ? resultsRef : contentsRef).current?.scrollIntoView({ block: 'start' });
-    setScrollTo(null);
-  }, [scrollTo]);
+    if (!scrollResults) return;
+    setScrollResults(false);
+    const el = resultsRef.current;
+    const r = el?.getBoundingClientRect();
+    if (el && r && (r.top < 0 || r.top > window.innerHeight * 0.6)) el.scrollIntoView({ block: 'start' });
+  }, [scrollResults, query]);
 
   return (
     <section>
@@ -90,7 +87,7 @@ export default function FinanceGuide() {
           <FinanceHeroArt />
         </header>
 
-        {query && <SearchResults ref={resultsRef} query={query} onClear={() => run('')} onPick={(k) => run(k)} />}
+        {query && <SearchResults ref={resultsRef} query={query} onClear={() => run('')} />}
 
         <section className="fin-sec" aria-labelledby="fin-cats">
           <div className="fin-sec-head">
@@ -100,7 +97,7 @@ export default function FinanceGuide() {
           <ul className="fin-cats">
             {GUIDE_CATEGORIES.map((c) => (
               <li key={c.id}>
-                <button type="button" className="fin-cat-card" onClick={() => pickCategory(c.id)}>
+                <Link to={`/guide/${c.id}`} className="fin-cat-card">
                   <span className="fin-cat-art">
                     <FinanceArt id={c.art} />
                   </span>
@@ -113,13 +110,13 @@ export default function FinanceGuide() {
                   <span className="fin-round-arrow" aria-hidden="true">
                     <ArrowIcon />
                   </span>
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
         </section>
 
-        <Contents ref={contentsRef} tab={tab} onTab={setTab} onOpen={(k) => run(k, true)} />
+        <Contents tab={tab} onTab={setTab} />
 
         <section className="fin-cta" aria-labelledby="fin-cta">
           <TargetArt />
@@ -136,11 +133,12 @@ export default function FinanceGuide() {
   );
 }
 
-/** 추천 콘텐츠: 전체·금융 기초·금융 상품 탭, 최신순·인기순 정렬, 3열 카드. 저장 표시는 이 화면을 보는 동안만 유지된다 */
-function Contents({ ref, tab, onTab, onOpen }: { ref: Ref<HTMLElement>; tab: Tab; onTab: (t: Tab) => void; onOpen: (keyword: string) => void }) {
+/** 추천 콘텐츠: 전체·금융 기초·금융 상품 탭, 최신순·많이 본 순 정렬, 3열 카드 최대 6개. 저장 표시는 이 화면을 보는 동안만 유지된다 */
+const MAIN_CONTENT_COUNT = 6;
+function Contents({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
   const [sort, setSort] = useState<ContentSort>('latest');
   const [saved, setSaved] = useState<Set<string>>(() => new Set());
-  const items = selectContents(GUIDE_CONTENTS.items, tab, sort);
+  const items = selectContents(GUIDE_CONTENTS.items, tab, sort).slice(0, MAIN_CONTENT_COUNT);
   const toggle = (id: string) =>
     setSaved((prev) => {
       const next = new Set(prev);
@@ -150,7 +148,7 @@ function Contents({ ref, tab, onTab, onOpen }: { ref: Ref<HTMLElement>; tab: Tab
     });
   const tabs: Tab[] = ['all', 'basic', 'product'];
   return (
-    <section ref={ref} className="fin-sec fin-contents" aria-labelledby="fin-contents">
+    <section className="fin-sec fin-contents" aria-labelledby="fin-contents">
       <div className="fin-contents-head">
         <h2 id="fin-contents">추천 콘텐츠</h2>
         <div className="fin-tabs" role="group" aria-label="카테고리">
@@ -174,7 +172,7 @@ function Contents({ ref, tab, onTab, onOpen }: { ref: Ref<HTMLElement>; tab: Tab
       <ul className="fin-grid">
         {items.map((c) => (
           <li key={c.id} className="fin-content">
-            <button type="button" className="fin-content-main" onClick={() => onOpen(c.keyword)}>
+            <Link to={`/guide/${c.category}#${c.id}`} className="fin-content-main">
               <span className="fin-content-art">
                 <FinanceArt id={c.art} />
               </span>
@@ -193,7 +191,7 @@ function Contents({ ref, tab, onTab, onOpen }: { ref: Ref<HTMLElement>; tab: Tab
                   </span>
                 </span>
               </span>
-            </button>
+            </Link>
             <button type="button" className="fin-save" aria-pressed={saved.has(c.id)} aria-label={`${c.title} 저장`} onClick={() => toggle(c.id)}>
               <BookmarkIcon filled={saved.has(c.id)} />
             </button>
@@ -205,7 +203,7 @@ function Contents({ ref, tab, onTab, onOpen }: { ref: Ref<HTMLElement>; tab: Tab
 }
 
 /** 검색 결과: 용어 설명 → 관련 콘텐츠 */
-function SearchResults({ ref, query, onClear, onPick }: { ref: Ref<HTMLElement>; query: string; onClear: () => void; onPick: (keyword: string) => void }) {
+function SearchResults({ ref, query, onClear }: { ref: Ref<HTMLElement>; query: string; onClear: () => void }) {
   const r = searchGuide(query);
   const count = r.terms.length + r.contents.length;
   return (
@@ -242,9 +240,9 @@ function SearchResults({ ref, query, onClear, onPick }: { ref: Ref<HTMLElement>;
                 {r.contents.map((c) => (
                   <li key={c.id}>
                     <span className="fin-cat">{CATEGORY_LABEL[c.category]}</span>
-                    <button type="button" className="btn btn-text fin-results-link" onClick={() => onPick(c.keyword)}>
+                    <Link to={`/guide/${c.category}#${c.id}`} className="fin-results-link">
                       {c.title}
-                    </button>
+                    </Link>
                   </li>
                 ))}
               </ul>

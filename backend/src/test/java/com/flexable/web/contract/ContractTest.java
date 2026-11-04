@@ -90,6 +90,25 @@ import tools.jackson.databind.json.JsonMapper;
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:contract;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
 class ContractTest {
+    @Autowired
+    com.flexable.web.cashcatalog.CashCatalogService cashCatalog;
+
+    @Test
+    void 파킹과_CMA_조건_조회() throws Exception {
+        for (String kind : List.of("parking", "cma")) {
+            cashCatalog.withdraw(kind, "contract-test");
+            call(get("/api/v1/" + kind + "/products"), 200);
+            boolean cma = kind.equals("cma");
+            cashCatalog.publish(kind, "contract-test", "synthetic-contract-permission", List.of(
+                new com.flexable.web.cashcatalog.CashCatalogDtos.Product("test", "합성회사", "합성 상품",
+                    cma ? "SECURITIES" : "BANK", cma ? "RP" : null, new java.math.BigDecimal("2.50"), null,
+                    cma ? "AGREED" : "VARIABLE_DEPOSIT", "금액·기간 조건 원문", null, null, null, null, null,
+                    "테스트 공시", "https://example.com/source", LocalDate.of(2026, 11, 1), null,
+                    OffsetDateTime.parse("2026-11-04T09:00:00+09:00"))));
+            try { call(get("/api/v1/" + kind + "/products"), 200); }
+            finally { cashCatalog.withdraw(kind, "contract-test"); }
+        }
+    }
 
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 	private static final OpenApiInteractionValidator VALIDATOR = validator();

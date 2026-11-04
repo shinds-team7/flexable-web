@@ -157,7 +157,9 @@ function LayoutBody() {
       {exploring && (
         <div className="demo-banner" role="status">
           <div className="wrap">
-            <span>체험 중이에요. 예시 데이터로 모든 기능을 써 볼 수 있고, 체험 내용은 저장되지 않아요.</span>
+            <span>{['/deposit', '/parking', '/cma'].includes(pathname)
+              ? '체험 중이에요. 상품 자료의 출처·기준일과 예시 표시를 확인해 주세요. 체험 내용은 저장되지 않아요.'
+              : '체험 중이에요. 예시 데이터로 모든 기능을 써 볼 수 있고, 체험 내용은 저장되지 않아요.'}</span>
             <Link to="/mypage">체험 홈</Link>
             <Link to="/mypage/settings">내 정보</Link>
           </div>

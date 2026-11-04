@@ -6,7 +6,7 @@
 
 ## 2026-11-04
 
-- [Refs #143, #144, #145, #148, #236] 사용자가 공식 공개 화면의 비로그인 GET/POST·JSON 조회 수집과 완료 후 PR 병합·Issue 종료를 승인했다([결정](decisions/2026-11-04-public-cash-queries.md)). 최초 HTML의 과거 금리 오수집을 막고 전체 건수를 대조한다 — 영향: 백엔드 수집·검증·진행 관리
+- [Refs #143, #144, #145, #148, #236] 사용자가 공식 공개 화면의 비로그인 GET/POST·JSON 조회 수집과 완료 후 PR 병합·Issue 종료를 승인했다([결정](decisions/2026-11-04-public-cash-queries.md)). 최초 HTML의 과거 금리 오수집을 막고 전체 건수를 대조한다. 예금·파킹·CMA의 체험 안내도 실제 공시를 전부 예시라고 부르지 않게 고쳤다 — 영향: 프론트·백엔드 수집·검증·진행 관리
 
 - [#228] 목표 달성 시나리오에 OpenAI 조합 제안을 연결했다(policies §7-6, 결정 문서 "11-04 추가"): 로그인한 회원만 AI 조합(하루 무료 3회·플러스 10회 — 실결제 전에는 모두 무료 한도, 서비스 전체 하루 300회, 같은 회원의 같은 금액·기한·기준일이면 재사용·차감 없음), 비회원·횟수 초과·실패 때는 데모 조합. AI에게는 목표 금액·기한과 유형별 통계만 보내고 목표 이름은 보내지 않는다. 계약: `POST /goal/scenarios`에 `aiUsage`·`aiReused`, `fallbackReason`에 `GUEST`·`LIMIT`·`DAILY_CAP`, 잘못된 토큰 `401`. DB `goal_scenario_ai_usage`·`goal_scenario_ai_daily`·`goal_scenario_ai_cache`(V25). 개인정보처리방침 제2·4·6조와 `privacy-web.md`를 고쳤다 — 영향: 프론트(`npm run gen:api`)·백엔드·운영(`OPENAI_API_KEY` 설정 확인)
 - [#233] 소식 화면을 고쳤다([결정](decisions/2026-11-03-news-hot.md), [진단](decisions/2026-11-03-news-diagnosis.md)): "요즘 핫한 청년 소식" 이름 변경, 분석 카드를 지금 신청할 수 있는 소식 기준으로, 빠른 검색 탭 삭제·맞춤 판별 한 화면화, 카드 [공고문 보기] 버튼 삭제·무한 스크롤, 기본 정렬 새로운 순. 정렬 저장 키 `fx.news.filter.v2` — 영향: 프론트

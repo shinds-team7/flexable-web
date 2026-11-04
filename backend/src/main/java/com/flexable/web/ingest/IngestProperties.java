@@ -128,6 +128,17 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 			maxCalls = maxCalls == null ? 2 : maxCalls;
 			dailyCap = dailyCap == null ? 2 : dailyCap;
 			dartMaxCalls = dartMaxCalls == null ? 2000 : dartMaxCalls;
+			// 0 이하면 작업 없이 끝나 실패 신호가 없다(batch-size 0은 하루 호출 상한만 쓴다). 시작할 때 막는다
+			atLeastOne("VIRTUAL_SIM_BATCH_SIZE", batchSize);
+			atLeastOne("VIRTUAL_SIM_MAX_CALLS", maxCalls);
+			atLeastOne("VIRTUAL_SIM_DAILY_CAP", dailyCap);
+			atLeastOne("VIRTUAL_SIM_DART_MAX_CALLS", dartMaxCalls);
+		}
+
+		private static void atLeastOne(String name, int value) {
+			if (value < 1) {
+				throw new IllegalArgumentException(name + "는 1 이상이어야 해요: " + value);
+			}
 		}
 
 		/** 전용 키, 없으면 공용 Gemini 키 */

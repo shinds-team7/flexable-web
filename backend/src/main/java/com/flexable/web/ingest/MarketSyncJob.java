@@ -87,20 +87,26 @@ public class MarketSyncJob implements ApplicationRunner {
 		catch (RuntimeException e) {
 			log.warn("시장 띠 수집 실패: {}", e.getMessage());
 		}
-		runOnce();
-		eventJob.runOnce();
-        if (practice != null) practice.runOnce();
-		// 가상 시뮬레이션: 전체 공시 목록을 이어 받고 룰셋을 다시 만든다(실패해도 이미 있는 룰셋으로 세션은 계속된다)
+		// 단계마다 따로 감싸 앞 단계의 예외가 뒤 단계(사건·시뮬레이션 자료·가상 시뮬레이션 공시·룰셋)를 건너뛰게 하지 않는다
+		step("시세 수집", this::runOnce);
+		step("사건 탐지·공시 근거", eventJob::runOnce);
+		if (practice != null) {
+			step("업종·시뮬레이션 자료", practice::runOnce);
+		}
+		if (disclosureArchive != null) {
+			step("가상 시뮬레이션 전체 공시 수집", disclosureArchive::runOnce);
+		}
+		if (virtualSimRules != null) {
+			step("가상 시뮬레이션 룰셋", virtualSimRules::runOnce);
+		}
+	}
+
+	private static void step(String name, Runnable task) {
 		try {
-			if (disclosureArchive != null) {
-				disclosureArchive.runOnce();
-			}
-			if (virtualSimRules != null) {
-				virtualSimRules.runOnce();
-			}
+			task.run();
 		}
 		catch (RuntimeException e) {
-			log.warn("가상 시뮬레이션 자료 수집 실패: {}", e.getMessage());
+			log.warn("{} 실패: {}", name, e.getMessage());
 		}
 	}
 

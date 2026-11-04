@@ -16,6 +16,9 @@ export function NewsHero({ query, onSearch, onGoConditions }: Props) {
   return (
     <div className="news-hero">
       <h1 className="sr-only">청년 금융 소식</h1>
+      <button type="button" className="news-hero-link" onClick={onGoConditions}>
+        뭘 받을지 모르겠다면 30초 진단 <span aria-hidden="true">›</span>
+      </button>
       <form className="news-hero-search" role="search" aria-label="소식 검색" onSubmit={submit}>
         <Icon id="i-search" size={18} />
         <input type="search" placeholder="청년 월세, 교통비, 저축…" aria-label="검색어" value={draft} onChange={(e) => setDraft(e.target.value)} />
@@ -30,9 +33,6 @@ export function NewsHero({ query, onSearch, onGoConditions }: Props) {
           </button>
         ))}
       </div>
-      <button type="button" className="news-hero-link" onClick={onGoConditions}>
-        뭘 받을지 모르겠다면 30초 진단 <span aria-hidden="true">›</span>
-      </button>
     </div>
   );
 }

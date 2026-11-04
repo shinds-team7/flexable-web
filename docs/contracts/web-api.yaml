@@ -283,8 +283,8 @@ paths:
   /virtual-sim/decision:
     post:
       tags: [virtual-sim]
-      summary: '현재 가상 사건의 방향 예상과 가상 매매 선택(no-store)'
-      description: '/practice/decision과 같다. AWAITING_DECISION의 eventId만 허용하고 다음 step에서 시가 체결'
+      summary: '현재 가상 사건의 가상 매매 선택(수량 직접 입력, no-store)'
+      description: 'AWAITING_DECISION의 eventId만 허용하고 다음 step에서 다음 거래일 시가로 체결한다. 예상 버튼은 없고 매매 방향이 예상이다(BUY = 오른다, SELL = 내린다, HOLD = 채점 제외, policies §8-6). quantity는 HOLD면 0, BUY·SELL은 1 이상이고 event.orderLimits 안이어야 한다(넘으면 400 VALIDATION_FAILED, field=quantity). 매수는 체결 시가로 그때 현금에 살 수 있는 만큼만 체결한다(부분 체결, 0주면 NO_FILL)'
       security: []
       requestBody:
         required: true
@@ -293,15 +293,14 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [sessionToken, commandId, expectedVersion, eventId, prediction, action, allocationPercent]
+              required: [sessionToken, commandId, expectedVersion, eventId, action, quantity]
               properties:
                 sessionToken: { type: string, minLength: 43, maxLength: 128 }
                 commandId: { type: string, format: uuid }
                 expectedVersion: { type: integer, minimum: 0 }
                 eventId: { type: string }
-                prediction: { type: string, enum: [POSITIVE, NEGATIVE] }
                 action: { type: string, enum: [BUY, SELL, HOLD] }
-                allocationPercent: { type: integer, enum: [0, 25, 50, 100], description: 'HOLD는 0만, BUY/SELL은 25/50/100만 허용' }
+                quantity: { type: integer, format: int64, minimum: 0, maximum: 100000000, description: 'HOLD는 0만, BUY는 1~orderLimits.maxBuyShares, SELL은 1~orderLimits.maxSellShares' }
       responses:
         '200':
           description: 선택을 접수한 상태. 판정 전 정답은 없음
@@ -1520,14 +1519,23 @@ components:
           nullable: true
           additionalProperties: false
           description: 'AWAITING_DECISION일 때만 현재 가상 사건. 그 밖에는 null. 제목은 서버가 붙인 실제 공시 제목 형식, 본문은 AI가 쓴 중립 사실(좋고 나쁨·금액 없음). 이후 움직임은 같은 유형 실제 공시 뒤 경로에서 뽑는다'
-          required: [id, category, categoryName, title, body, date]
+          required: [id, category, categoryName, title, body, date, orderLimits]
           properties:
             id: { type: string }
             category: { $ref: '#/components/schemas/VirtualSimCategory' }
             categoryName: { type: string }
             title: { type: string, maxLength: 40, description: '유형마다 서버가 정한 실제 DART 보고서명 형식(예: 단일판매ㆍ공급계약체결)' }
-            body: { type: string, maxLength: 120 }
+            body: { type: string, maxLength: 240, description: 'AI가 쓴 공시 내용 2~4문장(vsim-check-v3, policies §8-5). 금액·규모·증감·좋고 나쁨 없음' }
             date: { type: string, format: date, description: '사건 봉 날짜(= 현재 마지막 봉). 가상 사건은 늘 거래일 종가 뒤에 보인다' }
+            orderLimits:
+              type: object
+              additionalProperties: false
+              description: '수량 입력 상한과 미리보기 기준(서버 계산). 화면은 수량 × referencePrice로 추정 금액만 보이고, 실제 체결은 다음 거래일 시가다'
+              required: [referencePrice, maxBuyShares, maxSellShares]
+              properties:
+                referencePrice: { type: integer, format: int64, minimum: 1, description: '지금 마지막 봉 종가' }
+                maxBuyShares: { type: integer, format: int64, minimum: 0, description: 'floor(현금 / referencePrice)' }
+                maxSellShares: { type: integer, format: int64, minimum: 0, description: '보유 수량' }
         decisions:
           type: array
           maxItems: 5
@@ -1535,28 +1543,29 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [eventId, category, categoryName, title, date, prediction, action, allocationPercent, execution, executedDate, executedPrice, executedShares, outcome, outcomeDate, subsequentReturnRate, categoryUpShare, categorySampleCount, trend, trendOutcome]
+            required: [eventId, category, categoryName, title, date, prediction, action, quantity, execution, executedDate, executedPrice, executedShares, outcome, outcomeDate, subsequentReturnRate, movement, categoryUpShare, categorySampleCount, trend, trendOutcome]
             properties:
               eventId: { type: string }
               category: { $ref: '#/components/schemas/VirtualSimCategory' }
               categoryName: { type: string }
               title: { type: string }
               date: { type: string, format: date }
-              prediction: { type: string, enum: [POSITIVE, NEGATIVE] }
+              prediction: { type: string, nullable: true, enum: [POSITIVE, NEGATIVE, null], description: '매매 방향에서 정한 예상. BUY → POSITIVE, SELL → NEGATIVE, HOLD → null' }
               action: { type: string, enum: [BUY, SELL, HOLD] }
-              allocationPercent: { type: integer, enum: [0, 25, 50, 100] }
+              quantity: { type: integer, format: int64, minimum: 0, description: '요청 수량. 실제 체결 수량은 executedShares' }
               execution: { type: string, enum: [PENDING, FILLED, NO_FILL, HOLD] }
               executedDate: { type: string, format: date, nullable: true }
               executedPrice: { type: integer, format: int64, nullable: true, minimum: 1 }
               executedShares: { type: integer, format: int64, nullable: true, minimum: 0 }
-              outcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '이번 결과: 이후 5거래일 가상 등락과 비교(policies §5 판정). 점수에 넣지 않는다' }
+              outcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다' }
               outcomeDate: { type: string, format: date, nullable: true }
               subsequentReturnRate: { type: number, nullable: true }
+              movement: { type: string, nullable: true, enum: [UP, DOWN, FLAT, null], description: '판정 뒤만. 이후 5거래일 가상 등락의 방향(원 가격 비교). 판정 전에는 null' }
               categoryUpShare: { type: number, nullable: true, minimum: 0, maximum: 1, description: '판정 뒤(outcome이 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null' }
               categorySampleCount: { type: integer, nullable: true, minimum: 1, description: '판정 뒤만. categoryUpShare를 센 공시 수. 판정 전에는 null' }
               trend: { type: string, nullable: true, enum: [UP, DOWN, MIXED, null], description: '판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null' }
-              trendOutcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '판정 뒤만. 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED면 NEUTRAL. 판정 전에는 null' }
-        notice: { type: string, description: '서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 과거 경향으로 채점하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6' }
+              trendOutcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null' }
+        notice: { type: string, description: '서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6' }
         sources:
           type: array
           minItems: 1

@@ -1110,6 +1110,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .it-intro-p{margin:0;font-size:16px;line-height:26px;font-weight:300;color:var(--text-secondary,inherit)}
 .it-entry{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px;width:100%;max-width:880px;margin:32px auto 0}
 .it-entry-card{display:flex;flex-direction:column;align-items:center;gap:12px;min-height:520px;padding:56px 40px 48px;border-radius:40px;color:#fff;text-decoration:none;box-shadow:0 12px 40px color-mix(in srgb,var(--entry) 28%,transparent);transition:transform 220ms var(--ease),box-shadow 220ms var(--ease)}
+.it-entry-card:is(:hover,:focus,:active){text-decoration:none}
 .it-entry-card.sky{--entry:var(--color-card-sky);background:var(--color-card-sky)}
 .it-entry-card.violet{--entry:var(--color-card-violet);background:var(--color-card-violet)}
 .it-entry-card:is(:hover,:focus-visible){transform:translateY(-6px);box-shadow:0 18px 48px color-mix(in srgb,var(--entry) 38%,transparent)}

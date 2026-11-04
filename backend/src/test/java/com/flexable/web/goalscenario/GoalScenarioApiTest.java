@@ -1,8 +1,9 @@
 package com.flexable.web.goalscenario;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -242,34 +243,124 @@ class GoalScenarioApiTest {
 		assertThat((String) JsonPath.read(body, "$.field")).isEqualTo("SAVINGS");
 	}
 
+	private static final List<Proposals.Draft> GOOD = List.of(
+			new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
+			new Proposals.Draft("b", "반반", "적금과 지수 ETF", "반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)));
+	private static final List<Proposals.Draft> BAD = List.of(
+			new Proposals.Draft("a", "코인", "코인", "코인이에요", Map.of("BITCOIN", 100)),
+			new Proposals.Draft("b", "적금", "적금", "적금이에요", Map.of("SAVINGS", 100)));
+
+	private String member(String body, String token, int expectedStatus) throws Exception {
+		return send(auth(post("/api/v1/goal/scenarios").contentType(MediaType.APPLICATION_JSON).content(body), token), expectedStatus);
+	}
+
 	@Test
-	void AI_제안이_규칙에_맞으면_그대로_쓴다() throws Exception {
+	void 비회원은_AI_대신_데모() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
-		when(proposer.propose(anyLong(), anyInt())).thenReturn(List.of(
-				new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
-				new Proposals.Draft("b", "반반", "적금과 지수 ETF", "반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
 		String body = call(BODY.formatted("목돈", 15_000_000, 1), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("DEMO");
+		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("GUEST");
+		assertThat((Object) JsonPath.read(body, "$.aiUsage")).isNull();
+		assertThat((Boolean) JsonPath.read(body, "$.aiReused")).isFalse();
+		verify(proposer, times(0)).propose(any());
+	}
+
+	@Test
+	void 회원은_AI_조합을_받고_목표_이름은_보내지_않는다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		String token = signup();
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), token, 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 		assertThat((Object) JsonPath.read(body, "$.fallbackReason")).isNull();
 		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).containsExactly("a", "b");
 		// 적금 100%·3.50%·1년·목표 1,500만 원 = 정책 예시(1,231,000원)
 		assertThat((Integer) JsonPath.read(body, "$.scenarios[0].monthly")).isEqualTo(1_231_000);
 		assertThat((Integer) JsonPath.read(body, "$.scenarios[0].outcome.fixedAmount")).isEqualTo(15_008_920);
+		assertThat((Integer) JsonPath.read(body, "$.aiUsage.limitPerDay")).isEqualTo(3);
+		assertThat((Integer) JsonPath.read(body, "$.aiUsage.remainingToday")).isEqualTo(2);
+		org.mockito.ArgumentCaptor<ScenarioProposer.Input> sent = org.mockito.ArgumentCaptor.forClass(ScenarioProposer.Input.class);
+		verify(proposer).propose(sent.capture());
+		assertThat(sent.getValue().targetAmount()).isEqualTo(15_000_000);
+		assertThat(sent.getValue().stats()).extracting(ScenarioProposer.TypeStat::type)
+			.containsExactly("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
+		assertThat(sent.getValue().toString()).doesNotContain("비밀 목표");
+	}
+
+	@Test
+	void 같은_회원이_같은_조건으로_다시_보면_재사용하고_차감하지_않는다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		String a = signup();
+		String first = member(BODY.formatted("목돈", 16_000_000, 1), a, 200);
+		assertThat((Boolean) JsonPath.read(first, "$.aiReused")).isFalse();
+		assertThat((Integer) JsonPath.read(first, "$.aiUsage.remainingToday")).isEqualTo(2);
+		String again = member(BODY.formatted("다른 이름", 16_000_000, 1), a, 200);
+		assertThat((String) JsonPath.read(again, "$.proposer")).isEqualTo("AI");
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		assertThat((Integer) JsonPath.read(again, "$.aiUsage.remainingToday")).isEqualTo(2);
+		verify(proposer, times(1)).propose(any());
+	}
+
+	@Test
+	void 다른_회원은_같은_조건이어도_새로_부르고_차감한다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
+		String other = member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
+		assertThat((Boolean) JsonPath.read(other, "$.aiReused")).isFalse();
+		assertThat((Integer) JsonPath.read(other, "$.aiUsage.remainingToday")).isEqualTo(2);
+		verify(proposer, times(2)).propose(any());
 	}
 
 	@Test
 	void AI_제안이_규칙을_어기거나_실패하면_데모() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
-		when(proposer.propose(anyLong(), anyInt())).thenReturn(List.of(
-				new Proposals.Draft("a", "코인", "코인", "코인이에요", Map.of("BITCOIN", 100)),
-				new Proposals.Draft("b", "적금", "적금", "적금이에요", Map.of("SAVINGS", 100))));
-		String rejected = call(BODY.formatted("목돈", 15_000_000, 1), 200);
+		when(proposer.propose(any())).thenReturn(BAD);
+		String token = signup();
+		String rejected = member(BODY.formatted("목돈", 17_000_000, 1), token, 200);
 		assertThat((String) JsonPath.read(rejected, "$.proposer")).isEqualTo("DEMO");
 		assertThat((String) JsonPath.read(rejected, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 
-		when(proposer.propose(anyLong(), anyInt())).thenThrow(new ScenarioProposer.Failed("시간 초과"));
-		String failed = call(BODY.formatted("목돈", 15_000_000, 1), 200);
+		when(proposer.propose(any())).thenThrow(new ScenarioProposer.Failed("시간 초과"));
+		String failed = member(BODY.formatted("목돈", 17_000_000, 1), token, 200);
 		assertThat((String) JsonPath.read(failed, "$.fallbackReason")).isEqualTo("AI_FAILED");
+		// 결과를 못 받았으니 회원 횟수는 되돌린다(서비스 전체 횟수는 그대로)
+		assertThat((Integer) JsonPath.read(rejected, "$.aiUsage.remainingToday")).isEqualTo(3);
+		assertThat((Integer) JsonPath.read(failed, "$.aiUsage.remainingToday")).isEqualTo(3);
+	}
+
+	@Test
+	void 하루_세_번을_넘기면_데모() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		String token = signup();
+		for (int i = 0; i < 3; i++) {
+			member(BODY.formatted("목돈", 18_000_000 + i * 1_000_000L, 1), token, 200);
+		}
+		String over = member(BODY.formatted("목돈", 25_000_000, 1), token, 200);
+		assertThat((String) JsonPath.read(over, "$.fallbackReason")).isEqualTo("LIMIT");
+		assertThat((Integer) JsonPath.read(over, "$.aiUsage.remainingToday")).isZero();
+		verify(proposer, times(3)).propose(any());
+	}
+
+	@Test
+	void 서비스_전체_상한을_넘기면_데모이고_회원_횟수는_되돌린다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		String token = signup();
+		java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul"));
+		jdbc.update("DELETE FROM goal_scenario_ai_daily WHERE usage_date = ?", today);
+		jdbc.update("INSERT INTO goal_scenario_ai_daily (usage_date, count) VALUES (?, 300)", today);
+		try {
+			String capped = member(BODY.formatted("목돈", 26_000_000, 1), token, 200);
+			assertThat((String) JsonPath.read(capped, "$.fallbackReason")).isEqualTo("DAILY_CAP");
+			assertThat((Integer) JsonPath.read(capped, "$.aiUsage.remainingToday")).isEqualTo(3);
+			verify(proposer, times(0)).propose(any());
+		}
+		finally {
+			jdbc.update("DELETE FROM goal_scenario_ai_daily WHERE usage_date = ?", today);
+		}
 	}
 
 	@Test
@@ -334,5 +425,16 @@ class GoalScenarioApiTest {
 			.content("{\"password\":\"password1\",\"confirm\":\"탈퇴\"}")).andReturn().getResponse().getStatus();
 		assertThat(status).isEqualTo(204);
 		assertThat(jdbc.queryForObject("select count(*) from goal_scenarios where id = ?", Integer.class, id)).isZero();
+	}
+
+	@Test
+	void 탈퇴한_회원의_토큰으로_보면_401() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		String token = signup();
+		int status = mvc.perform(auth(delete("/api/v1/me"), token).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"password\":\"password1\",\"confirm\":\"탈퇴\"}")).andReturn().getResponse().getStatus();
+		assertThat(status).isEqualTo(204);
+		member(BODY.formatted("목돈", 15_000_000, 1), token, 401);
+		verify(proposer, times(0)).propose(any());
 	}
 }

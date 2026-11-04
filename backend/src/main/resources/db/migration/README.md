@@ -4,7 +4,7 @@
 | 버전 | 내용 |
 |---|---|
 | `V24__cash_catalog.sql` | `cash_catalog_snapshots`: 파킹·CMA 출처별 공시 스냅샷, 허가 근거·조건 원문. 운영 시드 없음 |
-| `V26__virtual_sim.sql` | 가상 시뮬레이션(virtualsim): `dart_disclosures`(수집 종목 DART 공시 목록)·`dart_disclosure_archive`(종목별 수집 진행)·`virtual_sim_rulesets`·`virtual_sim_companies`·`virtual_sim_events`. 회원 정보 없음. V25는 목표 시나리오 AI 브랜치가 쓴다 |
+| `V26__virtual_sim.sql` | 가상 시뮬레이션(virtualsim): `dart_disclosures`(수집 종목 DART 공시 목록)·`dart_disclosure_archive`(종목별 수집 진행)·`virtual_sim_rulesets`·`virtual_sim_companies`·`virtual_sim_events`. 회원 정보 없음. V25는 목표 시나리오 AI(#228) |
 | `V1__web_accounts.sql` | `users`(user), `user_settings`(user), `user_credentials`(auth) |
 | `V2__social_login.sql` | `user_identities`(auth), `users.email`·`user_credentials.password_hash` NULL 허용 |
 | `V3__app_links.sql` | `app_links`(applink): 웹 회원당 하나, 암호화한 `linkId`, 앱에서 마지막으로 받은 회원 정보·시드머니 |

@@ -7,7 +7,7 @@
 - 영향: 웹 백엔드(worker 전체 공시 수집·룰셋 추출·가상 종목 생성·자동 검사, api 세션), API 계약(새 `/virtual-sim/*`), 웹 프론트(`/simulation` 가상 시뮬레이션 탭), DB(Flyway V24), 환경 변수. 과거 시장 연습(`/practice/*`)의 계산·응답, `/invest`·`simulation` 패키지, 앱·`mobile-demo/`는 바뀌지 않는다.
 - 기준: [PRD](../PRD.md) F1·§5, [재생 구간 결정](2026-11-03-practice-event-window.md) 2·4·11·12, [투자 시뮬레이션 결정](2026-10-26-investment-practice.md) "화면과 진행"·"사건과 미래 자료"·"서버 상태와 개인정보"·오류 계약, [policies](../policies.md) §5·§8, [사건 AI 개요 결정](2026-10-29-event-ai-summary.md)(worker 사전 생성·자동 검사·하루 상한·전용 키·키와 로그·fake 작성기), [청년 소식 자동 게시 결정](2026-10-26-youth-news-auto-publish.md), [04 서비스 경계](../product/04-service-boundaries.md) §8
 
-> **현재 구현(11-04, 구현 PR)**: worker `DisclosureArchiveJob`·`VirtualSimRulesetJob`·`VirtualSimContentJob`, api 패키지 `virtualsim`(`/virtual-sim/*`), 화면 `src/pages/VirtualSimulation.tsx`, Flyway V26(위 번호 정정에 따라 V24는 파킹·CMA, V25는 열린 목표 시나리오 AI 브랜치가 써서 다음 빈 번호). `tests/policy/virtual-simulation.json`은 `IMPLEMENTED`이고 `VirtualSimPolicyTest`가 읽는다. 후보가 없으면 화면은 지금처럼 "준비 중" 안내를 보인다.
+> **현재 구현(11-04, 구현 PR)**: worker `DisclosureArchiveJob`·`VirtualSimRulesetJob`·`VirtualSimContentJob`, api 패키지 `virtualsim`(`/virtual-sim/*`), 화면 `src/pages/VirtualSimulation.tsx`, Flyway V26(위 번호 정정에 따라 V24는 파킹·CMA, V25는 목표 시나리오 AI(#228)라 다음 빈 번호). `tests/policy/virtual-simulation.json`은 `IMPLEMENTED`이고 `VirtualSimPolicyTest`가 읽는다. 후보가 없으면 화면은 지금처럼 "준비 중" 안내를 보인다.
 
 ## 배경
 

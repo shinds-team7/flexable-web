@@ -52,6 +52,8 @@ async function fetchPlans(): Promise<Plans> {
       { feature: '종목 / 비교 / 프리셋', free: '3 / 2 / 3', plus: '5 / 5 / 50' },
       // 플러스 쪽 AI 안내 한도는 실결제(billing)가 붙을 때 정한다(goal-ai.md §1). 숫자를 약속하지 않는다
       { feature: 'AI 목표 안내', free: '하루 3회', plus: '더 많이(준비 중)' },
+      // 목표 시나리오 AI 조합의 플러스 한도(10회, policies §7-6)는 실결제가 붙어 실제로 줄 수 있을 때 적는다
+      { feature: 'AI 목표 시나리오 조합', free: '하루 3회', plus: '더 많이(준비 중)' },
       { feature: '정밀 모드(배당 재투자·수수료·세금)', free: '—', plus: '제공' },
       { feature: '광고 없음', free: '—', plus: '제공' },
     ],

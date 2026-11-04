@@ -13,13 +13,15 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.cfg.DateTimeFeature;
 
 import com.flexable.web.cashcatalog.CashCatalogDtos.Product;
 import com.flexable.web.cashcatalog.CashCatalogDtos.ProductList;
 
 @Service
 public class CashCatalogService {
-    private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final JsonMapper JSON = JsonMapper.builder()
+            .disable(DateTimeFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE).build();
     private final CashSnapshotRepository snapshots;
 
     CashCatalogService(CashSnapshotRepository snapshots) { this.snapshots = snapshots; }

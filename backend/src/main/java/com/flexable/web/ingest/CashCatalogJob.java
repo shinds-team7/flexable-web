@@ -28,7 +28,7 @@ public class CashCatalogJob {
     @EventListener(ApplicationReadyEvent.class)
     @Scheduled(cron = "0 0 10 * * *", zone = "Asia/Seoul")
     public synchronized void sync() {
-        for (var source : OfficialCashClient.Source.values()) {
+        for (var source : client.sources()) {
             if (!catalog.needsRefresh(source.kind, source.key, clock.instant().minus(Duration.ofHours(6)))) continue;
             try {
                 var products = client.fetch(source, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.ofHours(9)));

@@ -59,5 +59,19 @@ class OfficialCashSimulationTest {
             assertThat(catalog.list("parking").items()).isEqualTo(parking);
         }
         control("/_mode?value=ok");
+        // 전체 다운로드 폼 POST 및 EUC-KR 응답을 실제 HTTP로 검증한다.
+        var expanded = new OfficialCashClient(Map.of(
+            OfficialCashClient.Source.FSB, new OfficialCashClient.Target(URI.create(base + "/fsb"), URI.create(base + "/robots.txt")),
+            OfficialCashClient.Source.MIRAE_RP, new OfficialCashClient.Target(URI.create(base + "/mirae"), URI.create(base + "/robots.txt"))));
+        var at = OffsetDateTime.parse("2026-11-04T10:00:00+09:00");
+        var fsb = expanded.fetch(OfficialCashClient.Source.FSB, at);
+        assertThat(fsb).hasSize(2);
+        assertThat(expanded.fetch(OfficialCashClient.Source.MIRAE_RP, at).getFirst().baseRate()).isEqualByComparingTo("1.23");
+        catalog.publish("parking", OfficialCashClient.Source.FSB.key, "synthetic export", fsb);
+        var allBefore = catalog.list("parking").items();
+        control("/_mode?value=malformed");
+        new CashCatalogJob(expanded, catalog, Clock.fixed(start.plusSeconds(7 * 3600), ZoneOffset.UTC)).sync();
+        assertThat(catalog.list("parking").items()).isEqualTo(allBefore);
+        control("/_mode?value=ok");
     }
 }

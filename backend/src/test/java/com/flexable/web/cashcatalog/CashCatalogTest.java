@@ -33,6 +33,16 @@ class CashCatalogTest {
     }
     @BeforeEach void clean() { snapshots.deleteAll(); }
 
+    @Test void publicationRoundTripAndPublicJsonKeepKoreanOffset() throws Exception {
+        var p = product("one", "시간 검증", "BANK", null, "조건");
+        catalog.publish("parking", "time-test", "synthetic", List.of(p));
+        assertThat(catalog.list("parking").items().getFirst().verifiedAt()).isEqualTo(p.verifiedAt());
+        assertThat(catalog.list("parking").items().getFirst().verifiedAt().getOffset()).isEqualTo(java.time.ZoneOffset.ofHours(9));
+        assertThat(catalog.needsRefresh("parking", "time-test", p.verifiedAt().toInstant().minusSeconds(1))).isFalse();
+        mvc.perform(get("/api/v1/parking/products")).andExpect(status().isOk())
+            .andExpect(jsonPath("$.items[0].verifiedAt").value("2026-11-04T09:00:00.000+09:00"));
+    }
+
     @Test void emptyPublicCatalogIsNotSampleAndHasNoCalculation() throws Exception {
         mvc.perform(get("/api/v1/parking/products")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isEmpty()).andExpect(jsonPath("$.isSample").value(false));

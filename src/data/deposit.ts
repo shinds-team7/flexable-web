@@ -2,7 +2,7 @@
 // 정기예금 기준 설명: 적금(`savings.ts`)과 같은 모양이다. 목돈을 한 번에 넣고 기간 동안 두는 상품이라 매달 넣는 돈 대신 `amount`를 쓰고 적립 방식(reserveType)이 없다.
 // 웹 백엔드 `/api/v1/deposit/*`가 로컬 DB(finlife 정기예금 공시 복사본)에서 읽어 계산한 값을 그대로 쓴다(ADR-3, 화면은 다시 계산하지 않는다).
 // 정기예금(`/deposit/*`)은 계약(web-api.yaml)에 있고 타입을 src/lib/contractChecks.ts가 대조한다. 서버 구현은 #140이다.
-// TODO(BE): 파킹·CMA(`/parking/*`·`/cma/*`)는 계약이 아직 없다(#144·#145). 전용 필드(category·depositProtected·rateLimit)는 그때 확정한다.
+// 파킹·CMA의 실제 조회는 별도 CashCatalog 화면과 생성 계약 타입을 사용한다. 아래 계산 모델은 예금/기존 시연용이다.
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { sampleCompanies, sampleDetail, sampleList, sampleSimulate } from '@/data/depositSample';
 import { api } from '@/lib/api';
@@ -77,13 +77,14 @@ export type DepositSimulateRequest = { productId: string; amount: number; termMo
 export type DepositPoint = { month: number; principal: number; interestPreTax: number };
 export type DepositSimulation = DepositResult & { series: DepositPoint[]; assumptions: string[]; notice: string; isSample: boolean };
 
-// 서버 API(#140·#144·#145)가 나오기 전까지 예시 데이터를 보여 준다. 환경 변수 VITE_LUMP_SAMPLE로 정한다:
-// 비움·true = 모두 예시, false = 모두 실제 API, 'parking,cma'처럼 종류를 적으면 그 종류만 예시(나머지는 실제 API).
+// 명시적인 시연 설정에서만 예시 데이터를 보여 준다. 환경 변수 VITE_LUMP_SAMPLE로 정한다:
+// 비움·false = 실제 API, true = 명시적 시연용 예시. 종류를 적으면 그 종류만 예시.
 const SAMPLE_KINDS: LumpKind[] = (() => {
   const v = String(import.meta.env.VITE_LUMP_SAMPLE ?? '').trim();
-  if (v === 'false') return [];
+  if (v === '' || v === 'false') return [];
+  if (v === 'true') return ['deposit', 'parking', 'cma'];
   const listed = v.split(',').map((x) => x.trim()).filter((x): x is LumpKind => x === 'deposit' || x === 'parking' || x === 'cma');
-  return listed.length > 0 ? listed : ['deposit', 'parking', 'cma'];
+  return listed;
 })();
 const useSample = (kind: LumpKind) => SAMPLE_KINDS.includes(kind);
 const later = <T,>(v: () => T) => new Promise<T>((resolve, reject) => setTimeout(() => { try { resolve(v()); } catch (e) { reject(e); } }, 150));

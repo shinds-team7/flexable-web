@@ -12,18 +12,21 @@ Java 21 셸에서:
 
 ```powershell
 $env:CASH_SIMULATION_URL = 'http://127.0.0.1:4510/official'
-./backend/gradlew.bat -p backend test --tests '*OfficialCashSimulationTest'
+./backend/gradlew.bat -p backend test --tests '*OfficialCashSimulationTest' --rerun-tasks
 Remove-Item Env:CASH_SIMULATION_URL
 ```
 
-`/_mode`는 로컬 시뮬레이션 제어 전용이다. 정상·은행만 503·HTML 구조 변경·robots 제한·302·응답 크기 초과를 실행한다. `/_pages`와 CLI의 request 이벤트로 실제 호출과 robots 차단 후 상품 요청 부재를 확인한다. 새 실행은 초기 상태로 시작한다. 로그에는 합성 자료만 사용하며 커밋하지 않는다.
+`/_mode`는 로컬 시뮬레이션 제어 전용이다. 정상·은행만 503·HTML 구조 변경·robots 제한·302·응답 크기 초과를 실행한다. 저축은행 전체 다운로드 폼 POST와 EUC-KR 헤더 응답도 합성 자료로 검증한다. `/_pages`와 CLI의 request 이벤트로 실제 호출과 robots 차단 후 상품 요청 부재를 확인한다. 새 실행은 초기 상태로 시작한다. 로그에는 합성 자료만 사용하며 커밋하지 않는다.
 
 실제 공식 페이지 검증은 별도 opt-in이다. 현재 출처를 다시 GET하므로 반복 실행하지 않는다. 테스트 DB는 `cash-live` H2 메모리이며 실제 운영 DB를 쓰지 않는다.
 
 ```powershell
 $env:CASH_LIVE_CHECK = 'true'
-./backend/gradlew.bat -p backend test --tests '*OfficialCashLiveTest'
+# 공식 화면에서 독립적으로 확인한 FSB 전체 건수를 대조할 경우에만 지정한다.
+$env:CASH_FSB_EXPECTED_COUNT = '158' # 2026-11-04 조회 값. 이후 확인한 값으로 변경
+./backend/gradlew.bat -p backend test --tests '*OfficialCashLiveTest' --rerun-tasks
 Remove-Item Env:CASH_LIVE_CHECK
+Remove-Item Env:CASH_FSB_EXPECTED_COUNT
 ```
 
 기본 빌드에서는 이 두 opt-in 테스트를 건너뛰고 순수 파서·robots 테스트와 기존 정책·계약 테스트를 실행한다. 실제 기관의 장래 페이지 구조나 장애 응답을 시뮬레이션이 보증하지는 않는다.

@@ -22,12 +22,18 @@ class OfficialCashLiveTest {
     @Autowired CashCatalogService catalog;
     @Autowired MockMvc mvc;
     @Test void officialPagesArePersistedAndServedFromAnIsolatedTestDatabase() throws Exception {
+        var counts = new java.util.HashMap<String, Integer>();
         for (var source : OfficialCashClient.Source.values()) {
             var products = client.fetch(source, OffsetDateTime.now(ZoneOffset.ofHours(9)));
             assertThat(products).isNotEmpty();
+            assertThat(products.stream().map(p -> p.id()).distinct().count()).isEqualTo(products.size());
+            // 공식 화면에서 별도로 확인한 전체 건수와 대조할 때만 지정한다. 미래 건수를 하드코딩하지 않는다.
+            if (source == OfficialCashClient.Source.FSB && System.getenv("CASH_FSB_EXPECTED_COUNT") != null)
+                assertThat(products).hasSize(Integer.parseInt(System.getenv("CASH_FSB_EXPECTED_COUNT")));
             catalog.publish(source.kind, source.key, "PUBLIC_FACTS; live verification; source=" + source.url, products);
+            counts.merge(source.kind, products.size(), Integer::sum);
             mvc.perform(get("/api/v1/" + source.kind + "/products")).andExpect(status().isOk())
-                    .andExpect(jsonPath("$.isSample").value(false)).andExpect(jsonPath("$.items").isNotEmpty());
+                    .andExpect(jsonPath("$.isSample").value(false)).andExpect(jsonPath("$.items.length()").value(counts.get(source.kind)));
             products.forEach(p -> System.out.println("LIVE " + p.company() + " / " + p.name()
                 + " base=" + p.baseRate() + " max=" + p.maxRate() + " asOf=" + p.sourceAsOf()));
         }

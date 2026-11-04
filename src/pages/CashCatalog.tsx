@@ -66,13 +66,13 @@ export function CashCatalog({ kind }: { kind: Kind }) {
         {visible.map(p => <article className="cash-product" key={p.id}>
           <h2>{p.name}</h2><p>{p.company} · {categoryName(p.category)}</p>
           <p className="cash-rate">{p.rateType === 'AGREED' ? '약정수익률' : '기본금리'} {rate(p.baseRate)} <span className="sub">세전 연 기준 · 최고 {rate(p.maxRate)}</span></p>
-          <button className="btn" aria-pressed={selected.some(s => s.id === p.id)} onClick={() => toggle(p.id)}>{selected.some(s => s.id === p.id) ? '비교 해제' : '비교 선택'}<span className="cash-sr"> {p.name}</span></button>
+          <button className="btn" aria-pressed={selected.some(s => s.id === p.id)} onClick={() => toggle(p.id)}>{selected.some(s => s.id === p.id) ? '비교 해제' : '비교 선택'}<span className="cash-sr"> {p.company} {p.name}</span></button>
           <details><summary>조건·출처 자세히 보기</summary><dl>{rows.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value(p)}</dd></div>)}</dl><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">공식 출처: {p.sourceName} (새 창)</a></details>
         </article>)}
       </>}
     </section>
     {selected.length > 0 && <section className="card"><h2>선택한 상품 조건 비교</h2><p>같은 금리여도 적용 금액·보유 기간·조건이 다를 수 있어요.</p>
-      <div className="cash-table-wrap" tabIndex={0} role="region" aria-label="선택 상품 조건 비교, 가로 스크롤 가능"><table><caption>최대 3개 상품의 공시 조건 비교</caption><thead><tr><th scope="col">조건</th>{selected.map(p => <th key={p.id} scope="col">{p.company}<br />{p.name}<br /><button className="btn" onClick={() => toggle(p.id)}>비교 해제<span className="cash-sr"> {p.name}</span></button></th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{selected.map(p => <td key={p.id}>{row.value(p)}</td>)}</tr>)}<tr><th scope="row">공식 출처</th>{selected.map(p => <td key={p.id}><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">{p.sourceName} (새 창)</a></td>)}</tr></tbody></table></div>
+      <div className="cash-table-wrap" tabIndex={0} role="region" aria-label="선택 상품 조건 비교, 가로 스크롤 가능"><table><caption>최대 3개 상품의 공시 조건 비교</caption><thead><tr><th scope="col">조건</th>{selected.map(p => <th key={p.id} scope="col">{p.company}<br />{p.name}<br /><button className="btn" onClick={() => toggle(p.id)}>비교 해제<span className="cash-sr"> {p.company} {p.name}</span></button></th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{selected.map(p => <td key={p.id}>{row.value(p)}</td>)}</tr>)}<tr><th scope="row">공식 출처</th>{selected.map(p => <td key={p.id}><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">{p.sourceName} (새 창)</a></td>)}</tr></tbody></table></div>
     </section>}
   </div>;
 }

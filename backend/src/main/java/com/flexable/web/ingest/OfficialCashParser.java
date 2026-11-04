@@ -16,6 +16,44 @@ final class OfficialCashParser {
     private static final Pattern RATE = Pattern.compile("(?:연\\s*)?(\\d+(?:\\.\\d+)?)\\s*%");
     private static final Pattern DATE = Pattern.compile("(20\\d{2})\\s*\\.\\s*(\\d{1,2})\\s*\\.\\s*(\\d{1,2})");
 
+    static List<Product> fsbExport(String html, OffsetDateTime at) {
+        Document doc = Jsoup.parse(html);
+        Element table = doc.selectFirst("table#apdTbl");
+        if (table == null || !table.select("thead").text().contains("비교공시일")) throw changed();
+        List<Product> result = new ArrayList<>();
+        for (Element row : table.select("tbody > tr")) {
+            var c = row.select(":scope > td");
+            if (c.size() != 6) throw changed();
+            String company = c.get(0).text(), name = c.get(1).text(), band = c.get(4).text();
+            if (company.isBlank() || name.isBlank() || band.isBlank()) throw changed();
+            LocalDate asOf = LocalDate.parse(c.get(5).text(), java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+            String condition = "최고금리 적용 가능 금액: " + band
+                + "\n우대조건·초과분 금리·가입대상·지급방식은 이 요약 파일에 없으므로 상세 공시에서 확인해야 해요. 최고금리를 전체 잔액에 적용하지 않아요.";
+            result.add(new Product(company + ":" + name, company.endsWith("저축은행") ? company : company + "저축은행",
+                name, "SAVINGS_BANK", null, rate(c.get(2).text()), rate(c.get(3).text()), "VARIABLE_DEPOSIT",
+                condition, null, null, null, null, null, "저축은행중앙회 입출금자유예금 전체 공시",
+                OfficialCashClient.Source.FSB.url, asOf, null, at));
+        }
+        if (result.isEmpty()) throw changed();
+        if (result.stream().map(Product::id).distinct().count() != result.size()) throw changed();
+        return List.copyOf(result);
+    }
+
+    static List<Product> miraeRp(String html, OffsetDateTime at) {
+        Document doc = Jsoup.parse(html);
+        var tables = doc.select("table").stream().filter(t -> t.select("caption").text().equals("CMA")).toList();
+        if (tables.size() != 1) throw changed();
+        var rows = tables.getFirst().select("tbody tr").stream()
+            .filter(r -> r.text().contains("CMA RP_개인")).toList();
+        if (rows.size() != 1) throw changed();
+        var c = rows.getFirst().select("td");
+        if (c.size() != 4 || !c.getFirst().text().equals("개인")) throw changed();
+        BigDecimal r = rate(c.getLast().text());
+        return List.of(new Product("cma-rp-personal", "미래에셋증권", "CMA RP_개인", "SECURITIES", "RP", r, r, "AGREED",
+            "개인용 CMA RP 공시. 일반 수시형·약정형 RP 및 법인 상품과 구분해요. 네이버통장 등 별도 제휴 조건은 포함하지 않아요.",
+            null, null, null, null, null, "미래에셋증권 RP 상품 안내", OfficialCashClient.Source.MIRAE_RP.url, null, null, at));
+    }
+
     static List<Product> kbank(String html, OffsetDateTime at) {
         Document doc = Jsoup.parse(html);
         if (!doc.title().contains("플러스박스")) throw changed();

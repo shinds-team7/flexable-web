@@ -1,8 +1,30 @@
 # 웹 개발 인수인계
 
+## 2026-11-04 열린 이슈 전수 점검
+
+기준: GitHub 열린 이슈 11건, 최신 `main` `451e503`, 병합 PR·코드·정책·계약. **현재 상태는 이 표를 따른다. 아래 날짜별 기록의 승인 대기·미구현 표현은 당시 이력이다.** 이번 작업은 현황 정리이며 기능·정책·계약 변경이나 운영 배포가 아니다.
+
+| 이슈 | 판정·미해결 이유 | 지금 가능한 작업·완료 전제 |
+|---|---|---|
+| [#115 F7 개편 범위](https://github.com/shinds-team7/flexable-web/issues/115) | **종료 대상**. 10-29 결정·11-03 MVP에서 입력·AI 역할·시작 금액 0원(웹 수정값 미사용) 확정. #194 계산·저장, #202 경로, #228 AI·방침 병합 | 범위 확정 완료. AI 거절 버그는 #243. 성향·시작 자산 추가 입력까지 구현한 것은 아님 |
+| [#113 청년미래적금](https://github.com/shinds-team7/flexable-web/issues/113) | **미해결**. `src/data/savings.ts`는 `UNVERIFIED` 고정 예시. 기여금 시점·이자·일수/절사·은행별 입력/계약 미확정 | 공식 원문·검산·정책/fixture/계약 초안 가능. spec-change 선행 병합 뒤 계산 구현 |
+| [#114 F3](https://github.com/shinds-team7/flexable-web/issues/114) | **미해결**. `/mix`·`/p/:id`는 `Placeholder`. 유지/축소/연기·담당·일정·저장/공유 계약 없음 | 제품 범위·담당 결정이 먼저. `/type`·`/diversify`·F7 저장으로 대체 완료하지 않음 |
+| [#143 필터·로고](https://github.com/shinds-team7/flexable-web/issues/143) | **부분 완료**. 범위·금리 고지·출처·조회/비교는 #218·#221·#227·#236 병합. 우대조건 분류 필터 없음, `BankBadge.LOGOS` 비어 있음 | 기존 검색·회사·금융권·CMA 종류 필터와 구분. 분류/원문 매핑 초안 가능, 구조화 필드 추가는 계약 승인 선행. 로고 출처·이용 조건 필요. 확대 #245·운영 #246·계산 #247 별도 |
+| [#198 소식 worker](https://github.com/shinds-team7/flexable-web/issues/198) | **운영 확인 미완료**. 코드 반영과 재기동·06:00 실제 수집/진단 검증은 별개. 완료 근거 없음 | 사용자 서버 재기동·수집 후 취업/학력 조건 응답·진단 확인. 에이전트 운영 DB·환경 변수 변경 제외 |
+| [#205 가상 시뮬레이션](https://github.com/shinds-team7/flexable-web/issues/205) | **진행 중**. 구현 PR [#235](https://github.com/shinds-team7/flexable-web/pull/235) 열림, `mergeable=CONFLICTING`. 기존 head CI 성공은 최신 main 통합 완료가 아님 | 기존 PR 충돌 정리·재검증 가능. 본문에 브라우저 확인·첫 채움 절차·경향 임계값/최대주주 분류 확인이 남음. 정책 결정과 단순 통합 구분 |
+| [#241 저축과 투자 9편](https://github.com/shinds-team7/flexable-web/issues/241) | **착수 가능·미완료**. #239는 금융 기초 9편과 템플릿. `guideArticles.ts`에 요청한 카테고리 원고 없음 | draft·출처 보고서 작성 가능. 독립 검수 및 `content-guidelines.md` §7 사람 승인 후 published, 380/700/1100px 검증 |
+| [#243 AI 조합 검사](https://github.com/shinds-team7/flexable-web/issues/243) | **미완료·기존 작업 있음**. main은 숫자 하나/`보장` 부분 문자열도 거절. 원격 `yun-sy/fix-goal-scenario-ai-validation` `4a630f2`에 수정·테스트·정책 변경 있음, 점검 시 열린 PR 없음 | 중복 구현 없이 기존 변경 리뷰·PR화·검증 가능. 실제 회원 OpenAI `proposer=AI` 근거·정책/계약 승인·병합 전 종료 불가 |
+| [#245 출처·모집단](https://github.com/shinds-team7/flexable-web/issues/245) | **일부 착수 가능·미완료**. 파킹 211개/CMA 12개는 특정 출처 관측치. KDB·부산 전체/상세·발행어음·독립 시장 모집단 대조 남음 | 허용 공개 목록·개인 가입 조건·상세 대조 가능. robots·차단은 우회 없이 재확인 조건 기록. 전 기관 즉시 연결 보장 불가 |
+| [#246 VM 배포·수집](https://github.com/shinds-team7/flexable-web/issues/246) | **운영 확인 미완료**. 로컬 격리 H2 검증과 운영 별개. 직전 parking/cma 관측 401, 배포 커밋·worker·재시작·finlife 원천 완전성 근거 없음 | 사용자 배포·worker 확인 후 공개 조회·화면·재시작 점검. 이번 점검에서 401을 재조회한 것은 아님 |
+| [#247 계산·추가 유형](https://github.com/shinds-team7/flexable-web/issues/247) | **선행 정책 필요·미완료**. 1차는 조건 비교. 구간·우대·일수/윤년·변경 금리·세금·지급/재투자 모델·계산 계약 없음 | 계산 가능/불가 표본·정책/fixture 초안 가능. spec-change 선행 병합 뒤 서버 계산. 최고금리를 전체 잔액에 임의 적용하지 않음 |
+
+우선 착수 후보는 #243 기존 수정 검증, #205 기존 PR 통합, #241 원고, #245 허용 출처 대조다. #113·#143·#247은 근거/분류/정책 초안부터 가능하며 #114는 제품 결정, #198·#246은 사용자 운영 결과가 선행한다. 새 기능 착수·작업자 변경을 이번 점검에서 결정하지 않는다.
+
+이번 문서 변경 검증(Node 26.13.0·Java 21.0.12.1): `npm ci`·`npm --prefix mobile-demo ci` 성공(`--no-audit --no-fund`), `npm run check:api`·`npm run typecheck`·`npm run build`·`npm --prefix mobile-demo run lint` 성공. 웹 JS 827.36kB의 기존 크기 경고와 시연 의존성 deprecated/설치 스크립트 미승인 경고가 있다. `backend/gradlew.bat build --no-daemon`은 **BUILD SUCCESSFUL, 7 actionable tasks: 7 up-to-date**로 기존 정책 테스트를 포함한 빌드가 최신 상태임을 확인했으며 테스트를 새로 실행한 결과는 아니다. 새 기능·운영 API·실제 AI 요청·화면 검증은 수행하지 않았다. `git diff --check` 통과.
+
 ## 2026-11-04 최신: 공개 조회 확장
 
-공식 화면의 비로그인 GET/POST JSON 조회를 사용자가 승인했다([최신 결정](../decisions/2026-11-04-public-cash-queries.md)). 후보 #236은 FSB 전체 공시·케이뱅크·SC제일·제주은행의 개인 입출금과 9개 증권사의 RP/발행어음 CMA를 연결한다. 기대 범위는 파킹 211개·CMA 12개이며 상품별 조건·출처·검증 시각을 공개 조회/비교한다. 초기 HTML의 과거 금리·법인·직접매매·특판을 혼입하지 않으며 FSB/SC/제주 전체 건수 또는 코드 집합을 대조한다. [출처별 범위·미연결 이유](../decisions/2026-11-04-cash-coverage.md)와 [검증 절차](../../postman/README.md)를 본다.
+공식 화면의 비로그인 GET/POST JSON 조회를 사용자가 승인했다([최신 결정](../decisions/2026-11-04-public-cash-queries.md)). 병합된 #236은 FSB 전체 공시·케이뱅크·SC제일·제주은행의 개인 입출금과 9개 증권사의 RP/발행어음 CMA를 연결한다. 기대 범위는 파킹 211개·CMA 12개이며 상품별 조건·출처·검증 시각을 공개 조회/비교한다. 초기 HTML의 과거 금리·법인·직접매매·특판을 혼입하지 않으며 FSB/SC/제주 전체 건수 또는 코드 집합을 대조한다. [출처별 범위·미연결 이유](../decisions/2026-11-04-cash-coverage.md)와 [검증 절차](../../postman/README.md)를 본다.
 
 이 아래 공개 조회 승인 대기·발행어음 미연결 기록은 과거 상태다. 사용자는 검증된 1차 기능 병합과 미연결 출처 후속 분리를 승인했다. 전체 시장 연결은 #245, 사용자가 직접 진행하는 VM 운영 배포/적재 확인은 #246, 계산·추가 유형은 #247로 추적한다. 운영 DB·환경 변수는 변경하지 않았다. #143 추가 필터·로고도 별도다.
 

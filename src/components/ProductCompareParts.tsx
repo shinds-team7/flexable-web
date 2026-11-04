@@ -1,5 +1,4 @@
-// 적금·예금 비교 화면이 같이 쓰는 부품: 고지 문구, 불러오는 중, 오류 카드, 맨 위로 버튼.
-import { useEffect, useState } from 'react';
+// 적금·예금 비교 화면이 같이 쓰는 부품: 고지 문구, 불러오는 중, 오류 카드.
 import { Icon } from '@/components/Icons';
 import { ApiError, errorText } from '@/lib/api';
 
@@ -50,27 +49,5 @@ export function ErrorCard({ error, onRetry, onReset, noun = '적금' }: { error:
         )}
       </div>
     </div>
-  );
-}
-
-/** 조금 내려가면 나타나는 [맨 위로]. 부드럽게 올라간다(움직임 줄이기 설정이면 바로 이동). */
-export function ScrollTopButton() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 400);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  if (!show) return null;
-  const up = () =>
-    window.scrollTo({
-      top: 0,
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-    });
-  return (
-    <button type="button" className="btn btn-primary to-top" onClick={up} aria-label="맨 위로 올라가기">
-      ↑ 맨 위로
-    </button>
   );
 }

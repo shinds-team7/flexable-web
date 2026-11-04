@@ -68,13 +68,6 @@ export default function News() {
     io.observe(el);
     return () => io.disconnect();
   }, [hasMore, visible]);
-  const [showTop, setShowTop] = useState(false);
-  useEffect(() => {
-    const on = () => setShowTop(window.scrollY > 600);
-    on();
-    window.addEventListener('scroll', on, { passive: true });
-    return () => window.removeEventListener('scroll', on);
-  }, []);
   const goResults = () => resultsTop.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   const openFinder = (tab: FinderTab) => {
     setFinderTab(tab);
@@ -201,13 +194,6 @@ export default function News() {
           </section>
         </div>
       </div>
-      {showTop && (
-        <button type="button" className="news-top" aria-label="맨 위로" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M12 19V5M5 12l7-7 7 7" />
-          </svg>
-        </button>
-      )}
       {/* 알림 영역은 늘 두고 안의 글자만 바꾼다. 새로 끼워 넣은 role=status는 일부 스크린리더가 읽지 않는다 */}
       <div role="status">{toast && <div className="toast">{toast}</div>}</div>
     </section>

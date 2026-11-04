@@ -2,14 +2,13 @@
 // 적금 비교(Savings.tsx)와 같은 모양이다. 적금과 다른 점: 매달 넣는 돈 대신 처음에 한 번 넣는 돈(amount)을 받고, 적립 방식 대신 단리·복리를 거른다.
 // 순위·추천 문장·가입 버튼은 두지 않는다(팀장 확정 6). 금액은 모두 서버 결과를 그대로 그린다(ADR-3).
 import { useEffect, useState } from 'react';
-import { useSession } from '@/auth/session';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { shortBankName } from '@/components/BankBadge';
 import { BankStrip } from '@/components/BankStrip';
 import { AmountInput, FilterChips, SelectedBar, TermTrack } from '@/components/CompareFilters';
 import { Icon } from '@/components/Icons';
 import { ProductRow } from '@/components/ProductRow';
-import { ErrorCard, Loading, Notice, ScrollTopButton } from '@/components/ProductCompareParts';
+import { ErrorCard, Loading, Notice } from '@/components/ProductCompareParts';
 import { ProductTabs } from '@/components/ProductTabs';
 import {
   useDepositCompanies,
@@ -20,7 +19,7 @@ import {
   type DepositProduct,
   type LumpKind,
 } from '@/data/deposit';
-import { useSubscription } from '@/data/plans';
+import { bankColor } from '@/data/bankColors';
 import type { InterestType, SavingsSort, SavingsTerm, Sector } from '@/data/savings';
 import { errorText } from '@/lib/api';
 import { won } from '@/lib/format';
@@ -72,7 +71,8 @@ const INTEREST: { v: InterestType; label: string }[] = [
 const QUICK = [1_000_000, 5_000_000, 10_000_000, 30_000_000];
 const DEFAULT_AMOUNT = 10_000_000;
 // TODO(BE): 비교 개수는 설정값(무료 2 / 플러스 5). GET /billing/plans의 limits로 바꾼다(적금과 같다)
-const COMPARE_LIMIT = { FREE: 2, PLUS: 5 };
+const COMPARE_MIN = 2; // 2개부터 비교 카드가 나온다
+const COMPARE_MAX = 5;
 const ALL: Sector[] = ['BANK', 'SAVINGS_BANK'];
 const ALL_SIZE = 1000; // 쪽 나누기 없이 전체를 한 번에 받는다
 
@@ -161,6 +161,9 @@ function ProductDetail({ kind, p: row, term, amount }: { kind: LumpKind; p: Depo
 
 type Picked = { p: DepositProduct; slot: number }; // slot = 비교에 넣을 때 받은 색 칸. 다른 상품을 빼도 바뀌지 않는다
 
+/** 회사 대표 색. 목록에 없는 회사는 비교에 넣을 때 받은 칸 색을 쓴다. */
+const pickColor = ({ p, slot }: Picked) => bankColor(p.company) ?? seriesColor(slot);
+
 /** 기간 동안 내 돈: 고른 상품마다 넣은 돈 위에 쌓이는 세전 이자 선(기본금리). 표로 보기면 달마다 표. */
 function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind; picked: Picked[]; amount: number; term: SavingsTerm; asTable: boolean }) {
   const sims = useDepositSimulations(
@@ -170,11 +173,10 @@ function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind
   const failed = sims.find((q) => q.isError);
   const head = (
     <>
-      <h3 className="sec-title sv-h3">기간 동안 내 돈</h3>
-      <p className="meta">
-        {KINDS[kind].byTerm
-          ? '넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 중간에 해지하면 이 금리를 다 받지 못해요.'
-          : '넣어 둔 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 금리가 바뀌면 이자도 달라져요.'}
+      <p className="meta" style={{ marginTop: 16 }}>
+        {KINDS[kind].byTerm ? '넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리).' : '넣어 둔 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리).'}
+        <br />
+        {KINDS[kind].byTerm ? '중간에 해지하면 이 금리를 다 받지 못해요.' : '금리가 바뀌면 이자도 달라져요.'}
       </p>
     </>
   );
@@ -192,7 +194,7 @@ function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind
         <div className="skel" style={{ height: 260, marginTop: 12 }} />
       </>
     );
-  const lines = picked.map(({ p, slot }, i) => ({ id: p.id, name: p.name, colorSlot: slot, data: sims[i].data!.series }));
+  const lines = picked.map((pk, i) => ({ id: pk.p.id, name: pk.p.name, colorSlot: pk.slot, color: pickColor(pk), data: sims[i].data!.series }));
   if (lines.some((l) => l.data.length === 0)) return null;
   const months = lines[0].data;
   const cash = '이자 없이 모아 둔 경우(0원)';
@@ -231,9 +233,12 @@ function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind
         </div>
       ) : (
         <>
-          <LineLegend series={lines} baseline={cash} />
+          <LineLegend series={lines} baseline={cash} vertical />
+          <p className="meta" style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>
+            세전
+          </p>
           <MultiLineChart
-            series={lines.map((l) => ({ id: l.id, name: l.name, colorSlot: l.colorSlot, points: l.data.map((d) => ({ x: d.month, y: d.interestPreTax })) }))}
+            series={lines.map((l) => ({ id: l.id, name: l.name, colorSlot: l.colorSlot, color: l.color, points: l.data.map((d) => ({ x: d.month, y: d.interestPreTax })) }))}
             baseline={{ name: cash, y: 0 }}
             xLabel={(x) => `${x}개월`}
             ariaLabel={`기간 동안 쌓인 이자 꺾은선 그래프, ${term}개월`}
@@ -245,7 +250,7 @@ function MoneyOverTime({ kind, picked, amount, term, asTable }: { kind: LumpKind
                 {lines.map((l) => (
                   <div key={l.id} className="t-row">
                     <span>
-                      <i className="t-key" style={{ borderColor: seriesColor(l.colorSlot) }} />
+                      <i className="t-key" style={{ borderColor: l.color }} />
                       {l.name}
                     </span>
                     <b className="num">+{won(l.data[x - 1].interestPreTax)}원</b>
@@ -316,16 +321,14 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
   const [asTable, setAsTable] = useState(false);
   const when = k.byTerm ? '만기' : '1년';
   const rows = [
-    ...picked.map(({ p, slot }) => ({
-      key: p.id,
-      name: p.name,
-      sub: p.company,
-      rate: p.baseRate,
-      color: seriesColor(slot),
-      r: p.result,
+    ...picked.map((pk) => ({
+      key: pk.p.id,
+      name: pk.p.name,
+      sub: pk.p.company,
+      rate: pk.p.baseRate,
+      color: pickColor(pk),
+      r: pk.p.result,
     })),
-    // 이자 0% 통장: 넣은 돈 그대로라 이자는 0원(서버 비교선 CASH와 같은 뜻)
-    { key: 'cash', name: '이자 없이 모아 둔 경우', sub: '연 0%', rate: 0, color: 'var(--baseline)', r: null },
   ];
   const top = Math.max(1, ...rows.map((x) => x.r?.interestAfterTax ?? 0));
   return (
@@ -334,11 +337,11 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
         <div>
           <h2>고른 상품 비교</h2>
           <p className="meta">
-            최대 {limit}개 + 이자 0% · {manWon(amount)} · {k.byTerm ? `${term}개월` : '1년 기준'}
+            최대 {limit}개 · {manWon(amount)} · {k.byTerm ? `${term}개월` : '1년 기준'}
           </p>
         </div>
         {picked.length > 0 && (
-          <button className="btn btn-line btn-sm" aria-expanded={asTable} aria-controls="dpCmpTable" onClick={() => setAsTable((v) => !v)}>
+          <button className="btn btn-line btn-sm sv-view-toggle" aria-expanded={asTable} aria-controls="dpCmpTable" onClick={() => setAsTable((v) => !v)}>
             {asTable ? '그래프로 보기' : '표로 보기'}
           </button>
         )}
@@ -374,7 +377,7 @@ function CompareCard({ kind, picked, amount, term, limit }: { kind: LumpKind; pi
           <p className="field-label" style={{ marginBottom: 8 }}>
             {when}에 받는 세후 이자(기본금리 기준)
           </p>
-          <div className="sv-bars">
+          <div className="sv-bars" key={picked.map((x) => x.p.id).join(',')}>
             {rows.map((x) => {
               const v = x.r?.interestAfterTax ?? 0;
               return (
@@ -456,7 +459,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
     setLockMsg('');
     if (!on) return setCmp((c) => c.filter((x) => x.p.id !== p.id));
     if (cmp.length >= compareLimit) {
-      setLockMsg(`비교는 무료 ${COMPARE_LIMIT.FREE}개 · 플러스 ${COMPARE_LIMIT.PLUS}개까지예요`);
+      setLockMsg(`비교는 최대 ${COMPARE_MAX}개까지예요`);
       return;
     }
     setCmp((c) => {
@@ -629,7 +632,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
         </div>
 
         <div className="sv-rail">
-          {cmp.length >= 2 ? (
+          {cmp.length >= COMPARE_MIN ? (
             <CompareCard kind={kind} picked={cmp} amount={amount} term={calcTerm} limit={compareLimit} />
           ) : (
             <div className="card">
@@ -641,15 +644,12 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
           )}
         </div>
       </div>
-      <ScrollTopButton />
     </div>
   );
 }
 
 function LumpSum({ kind }: { kind: LumpKind }) {
-  const { status } = useSession();
-  const sub = useSubscription(status === 'member');
-  const compareLimit = status === 'guest' || sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
+  const compareLimit = COMPARE_MAX;
   return (
     <section>
       <div className="page">

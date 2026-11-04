@@ -7,7 +7,7 @@ import FinanceGuideCategory from '@/pages/FinanceGuideCategory';
 import GoalScenarios from '@/pages/GoalScenarios';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
-import { InvestorTypeDetail, InvestorTypePick, InvestorTypes, InvestorTypeTest } from '@/pages/InvestorType';
+import { InvestorTypeAbout, InvestorTypeDetail, InvestorTypePick, InvestorTypes, InvestorTypeTest } from '@/pages/InvestorType';
 import Simulation from '@/pages/Simulation';
 import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
@@ -35,6 +35,7 @@ export const router = createBrowserRouter([
       // 투자 성향 시연 화면(docs/product/proposal-investor-type.md)
       { path: '/finance', element: <Placeholder title="금융정보" desc="금융정보 카테고리" wireframe="금융정보" /> },
       { path: '/type', element: <InvestorTypes /> },
+      { path: '/type/about', element: <InvestorTypeAbout /> },
       { path: '/type/test', element: <InvestorTypeTest /> },
       { path: '/type/choose', element: <InvestorTypePick /> },
       { path: '/type/:id', element: <InvestorTypeDetail /> },

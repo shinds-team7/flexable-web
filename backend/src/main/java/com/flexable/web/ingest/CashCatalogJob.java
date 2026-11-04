@@ -33,7 +33,7 @@ public class CashCatalogJob {
             try {
                 var products = client.fetch(source, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.ofHours(9)));
                 catalog.publish(source.kind, source.key,
-                    "PUBLIC_FACTS; decision=2026-11-04-official-cash-ingest; source=" + source.url, products);
+                    "PUBLIC_FACTS; decision=2026-11-04-public-cash-queries; source=" + source.url, products);
                 log.info("공식 공시 {} 상품 {}개 반영", source.key, products.size());
             } catch (RuntimeException e) {
                 log.warn("공식 공시 {} 갱신 실패, 기존 자료 유지: {}", source.key,

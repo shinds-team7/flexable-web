@@ -1,5 +1,37 @@
 # 파킹·CMA 수집 범위 확대와 전체 건수 확인
 
+> **11-04 후속 — 공개 JSON 조회까지 확대:** 아래 최초 기록의 GET/파일만 사용·공개 조회 승인 대기·발행어음 미연결은 [최신 결정](2026-11-04-public-cash-queries.md)과 이 항목으로 대체한다. 아래 최초 조사 기록은 당시 결과다.
+
+## 공개 조회 확장 후 현재 연결 범위
+
+공식 화면에서 관측한 비로그인 GET/POST JSON을 사용한다. FSB는 `TOTAL_CNT`, 각 행 `CNT`, 실제 행 수와 중복을 매번 대조한다. 우대조건·가입경로·지급방식도 보존한다. 담당자·연락처·원본 JSON은 저장하지 않는다. 구조 변경·일부 반환·조회 실패 시 해당 출처 전체의 이전 스냅샷을 유지한다.
+
+| 공식 출처 | 검증 대상 | 포함·제외 기준 |
+|---|---|---|
+| [저축은행중앙회](https://www.fsb.or.kr/ratanym_0100.act) | 158 | 검색·금리 하한 없는 전체 입출금 공시. 전체 건수 일치 확인. 구간 방향·우대조건·지급방식 보존 |
+| [케이뱅크](https://www.kbanknow.com/web/customer/use-info/info?tab=rate-info) | 4 | 판매 중 입출금 5개 중 사장님 제외. 플러스박스는 기존 상세 출처, 생활통장·챌린지박스·마이키즈통장은 공개 금리 조회. 중복 제외 |
+| [SC제일은행](https://www.standardchartered.co.kr/np/kr/pl/et/InterestRateDeposit3P.jsp) | 30 | 개인 입출금 전체 공시 32개와 금리 응답의 코드 집합 대조 후 기업용 2개 제외. 채널·금액 구간·각 적용일 보존. 기존 가입 상품 포함 가능. 최고금리는 추정하지 않음 |
+| [제주은행](https://www.jejubank.co.kr/hmpg/prdGdnc/sid/iomn.do) | 19 | 전체 보기 30개와 itemsCount 대조 후 법인·기업·사업자 제외. 남은 상품 모두 상세 조회. 하나라도 상세 확인 실패 시 전체 갱신 거부 |
+| [유진투자증권](https://www.eugenefn.com/ingo/igca/igca100r.do) | RP 2 | 개인 자유형·자산관리형 분리 |
+| [미래에셋증권](https://securities.miraeasset.com/hks/hks4033/n01.do) | RP 1 | 개인 CMA 행만. 일반 RP·법인 제외 |
+| [삼성증권](https://www.samsungpop.com/mbw/finance/cma.do?cmd=guide) | RP 1·발행어음 1 | 초기 HTML의 과거 금리를 버리고 실제 공개 조회 사용. 개인 자동투자 CMA 코드만. 특판·법인·일반 약정 제외. 두 조회 중 하나라도 실패 시 출처 전체 유지 |
+| [KB증권](https://m.kbsec.com/go.able?linkcd=s010300010005) | RP 1·발행어음 1 | 개인 자동투자 금리·재투자 주기. 법인·직접매매 RP 제외 |
+| [신한투자증권](https://m.shinhansec.com/mweb/fnin/fcma/ffcma0001) | RP 1 | 공개 조회의 2000 개인 CMA만. 오래된 정적 HTML·법인·ISA·일반 RP 제외 |
+| [메리츠증권](https://www.imeritz.com/meritzcma/CmaRp.do) | RP 1 | 개인 CMA-RP 코드·약정일수·적용일. 연속조회/다른 코드 거부 |
+| [한화투자증권](https://www.hanwhawm.com/static/finance/cma/FI211_1p.htm) | RP 1 | 금액별 수익률 범위 보존. 개별 구간·기본금리·재투자 미확인 |
+| [현대차증권](https://www.hmsec.com/mobile/notice_info/guide/salary_account_guide_01.to) | RP 1 | 급여계좌 CMA라는 적용 범위 명시. 다른 계좌까지 확대하지 않음 |
+| [SK증권](https://www.sks.co.kr/main/product/cma/mCMA/html/PD_04001_T01.htm) | RP 1 | 개인 1일 투자 코드와 화면 표시 금리 일치 대조. 법인·직접매매·MMF/MMW 제외 |
+
+기대 합계는 **파킹 211개, CMA 12개(RP 10·발행어음 2)**다. 운영 코드에 고정하지 않는다. 각 출처의 수집 범위이며 국내 전체 시장 모집단은 아니다. 예금의 기존 운영 API는 6/12/24/36개월을 끝까지 읽어 합집합 432개를 확인했다. 원천 finlife 키가 로컬에 없어 원천 재수집 완전성은 별도 확인이다.
+
+미연결 출처: 은행연합회·카카오뱅크·한국투자·NH·하나·신영은 일반 봇 robots 제한, 토스는 화면 호스트와 달리 실제 데이터 호스트 api.tossbank.com의 일반 봇 robots 제한으로 자동 수집하지 않는다. 교보는 비정상 요청 제한 화면, 대신·유안타는 robots 오류로 확인 실패다. KDB·부산·그 외 시중은행은 공개 조회와 상품 상세 대조를 추가 검증해야 한다. 미래에셋 발행어음도 미연결이다. 전체 시장 완료로 표시하지 않는다.
+
+공시 기준일·적용일·검증일은 구분한다. 원문에 없는 날짜·보호 여부·금리·금액 상한·재투자는 null이다. 금리 구간을 단일 상한으로 바꾸거나 우대를 임의 합산하지 않는다. 공개 API·계산·DB 스키마 변경은 없다.
+
+운영 파킹/CMA는 확인 시 401이어서 아직 배포·적재 성공으로 보고하지 않는다. 운영 DB·.env는 변경하지 않는다. 실제 출처→격리 H2→공개 API 및 UI 검증과 VM 운영 배포를 구분한다. 현재 점검: `node scripts/verify-cash-coverage.mjs --cash-base http://127.0.0.1:18080/api/v1 --deposit-base https://solpa.shinhanacademy.co.kr/api/v1 --expect-parking 211 --expect-cma 12`.
+
+## 최초 조사 기록 (공개 JSON 승인 전)
+
 - 날짜: 2026-11-04 · 요청: 사용자("전체 상품 수집하고 확인까지 전부 진행하자. 문제없으면 병합할게") · 관련: #143·#144·#145·#148
 - 영향: 웹 수집·조회·프론트. 공개 계약·계산·개인정보·DB 스키마 변경 없음. 병합은 사용자가 판단한다.
 

@@ -24,6 +24,8 @@ class OfficialCashLiveTest {
     @Test void officialPagesArePersistedAndServedFromAnIsolatedTestDatabase() throws Exception {
         var counts = new java.util.HashMap<String, Integer>();
         for (var source : OfficialCashClient.Source.values()) {
+            String selected = System.getenv("CASH_LIVE_SOURCES");
+            if (selected != null && !java.util.Arrays.asList(selected.split(",")).contains(source.name())) continue;
             var products = client.fetch(source, OffsetDateTime.now(ZoneOffset.ofHours(9)));
             assertThat(products).isNotEmpty();
             assertThat(products.stream().map(p -> p.id()).distinct().count()).isEqualTo(products.size());

@@ -16,9 +16,19 @@ import com.flexable.web.cashcatalog.CashCatalogDtos.Product;
 public class OfficialCashClient {
     public enum Source {
         KBANK("kbank-plusbox", "parking", "https://www.kbanknow.com/web/product/deposit/plusbox"),
+        KBANK_OTHER("kbank-other-demand", "parking", "https://www.kbanknow.com/web/customer/use-info/info?tab=rate-info"),
+        SC("sc-personal-demand", "parking", "https://www.standardchartered.co.kr/np/kr/pl/et/InterestRateDeposit3P.jsp"),
+        JEJU("jeju-personal-demand", "parking", "https://www.jejubank.co.kr/hmpg/prdGdnc/sid/iomn.do"),
         EUGENE("eugene-cma-rp", "cma", "https://www.eugenefn.com/ingo/igca/igca100r.do"),
         FSB("fsb-demand-deposits", "parking", "https://www.fsb.or.kr/ratanym_0100.act"),
-        MIRAE_RP("mirae-cma-rp", "cma", "https://securities.miraeasset.com/hks/hks4033/n01.do");
+        MIRAE_RP("mirae-cma-rp", "cma", "https://securities.miraeasset.com/hks/hks4033/n01.do"),
+        SAMSUNG("samsung-cma", "cma", "https://www.samsungpop.com/mbw/finance/cma.do?cmd=guide"),
+        KB("kb-cma", "cma", "https://m.kbsec.com/go.able?linkcd=s010300010005"),
+        SHINHAN("shinhan-cma-rp", "cma", "https://m.shinhansec.com/mweb/fnin/fcma/ffcma0001"),
+        MERITZ("meritz-cma-rp", "cma", "https://www.imeritz.com/meritzcma/CmaRp.do"),
+        HANWHA("hanwha-cma-rp", "cma", "https://www.hanwhawm.com/static/finance/cma/FI211_1p.htm"),
+        HMC("hmc-cma-salary", "cma", "https://www.hmsec.com/mobile/notice_info/guide/salary_account_guide_01.to"),
+        SK("sk-magic-cma-rp", "cma", "https://www.sks.co.kr/main/product/cma/mCMA/html/PD_04001_T01.htm");
         public final String key, kind, url;
         Source(String key, String kind, String url) { this.key = key; this.kind = kind; this.url = url; }
     }
@@ -37,29 +47,77 @@ public class OfficialCashClient {
         URI official = URI.create(source.url);
         Target target = testTargets.getOrDefault(source, new Target(official, official.resolve("/robots.txt")));
         String robots = get(target.robots(), true);
-        URI resource = source == Source.FSB ? target.page().resolve("ratanym_0100_01.act") : target.page();
-        String resourcePath = source == Source.FSB ? official.resolve("ratanym_0100_01.act").getRawPath() : official.getRawPath();
-        if (robots != null && (!CashRobots.allowed(robots, official.getRawPath()) || !CashRobots.allowed(robots, resourcePath)))
-            throw new IllegalStateException("robots 정책으로 수집하지 않습니다");
-        String html = source == Source.FSB ? request(resource, false,
-            "ORDERBY=BANK_NAME+ASC&RATE_HIGH=0&RATE_HIGH_UPPER=true&DEPO_INTS_PRVS_MTHD_CD=1%7C2%7C3%7C4%7C5%7C6&JOIN_LOCATION=1%7C2%7C3%7C4%7C5%7C9&SEARCH_SELECT_IN=&SEARCH_TEXT_IN=")
-            : get(target.page(), false);
+        allowed(robots, official.getRawPath() + (official.getRawQuery() == null ? "" : "?" + official.getRawQuery()));
+        if (source == Source.FSB) {
+            String filters = "{\"ORDERBY\":\"BANK_NAME ASC\",\"RATE_HIGH\":\"0\",\"RATE_HIGH_UPPER\":\"true\",\"DEPO_INTS_PRVS_MTHD_CD\":\"1|2|3|4|5|6\",\"JOIN_LOCATION\":\"1|2|3|4|5|9\",\"END_NUM\":\"100000\",\"START_NUM\":\"1\",\"SEARCH_SELECT_IN\":\"\",\"SEARCH_TEXT_IN\":\"\"}";
+            String encoded = java.net.URLEncoder.encode(filters, StandardCharsets.UTF_8).replace("+", "%20");
+            String form = "_JSON_=" + java.net.URLEncoder.encode(encoded, StandardCharsets.UTF_8);
+            return OfficialCashJsonParser.fsb(query(source, target, robots, "/ratanym_0100.jct", "ratanym_0100.jct", form, false), verifiedAt);
+        }
+        if (source == Source.KBANK_OTHER) return OfficialCashJsonParser.kbankOther(query(source, target, robots,
+            "/ib20/act/WEBCSTUIF0000300A", "kbank-other-json", "inqryType=SALE", false), verifiedAt);
+        if (source == Source.JEJU) {
+            String path = "/hmpg/prdGdnc/sid/mndp.doax?orderBy=rcmd&typCdVal=02&jnptVal=&joingTrmCdVal=&chrcCdVal=&viewCount=999&isMore=0&moreIdx=&lastId=&keyword=";
+            var candidates = JejuCashParser.catalog(query(source, target, robots, path, "jeju-catalog-json", null, false));
+            var result = new java.util.ArrayList<Product>();
+            for (var candidate : candidates) {
+                URI detail = URI.create(JejuCashParser.detailPath(candidate.id()));
+                allowed(robots, detail.getRawPath() + "?" + detail.getRawQuery());
+                URI uri = testTargets.containsKey(source) ? target.page().resolve("jeju-detail-" + candidate.id()) : detail;
+                result.add(JejuCashParser.detail(candidate, get(uri, false), verifiedAt));
+            }
+            return List.copyOf(result);
+        }
+        if (source == Source.SC) {
+            String date = verifiedAt.toLocalDate().toString();
+            String tail = "\",\"PARTY_FG\":\"P\",\"TYPE_CD\":\"243\",\"searchdate\":\"" + date + "\",\"searchexist\":\"\",\"searchyear\":\"" + date.substring(0, 4) + "\",\"searchmonth\":\"" + date.substring(5, 7) + "\",\"searchday\":\"" + date.substring(8) + "\"}";
+            String prefix = "{\"serviceID\":\"HP_AP_RM_DepRate.";
+            String middle = "\",\"task\":\"com.scfirstbank.web.ap.rm.task.HP_AP_RM_DepRateTask\",\"action\":\"";
+            return OfficialCashJsonParser.sc(
+                query(source, target, robots, "/np/kr/pl/et/selectFrontDepRateList", "sc-rate-json", prefix + "selectFrontDepRateList" + middle + "selectFrontDepRateList" + tail, true),
+                query(source, target, robots, "/np/kr/pl/et/selectFrontDepRateSelBoxList", "sc-catalog-json", prefix + "selectFrontDepRateSelBoxList" + middle + "selectFrontDepRateSelBoxList" + tail, true), verifiedAt);
+        }
+        if (source == Source.KB) return OfficialCashJsonParser.kb(query(source, target, robots,
+            "/ndatatopweb/www/json/main/rate_manage_cma.json", "kb-json", null, false), verifiedAt);
+        if (source == Source.SHINHAN) return OfficialCashJsonParser.shinhan(query(source, target, robots,
+            "/mweb/api/fnin/fcma/rprtList", "shinhan-json", "{\"url\":\"/mweb/api/fnin/fcma/rprtList\",\"callbackFun\":\"ffcma0001.rprtList_callback\"}", true), verifiedAt);
+        if (source == Source.MERITZ) return OfficialCashJsonParser.meritz(query(source, target, robots,
+            "/meritzcma/RPErtSearch.go", "meritz-json", "iscd=RP10000&aplyDate=" + verifiedAt.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd")), false), verifiedAt);
+        if (source == Source.SK) return OfficialCashJsonParser.sk(query(source, target, robots,
+            "/main/product/rp/MAGIC_CMA_DATA_Q.cmd", "sk-json", "", false), verifiedAt);
+        String html = get(target.page(), false);
+        if (source == Source.SAMSUNG) return OfficialCashJsonParser.samsung(html,
+            query(source, target, robots, "/ux/kor/finance/cma/cma/getAihr103p.do", "samsung-rp-json", "tabInfo=&af_auto_index=start&ajaxQuery=1", false),
+            query(source, target, robots, "/mbw/finance/cma.do", "samsung-note-json", "tabInfo=&af_auto_index=start&A_RFRN_SECT_CODE=1&cmd=getList&ajaxQuery=1", false), verifiedAt);
         return switch (source) {
             case KBANK -> OfficialCashParser.kbank(html, verifiedAt);
             case EUGENE -> OfficialCashParser.eugene(html, verifiedAt);
-            case FSB -> OfficialCashParser.fsbExport(html, verifiedAt);
             case MIRAE_RP -> OfficialCashParser.miraeRp(html, verifiedAt);
+            case HANWHA -> OfficialCashJsonParser.hanwha(html, verifiedAt);
+            case HMC -> OfficialCashJsonParser.hmc(html, verifiedAt);
+            default -> throw new IllegalStateException("미지원 공식 출처");
         };
+    }
+    private static void allowed(String robots, String path) {
+        if (robots != null && !CashRobots.allowed(robots, path)) throw new IllegalStateException("robots 정책으로 수집하지 않습니다");
+    }
+    private String query(Source source, Target target, String robots, String path, String fixturePath, String body, boolean jsonBody) {
+        allowed(robots, path);
+        URI uri = testTargets.containsKey(source) ? target.page().resolve(fixturePath) : URI.create(source.url).resolve(path);
+        return request(uri, false, body, jsonBody ? "application/json" : "application/x-www-form-urlencoded", false);
     }
     private String get(URI uri, boolean robots) {
         return request(uri, robots, null);
     }
     private String request(URI uri, boolean robots, String form) {
+        return request(uri, robots, form, "application/x-www-form-urlencoded", !robots);
+    }
+    private String request(URI uri, boolean robots, String body, String contentType, boolean html) {
         try {
             var builder = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(20))
-                    .header("User-Agent", "FlexableWebCatalog/1.0").header("Accept", "text/html,text/plain");
-            var request = form == null ? builder.GET().build() : builder.header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.ofString(form)).build();
+                    .header("User-Agent", "FlexableWebCatalog/1.0").header("Accept", html || robots ? "text/html,text/plain" : "application/json,text/plain");
+            var request = body == null ? builder.GET().build() : builder.header("Content-Type", contentType)
+                    .POST(HttpRequest.BodyPublishers.ofString(body)).build();
             var pending = http.sendAsync(request, info -> new LimitedBody());
             HttpResponse<byte[]> response;
             try { response = pending.get(20, java.util.concurrent.TimeUnit.SECONDS); }
@@ -70,9 +128,15 @@ public class OfficialCashClient {
                 if (robots && response.statusCode() == 404) return null;
                 if (robots && uri.getHost().equals("www.fsb.or.kr") && response.statusCode() == 307
                         && response.headers().firstValue("location").orElse("").equals("/404.html")) return null;
+                // 이 기관들은 존재하지 않는 경로를 고정 오류 화면으로 돌린다. 상품 리다이렉트는 허용하지 않는다.
+                if (robots && response.statusCode() == 302 && (
+                    uri.getHost().equals("m.kbsec.com") && response.headers().firstValue("location").orElse("").equals("/etc/MOBI_08_0001.html")
+                    || uri.getHost().equals("www.imeritz.com") && response.headers().firstValue("location").orElse("").equals("https://home.imeritz.com/comm/logn/LognErrorOut.jsp"))) return null;
+                if (robots && uri.getHost().equals("www.sks.co.kr") && response.statusCode() == 307
+                        && response.headers().firstValue("location").orElse("").equals("/main/common/view/CP_00030_4.jsp")) return null;
                 if (response.statusCode() != 200) throw new IllegalStateException("공식 출처 HTTP " + response.statusCode());
                 String text = new String(response.body(), StandardCharsets.UTF_8);
-                if (!robots) {
+                if (html) {
                     var charset = java.util.regex.Pattern.compile("(?i)charset\\s*=\\s*['\"]?([a-z0-9._-]+)")
                         .matcher(response.headers().firstValue("content-type").orElse(""));
                     try { text = org.jsoup.Jsoup.parse(new java.io.ByteArrayInputStream(response.body()),

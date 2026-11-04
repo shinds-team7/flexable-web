@@ -32,7 +32,8 @@ function Judged({ r, sample }: { r: VirtualSimDecision; sample: boolean }) {
   if (!r.outcome || r.categoryUpShare == null || r.categorySampleCount == null || !r.trend || !r.trendOutcome) return <small>5거래일 뒤 확인해요</small>;
   const moved = r.movement === 'UP' ? 1 : r.movement === 'DOWN' ? -1 : 0;
   const against = (r.trend === 'UP' && moved < 0) || (r.trend === 'DOWN' && moved > 0);
-  const opposite = r.trend === 'UP' ? 1 - r.categoryUpShare : r.categoryUpShare;
+  // 반대로 움직인 비율: UP이면 내린 비율, DOWN이면 오른 비율(서버 값, 보합은 어디에도 들지 않는다)
+  const opposite = r.trend === 'UP' ? r.categoryDownShare ?? 0 : r.categoryUpShare;
   const n = fmt.format(r.categorySampleCount);
   return <div className="vsim-judged">
     <p><b>과거 경향</b> {r.trendOutcome === 'CORRECT' ? '과거 경향을 맞혔어요.' : r.trendOutcome === 'INCORRECT' ? '과거 경향과 달랐어요.' : r.action === 'HOLD' ? '유지를 골라 채점하지 않아요.' : '이 공시만으로는 방향을 알기 어려운 유형이에요. 채점하지 않아요.'}</p>
@@ -262,7 +263,7 @@ export function VirtualSimulation({ active, onGoPast }: { active: boolean; onGoP
             onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showOnChart(i + 1); } }}
             onMouseEnter={() => setActiveBand(i + 1)} onMouseLeave={() => setActiveBand(null)} onFocus={() => setActiveBand(i + 1)} onBlur={() => setActiveBand(null)}>
             <div className="practice-decision-meta"><span className="practice-decision-no"><span className="sr-only">사건 </span>{i + 1}</span><time>{r.date}<br />가상 날짜</time></div><div><h3>{r.title}</h3><p>{r.categoryName} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${fmt.format(r.quantity)}주 주문`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome"><Judged r={r} sample={sample} /></div></article>)}
-          {finished && <p className="practice-result-note">{sample ? '사건 뒤 움직임은 학습용 예시 통계에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.' : '사건 뒤 움직임은 같은 유형 실제 공시 뒤의 움직임에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.'} 점수는 과거 경향을 맞힌 수이고, 매수·매도 선택은 채점하지 않아요.</p>}
+          {finished && <p className="practice-result-note">{sample ? '사건 뒤 움직임은 학습용 예시 통계에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.' : '사건 뒤 움직임은 같은 유형 실제 공시 뒤의 움직임에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.'} 점수는 매수·매도 방향(매수 = 오른다, 매도 = 내린다)이 과거 경향과 맞은 수이고, 유지는 채점하지 않아요.</p>}
         </section>}
       </main>
       <aside className="practice-wallet"><h2>{finished ? '최종 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '시뮬레이션을 시작하면 표시돼요'}</div><dl><div><dt>처음 넣은 돈</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p></aside>

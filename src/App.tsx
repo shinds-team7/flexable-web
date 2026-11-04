@@ -3,8 +3,7 @@ import { Layout } from '@/components/Layout';
 import BillingResult from '@/pages/BillingResult';
 import Diversify from '@/pages/Diversify';
 import FinanceGuide from '@/pages/FinanceGuide';
-import GoalPage from '@/pages/Goal';
-import GoalDemo from '@/pages/GoalDemo';
+import GoalScenarios from '@/pages/GoalScenarios';
 import Home from '@/pages/Home';
 import Invest from '@/pages/Invest';
 import { InvestorTypeDetail, InvestorTypePick, InvestorTypes, InvestorTypeTest } from '@/pages/InvestorType';
@@ -59,8 +58,8 @@ export const router = createBrowserRouter([
       { path: '/billing/result', element: <BillingResult /> },
       { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
       { path: '/mypage', element: <Home /> },
-      { path: '/goal', element: <GoalPage /> },
-      { path: '/goal/demo', element: <GoalDemo /> },
+      { path: '/goal', element: <GoalScenarios /> },
+      { path: '/goal/demo', element: <Navigate to="/goal" replace /> },
       { path: '/mypage/settings', element: <Me /> },
       { path: '/me', element: <Navigate to="/mypage/settings" replace /> },
       { path: '/privacy', element: <Privacy /> },

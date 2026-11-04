@@ -142,6 +142,10 @@ public class GoalScenarioService {
 				return new Chosen(reused.get(), null, usage(userId), true);
 			}
 			ScenarioAiQuota.Reserve r = quota.reserve(userId);
+			if (r == ScenarioAiQuota.Reserve.GONE) {
+				// 토큰은 유효하지만 회원이 없다(탈퇴). 다른 회원 API와 같이 401
+				throw new ApiException(ErrorCode.UNAUTHORIZED);
+			}
 			if (r == ScenarioAiQuota.Reserve.OK) {
 				try {
 					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, years, months, stats(picked)));

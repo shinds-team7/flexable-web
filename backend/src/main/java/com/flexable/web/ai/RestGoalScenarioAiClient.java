@@ -21,16 +21,16 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Component
 public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
-	static final String PROMPT_VERSION = "goal-scenario-v1";
+	static final String PROMPT_VERSION = "goal-scenario-v2";
 	static final List<String> TYPES = List.of("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
 	static final String PROMPT = """
-			goal-scenario-v1. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 두 개나 세 개 만들어요.
-			상품 유형: SAVINGS(은행 적금, 금리 확정), CMA(수시 입출금, 금리 확정), KR_INDEX_ETF(국내 대표 지수 ETF),
+			goal-scenario-v2. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 두 개나 세 개 만들어요.
+			상품 유형: SAVINGS(은행 적금, 금리 확정), CMA(수시 입출금, 예시 금리라 바뀔 수 있음), KR_INDEX_ETF(국내 대표 지수 ETF),
 			US_INDEX_ETF(미국 대표 지수 ETF, 국내 상장), KOSPI_TOP5(코스피 시가총액 상위 다섯 종목에 같은 금액).
 			입력의 stats는 서버가 지난 육십 개월 월 수익률로 계산한 유형별 평균·변동폭·최대 하락이에요. 이 값을 근거로 비중을 정해요.
 			규칙:
 			- mix의 다섯 값은 0 이상 100 이하 정수이고 합은 정확히 100이에요.
-			- 시나리오끼리 위험 정도가 분명히 달라야 해요. 하나는 금리가 확정된 SAVINGS·CMA 비중이 높은 조합으로 해요.
+			- 시나리오끼리 위험 정도가 분명히 달라야 해요. 하나는 값이 크게 흔들리지 않는 SAVINGS·CMA 비중이 높은 조합으로 해요.
 			- 기한이 짧을수록 변동이 큰 유형의 비중을 낮춰요. 한 유형에 지나치게 몰지 않아요.
 			- id는 s1, s2, s3 순서예요. title은 스무 자, summary는 마흔 자, explanation은 삼백 자 이내 한국어 '~해요'체예요.
 			- title·summary·explanation에 숫자(아라비아 숫자)를 쓰지 않아요. 금액·수익률·확률을 말하지 않아요(서버가 따로 계산해요).

@@ -190,8 +190,17 @@ export default function GoalScenarios() {
   }, []);
 
   useEffect(() => {
-    if (member) void refreshSaved();
-    else setSavedList(null);
+    if (member) { void refreshSaved(); return; }
+    // 로그아웃하면 이전 회원의 결과(AI 횟수 포함)·저장 목록·보던 모달을 지우고, 진행 중인 요청의 응답은 버린다.
+    requestId.current++;
+    setLoading(false);
+    setResult(null);
+    setSelected(null);
+    setViewing(null);
+    setToDelete(null);
+    setSavedList(null);
+    setSavedIds({});
+    setSaveMessage('');
   }, [member, refreshSaved]);
 
   const amountValue = Number(digits(amount) || 0);

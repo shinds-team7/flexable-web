@@ -426,4 +426,15 @@ class GoalScenarioApiTest {
 		assertThat(status).isEqualTo(204);
 		assertThat(jdbc.queryForObject("select count(*) from goal_scenarios where id = ?", Integer.class, id)).isZero();
 	}
+
+	@Test
+	void 탈퇴한_회원의_토큰으로_보면_401() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		String token = signup();
+		int status = mvc.perform(auth(delete("/api/v1/me"), token).contentType(MediaType.APPLICATION_JSON)
+			.content("{\"password\":\"password1\",\"confirm\":\"탈퇴\"}")).andReturn().getResponse().getStatus();
+		assertThat(status).isEqualTo(204);
+		member(BODY.formatted("목돈", 15_000_000, 1), token, 401);
+		verify(proposer, times(0)).propose(any());
+	}
 }

@@ -52,6 +52,7 @@ public class VirtualSimService {
 	private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
 	private final VirtualSimStore store;
+	private final VirtualSimStartLimiter limiter;
 	private final Clock clock;
 	private final boolean sample;
 	private final int capacity;
@@ -59,9 +60,10 @@ public class VirtualSimService {
 	private final Map<String, Session> sessions = new HashMap<>();
 	private final Map<UUID, String> starts = new HashMap<>();
 
-	public VirtualSimService(VirtualSimStore store, Clock clock, @Value("${app.ingest.virtual-sim.source:gemini}") String source,
-			@Value("${app.virtual-sim.capacity:1000}") int capacity) {
+	public VirtualSimService(VirtualSimStore store, VirtualSimStartLimiter limiter, Clock clock,
+			@Value("${app.ingest.virtual-sim.source:gemini}") String source, @Value("${app.virtual-sim.capacity:1000}") int capacity) {
 		this.store = store;
+		this.limiter = limiter;
 		this.clock = clock;
 		this.sample = "fake".equals(source);
 		this.capacity = capacity;
@@ -121,7 +123,8 @@ public class VirtualSimService {
 		return new Status(rules().map(r -> !candidates(r).isEmpty()).orElse(false), sample);
 	}
 
-	public synchronized Started start(Start input) {
+	/** client: 시작 횟수를 세는 클라이언트 값(접속 IP). 메모리에서 10분만 센다(VirtualSimStartLimiter) */
+	public synchronized Started start(Start input, String client) {
 		clean();
 		String prior = starts.get(input.startId());
 		if (prior != null) {
@@ -131,6 +134,7 @@ public class VirtualSimService {
 			}
 			return started(prior, s);
 		}
+		limiter.check(client);
 		if (sessions.size() >= capacity) {
 			throw new ApiException(ErrorCode.PRACTICE_CAPACITY);
 		}
@@ -147,11 +151,12 @@ public class VirtualSimService {
 		String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 		sessions.put(token, session);
 		starts.put(input.startId(), token);
+		limiter.recordFailure(client);
 		return started(token, session);
 	}
 
 	private static Started started(String token, Session s) {
-		return new Started(token, s.expires.atOffset(ZoneOffset.ofHours(9)).toString(), s.first);
+		return new Started(token, DATE_TIME.format(s.expires.atOffset(ZoneOffset.ofHours(9))), s.first);
 	}
 
 	@Scheduled(fixedDelay = 60000)
@@ -228,7 +233,7 @@ public class VirtualSimService {
 				s.holding = trade.holding();
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
 						r.action() == Action.HOLD ? "HOLD" : trade.shares() == 0 ? "NO_FILL" : "FILLED", candle.date(), candle.open(), trade.shares(), null,
-						null, null, null, null, null, null, null);
+						null, null, null, null, null, null, null, null);
 			}
 			int baseline = s.decisionIndices.get(n);
 			if (s.index == baseline + VirtualSimRules.FOLLOW_DAYS) {
@@ -238,7 +243,7 @@ public class VirtualSimService {
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
 						r.execution(), r.executedDate(), r.executedPrice(), r.executedShares(),
 						r.prediction() == null ? "NEUTRAL" : PracticeEngine.outcome(price, candle.close(), r.prediction()), candle.date(),
-						PracticeEngine.rate(candle.close() - price, price), movement(price, candle.close()), stats.upShare(), stats.paths(), stats.trend(),
+						PracticeEngine.rate(candle.close() - price, price), movement(price, candle.close()), stats.upShare(), VirtualSimRules.upShare(stats.paths(), stats.down()), stats.paths(), stats.trend(),
 						trendOutcome(stats.trend(), r.prediction()));
 			}
 			s.decisions.set(n, r);
@@ -312,7 +317,7 @@ public class VirtualSimService {
 		}
 		Planned p = q.planned();
 		s.decisions.add(new Result(q.id(), p.category(), p.category().displayName(), p.title(), s.candles.get(s.index).date(), prediction(input.action()),
-				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null));
+				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null, null));
 		s.decisionIndices.add(s.index);
 		return save(s, input.commandId(), input, List.of());
 	}

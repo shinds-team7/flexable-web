@@ -70,9 +70,9 @@ class VirtualSimServiceTest {
 	void 후보가_없으면_시작은_503이고_상태는_준비_중() {
 		VirtualSimStore store = mock(VirtualSimStore.class);
 		when(store.latestRuleset(false)).thenReturn(Optional.empty());
-		var service = new VirtualSimService(store, new MovableClock(), "gemini", 10);
+		var service = new VirtualSimService(store, new VirtualSimStartLimiter(new MovableClock()), new MovableClock(), "gemini", 10);
 		assertThat(service.status().available()).isFalse();
-		assertThatThrownBy(() -> service.start(start())).isInstanceOfSatisfying(ApiException.class,
+		assertThatThrownBy(() -> service.start(start(), "1.1.1.1")).isInstanceOfSatisfying(ApiException.class,
 				e -> assertThat(e.code()).isEqualTo(ErrorCode.PRACTICE_UNAVAILABLE));
 
 		// 룰셋은 있지만 공개 가능한 사건이 3개 미만이거나 뚜렷한 유형이 2개 미만인 회사뿐
@@ -80,9 +80,9 @@ class VirtualSimServiceTest {
 		when(sample.companies(true, VirtualSimChecker.VERSION)).thenReturn(List.of(
 				company(true, VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE),
 				company(true, VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND, VirtualSimCategory.OWNERSHIP)));
-		var fake = new VirtualSimService(sample, new MovableClock(), "fake", 10);
+		var fake = new VirtualSimService(sample, new VirtualSimStartLimiter(new MovableClock()), new MovableClock(), "fake", 10);
 		assertThat(fake.status()).isEqualTo(new VirtualSimDtos.Status(false, true));
-		assertThatThrownBy(() -> fake.start(start())).isInstanceOf(ApiException.class);
+		assertThatThrownBy(() -> fake.start(start(), "1.1.1.1")).isInstanceOf(ApiException.class);
 	}
 
 	@Test
@@ -91,7 +91,7 @@ class VirtualSimServiceTest {
 		when(store.latestRuleset(false)).thenReturn(Optional.of(VirtualSimSample.ruleset()));
 		when(store.companies(anyBoolean(), anyString())).thenAnswer(inv -> (Boolean) inv.getArgument(0) ? List.of(company(true,
 				VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES)) : List.of());
-		var service = new VirtualSimService(store, new MovableClock(), "gemini", 10);
+		var service = new VirtualSimService(store, new VirtualSimStartLimiter(new MovableClock()), new MovableClock(), "gemini", 10);
 		assertThat(service.status().available()).isFalse();
 	}
 
@@ -101,11 +101,11 @@ class VirtualSimServiceTest {
 		when(store.companies(true, VirtualSimChecker.VERSION)).thenReturn(List.of(company(true, VirtualSimCategory.SUPPLY_CONTRACT,
 				VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES, VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND)));
 		MovableClock clock = new MovableClock();
-		var service = new VirtualSimService(store, clock, "fake", 2);
+		var service = new VirtualSimService(store, new VirtualSimStartLimiter(clock), clock, "fake", 2);
 		Start input = start();
-		var started = service.start(input);
-		assertThat(service.start(input).sessionToken()).isEqualTo(started.sessionToken());
-		assertThatThrownBy(() -> service.start(new Start(input.startId(), new BigDecimal("20000")))).isInstanceOfSatisfying(ApiException.class,
+		var started = service.start(input, "1.1.1.1");
+		assertThat(service.start(input, "1.1.1.1").sessionToken()).isEqualTo(started.sessionToken());
+		assertThatThrownBy(() -> service.start(new Start(input.startId(), new BigDecimal("20000")), "1.1.1.1")).isInstanceOfSatisfying(ApiException.class,
 				e -> assertThat(e.code()).isEqualTo(ErrorCode.PRACTICE_CONFLICT));
 		Snapshot first = started.snapshot();
 		assertThat(first.candles()).hasSize(1);
@@ -150,10 +150,12 @@ class VirtualSimServiceTest {
 		assertThat(judged.trend()).isIn("UP", "DOWN", "MIXED");
 		assertThat(judged.trendOutcome()).isEqualTo(VirtualSimService.trendOutcome(judged.trend(), Prediction.NEGATIVE));
 		assertThat(judged.categorySampleCount()).isEqualTo(300);
+		var stats = VirtualSimSample.ruleset().stats(judged.category()).orElseThrow();
+		assertThat(judged.categoryDownShare()).isEqualByComparingTo(VirtualSimRules.upShare(stats.paths(), stats.down()));
 
 		// 세션 상한(이 테스트는 2)
-		service.start(start());
-		assertThatThrownBy(() -> service.start(start())).isInstanceOfSatisfying(ApiException.class,
+		service.start(start(), "1.1.1.1");
+		assertThatThrownBy(() -> service.start(start(), "1.1.1.1")).isInstanceOfSatisfying(ApiException.class,
 				e -> assertThat(e.code()).isEqualTo(ErrorCode.PRACTICE_CAPACITY));
 
 		// 30분이 지나면 410
@@ -161,5 +163,26 @@ class VirtualSimServiceTest {
 		assertThatThrownBy(() -> service.state(token)).isInstanceOfSatisfying(ApiException.class,
 				e -> assertThat(e.code()).isEqualTo(ErrorCode.PRACTICE_EXPIRED));
 		service.end(token);
+	}
+
+	@Test
+	void 새_세션_시작은_클라이언트마다_10분에_20번까지() {
+		VirtualSimStore store = mock(VirtualSimStore.class);
+		when(store.companies(true, VirtualSimChecker.VERSION)).thenReturn(List.of(company(true, VirtualSimCategory.SUPPLY_CONTRACT,
+				VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES)));
+		MovableClock clock = new MovableClock();
+		var service = new VirtualSimService(store, new VirtualSimStartLimiter(clock), clock, "fake", 1000);
+		Start first = start();
+		for (int i = 0; i < VirtualSimStartLimiter.MAX_STARTS; i++) {
+			service.start(i == 0 ? first : start(), "1.1.1.1");
+		}
+		// 같은 startId 재전송은 새 세션이 아니라 세지 않는다
+		assertThat(service.start(first, "1.1.1.1")).isNotNull();
+		assertThatThrownBy(() -> service.start(start(), "1.1.1.1")).isInstanceOfSatisfying(ApiException.class,
+				e -> assertThat(e.code()).isEqualTo(ErrorCode.TOO_MANY_ATTEMPTS));
+		// 다른 클라이언트는 따로 센다. 10분이 지나면 다시 열 수 있다
+		assertThat(service.start(start(), "2.2.2.2")).isNotNull();
+		clock.now = clock.now.plus(VirtualSimStartLimiter.WINDOW).plusSeconds(1);
+		assertThat(service.start(start(), "1.1.1.1")).isNotNull();
 	}
 }

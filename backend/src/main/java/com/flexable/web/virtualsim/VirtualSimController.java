@@ -1,5 +1,6 @@
 package com.flexable.web.virtualsim;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.http.CacheControl;
@@ -39,8 +40,8 @@ public class VirtualSimController {
 	}
 
 	@PostMapping("/start")
-	public ResponseEntity<Started> start(@Valid @RequestBody Start input) {
-		return response(service.start(input));
+	public ResponseEntity<Started> start(@Valid @RequestBody Start input, HttpServletRequest request) {
+		return response(service.start(input, request.getRemoteAddr()));
 	}
 
 	@PostMapping("/state")

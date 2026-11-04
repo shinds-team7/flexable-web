@@ -122,7 +122,7 @@ export default function FinanceGuide() {
           <TargetArt />
           <div className="fin-cta-body">
             <h2 id="fin-cta">내 목표에 맞는 금융 계획이 궁금하다면?</h2>
-            <p>목표 금액과 기간을 입력하면 언제 목표에 닿는지 계산하고, AI가 실천 방법을 알려 줘요.</p>
+            <p>목표 금액과 기한을 입력하면 적금·CMA·ETF·주식 조합마다 매달 얼마를 넣어야 하는지 AI와 비교해 볼 수 있어요.</p>
           </div>
           <Link to="/goal" className="btn btn-primary fin-cta-btn">
             AI 목표 달성 시작하기 <ArrowIcon />

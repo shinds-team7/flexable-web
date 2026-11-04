@@ -10,7 +10,7 @@ import {
 import { ApiError, errorText } from '@/lib/api';
 import '@/styles/goal-plan.css';
 
-// F7 v2 목표 달성 시나리오(Issue #175, docs/policies.md §7). 경로는 아직 연결하지 않았다.
+// F7 v2 목표 달성 시나리오(/goal, Issue #175·#201, docs/policies.md §7).
 // 금액·확률·비중은 모두 서버 계산 값이고, 화면은 그리기만 한다(ADR-3). 회원은 시나리오를 그때 결과 그대로 최대 5개 저장한다(§7-8).
 const COLORS: Record<ScenarioProductType, string> = {
   SAVINGS: 'var(--color-series-1)', CMA: 'var(--color-series-3)', KR_INDEX_ETF: 'var(--color-series-2)',

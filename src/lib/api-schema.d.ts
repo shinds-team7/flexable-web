@@ -4,6 +4,84 @@
  */
 
 export interface paths {
+    "/parking/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 파킹·CMA 공시 금리·조건 목록(계산 없음)
+         * @description 이용 조건을 확인한 출처의 저장된 전체 목록. 회사명·상품명·id 순. 필터·나란히 비교는 클라이언트가 수행하며 금액/이자는 계산하지 않는다. 미적재 시 빈 목록, isSample=false.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 공시 목록. 출처 승인이나 수집 성공을 의미하는 예시 상품을 넣지 않는다. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashCatalogList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cma/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 파킹·CMA 공시 금리·조건 목록(계산 없음)
+         * @description 이용 조건을 확인한 출처의 저장된 전체 목록. 회사명·상품명·id 순. 필터·나란히 비교는 클라이언트가 수행하며 금액/이자는 계산하지 않는다. 미적재 시 빈 목록, isSample=false.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 공시 목록. 출처 승인이나 수집 성공을 의미하는 예시 상품을 넣지 않는다. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CashCatalogList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/practice/categories": {
         parameters: {
             query?: never;
@@ -3723,6 +3801,57 @@ export interface components {
         ReserveType: "FIXED" | "FREE";
         /** @enum {string} */
         RateBasis: "BASE" | "MAX";
+        CashCatalogList: {
+            items: components["schemas"]["CashCatalogProduct"][];
+            /** @enum {boolean} */
+            isSample: false;
+            notice: string;
+        };
+        CashCatalogProduct: {
+            id: string;
+            company: string;
+            name: string;
+            /** @enum {string} */
+            sector: "BANK" | "SAVINGS_BANK" | "SECURITIES";
+            /**
+             * @description 파킹은 null. CMA는 RP·발행어음만 지원
+             * @enum {string|null}
+             */
+            category: "RP" | "PROMISSORY_NOTE" | null;
+            /** @description 공시 연 %, 세전. 미확인은 null이며 0으로 바꾸지 않는다 */
+            baseRate: number | null;
+            /** @description 공시 연 %, 세전. 우대조건 충족 여부를 판정하지 않는다 */
+            maxRate: number | null;
+            /**
+             * @description 파킹은 변동 예금금리, CMA는 약정수익률. 미래 수익 보장 아님
+             * @enum {string}
+             */
+            rateType: "VARIABLE_DEPOSIT" | "AGREED";
+            /** @description 금액·기간 구간과 우대조건 등 공시 조건 원문. 전체 잔액 적용인지 구간별 적용인지 생략하지 않는다 */
+            conditions: string;
+            interestPayment: string | null;
+            reinvestment: string | null;
+            depositProtected: boolean | null;
+            /** Format: int64 */
+            maxLimit: number | null;
+            /** Format: int64 */
+            rateLimit: number | null;
+            sourceName: string;
+            /** Format: uri */
+            sourceUrl: string;
+            /**
+             * Format: date
+             * @description 공시 기준일. 수집일로 대체하지 않음
+             */
+            sourceAsOf: string | null;
+            /** Format: date */
+            effectiveFrom: string | null;
+            /**
+             * Format: date-time
+             * @description 출처·형식·조건 검증 시각(+09:00)
+             */
+            verifiedAt: string;
+        };
         /** @enum {string} */
         SavingsSector: "BANK" | "SAVINGS_BANK";
         SavingsResult: {

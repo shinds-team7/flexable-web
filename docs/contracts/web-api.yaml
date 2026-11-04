@@ -33,6 +33,20 @@ tags:
   - name: health
 
 paths:
+  /parking/products:
+    get: &cashCatalogList
+      tags: [deposit]
+      summary: '파킹·CMA 공시 금리·조건 목록(계산 없음)'
+      description: '이용 조건을 확인한 출처의 저장된 전체 목록. 회사명·상품명·id 순. 필터·나란히 비교는 클라이언트가 수행하며 금액/이자는 계산하지 않는다. 미적재 시 빈 목록, isSample=false.'
+      security: []
+      responses:
+        '200':
+          description: '공시 목록. 출처 승인이나 수집 성공을 의미하는 예시 상품을 넣지 않는다.'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CashCatalogList' }
+  /cma/products:
+    get: *cashCatalogList
   /practice/categories:
     get:
       tags: [practice]
@@ -2317,6 +2331,38 @@ components:
         items: { type: array, items: { $ref: '#/components/schemas/YouthNewsItem' } }
     ReserveType: { type: string, enum: [FIXED, FREE], default: FIXED, description: 'FIXED 정액적립식, FREE 자유적립식' }
     RateBasis: { type: string, enum: [BASE, MAX] }
+    CashCatalogList:
+      type: object
+      additionalProperties: false
+      required: [items, isSample, notice]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CashCatalogProduct' } }
+        isSample: { type: boolean, enum: [false] }
+        notice: { type: string }
+    CashCatalogProduct:
+      type: object
+      additionalProperties: false
+      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
+      properties:
+        id: { type: string, minLength: 1 }
+        company: { type: string, minLength: 1 }
+        name: { type: string, minLength: 1 }
+        sector: { type: string, enum: [BANK, SAVINGS_BANK, SECURITIES] }
+        category: { type: string, nullable: true, enum: [RP, PROMISSORY_NOTE, null], description: '파킹은 null. CMA는 RP·발행어음만 지원' }
+        baseRate: { type: number, minimum: 0, nullable: true, description: '공시 연 %, 세전. 미확인은 null이며 0으로 바꾸지 않는다' }
+        maxRate: { type: number, minimum: 0, nullable: true, description: '공시 연 %, 세전. 우대조건 충족 여부를 판정하지 않는다' }
+        rateType: { type: string, enum: [VARIABLE_DEPOSIT, AGREED], description: '파킹은 변동 예금금리, CMA는 약정수익률. 미래 수익 보장 아님' }
+        conditions: { type: string, description: '금액·기간 구간과 우대조건 등 공시 조건 원문. 전체 잔액 적용인지 구간별 적용인지 생략하지 않는다' }
+        interestPayment: { type: string, nullable: true }
+        reinvestment: { type: string, nullable: true }
+        depositProtected: { type: boolean, nullable: true }
+        maxLimit: { type: integer, format: int64, minimum: 0, nullable: true }
+        rateLimit: { type: integer, format: int64, minimum: 0, nullable: true }
+        sourceName: { type: string, minLength: 1 }
+        sourceUrl: { type: string, format: uri, pattern: '^https://' }
+        sourceAsOf: { type: string, format: date, nullable: true, description: '공시 기준일. 수집일로 대체하지 않음' }
+        effectiveFrom: { type: string, format: date, nullable: true }
+        verifiedAt: { type: string, format: date-time, description: '출처·형식·조건 검증 시각(+09:00)' }
     SavingsSector: { type: string, enum: [BANK, SAVINGS_BANK] }
     SavingsResult:
       type: object

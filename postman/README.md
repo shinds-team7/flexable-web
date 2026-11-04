@@ -29,4 +29,4 @@ Remove-Item Env:CASH_LIVE_CHECK
 Remove-Item Env:CASH_FSB_EXPECTED_COUNT
 ```
 
-기본 빌드에서는 이 두 opt-in 테스트를 건너뛰고 순수 파서·robots 테스트와 기존 정책·계약 테스트를 실행한다. 실제 기관의 장래 페이지 구조나 장애 응답을 시뮬레이션이 보증하지는 않는다.
+기본 빌드에서는 이 두 opt-in 테스트를 건너뛰고 순수 파서·robots 테스트와 기존 정책·계약 테스트를 실행한다. Gradle test는 worker 프로필의 CashCatalogJob도 끄므로 테스트 컨텍스트 시작이 기관 수집으로 이어지지 않는다. 실데이터 opt-in만 클라이언트를 명시적으로 호출하며 운영 worker 설정은 그대로다. 실제 기관의 장래 페이지 구조나 장애 응답을 시뮬레이션이 보증하지는 않는다.

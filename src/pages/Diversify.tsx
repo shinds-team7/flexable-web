@@ -4,7 +4,7 @@
 // 순위·추천·매수 버튼은 두지 않는다. 목록 순서는 기준(시가총액 순 등)을 늘 함께 적는다(01 §7 R1·R2).
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Notice, ProtoNote } from '@/components/Proto';
+import { Notice } from '@/components/Proto';
 import { HELD_IN, HOLDABLE, MODES, closeness, type DivMode } from '@/data/diversifySample';
 
 const MODE_KEYS: DivMode[] = ['sector', 'asset', 'alt'];
@@ -59,7 +59,6 @@ export default function Diversify() {
   return (
     <section>
       <div className="page col">
-        <ProtoNote />
         <div className="page-head" style={{ marginBottom: 0 }}>
           <div>
             <h1 className="page-title">분산 투자</h1>

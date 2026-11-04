@@ -222,6 +222,9 @@ public class SavingsService {
 		return new Pick(p, o);
 	}
 
+	/** 가입 대상이 개인이라는 공시 문구(finlife join_member). */
+	static final String INDIVIDUAL = "실명의 개인";
+
 	/** 목표 달성 시나리오(policies §7-2)가 쓰는 적금 후보: 상품 id·금융회사·이름·기본금리·이자 방식. */
 	public record FixedCandidate(String productId, String company, String name, BigDecimal baseRate, boolean compound) {
 	}
@@ -231,8 +234,8 @@ public class SavingsService {
 	}
 
 	/**
-	 * 정액적립식·만기 termMonths·가입 대상 "제한 없음"·월 한도 없음 중 기본금리가 가장 높은 상품(같으면 상품 id 오름차순).
-	 * 없으면 빈 값.
+	 * 은행(1금융권)·정액적립식·만기 termMonths·가입 제한 "제한 없음"·가입 대상에 "실명의 개인"이 있는 상품·월 한도 없음 중
+	 * 기본금리가 가장 높은 상품(같으면 상품 id 오름차순). 저축은행·지역 상품과 사업자·법인 전용 상품은 뺀다(policies §7-2). 없으면 빈 값.
 	 */
 	@Transactional(readOnly = true)
 	public Optional<FixedCandidate> bestOpenFixed(int termMonths) {
@@ -241,7 +244,8 @@ public class SavingsService {
 			byProduct.computeIfAbsent(o.getProductId(), k -> new ArrayList<>()).add(o);
 		}
 		return products.findAllById(byProduct.keySet()).stream()
-			.filter(p -> "1".equals(p.getJoinDeny()) && p.getMaxLimit() == null)
+			.filter(p -> "BANK".equals(p.getSector()) && "1".equals(p.getJoinDeny()) && p.getMaxLimit() == null
+					&& p.getJoinMember() != null && p.getJoinMember().contains(INDIVIDUAL))
 			.flatMap(p -> best(byProduct.get(p.getId())).map(o -> new Pick(p, o)).stream())
 			.sorted(Comparator.comparing(Pick::base).reversed().thenComparing(x -> x.product().getId()))
 			.findFirst()

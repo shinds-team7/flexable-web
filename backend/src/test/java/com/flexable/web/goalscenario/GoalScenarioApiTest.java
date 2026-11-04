@@ -125,13 +125,17 @@ class GoalScenarioApiTest {
 			}
 			market.saveDailyCloses(row.code(), closes, Map.of(), "테스트");
 		}
-		// 12개월만 있다. 한도 있는 상품·제한 있는 상품은 후보에서 빠진다
+		// 12개월만 있다. 한도 있는 상품·제한 있는 상품·저축은행 상품·사업자 전용 은행 상품은 후보에서 빠진다
 		savings.replaceAll(List.of(
+				new ProductData("0020001", "D", "SAVINGS_BANK", "202610", "예시저축은행", "저축은행 적금", "영업점", null, null, "1", "실명의 개인", null, null,
+						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("6.00"), null))),
+				new ProductData("0010004", "E", "BANK", "202610", "예시산업은행", "기업 적금", "영업점", null, null, "1", "개인사업자, 조합(비영리법인 포함), 법인",
+						null, null, "20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("3.68"), null))),
 				new ProductData("0010001", "A", "BANK", "202610", "예시은행", "한도 있는 적금", "영업점", null, null, "1", null, null, 300_000L,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("4.50"), null))),
 				new ProductData("0010002", "B", "BANK", "202610", "예시은행", "서민 전용 적금", "영업점", null, null, "2", null, null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("4.00"), null))),
-				new ProductData("0010003", "C", "BANK", "202610", "열린은행", "누구나 적금", "인터넷", null, null, "1", null, null, null,
+				new ProductData("0010003", "C", "BANK", "202610", "열린은행", "누구나 적금", "인터넷", null, null, "1", "실명의 개인", null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("3.50"), null)))));
 	}
 
@@ -193,7 +197,7 @@ class GoalScenarioApiTest {
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_UNAVAILABLE");
 		assertThat((Integer) JsonPath.read(body, "$.months")).isEqualTo(12);
 		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).containsExactly("steady", "spread", "bold");
-		// 상품 고르기: 한도·제한 없는 적금, 이름 끝 200 중 5년치 자료가 있는 1위(KODEX 200), 우선주·신규 상장(SK스퀘어)을 뺀 코스피 5개
+		// 상품 고르기: 개인이 가입할 수 있는 은행의 한도·제한 없는 적금(저축은행·기업 전용 제외), 이름 끝 200 중 5년치 자료가 있는 1위(KODEX 200), 우선주·신규 상장(SK스퀘어)을 뺀 코스피 5개
 		assertThat((String) JsonPath.read(body, "$.products[0].items[0].name")).isEqualTo("누구나 적금");
 		assertThat((String) JsonPath.read(body, "$.products[0].ratePercent")).isEqualTo("3.50");
 		assertThat((String) JsonPath.read(body, "$.products[2].items[0].code")).isEqualTo("069500");

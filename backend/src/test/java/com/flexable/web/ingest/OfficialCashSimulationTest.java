@@ -59,5 +59,42 @@ class OfficialCashSimulationTest {
             assertThat(catalog.list("parking").items()).isEqualTo(parking);
         }
         control("/_mode?value=ok");
+        // 전체 조회 폼 POST·건수 대조 및 EUC-KR 응답을 실제 HTTP로 검증한다.
+        var expanded = new OfficialCashClient(Map.of(
+            OfficialCashClient.Source.FSB, new OfficialCashClient.Target(URI.create(base + "/fsb"), URI.create(base + "/robots.txt")),
+            OfficialCashClient.Source.MIRAE_RP, new OfficialCashClient.Target(URI.create(base + "/mirae"), URI.create(base + "/robots.txt"))));
+        var at = OffsetDateTime.parse("2026-11-04T10:00:00+09:00");
+        var fsb = expanded.fetch(OfficialCashClient.Source.FSB, at);
+        assertThat(fsb).hasSize(2);
+        assertThat(expanded.fetch(OfficialCashClient.Source.MIRAE_RP, at).getFirst().baseRate()).isEqualByComparingTo("1.23");
+        catalog.publish("parking", OfficialCashClient.Source.FSB.key, "synthetic export", fsb);
+        var allBefore = catalog.list("parking").items();
+        control("/_mode?value=malformed");
+        new CashCatalogJob(expanded, catalog, Clock.fixed(start.plusSeconds(7 * 3600), ZoneOffset.UTC)).sync();
+        assertThat(catalog.list("parking").items()).isEqualTo(allBefore);
+        control("/_mode?value=ok");
+        var dynamic = new OfficialCashClient(Map.of(
+            OfficialCashClient.Source.SAMSUNG, target("samsung"), OfficialCashClient.Source.KB, target("kb"),
+            OfficialCashClient.Source.SHINHAN, target("shinhan"), OfficialCashClient.Source.MERITZ, target("meritz"),
+            OfficialCashClient.Source.KBANK_OTHER, target("kbank-other"), OfficialCashClient.Source.SK, target("sk"),
+            OfficialCashClient.Source.HANWHA, target("hanwha"), OfficialCashClient.Source.HMC, target("hmc"), OfficialCashClient.Source.SC, target("sc"),
+            OfficialCashClient.Source.JEJU, target("jeju")));
+        for (var source : dynamic.sources()) {
+            var products = dynamic.fetch(source, at);
+            assertThat(products).hasSize(source == OfficialCashClient.Source.SAMSUNG || source == OfficialCashClient.Source.KB ? 2 : 1);
+            catalog.publish(source.kind, source.key, "synthetic public query", products);
+        }
+        var samsungBefore = catalog.list("cma").items().stream().filter(p -> p.company().equals("삼성증권")).toList();
+        control("/_mode?value=samsung-note-error");
+        new CashCatalogJob(dynamic, catalog, Clock.fixed(start.plusSeconds(7 * 3600), ZoneOffset.UTC)).sync();
+        assertThat(catalog.list("cma").items().stream().filter(p -> p.company().equals("삼성증권")).toList()).isEqualTo(samsungBefore);
+        control("/_mode?value=query-robots");
+        assertThatThrownBy(() -> dynamic.fetch(OfficialCashClient.Source.SAMSUNG, at)).isInstanceOf(IllegalStateException.class);
+        control("/_mode?value=jeju-detail-error");
+        var jejuBefore = catalog.list("parking").items().stream().filter(p -> p.company().equals("제주은행")).toList();
+        new CashCatalogJob(dynamic, catalog, Clock.fixed(start.plusSeconds(14 * 3600), ZoneOffset.UTC)).sync();
+        assertThat(catalog.list("parking").items().stream().filter(p -> p.company().equals("제주은행")).toList()).isEqualTo(jejuBefore);
+        control("/_mode?value=ok");
     }
+    private OfficialCashClient.Target target(String name) { return new OfficialCashClient.Target(URI.create(base + "/" + name), URI.create(base + "/robots.txt")); }
 }

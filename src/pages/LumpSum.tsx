@@ -455,6 +455,12 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
   const sectorKey = effSectors.join('|');
   useEffect(() => setCmp([]), [amount, calcTerm, interestType, companyKey, sectorKey, categories.join('|')]);
 
+  // 새 조건으로 렌더하기 전에 이전 상품의 상세/계산을 닫는다.
+  // effect에서만 비교를 비우면 새 기간에 없는 이전 상품의 계산 요청이 먼저 나갈 수 있다.
+  const clearCalculation = () => { setCmp([]); setOpenId(null); setLockMsg(''); };
+  const changeAmount = (value: number) => { clearCalculation(); setAmount(value); };
+  const changeTerm = (value: SavingsTerm) => { clearCalculation(); setTerm(value); };
+
   const toggleCompare = (p: DepositProduct, on: boolean) => {
     setLockMsg('');
     if (!on) return setCmp((c) => c.filter((x) => x.p.id !== p.id));
@@ -469,6 +475,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
     });
   };
   const reset = () => {
+    clearCalculation();
     setAmount(DEFAULT_AMOUNT);
     setTerm(12);
     setInterestType(null);
@@ -507,15 +514,15 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
       label: k.byTerm ? '기간·금액' : '금액',
       panel: (
         <>
-          {k.byTerm && <TermTrack terms={TERMS} value={term} onChange={setTerm} />}
+          {k.byTerm && <TermTrack terms={TERMS} value={term} onChange={changeTerm} />}
           <div className="cf-quick" role="group" aria-label="자주 쓰는 금액">
             {QUICK.map((v) => (
-              <button key={v} type="button" aria-pressed={amount === v} onClick={() => setAmount(v)}>
+              <button key={v} type="button" aria-pressed={amount === v} onClick={() => changeAmount(v)}>
                 {manWon(v)}
               </button>
             ))}
           </div>
-          <AmountInput value={amount} unit={10_000} label={`${k.amountLabel}(원)`} onApply={setAmount} />
+          <AmountInput value={amount} unit={10_000} label={`${k.amountLabel}(원)`} onApply={changeAmount} />
         </>
       ),
     },
@@ -528,7 +535,7 @@ function NowMode({ kind, compareLimit }: { kind: LumpKind; compareLimit: number 
             panel: (
               <div className="cf-pgroup" role="group" aria-label="이자 방식">
                 {INTEREST.map((o) => (
-                  <button key={o.v} type="button" className="cf-opt" aria-pressed={interestType === o.v} onClick={() => setInterestType(interestType === o.v ? null : o.v)}>
+                  <button key={o.v} type="button" className="cf-opt" aria-pressed={interestType === o.v} onClick={() => { clearCalculation(); setInterestType(interestType === o.v ? null : o.v); }}>
                     {o.label}
                   </button>
                 ))}

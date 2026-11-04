@@ -1,12 +1,12 @@
 purpose:
-  stands_in_for: 케이뱅크·유진투자증권 공식 HTML과 robots HTTP 응답
+  stands_in_for: 케이뱅크·유진·저축은행중앙회 전체 다운로드·미래에셋 공식 HTML과 robots HTTP 응답
   unblocks: 실제 수집 HTTP 클라이언트·스케줄 작업·H2 저장의 실패 보존 검증
 assumptions:
   - id: parse-current-official-tables
     status: supported
-    claim: 2026-11-04 실제 페이지에서 플러스박스 1개와 유진 RP 개인용 2개를 읽어 테스트 DB와 API로 연결할 수 있었다.
+    claim: 2026-11-04 플러스박스 1개·유진 개인 RP 2개·FSB 전체 표 158개·미래에셋 개인 RP 1개를 테스트 DB와 API로 연결했다. 전체 시장 수집은 아니다.
     reason: opt-in live 테스트가 실제 HTML과 현재 파서 구조를 함께 검증했다. 미래 구조·갱신 주기·이용 허가를 보장하지 않는다.
-    verification: OfficialCashLiveTest를 CASH_LIVE_CHECK=true로 실행, 3개 상품의 공시일·금리를 H2 저장 후 공개 조회했다.
+    verification: OfficialCashLiveTest를 CASH_LIVE_CHECK=true로 실행, 162개 상품을 H2 저장 후 공개 조회했다. FSB 화면 조회 전체 건수와 다운로드 건수도 일치했다.
     source: backend/src/test/java/com/flexable/web/ingest/OfficialCashLiveTest.java
     updated_at: '2026-11-04'
   - id: upstream-failure-preserves-catalog

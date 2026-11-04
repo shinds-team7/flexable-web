@@ -66,6 +66,10 @@ export function VirtualSimulation({ active, onGoPast }: { active: boolean; onGoP
   const amountInput = useRef<HTMLInputElement>(null);
   const focusSetup = useRef(false);
   const [activeBand, setActiveBand] = useState<number | null>(null);
+  // 기록에서 누른 사건: 차트로 올라가 그 사건 기간 띠를 계속 강조한다(마우스를 떼도 남는다)
+  const [pinnedBand, setPinnedBand] = useState<number | null>(null);
+  const chartBox = useRef<HTMLDivElement>(null);
+  const articles = useRef<Record<number, HTMLElement | null>>({});
   // 끝나면 "이번 시뮬레이션 돌아보기"로 내려 결과를 바로 보이게 한다
   const journal = useRef<HTMLElement>(null);
 
@@ -149,7 +153,7 @@ export function VirtualSimulation({ active, onGoPast }: { active: boolean; onGoP
 
   const reset = () => {
     generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
-    setActiveBand(null); focusSetup.current = true;
+    setActiveBand(null); setPinnedBand(null); focusSetup.current = true;
     const old = token.current; token.current = null;
     if (old) void virtualSim('end', { sessionToken: old }).catch(() => {});
   };
@@ -179,6 +183,13 @@ export function VirtualSimulation({ active, onGoPast }: { active: boolean; onGoP
     if (!done || !activeRef.current) return;
     journal.current?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
   }, [done]);
+
+  const scrollTo = (el: HTMLElement | null | undefined) => el?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  /** 기록의 사건을 누르면 차트로 올라가 그 기간을 강조한다. 같은 사건을 다시 누르면 강조를 끈다 */
+  const showOnChart = (n: number) => {
+    if (pinnedBand === n) { setPinnedBand(null); return; }
+    setPinnedBand(n); scrollTo(chartBox.current);
+  };
 
   if (unavailable && !snapshot) {
     return <section className="practice-soon">
@@ -238,11 +249,17 @@ export function VirtualSimulation({ active, onGoPast }: { active: boolean; onGoP
         <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.company.industry : '가상 시뮬레이션'}</span><h2>{snapshot?.company.name ?? '다음 장면은 아직 몰라요'}{snapshot && <> <Written sample={sample} /></>}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '시뮬레이션 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
         <div className="practice-quote">{snapshot ? <><strong>{money(candles.at(-1)!.close)}</strong><span>{candles.at(-1)!.date} 종가 · 가상 날짜</span></> : <p>가상 종목의 앞날은 한 번에 공개되지 않아요.<br />나의 판단을 먼저 남겨보세요.</p>}</div>
         {visibleEvent && collapsed && <div className="vsim-reopen" role="status"><p><b>{visibleEvent.categoryName} · 가상 사건</b> {visibleEvent.title}</p><button type="button" className="btn btn-sm btn-primary" onClick={expand}>선택 창 다시 열기</button></div>}
-        <CandleChart candles={candles} full={finished} bands={bands} activeBand={activeBand} onActiveBand={setActiveBand} />
+        <div ref={chartBox} className="vsim-chart-box">
+          {pinnedBand != null && decisions[pinnedBand - 1] && <div className="vsim-pinned" role="status"><p><b>사건 {pinnedBand}</b> {decisions[pinnedBand - 1].title} · {decisions[pinnedBand - 1].date}{decisions[pinnedBand - 1].outcomeDate ? ` ~ ${decisions[pinnedBand - 1].outcomeDate}` : ''} 기간을 강조했어요.</p><span><button type="button" className="btn btn-sm" onClick={() => { const n = pinnedBand; scrollTo(articles.current[n]); articles.current[n]?.focus({ preventScroll: true }); }}>기록으로 돌아가기</button><button type="button" className="btn btn-sm" onClick={() => setPinnedBand(null)}>강조 끄기</button></span></div>}
+          <CandleChart candles={candles} full={finished} bands={bands} activeBand={activeBand ?? pinnedBand} onActiveBand={setActiveBand} />
+        </div>
         <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : '120~250거래일의 가상 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : '사건 사이 구간을 3초에 재생 · 사건이 나오면 자동으로 멈춰요'}</span></div><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div>
         <progress className="practice-progress" max={snapshot?.totalDays ?? 120} value={candles.length} aria-label="가상 시뮬레이션 진행" />
         {snapshot && <section className="practice-journal vsim-journal" ref={journal} tabIndex={-1} aria-labelledby="vsimJournalTitle"><div className="practice-section-title"><h2 id="vsimJournalTitle">{finished ? '이번 시뮬레이션 돌아보기' : '나의 선택 기록'}</h2><span>{finished && scored.length ? `과거 경향 ${correct} / ${scored.length} 맞힘` : `${decisions.length}개의 선택`}</span></div>
-          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map((r, i) => <article className={`practice-decision ${r.movement === 'UP' ? 'vsim-moved-up' : r.movement === 'DOWN' ? 'vsim-moved-down' : ''} ${activeBand === i + 1 ? 'active' : ''}`} key={r.eventId} tabIndex={0}
+          {decisions.length > 0 && <p id="vsimJournalHint" className="vsim-journal-hint">사건을 누르면 차트에서 그 기간을 다시 볼 수 있어요.</p>}
+          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map((r, i) => <article className={`practice-decision ${r.movement === 'UP' ? 'vsim-moved-up' : r.movement === 'DOWN' ? 'vsim-moved-down' : ''} ${(activeBand ?? pinnedBand) === i + 1 ? 'active' : ''} vsim-clickable`} key={r.eventId} tabIndex={0} ref={el => { articles.current[i + 1] = el; }}
+            aria-describedby="vsimJournalHint" aria-current={pinnedBand === i + 1 ? 'true' : undefined} onClick={() => showOnChart(i + 1)}
+            onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showOnChart(i + 1); } }}
             onMouseEnter={() => setActiveBand(i + 1)} onMouseLeave={() => setActiveBand(null)} onFocus={() => setActiveBand(i + 1)} onBlur={() => setActiveBand(null)}>
             <div className="practice-decision-meta"><span className="practice-decision-no"><span className="sr-only">사건 </span>{i + 1}</span><time>{r.date}<br />가상 날짜</time></div><div><h3>{r.title}</h3><p>{r.categoryName} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${fmt.format(r.quantity)}주 주문`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome"><Judged r={r} sample={sample} /></div></article>)}
           {finished && <p className="practice-result-note">{sample ? '사건 뒤 움직임은 학습용 예시 통계에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.' : '사건 뒤 움직임은 같은 유형 실제 공시 뒤의 움직임에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.'} 점수는 과거 경향을 맞힌 수이고, 매수·매도 선택은 채점하지 않아요.</p>}

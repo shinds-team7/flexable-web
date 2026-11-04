@@ -231,7 +231,7 @@ function MySavedNews() {
 function HomeNews() {
   const { data } = useNews();
   const today = todayKst();
-  const items = data ? selectNews(data.items, DEFAULT_FILTER, today).slice(0, 3) : null;
+  const items = data ? selectNews(data.items, { ...DEFAULT_FILTER, sort: 'deadline' }, today).slice(0, 3) : null;
   return (
     <div className="card">
       <div className="card-head" style={{ marginBottom: 8 }}>

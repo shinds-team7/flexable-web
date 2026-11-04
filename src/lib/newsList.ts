@@ -6,7 +6,7 @@ import { daysBetween, deadlineState, type ApplyPeriod } from './deadline';
 export type NewsSort = 'deadline' | 'new';
 export type NewsFilter = { sort: NewsSort; query: string };
 
-export const DEFAULT_FILTER: NewsFilter = { sort: 'deadline', query: '' };
+export const DEFAULT_FILTER: NewsFilter = { sort: 'new', query: '' };
 
 /** 조건으로 찾기에서 고른 값. 칸이 비어 있으면 그 칸은 조건이 아니다 */
 export type NewsConditions = { regions: RegionName[]; ages: number[]; topics: NewsCategory[] };

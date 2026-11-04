@@ -1,5 +1,5 @@
-// 30초 진단: [맞춤 판별 | 빠른 검색] 두 가지 방식. 고른 값은 이 화면(메모리)에만 있고 저장·전송하지 않는다.
-// 맞춤 판별은 나이·지역·취업·소득/혼인·학력/특화를 5단계로 받아 소식과 맞춰 보고, 빠른 검색은 조건 없이 소식을 하나씩 무작위로 뽑는다.
+// 30초 진단: [조건으로 찾기 | 맞춤 판별] 두 가지 방식. 고른 값은 이 화면(메모리)에만 있고 저장·전송하지 않는다.
+// 맞춤 판별은 나이·지역·취업·소득/혼인·학력/특화를 한 화면에서 모두 받고, 검색하기를 누르면 소식과 맞춰 본다.
 import { useEffect, useRef, useState, type ComponentProps, type CSSProperties, type ReactNode } from 'react';
 import { NewsConditionsBox } from './NewsConditions';
 import { NEWS_CATEGORIES, REGIONS, type NewsCategory, type RegionName, type YouthNews } from '@/data/news';
@@ -19,26 +19,17 @@ import {
   type IncomeKind,
 } from '@/lib/newsDiagnose';
 import '@/styles/compare.css'; // .cf-pgroup/.cf-opt(예적금 화면의 종류 버튼)을 같이 쓴다
-import { selectNews, DEFAULT_FILTER, type NewsSort } from '@/lib/newsList';
+import type { NewsSort } from '@/lib/newsList';
 
-const STEPS = ['나이', '지역', '취업 상태', '소득·혼인', '학력·특화'] as const;
-const TITLES = [
-  '나이를 입력하세요',
-  '거주 지역을 선택하세요',
-  '취업 상태와 세부 상태를 선택하세요',
-  '가구원·소득·혼인을 입력하세요',
-  '관심 분야와 학력·전공·특화를 선택하세요',
-];
 const SORTS: { id: NewsSort; label: string }[] = [
-  { id: 'deadline', label: '마감 임박순' },
   { id: 'new', label: '새로운 순' },
+  { id: 'deadline', label: '마감 임박순' },
 ];
 
-export type FinderTab = 'COND' | 'MATCH' | 'QUICK';
+export type FinderTab = 'COND' | 'MATCH';
 const TABS: { id: FinderTab; label: string }[] = [
   { id: 'COND', label: '조건으로 찾기' },
   { id: 'MATCH', label: '맞춤 판별' },
-  { id: 'QUICK', label: '빠른 검색' },
 ];
 
 type Props = { items: YouthNews[]; today: string; renderCard: (n: YouthNews) => ReactNode };
@@ -46,7 +37,7 @@ type FinderProps = Props & { tab: FinderTab; onTab: (t: FinderTab) => void; cond
 
 const toNum = (s: string) => (s.trim() === '' ? null : Number(s));
 
-/** 조건으로 찾기·맞춤 판별·빠른 검색을 한 상자에 묶는다. 위 탭(상품 종류 탭과 같은 모양)을 누르면 흰 알약이 그쪽으로 밀려가고 내용이 그 방향에서 들어온다 */
+/** 조건으로 찾기·맞춤 판별을 한 상자에 묶는다. 위 탭(상품 종류 탭과 같은 모양)을 누르면 흰 알약이 그쪽으로 밀려가고 내용이 그 방향에서 들어온다 */
 export function NewsFinder({ items, today, renderCard, tab, onTab, conditions }: FinderProps) {
   const index = TABS.findIndex((t) => t.id === tab);
   const prev = useRef(index);
@@ -67,50 +58,13 @@ export function NewsFinder({ items, today, renderCard, tab, onTab, conditions }:
       <div key={tab} className="news-finder-panel" data-dir={dir}>
         {tab === 'COND' && <NewsConditionsBox {...conditions} />}
         {tab === 'MATCH' && <NewsDiagnosis items={items} today={today} renderCard={renderCard} />}
-        {tab === 'QUICK' && <QuickSearch items={items} today={today} renderCard={renderCard} onMatch={() => onTab('MATCH')} />}
       </div>
-    </section>
-  );
-}
-
-function QuickSearch({ items, today, renderCard, onMatch }: Props & { onMatch: () => void }) {
-  const [picked, setPicked] = useState<YouthNews | null>(null);
-  const pool = selectNews(items, DEFAULT_FILTER, today);
-  const draw = () => {
-    // 직전에 뽑은 소식은 되도록 피한다
-    const rest = pool.length > 1 ? pool.filter((n) => n.id !== picked?.id) : pool;
-    setPicked(rest.length > 0 ? rest[Math.floor(Math.random() * rest.length)] : null);
-  };
-  return (
-    <section className="news-diag" aria-labelledby="news-quick-title">
-      <h2 id="news-quick-title" className="news-cond-title">
-        지원금 빠른 검색
-      </h2>
-      <p className="meta">
-        버튼 한 번이면 신청 기간이 지나지 않은 전체 소식에서 찾아 줘요. 조건 없이 무작위로 하나씩 뽑아요. 확 꽂히는 게 있으면 판별기로 자격을 확인하세요.
-      </p>
-      <p className="meta">아래 버튼을 누르면 검색이 시작돼요.</p>
-      <div className="news-cond-act">
-        <button type="button" className="btn btn-primary" onClick={draw} disabled={pool.length === 0}>
-          {picked ? '다른 지원금 검색하기' : '지원금 검색하기'}
-        </button>
-        <button type="button" className="btn btn-line" onClick={onMatch}>
-          내 조건으로 정확히 판별하기
-        </button>
-      </div>
-      {picked ? (
-        <div className="news-diag-pick" aria-live="polite">
-          {renderCard(picked)}
-        </div>
-      ) : (
-        pool.length === 0 && <p className="meta">지금 보여 드릴 소식이 없어요.</p>
-      )}
     </section>
   );
 }
 
 function NewsDiagnosis({ items, today, renderCard }: Props) {
-  const [step, setStep] = useState(0);
+  const [searching, setSearching] = useState(false);
   const [p, setP] = useState<DiagnoseProfile>(EMPTY_PROFILE);
   const [done, setDone] = useState<DiagnoseProfile | null>(null);
   const [ageError, setAgeError] = useState(false);
@@ -119,26 +73,41 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
   const pick = <K extends 'region' | 'employ' | 'jobDetail' | 'marital' | 'school' | 'major' | 'topic'>(k: K, v: NonNullable<DiagnoseProfile[K]>) =>
     setP((x) => ({ ...x, [k]: x[k] === v ? null : v }));
 
-  const next = () => {
-    if (step === 0 && p.age != null && !validAge(p.age)) return setAgeError(true);
-    setAgeError(false);
-    setStep((s) => s + 1);
-  };
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  // 조건에 맞는 소식을 찾는 동안 점이 도는 로딩을 잠깐 보여 준다(움직임 줄이기면 CSS가 멈춘다)
   const finish = () => {
-    if (p.age != null && !validAge(p.age)) {
-      setStep(0);
-      return setAgeError(true);
-    }
-    setDone(p);
+    if (p.age != null && !validAge(p.age)) return setAgeError(true);
+    setAgeError(false);
+    setSearching(true);
+    timer.current = window.setTimeout(() => {
+      setSearching(false);
+      setDone(p);
+    }, 1200);
   };
-  const restart = () => {
-    setDone(null);
-    setStep(0);
-  };
+  const restart = () => setDone(null);
   const reset = () => {
     setP(EMPTY_PROFILE);
     restart();
   };
+
+  if (searching) {
+    return (
+      <section className="news-diag" aria-labelledby="news-diag-title">
+        <h2 id="news-diag-title" className="news-cond-title">
+          맞춤 판별
+        </h2>
+        <div className="news-loading" role="status" aria-live="polite">
+          <span className="dots-spinner" aria-hidden="true">
+            {Array.from({ length: 8 }, (_, i) => (
+              <i key={i} style={{ '--i': i } as CSSProperties} />
+            ))}
+          </span>
+          <p>조건에 맞는 지원금을 찾고 있어요…</p>
+        </div>
+      </section>
+    );
+  }
 
   if (done) {
     return <Result items={items} today={today} profile={done} renderCard={renderCard} onSort={(sort) => setDone({ ...done, sort })} onEdit={restart} onReset={reset} />;
@@ -147,23 +116,11 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
   return (
     <section className="news-diag" aria-labelledby="news-diag-title">
       <h2 id="news-diag-title" className="news-cond-title">
-        5단계 맞춤 판별
+        맞춤 판별
       </h2>
-      <p className="meta">
-        {step + 1} / {STEPS.length} · {TITLES[step]}. 입력한 값은 저장하지 않고 서버로 보내지 않아요.
-      </p>
-      <div className="news-diag-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={(step + 1) * 20} aria-label="진단 진행">
-        <span style={{ width: `${(step + 1) * 20}%` }} />
-      </div>
-      <ol className="news-diag-steps" aria-label="진행 단계">
-        {STEPS.map((s, i) => (
-          <li key={s} aria-current={i === step ? 'step' : undefined} className={i <= step ? 'on' : ''}>
-            {i + 1}. {s}
-          </li>
-        ))}
-      </ol>
+      <p className="meta">조건을 골라 주세요. 고르지 않은 조건은 따지지 않아요. 입력한 값은 저장하지 않고 서버로 보내지 않아요.</p>
 
-      {step === 0 && (
+      {(
         <div className="field">
           <label htmlFor="diag-age">올해 나이 (만 나이)</label>
           <div className="input-affix news-diag-age">
@@ -190,7 +147,7 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
         </div>
       )}
 
-      {step === 1 && (
+      {(
         <Group label="사는 곳">
           {REGIONS.map((r: RegionName) => (
             <Chip key={r} on={p.region === r} onClick={() => pick('region', r)}>
@@ -200,7 +157,7 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
         </Group>
       )}
 
-      {step === 2 && (
+      {(
         <>
           <Group label="지금 상태">
             {EMPLOY_OPTIONS.map((o) => (
@@ -220,7 +177,7 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
         </>
       )}
 
-      {step === 3 && (
+      {(
         <>
           <div className="field">
             <label htmlFor="diag-household">같이 사는 가구원 수 (본인 포함)</label>
@@ -262,7 +219,7 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
         </>
       )}
 
-      {step === 4 && (
+      {(
         <>
           <Group label="관심 분야">
             <Chip on={p.topic === null} onClick={() => set('topic', null)}>
@@ -303,23 +260,9 @@ function NewsDiagnosis({ items, today, renderCard }: Props) {
       )}
 
       <div className="news-cond-act">
-        <button type="button" className="btn btn-line" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
-          이전
+        <button type="button" className="btn btn-primary" onClick={finish}>
+          검색하기
         </button>
-        {step < STEPS.length - 1 ? (
-          <button type="button" className="btn btn-primary" onClick={next}>
-            다음 ({step + 1}/{STEPS.length})
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary" onClick={finish}>
-            내 조건으로 찾기
-          </button>
-        )}
-        {step < STEPS.length - 1 && (
-          <button type="button" className="btn btn-text" onClick={finish}>
-            건너뛰고 바로 결과 보기
-          </button>
-        )}
       </div>
 
       <details className="news-diag-how">

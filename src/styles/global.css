@@ -1119,6 +1119,7 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .it-entry-k{font-size:14px;font-weight:300}
 .it-entry-h{font-size:30px;line-height:38px;font-weight:800}
 .it-art{flex:none;width:100%;max-width:320px;height:auto;margin:auto 0;align-self:center}
+.it-entry-card.violet .it-art{max-width:288px}
 .it-entry-go{width:100%;padding:18px 0;border-radius:var(--radius-soft);background:rgb(255 255 255/.14);text-align:center;font-size:18px;font-weight:500}
 .it-mine-line{margin:24px 0 0;text-align:center}
 .it-about-page{width:100%;max-width:720px;margin:24px auto 0}

@@ -137,7 +137,7 @@ export function InvestorTypeAbout() {
           <h1 className="page-title">투자성향분석이 필요한 이유, 5가지 투자자 유형과 상품 선택 기준</h1>
         </header>
 
-        <img className="ia-hero" src="/type/about/hero.png" alt="투자성향분석 왜 하는 걸까? 투자자 유형별 위험등급과 상품선택 기준 대표 이미지" />
+        <img className="ia-hero" src="/type/about/hero.png" alt="투자성향분석 왜 하는 걸까? 5가지 투자자 유형과 상품 선택 기준 대표 이미지" />
 
         <div className="ia-prose">
           <p>

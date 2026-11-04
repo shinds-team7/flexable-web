@@ -424,7 +424,7 @@ export interface paths {
         put?: never;
         /**
          * 가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 로그인·영구 저장 없음
-         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년
+         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년. 새 세션 시작은 클라이언트(접속 IP)마다 10분에 20번까지이고 넘으면 429 TOO_MANY_ATTEMPTS(retryAfterSeconds). 같은 startId 재전송은 세지 않는다
          */
         post: {
             parameters: {
@@ -460,6 +460,7 @@ export interface paths {
                 };
                 400: components["responses"]["Error"];
                 409: components["responses"]["Error"];
+                429: components["responses"]["Error"];
                 503: components["responses"]["Error"];
             };
         };
@@ -568,7 +569,7 @@ export interface paths {
         put?: never;
         /**
          * 현재 가상 사건의 가상 매매 선택(수량 직접 입력, no-store)
-         * @description AWAITING_DECISION의 eventId만 허용하고 다음 step에서 다음 거래일 시가로 체결한다. 예상 버튼은 없고 매매 방향이 예상이다(BUY = 오른다, SELL = 내린다, HOLD = 채점 제외, policies §8-6). quantity는 HOLD면 0, BUY·SELL은 1 이상이고 event.orderLimits 안이어야 한다(넘으면 400 VALIDATION_FAILED, field=quantity). 매수는 체결 시가로 그때 현금에 살 수 있는 만큼만 체결한다(부분 체결, 0주면 NO_FILL)
+         * @description AWAITING_DECISION의 eventId만 허용하고 다음 step에서 다음 거래일 시가로 체결한다. 예상 버튼은 없고 매매 방향이 예상이다(BUY = 오른다, SELL = 내린다, HOLD = 채점 제외, policies §8-6). quantity는 HOLD면 0, BUY·SELL은 1 이상이고 event.orderLimits 안이어야 한다(넘으면 400 VALIDATION_FAILED, 응답 `fields.quantity`). 매수는 체결 시가로 그때 현금에 살 수 있는 만큼만 체결한다(부분 체결, 0주면 NO_FILL)
          */
         post: {
             parameters: {
@@ -3010,7 +3011,9 @@ export interface components {
                 movement: "UP" | "DOWN" | "FLAT" | null;
                 /** @description 판정 뒤(outcome이 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
                 categoryUpShare: number | null;
-                /** @description 판정 뒤만. categoryUpShare를 센 공시 수. 판정 전에는 null */
+                /** @description 판정 뒤만. 같은 유형 공시 뒤 5거래일 종가가 내린 비율(소수 4자리 내림). 보합은 오름·내림 어디에도 들지 않으므로 1 − categoryUpShare와 다를 수 있다. 판정 전에는 null */
+                categoryDownShare: number | null;
+                /** @description 판정 뒤만. categoryUpShare·categoryDownShare를 센 공시 수. 판정 전에는 null */
                 categorySampleCount: number | null;
                 /**
                  * @description 판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null

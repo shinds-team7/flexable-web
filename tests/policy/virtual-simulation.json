@@ -1,7 +1,7 @@
 {
   "status": "PENDING",
   "policy": "docs/policies.md §8",
-  "versions": { "types": "vsim-types-v1", "ruleset": "vsim-rules-v1", "check": "vsim-check-v1" },
+  "versions": { "types": "vsim-types-v2", "ruleset": "vsim-rules-v2", "check": "vsim-check-v2" },
   "tradeAndQuiz": {
     "note": "매매·평가·판정은 §5를 그대로 쓴다. 테스트는 practice.json의 아래 키를 다시 읽는다",
     "source": "practice.json",
@@ -50,7 +50,10 @@
       { "title": "[기재정정]단일판매ㆍ공급계약체결", "expected": "SUPPLY_CONTRACT" },
       { "title": "연결재무제표기준영업(잠정)실적(공정공시)", "expected": "EARNINGS" },
       { "title": "주요사항보고서(유상증자결정)", "expected": "NEW_SHARES" },
-      { "title": "주요사항보고서(자기주식취득결정)", "expected": "BUYBACK" },
+      { "title": "주요사항보고서(자기주식취득결정)", "expected": "BUYBACK_ACQUIRE" },
+      { "title": "주요사항보고서(자기주식처분결정)", "expected": "BUYBACK_DISPOSE" },
+      { "title": "유형자산취득결정", "expected": "FACILITY" },
+      { "title": "유형자산처분결정", "expected": null, "note": "시설·지분 투자는 처분이면 분류하지 않는다" },
       { "title": "현금ㆍ현물배당결정", "expected": "DIVIDEND" },
       { "title": "주요사항보고서(전환사채권발행결정)", "expected": "BONDS" },
       { "title": "단일판매ㆍ공급계약해지", "expected": null, "note": "해지는 분류하지 않는다" },
@@ -71,6 +74,12 @@
     "minPathsPerType": 30,
     "maxPathsPerType": 500,
     "minTypes": 3,
+    "sampleSource": "dart_disclosures(수집 대상 종목의 최근 5년 DART 공시 전체, 5년을 다 받은 종목만). event_sources는 쓰지 않는다",
+    "upShare": [
+      { "paths": 340, "up": 227, "expected": 0.6676 },
+      { "paths": 30, "up": 15, "expected": 0.5 },
+      { "paths": 3, "up": 2, "expected": 0.6666 }
+    ],
     "volatilityGrade": {
       "note": "종목별 floor(Σ|r| / 개수) 오름차순(같으면 코드 순) i번째 → floor(i × 3 / 종목 수)",
       "instruments": [
@@ -114,11 +123,11 @@
   },
   "checks": {
     "listedNames": ["삼성전자", "대상", "카카오", "한미약품"],
-    "order": ["DIGIT", "CHARSET", "LENGTH", "REAL_COMPANY", "INSTITUTION", "PERSON", "BANNED", "PRICE", "TYPE_WORD"],
+    "order": ["DIGIT", "CHARSET", "LENGTH", "REAL_COMPANY", "INSTITUTION", "PERSON", "BANNED", "PRICE", "TONE", "TYPE_WORD"],
     "cases": [
       { "field": "name", "text": "누리모빌리티", "expected": "PASS" },
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 유럽 완성차 업체와 배터리 팩 공급 계약을 맺었다고 밝혔어요.", "expected": "PASS" },
-      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 올해 결산 배당을 지난해보다 늘리기로 했어요.", "expected": "PASS" },
+      { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 이사회에서 올해 결산 배당을 결정했어요.", "expected": "PASS" },
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 삼성전자와 공급 계약을 맺었어요.", "expected": "REAL_COMPANY" },
       { "field": "name", "text": "카카오모빌", "expected": "REAL_COMPANY" },
       { "field": "name", "text": "한미", "expected": "REAL_COMPANY" },
@@ -126,13 +135,16 @@
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 연구소를 대상으로 장비 공급 계약을 맺었어요.", "expected": "REAL_COMPANY", "note": "알려진 한계: 흔한 낱말과 같은 회사명" },
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 500억 원 규모 공급 계약을 맺었어요.", "expected": "DIGIT" },
       { "field": "body", "type": "EARNINGS", "text": "누리모빌리티가 AI 사업 실적을 발표했어요.", "expected": "CHARSET" },
-      { "field": "title", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티 유럽 완성차 업체와 배터리 팩 장기 공급 계약 체결 공시", "expected": "LENGTH" },
+      { "field": "intro", "text": "누리모빌리티는 전기차와 수소차에 들어가는 배터리 팩과 구동 부품을 설계하고 만드는 부품 회사로 유럽과 동남아 완성차 업체에 납품해요.", "expected": "LENGTH" },
       { "field": "body", "type": "DIVIDEND", "text": "배당을 늘렸어요. 주주에게 알렸어요. 이사회가 정했어요.", "expected": "LENGTH" },
       { "field": "body", "type": "LEGAL", "text": "금융감독원이 누리모빌리티 회계 처리에 대해 소송을 냈어요.", "expected": "INSTITUTION" },
       { "field": "body", "type": "OWNERSHIP", "text": "누리모빌리티 대표이사가 지분을 넘겨 최대주주가 바뀌었어요.", "expected": "PERSON" },
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "새 공급 계약 덕분에 누리모빌리티 실적이 좋아졌어요.", "expected": "BANNED" },
       { "field": "body", "type": "EARNINGS", "text": "누리모빌리티 매출이 크게 늘어 앞으로 더 좋아질 전망이에요.", "expected": "BANNED" },
       { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 공급 계약을 맺자 주가가 올랐어요.", "expected": "PRICE" },
+      { "field": "body", "type": "EARNINGS", "text": "누리모빌리티 매출이 지난해보다 늘었다고 발표했어요.", "expected": "TONE" },
+      { "field": "body", "type": "SUPPLY_CONTRACT", "text": "누리모빌리티가 대규모 공급 계약을 맺었어요.", "expected": "TONE" },
+      { "field": "body", "type": "OWNERSHIP", "text": "누리모빌리티의 최대주주가 다른 회사로 바뀌었어요.", "expected": "PASS", "note": "최대주주는 TONE의 최대가 아니다" },
       { "field": "body", "type": "DIVIDEND", "text": "누리모빌리티가 올해 주주 환원 정책을 새로 정했어요.", "expected": "TYPE_WORD" }
     ]
   }

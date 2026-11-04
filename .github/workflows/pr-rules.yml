@@ -1,21 +1,18 @@
 # PR 규칙(docs/decisions/2026-10-25-dev-process.md)
 # - issue-link: PR 본문에 Issue 번호(#12)가 있어야 한다. 긴급 수정은 no-issue 라벨.
 # - spec-change: 기준 문서·정책·계약·지침을 바꾼 PR은 spec-change 라벨과 docs/CHANGELOG.md 한 줄이 있어야 한다.
-# - spec-change PR이 병합되면 열린 PR마다 rebase·새 AI 세션 안내 댓글을 단다.
 name: pr-rules
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened, labeled, unlabeled, closed]
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
+  pull-requests: read
 
 jobs:
   issue-link:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
@@ -34,7 +31,6 @@ jobs:
             }
 
   spec-change:
-    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
@@ -62,26 +58,3 @@ jobs:
             if (!hasLabel) errors.push('spec-change 라벨을 붙여 주세요.');
             if (!hasLog) errors.push('docs/CHANGELOG.md에 한 줄(무엇이, 어느 파트에 영향)을 더해 주세요.');
             if (errors.length) core.setFailed(`기준 문서를 바꾼 PR이에요(${spec.join(', ')}). ` + errors.join(' '));
-
-  notify-spec-change:
-    if: github.event.action == 'closed' && github.event.pull_request.merged && contains(github.event.pull_request.labels.*.name, 'spec-change')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const merged = context.payload.pull_request;
-            const open = await github.paginate(github.rest.pulls.list, {
-              owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100,
-            });
-            const body = [
-              `📢 기준 문서가 바뀌었어요: #${merged.number} ${merged.title}`,
-              '',
-              '1. 이 브랜치를 최신 `main`에 rebase하고 CI를 확인해 주세요. 실패한 테스트가 반영할 지점이에요.',
-              '2. AI 세션(Claude·Codex 채팅)을 새로 시작해 주세요. 이어 가야 하면 이렇게 요청하세요:',
-              '   > `docs/CHANGELOG.md`의 최신 항목을 읽고, 변경된 문서를 확인해서 현재 구현과 테스트에 필요한 변경을 먼저 정리해줘.',
-            ].join('\n');
-            for (const pr of open) {
-              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, body });
-            }
-            core.info(`열린 PR ${open.length}개에 안내했어요.`);

@@ -5,8 +5,51 @@ on:
   push:
     branches: [main]
 
+# 같은 PR에 연달아 push하면 이전 실행은 취소한다(main push는 취소하지 않는다).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  # 바뀐 파일로 build·backend를 돌릴지 정한다.
+  # 필수 체크(build, backend) 이름은 그대로 두고, 건너뛴 잡은 통과로 친다(문서만 고친 PR 등).
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'src/**'
+              - 'mobile-demo/**'
+              - 'public/**'
+              - 'scripts/**'
+              - 'index.html'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'vite.config.*'
+              - 'vercel.json'
+              - 'docs/contracts/web-api.yaml'
+              - '.github/workflows/ci.yml'
+            backend:
+              - 'backend/**'
+              - 'docs/contracts/**'
+              - 'tests/policy/**'
+              - '.github/workflows/ci.yml'
+
   build:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,14 +60,16 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             mobile-demo/package-lock.json
-      - run: npm ci
-      - run: npm --prefix mobile-demo ci
+      - run: npm ci --prefer-offline --no-audit --no-fund
+      - run: npm --prefix mobile-demo ci --prefer-offline --no-audit --no-fund
       - run: npm run check:api   # src/lib/api-schema.d.ts가 docs/contracts/web-api.yaml과 같은지
       - run: npm run typecheck
       - run: npm --prefix mobile-demo run lint
       - run: npm run build
 
   backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,4 +81,4 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew build --no-daemon
+      - run: ./gradlew build --build-cache --parallel

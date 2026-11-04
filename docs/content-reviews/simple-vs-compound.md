@@ -57,4 +57,4 @@ console.log(P + simple(10, 2), P + comp(10, 2)); // 1200000 1210000 (한국은�
 
 - "기간이 길수록 차이가 커진다"와 FAQ의 "연복리 첫 1년은 단리와 같다"는 공식 자료의 문장이 아니라 정의를 계산으로 확인한 내용이다.
 - 금융상품한눈에 페이지에는 작성·수정일이 없다.
-- 표지는 `public/guide/simple-vs-compound.svg`(2026-11-04 연결).
+- 표지는 `public/guide/simple-vs-compound.png`(2026-11-04 연결, 같은 날 PNG 이미지로 교체).

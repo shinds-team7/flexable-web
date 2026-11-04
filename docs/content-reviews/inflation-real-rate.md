@@ -49,4 +49,4 @@ console.log(2 - 3, Math.round(1020000 / 1.03));           // -1  990291 → FAQ:
 
 - 근거 대부분이 2008년 교육 자료다. 정의 위주라 바뀌지 않는다고 보고 썼다(2024년 자료와도 맞음).
 - FAQ 답은 공식 자료의 문장이 아니라 정의를 계산으로 확인한 내용이다.
-- 표지는 `public/guide/inflation-real-rate.svg`(2026-11-04 연결).
+- 표지는 `public/guide/inflation-real-rate.png`(2026-11-04 연결, 같은 날 PNG 이미지로 교체).

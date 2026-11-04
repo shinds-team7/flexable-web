@@ -57,4 +57,4 @@ console.log(14 + 14 * 0.1);               // 15.4 (%)
 
 - 국세상담센터 Q&A 페이지에는 작성·수정일이 없다. 법령과 내용이 맞아 썼지만 날짜로 최신 여부를 판단할 수는 없다.
 - 법령 링크(`https://www.law.go.kr/법령/…/제n조`)는 현재 시행 조문을 연다. 법이 바뀌면 링크 내용도 바뀐다.
-- 표지는 `public/guide/interest-income-tax.svg`(2026-11-04 연결).
+- 표지는 `public/guide/interest-income-tax.png`(2026-11-04 연결, 같은 날 PNG 이미지로 교체).

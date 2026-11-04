@@ -190,10 +190,10 @@
 .fin .fin-card-more{color:var(--color-brand-text)}
 .fin-card-more .fin-crumb-sep{width:13px;height:13px}
 
-/* ───── 콘텐츠 상세(/guide/:category/:id): 가운데 1단 읽기 화면, 본문 최대 640px ───── */
+/* ───── 콘텐츠 상세(/guide/:category/:id): 가운데 1단 읽기 화면, 본문 최대 760px ───── */
 .fin.fin-detail{gap:24px}
-.fin-detail .fin-crumb{max-width:640px;width:100%;margin:0 auto;flex-wrap:wrap}
-.fin-article{display:flex;flex-direction:column;gap:48px;max-width:640px;width:100%;margin:0 auto;word-break:keep-all}
+.fin-detail .fin-crumb{max-width:760px;width:100%;margin:0 auto;flex-wrap:wrap}
+.fin-article{display:flex;flex-direction:column;gap:48px;max-width:760px;width:100%;margin:0 auto;word-break:keep-all}
 .fin-cover{display:block;width:100%;height:auto;aspect-ratio:2/1;border-radius:var(--radius-soft)}
 .fin-cover-img{object-fit:cover}
 /* 모바일: 표지를 화면 가로 끝까지(페이지 좌우 여백만큼 밖으로) */
@@ -220,7 +220,7 @@
 
 /* 용어 목록: 왼쪽 용어 · 오른쪽 설명, 행 사이 1px 선 */
 .fin-terms-dl{margin:0;border-top:1px solid var(--color-border)}
-.fin-terms-dl > div{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--color-border)}
+.fin-terms-dl > div{display:grid;grid-template-columns:128px minmax(0,1fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--color-border)}
 .fin-terms-dl dt{font-size:17px;line-height:1.75;font-weight:800;color:var(--color-text-primary)}
 .fin-terms-dl dd{margin:0;font-size:17px;line-height:1.75;color:var(--color-text-primary)}
 .fin-terms-dl strong{font-weight:800}
@@ -228,8 +228,9 @@
 /* FAQ: 답은 늘 펼친 상태 */
 .fin-faq{display:flex;flex-direction:column;gap:28px}
 .fin-faq-item{display:flex;flex-direction:column;gap:8px}
-.fin .fin-faq-item h3{font-size:18px;line-height:1.6;font-weight:800;color:var(--color-text-primary)}
-.fin-faq-item p{font-size:17px;line-height:1.75;color:var(--color-text-primary)}
+.fin .fin-faq-item h3{display:flex;gap:8px;align-items:flex-start;font-size:18px;line-height:1.6;font-weight:800;color:var(--color-text-primary)}
+.fin-faq-item p{display:flex;gap:8px;align-items:flex-start;font-size:17px;line-height:1.75;color:var(--color-text-primary)}
+.fin-faq-icon{flex:none;font-weight:400}
 
 /* 푸터: 위 구분선, 14px 보조 글자 */
 .fin-article-foot{display:flex;flex-direction:column;gap:6px;padding-top:24px;border-top:1px solid var(--color-border);font-size:14px;line-height:1.7;color:var(--color-text-tertiary)}
@@ -243,5 +244,5 @@
   .fin-detail .fin-crumb,.fin-article{padding:0 4px}
   .fin-article{gap:40px}
   .fin-article-p,.fin-terms-dl dt,.fin-terms-dl dd,.fin-faq-item p{font-size:16px}
-  .fin-terms-dl > div{grid-template-columns:80px minmax(0,1fr);gap:12px}
+  .fin-terms-dl > div{grid-template-columns:96px minmax(0,1fr);gap:12px}
 }

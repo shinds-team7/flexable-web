@@ -1,0 +1,20 @@
+{
+  "interest-rate": "동전 두 개로 그린 퍼센트 기호",
+  "interest-income-tax": "한 조각이 떨어져 나간 동전",
+  "simple-vs-compound": "일정하게 오르는 직선과 갈수록 가파르게 오르는 곡선",
+  "inflation-real-rate": "점점 작아지는 동전과 위로 향한 화살표",
+  "exchange-rate": "원화와 달러 동전 사이를 오가는 화살표",
+  "gross-vs-net-pay": "마지막 줄이 강조된 급여명세서와 동전",
+  "year-end-tax": "마지막 칸이 강조된 달력과 돌아오는 동전",
+  "credit-score": "높은 구간을 가리키는 반원형 점수 계기판",
+  "loan-rate-repayment": "점점 낮아지는 막대와 동전",
+  "saving-vs-investing": "동전이 담긴 유리병과 상승하는 막대그래프",
+  "deposit-vs-savings": "한 번에 쌓은 동전 더미와 조금씩 높아지는 동전 더미",
+  "parking-vs-cma": "주차 표지판과 동전",
+  "housing-subscription": "집과 동전",
+  "stock-basics": "상승 흐름의 캔들 차트",
+  "kospi-vs-kosdaq": "서로 다른 흐름의 그래프 패널 두 개",
+  "bond-basics": "동전 인장이 달린 증서",
+  "fund-vs-etf": "동전과 막대그래프가 함께 담긴 바구니",
+  "isa-vs-pension": "동전이 그려진 방패와 확인 표시"
+}

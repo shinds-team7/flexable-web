@@ -5,7 +5,7 @@ import { krShort, niceTicks, won } from '@/lib/format';
 import { RevealClip } from './RevealClip';
 
 export type LinePoint = { x: number; y: number };
-export type LineSeries = { id: string; name: string; colorSlot: number; points: LinePoint[] };
+export type LineSeries = { id: string; name: string; colorSlot: number; color?: string; points: LinePoint[] }; // color가 있으면 칸 색 대신 쓴다(회사 대표 색 등)
 
 const COLORS = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
 const DASH = [undefined, undefined, undefined, '7 4', '2 4'];
@@ -98,7 +98,7 @@ export function MultiLineChart({ series, baseline, xLabel, tooltip, ariaLabel }:
             <path
               key={s.id}
               d={s.points.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join(' ')}
-              style={{ fill: 'none', stroke: seriesColor(s.colorSlot), strokeWidth: 2, strokeDasharray: seriesDash(s.colorSlot), strokeLinejoin: 'round', strokeLinecap: 'round' }}
+              style={{ fill: 'none', stroke: s.color ?? seriesColor(s.colorSlot), strokeWidth: 2, strokeDasharray: seriesDash(s.colorSlot), strokeLinejoin: 'round', strokeLinecap: 'round' }}
             />
           ))}
         </RevealClip>
@@ -106,7 +106,7 @@ export function MultiLineChart({ series, baseline, xLabel, tooltip, ariaLabel }:
           const i = hover ?? last;
           return (
             <g key={s.id}>
-              <circle cx={X(i)} cy={Y(s.points[i].y)} r={4} style={{ fill: seriesColor(s.colorSlot), stroke: 'var(--card)', strokeWidth: 2 }} />
+              <circle cx={X(i)} cy={Y(s.points[i].y)} r={4} style={{ fill: s.color ?? seriesColor(s.colorSlot), stroke: 'var(--card)', strokeWidth: 2 }} />
               <text className="axis-t" x={X(last) + 8} y={labelY[k] + 4} style={{ fill: 'var(--text)', fontWeight: 600 }}>
                 {won(s.points[last].y)}원
               </text>
@@ -125,17 +125,17 @@ export function MultiLineChart({ series, baseline, xLabel, tooltip, ariaLabel }:
 }
 
 /** 차트 위 범례: 계열 색·무늬 + 이름. 기준선은 회색 점선. */
-export function LineLegend({ series, baseline }: { series: { id: string; name: string; colorSlot: number }[]; baseline?: string }) {
+export function LineLegend({ series, baseline, vertical }: { series: { id: string; name: string; colorSlot: number; color?: string }[]; baseline?: string; vertical?: boolean }) {
   const swatch = (color: string, dash?: string) => (
     <svg width="22" height="10" aria-hidden="true">
       <line x1="1" x2="21" y1="5" y2="5" style={{ stroke: color, strokeWidth: 2, strokeDasharray: dash, strokeLinecap: 'round' }} />
     </svg>
   );
   return (
-    <div className="legend" style={{ marginBottom: 8 }}>
+    <div className="legend" style={{ marginBottom: 8, ...(vertical ? { flexDirection: 'column', alignItems: 'flex-start', gap: 4 } : null) }}>
       {series.map((s) => (
         <span key={s.id}>
-          {swatch(seriesColor(s.colorSlot), seriesDash(s.colorSlot))}
+          {swatch(s.color ?? seriesColor(s.colorSlot), seriesDash(s.colorSlot))}
           {s.name}
         </span>
       ))}

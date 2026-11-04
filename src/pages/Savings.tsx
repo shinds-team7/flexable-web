@@ -3,17 +3,16 @@
 // 금액은 모두 서버 결과를 그대로 그린다(ADR-3). 막대 길이처럼 그리기 위한 비율만 화면에서 정한다.
 import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useSession } from '@/auth/session';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
+import { bankColor } from '@/data/bankColors';
 import { Icon } from '@/components/Icons';
 import { shortBankName } from '@/components/BankBadge';
 import { BankStrip } from '@/components/BankStrip';
 import { AmountInput, FilterChips, SelectedBar, TermTrack } from '@/components/CompareFilters';
 import { ProductRow } from '@/components/ProductRow';
-import { Assumptions, ErrorCard, Loading, Notice, ScrollTopButton } from '@/components/ProductCompareParts';
+import { Assumptions, ErrorCard, Loading, Notice } from '@/components/ProductCompareParts';
 import { ProductTabs } from '@/components/ProductTabs';
 import { useSeedMoney } from '@/data/home';
-import { useSubscription } from '@/data/plans';
 import {
   usePolicySavings,
   usePolicySimulation,
@@ -42,7 +41,8 @@ const SORTS: { s: SavingsSort; label: string }[] = [
   { s: 'TERM', label: '기간순' },
 ];
 // TODO(BE): 비교 개수는 설정값(무료 2 / 플러스 5). GET /billing/plans의 limits로 바꾼다
-const COMPARE_LIMIT = { FREE: 2, PLUS: 5 };
+const COMPARE_MIN = 2; // 2개부터 비교 카드가 나온다
+const COMPARE_MAX = 5;
 const REGIONS = ['서울', '부산', '대구', '인천', '광주·전남', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '경북', '경남', '제주'];
 const ALL_SIZE = 1000; // 쪽 나누기 없이 전체를 한 번에 받는다
 const POLICY_CODE = 'YOUTH_FUTURE';
@@ -138,6 +138,9 @@ function ProductDetail({ id, term, monthly, reserveType }: { id: string; term: S
 
 type Picked = { p: SavingsProduct; slot: number }; // slot = 비교에 넣을 때 받은 색 칸. 다른 상품을 빼도 바뀌지 않는다
 
+/** 회사 대표 색. 목록에 없는 회사는 비교에 넣을 때 받은 칸 색을 쓴다. */
+const pickColor = ({ p, slot }: Picked) => bankColor(p.company) ?? seriesColor(slot);
+
 /** 기간 동안 내 돈: 고른 상품마다 넣은 돈 위에 쌓이는 세전 이자 선(기본금리). 표로 보기면 달마다 표. */
 function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; monthly: number; term: SavingsTerm; asTable: boolean }) {
   const sims = useSavingsSimulations(
@@ -146,8 +149,11 @@ function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; m
   const failed = sims.find((q) => q.isError);
   const head = (
     <>
-      <h3 className="sec-title sv-h3">기간 동안 내 돈</h3>
-      <p className="meta">넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리). 중간에 해지하면 이 금리를 다 받지 못해요.</p>
+      <p className="meta" style={{ marginTop: 16 }}>
+        넣은 돈 위에 달마다 쌓이는 이자예요(세전, 기본금리).
+        <br />
+        중간에 해지하면 이 금리를 다 받지 못해요.
+      </p>
     </>
   );
   if (failed)
@@ -164,7 +170,7 @@ function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; m
         <div className="skel" style={{ height: 260, marginTop: 12 }} />
       </>
     );
-  const lines = picked.map(({ p, slot }, i) => ({ id: p.id, name: p.name, colorSlot: slot, data: sims[i].data!.series }));
+  const lines = picked.map((pk, i) => ({ id: pk.p.id, name: pk.p.name, colorSlot: pk.slot, color: pickColor(pk), data: sims[i].data!.series }));
   if (lines.some((l) => l.data.length === 0)) return null;
   const months = lines[0].data;
   const cash = '이자 없이 모아 둔 경우(0원)';
@@ -203,9 +209,12 @@ function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; m
         </div>
       ) : (
         <>
-          <LineLegend series={lines} baseline={cash} />
+          <LineLegend series={lines} baseline={cash} vertical />
+          <p className="meta" style={{ textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>
+            세전
+          </p>
           <MultiLineChart
-            series={lines.map((l) => ({ id: l.id, name: l.name, colorSlot: l.colorSlot, points: l.data.map((d) => ({ x: d.month, y: d.interestPreTax })) }))}
+            series={lines.map((l) => ({ id: l.id, name: l.name, colorSlot: l.colorSlot, color: l.color, points: l.data.map((d) => ({ x: d.month, y: d.interestPreTax })) }))}
             baseline={{ name: cash, y: 0 }}
             xLabel={(x) => `${x}개월`}
             ariaLabel={`기간 동안 쌓인 이자 꺾은선 그래프, ${term}개월`}
@@ -217,7 +226,7 @@ function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; m
                 {lines.map((l) => (
                   <div key={l.id} className="t-row">
                     <span>
-                      <i className="t-key" style={{ borderColor: seriesColor(l.colorSlot) }} />
+                      <i className="t-key" style={{ borderColor: l.color }} />
                       {l.name}
                     </span>
                     <b className="num">+{won(l.data[x - 1].interestPreTax)}원</b>
@@ -236,23 +245,14 @@ function MoneyOverTime({ picked, monthly, term, asTable }: { picked: Picked[]; m
 function CompareCard({ picked, monthly, term, limit }: { picked: Picked[]; monthly: number; term: SavingsTerm; limit: number }) {
   const [asTable, setAsTable] = useState(false);
   const rows = [
-    ...picked.map(({ p, slot }) => ({
-      key: p.id,
-      name: p.name,
-      sub: p.company,
-      rate: p.baseRate,
-      color: seriesColor(slot),
-      r: p.result,
+    ...picked.map((pk) => ({
+      key: pk.p.id,
+      name: pk.p.name,
+      sub: pk.p.company,
+      rate: pk.p.baseRate,
+      color: pickColor(pk),
+      r: pk.p.result,
     })),
-    // 이자 0% 통장: 넣은 돈 그대로라 이자는 0원(서버 비교선 CASH와 같은 뜻)
-    {
-      key: 'cash',
-      name: '이자 없이 모아 둔 경우',
-      sub: '연 0%',
-      rate: 0,
-      color: 'var(--baseline)',
-      r: null,
-    },
   ];
   const top = Math.max(1, ...rows.map((x) => x.r?.interestAfterTax ?? 0));
   return (
@@ -261,11 +261,11 @@ function CompareCard({ picked, monthly, term, limit }: { picked: Picked[]; month
         <div>
           <h2>고른 상품 비교</h2>
           <p className="meta">
-            최대 {limit}개 + 이자 0% · 매달 {won(monthly)}원 · {term}개월
+            최대 {limit}개 · 매달 {won(monthly)}원 · {term}개월
           </p>
         </div>
         {picked.length > 0 && (
-          <button className="btn btn-line btn-sm" aria-expanded={asTable} aria-controls="svCmpTable" onClick={() => setAsTable((v) => !v)}>
+          <button className="btn btn-line btn-sm sv-view-toggle" aria-expanded={asTable} aria-controls="svCmpTable" onClick={() => setAsTable((v) => !v)}>
             {asTable ? '그래프로 보기' : '표로 보기'}
           </button>
         )}
@@ -301,7 +301,7 @@ function CompareCard({ picked, monthly, term, limit }: { picked: Picked[]; month
           <p className="field-label" style={{ marginBottom: 8 }}>
             만기에 받는 세후 이자(기본금리 기준)
           </p>
-          <div className="sv-bars">
+          <div className="sv-bars" key={picked.map((x) => x.p.id).join(',')}>
             {rows.map((x) => {
               const v = x.r?.interestAfterTax ?? 0;
               return (
@@ -484,7 +484,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
     setLockMsg('');
     if (!on) return setCmp((c) => c.filter((x) => x.p.id !== p.id));
     if (picked.length >= compareLimit) {
-      setLockMsg(`비교는 무료 ${COMPARE_LIMIT.FREE}개 · 플러스 ${COMPARE_LIMIT.PLUS}개까지예요`);
+      setLockMsg(`비교는 최대 ${COMPARE_MAX}개까지예요`);
       return;
     }
     setCmp((c) => {
@@ -683,7 +683,7 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
             </div>
 
             <div className="sv-rail">
-              {picked.length >= 2 ? (
+              {picked.length >= COMPARE_MIN ? (
                 <CompareCard picked={picked} monthly={monthly} term={term} limit={compareLimit} />
               ) : (
                 <div className="card">
@@ -708,7 +708,6 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
       ) : (
         <YouthPolicyBlock policies={policies.data.filter((p) => !region || p.region === region || (withCentral && p.region === '전국'))} />
       )}
-      <ScrollTopButton />
     </div>
   );
 }
@@ -886,11 +885,9 @@ export default function Savings() {
   const [params] = useSearchParams();
   // 소식 카드 [계산해 보기]는 /savings?policy=1. 예전 탭 주소 ?mode=policy도 같은 뜻으로 받는다
   const initialPolicy = params.get('policy') === '1' || params.get('mode') === 'policy';
-  const { status } = useSession();
-  const sub = useSubscription(status === 'member');
   const seed = useSeedMoney();
   const pace = seed.data?.avgPerCycle ?? FALLBACK_PACE;
-  const compareLimit = status === 'guest' || sub.data?.plan === 'PLUS' ? COMPARE_LIMIT.PLUS : COMPARE_LIMIT.FREE;
+  const compareLimit = COMPARE_MAX;
 
   return (
     <section>

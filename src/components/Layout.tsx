@@ -8,6 +8,7 @@ import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
 import { Logo } from './Icons';
+import { ScrollTopButton } from './ScrollTopButton';
 import { LoginModalProvider, useLoginModal } from './LoginModal';
 
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. */
@@ -165,6 +166,7 @@ function LayoutBody() {
       <main id="main">
         <Outlet />
       </main>
+      <ScrollTopButton />
     </>
   );
 }

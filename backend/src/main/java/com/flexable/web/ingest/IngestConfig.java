@@ -19,9 +19,11 @@ import com.flexable.web.ingest.fake.FakeEventOverviewWriter;
 import com.flexable.web.ingest.fake.FakeIndexSource;
 import com.flexable.web.ingest.fake.FakeInstrumentSource;
 import com.flexable.web.ingest.fake.FakePriceSource;
+import com.flexable.web.ingest.fake.FakeVirtualSimWriter;
 import com.flexable.web.ingest.fake.FakeYouthPolicySource;
 import com.flexable.web.ingest.gemini.GeminiEventOverviewWriter;
 import com.flexable.web.ingest.gemini.GeminiNewsSummarizer;
+import com.flexable.web.ingest.gemini.GeminiVirtualSimWriter;
 import com.flexable.web.ingest.kiwoom.KiwoomIndexSource;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
 import com.flexable.web.ingest.kiwoom.KiwoomPriceSource;
@@ -141,6 +143,22 @@ public class IngestConfig {
 			case "fake" -> new FakeEventOverviewWriter();
 			case "none" -> new GeminiEventOverviewWriter(gemini, g.baseUrl(), null, o.modelOr(g)); // 키 없음 = 꺼짐
 			default -> throw new IllegalArgumentException("알 수 없는 EVENT_OVERVIEW_SOURCE: " + props.eventOverview().source());
+		};
+	}
+
+	/**
+	 * 가상 시뮬레이션 회사·사건 글. gemini는 전용 키(VIRTUAL_SIM_GEMINI_API_KEY)가 있으면 그것을, 없으면 공용 Gemini 키를 쓴다.
+	 * 둘 다 없거나 none이면 꺼진 채로 만들어진다(이미 만든 회사로 세션은 계속된다).
+	 */
+	@Bean
+	VirtualSimWriter virtualSimWriter(IngestProperties props) {
+		IngestProperties.Gemini g = props.gemini();
+		IngestProperties.VirtualSim v = props.virtualSim();
+		return switch (v.source()) {
+			case "gemini" -> new GeminiVirtualSimWriter(gemini, g.baseUrl(), v.apiKeyOr(g), v.modelOr(g));
+			case "fake" -> new FakeVirtualSimWriter();
+			case "none" -> new GeminiVirtualSimWriter(gemini, g.baseUrl(), null, v.modelOr(g)); // 키 없음 = 꺼짐
+			default -> throw new IllegalArgumentException("알 수 없는 VIRTUAL_SIM_SOURCE: " + v.source());
 		};
 	}
 

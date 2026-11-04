@@ -50,6 +50,9 @@ app:
       call-delay: 0s
     event-overview:
       source: fake
+    # 가상 시뮬레이션: 예시 회사·예시 룰셋(키 없음). api도 이 값을 읽어 예시 자료만 쓴다
+    virtual-sim:
+      source: fake
   applink:
     # 테스트는 AppApiClient를 바꿔 끼운다. 암호화 키는 실행마다 임의 값.
     mode: http

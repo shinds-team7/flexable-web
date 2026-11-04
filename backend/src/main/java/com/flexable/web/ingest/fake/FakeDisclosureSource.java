@@ -3,6 +3,7 @@ package com.flexable.web.ingest.fake;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.flexable.web.ingest.Disclosure;
 import com.flexable.web.ingest.DisclosureSource;
@@ -42,5 +43,11 @@ public class FakeDisclosureSource implements DisclosureSource {
 		return List.of(
 				new Disclosure(day + corpCode.substring(2) + "01", "단일판매ㆍ공급계약체결", "테스트 회사", to),
 				new Disclosure(day + corpCode.substring(2) + "02", "임원ㆍ주요주주특정증권등소유상황보고서", "테스트 임원", to));
+	}
+
+	/** 고정 상장사 이름(테스트용, 실제 목록 아님) */
+	@Override
+	public Set<String> listedNames() {
+		return Set.of("삼성전자", "SK하이닉스", "NAVER", "KB금융", "알테오젠", "에코프로");
 	}
 }

@@ -48,6 +48,10 @@ public class MarketSyncJob implements ApplicationRunner {
 	private final IndexSyncJob indexJob;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private PracticeSyncJob practice;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private DisclosureArchiveJob disclosureArchive;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private VirtualSimRulesetJob virtualSimRules;
 
 	public MarketSyncJob(InstrumentSource instruments, PriceSource prices, MarketService market, MarketProperties marketProps,
 			IngestProperties props, IngestRunRepository runs, Clock clock, MarketEventJob eventJob, IndexSyncJob indexJob) {
@@ -75,7 +79,7 @@ public class MarketSyncJob implements ApplicationRunner {
 		runAll();
 	}
 
-	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
+	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료 → 가상 시뮬레이션 전체 공시·룰셋. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
 	void runAll() {
 		try {
 			indexJob.runOnce();
@@ -86,6 +90,18 @@ public class MarketSyncJob implements ApplicationRunner {
 		runOnce();
 		eventJob.runOnce();
         if (practice != null) practice.runOnce();
+		// 가상 시뮬레이션: 전체 공시 목록을 이어 받고 룰셋을 다시 만든다(실패해도 이미 있는 룰셋으로 세션은 계속된다)
+		try {
+			if (disclosureArchive != null) {
+				disclosureArchive.runOnce();
+			}
+			if (virtualSimRules != null) {
+				virtualSimRules.runOnce();
+			}
+		}
+		catch (RuntimeException e) {
+			log.warn("가상 시뮬레이션 자료 수집 실패: {}", e.getMessage());
+		}
 	}
 
 	public synchronized Result runOnce() {

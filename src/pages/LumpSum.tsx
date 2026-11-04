@@ -24,6 +24,7 @@ import { useSubscription } from '@/data/plans';
 import type { InterestType, SavingsSort, SavingsTerm, Sector } from '@/data/savings';
 import { errorText } from '@/lib/api';
 import { won } from '@/lib/format';
+import { CashCatalog } from '@/pages/CashCatalog';
 
 type Kind = {
   noun: string;
@@ -659,5 +660,5 @@ function LumpSum({ kind }: { kind: LumpKind }) {
 }
 
 export const Deposit = () => <LumpSum kind="deposit" />;
-export const Parking = () => <LumpSum kind="parking" />;
-export const Cma = () => <LumpSum kind="cma" />;
+export const Parking = () => <CashCatalog key="parking" kind="parking" />;
+export const Cma = () => <CashCatalog key="cma" kind="cma" />;

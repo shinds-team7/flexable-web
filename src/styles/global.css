@@ -657,6 +657,15 @@ details p{margin-top:8px;color:var(--text-sub);font-size:14px}
 .set-row:last-child{border-bottom:0}
 .set-row .k{font-weight:600}
 .set-row .v{color:var(--text-muted);font-size:14px}
+.settings-account-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(var(--density-gap)/2)}
+.settings-withdraw-note{margin-top:calc(var(--density-gap)/2);font-size:13px;color:var(--color-text-tertiary)}
+.settings-withdraw-note a{color:inherit;text-decoration:underline}
+.settings-withdraw-form{gap:calc(var(--density-gap)/2);margin-top:calc(var(--density-gap)/2)}
+.settings-subscription{display:flex;flex-direction:column;gap:calc(var(--density-gap)/2)}
+.settings-plan-toggle button{height:var(--density-control-sm);border-radius:var(--radius-soft-sm);font-size:var(--font-size-body)}
+.settings-plan-compare{display:flex;flex-direction:column;gap:calc(var(--density-gap)/2)}
+.settings-plan-compare th[scope="row"]{font-weight:500}
+.settings-plan-more{display:flex;justify-content:flex-end}
 
 /* ───────── 섞어보기 ───────── */
 .mix-row{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px;display:flex;flex-direction:column;gap:8px}

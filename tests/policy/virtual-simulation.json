@@ -123,6 +123,7 @@
       { "paths": 150, "up": 60, "upShare": 0.4, "expected": "DOWN" },
       { "paths": 99, "up": 70, "upShare": 0.707, "expected": "MIXED", "note": "경로 100개 미만" }
     ],
+    "scoringNote": "#253 구현 PR에서 삭제(noScore)",
     "scoring": [
       { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "CORRECT", "outcome": "CORRECT", "movement": "UP" },
       { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "CORRECT", "outcome": "INCORRECT", "movement": "DOWN" },
@@ -130,6 +131,16 @@
       { "trend": "DOWN", "action": "SELL", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": "CORRECT", "outcome": "NEUTRAL", "movement": "FLAT" },
       { "trend": "MIXED", "action": "SELL", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "NEUTRAL", "outcome": "CORRECT", "movement": "DOWN" },
       { "trend": "UP", "action": "HOLD", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "NEUTRAL", "outcome": "NEUTRAL", "movement": "UP", "note": "유지는 예상이 없어 채점하지 않는다" }
+    ]
+  },
+  "noScore": {
+    "status": "PENDING",
+    "note": "#253 사용자 결정(11-05). 일반 세션도 trendOutcome·outcome 늘 null, movement·유형 통계만. 출제는 뚜렷한 유형 최소 개수 없이 균등. 구현 PR에서 trend.scoring·window.minClearQuestions를 지우고 이 블록으로 바꾼다",
+    "minClearQuestions": 0,
+    "cases": [
+      { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": null, "outcome": null, "movement": "UP" },
+      { "trend": "DOWN", "action": "SELL", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": null, "outcome": null, "movement": "FLAT" },
+      { "trend": "MIXED", "action": "HOLD", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": null, "outcome": null, "movement": "DOWN" }
     ]
   },
   "order": {

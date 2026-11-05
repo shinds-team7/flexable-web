@@ -8,7 +8,7 @@
 | `simulation.json` | §2 투자 시뮬레이션(비율·배분·수익률·납입과 평가) | `backend/src/test/.../simulation/SimulationPolicyTest` |
 | `deposit.json` | §6 정기예금 만기 계산(단리·월복리·내림·세금·가입 한도) | `backend/src/test/.../deposit/DepositPolicyTest` |
 | `practice.json` | §5 사건 퀴즈 투자 시뮬레이션(정수 주 매매·평가·퀴즈 판정) | `backend/src/test/.../practice/PracticePolicyTest` |
-| `virtual-simulation.json` | §8 가상 시뮬레이션(날짜·사건 위치·룰셋 추출·봉 만들기·자동 검사, 매매·판정은 `practice.json` 재사용). `PENDING` | 구현 PR의 `backend/src/test/.../virtualsim/VirtualSimPolicyTest` |
+| `virtual-simulation.json` | §8 가상 시뮬레이션(날짜·사건 위치·룰셋 추출·봉 만들기·자동 검사, 매매·판정은 `practice.json` 재사용). `IMPLEMENTED`, `noScore` `PENDING`(#253) | 구현 PR의 `backend/src/test/.../virtualsim/VirtualSimPolicyTest` |
 | `virtual-contest.json` | §8-8 가상 시뮬레이션 대회(배치고사·잔액 이어 가기·청산·하루 판 수·하루 점수·주간 승급/강등·판별 후보·순위, 매매·평가는 `practice.json`·`virtual-simulation.json` 재사용). `PENDING` | 구현 PR의 `backend/src/test/.../virtualsim/VirtualContestPolicyTest` |
 | `goal-scenarios.json` | §7 목표 달성 시나리오(F7 v2: 적금·CMA·투자 계산, 배분, 필요 월 금액, 분위, 입력·제안 검증) | `backend/src/test/.../goalscenario/GoalScenarioPolicyTest` |
 

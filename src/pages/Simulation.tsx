@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { CandleChart, type EventBand } from '@/charts/CandleChart';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
 import { ApiError, errorText } from '@/lib/api';
+import { getContest, type ContestInfo } from '@/data/virtualContest';
+import { VirtualContest } from '@/pages/VirtualContest';
 import { VirtualSimulation } from '@/pages/VirtualSimulation';
 import '@/styles/practice.css';
 
@@ -204,6 +206,16 @@ function PastMarketPractice({ active }: { active: boolean }) {
   </>;
 }
 
+/** 가상 시뮬레이션 탭 안: 자유 연습(로그인 없음)과 회원 월간 대회(policies §8-8). 대회는 처음 들어갈 때 불러오고 그 뒤로는 숨겨 둔다(진행 중인 판 유지) */
+function VirtualArea({ active, onGoPast, inContest, onExitContest }: { active: boolean; onGoPast: () => void; inContest: boolean; onExitContest: () => void }) {
+  const [opened, setOpened] = useState(false);
+  useEffect(() => { if (inContest) setOpened(true); }, [inContest]);
+  return <>
+    <div hidden={inContest}><VirtualSimulation active={active && !inContest} onGoPast={onGoPast} /></div>
+    <div id="vsim-panel-contest" hidden={!inContest}>{opened && <VirtualContest active={active && inContest} onExit={onExitContest} />}</div>
+  </>;
+}
+
 const MODES = [
   { id: 'past', label: '과거 시장 연습', lead: '사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
   { id: 'virtual', label: '가상 시뮬레이션', lead: '가상 종목의 가상 사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
@@ -212,6 +224,13 @@ type Mode = typeof MODES[number]['id'];
 
 export default function Simulation() {
   const [mode, setMode] = useState<Mode>('past');
+  // 대회 모드에서는 위 탭을 숨기고 대회 화면의 [← 자유 연습으로]로만 돌아간다
+  const [inContest, setInContest] = useState(false);
+  // 가상 시뮬레이션 탭에서 탭 줄 오른쪽에 대회 입장 버튼을 둔다(안내는 로그인 없이 보이는 대회 안내 API)
+  const [contest, setContest] = useState<ContestInfo | null>(null);
+  useEffect(() => { if (mode === 'virtual' && !contest) void getContest().then(setContest).catch(() => {}); }, [mode, contest]);
+  const daysLeft = contest ? Math.max(0, Math.ceil((new Date(contest.endsAt).getTime() - Date.now()) / 86400000)) : null;
+  const enterContest = () => { setInContest(true); window.scrollTo({ top: 0 }); };
   const tabs = useRef<Record<Mode, HTMLButtonElement | null>>({ past: null, virtual: null });
   const select = (next: Mode) => { setMode(next); tabs.current[next]?.focus(); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -222,14 +241,16 @@ export default function Simulation() {
     e.preventDefault(); select(MODES[to].id);
   };
   return <div className="page practice-page">
-    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{MODES.find(m => m.id === mode)!.lead}</p></div><Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link></header>
-    <div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
+    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{inContest ? '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' : MODES.find(m => m.id === mode)!.lead}</p></div><Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link></header>
+    {!inContest && <div className="practice-modes-bar"><div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
       {MODES.map((m, i) => <button key={m.id} ref={el => { tabs.current[m.id] = el; }} type="button" role="tab" id={`practice-tab-${m.id}`} aria-controls={`practice-panel-${m.id}`}
         aria-selected={mode === m.id} tabIndex={mode === m.id ? 0 : -1} onClick={() => setMode(m.id)} onKeyDown={e => onKey(e, i)}>
         {m.label}
       </button>)}
     </div>
+      {mode === 'virtual' && <button type="button" className="btn btn-primary btn-sm contest-enter" onClick={enterContest}><span className="contest-enter-long">월간 </span>대회 입장{daysLeft != null && <small>마감까지 {daysLeft}일</small>}</button>}
+    </div>}
     <div role="tabpanel" id="practice-panel-past" aria-labelledby="practice-tab-past" hidden={mode !== 'past'}><PastMarketPractice active={mode === 'past'} /></div>
-    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}><VirtualSimulation active={mode === 'virtual'} onGoPast={() => select('past')} /></div>
+    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}><VirtualArea active={mode === 'virtual'} onGoPast={() => select('past')} inContest={inContest} onExitContest={() => setInContest(false)} /></div>
   </div>;
 }

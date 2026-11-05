@@ -36,6 +36,8 @@ import com.flexable.web.news.YouthNews.ReviewStatus;
 public class NewsService {
 
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+	/** 마감일이 지나고도 목록에 남기는 날수. 이보다 오래 지난 소식은 내보내지 않는다. */
+	static final int CLOSED_KEEP_DAYS = 7;
 
 	private final YouthNewsRepository news;
 	private final YouthNewsRawRepository raws;
@@ -53,6 +55,7 @@ public class NewsService {
 	 * 화면에 내보낼 소식. 필터는 고르지 않으면 빼고 본다. 분야: 소식이 드는 분야 중 하나라도 맞으면 보인다.
 	 * 나이: 원문에서 확인 못 한 쪽(null)은 막지 않는다. 지역: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 내보내지 않는다.
 	 * 신청 날짜가 없는데 원문의 사업기간이 끝난 소식은 마감으로 보고 뺀다(마감일이 지난 소식은 화면이 목록에서 내린다).
+	 * 마감일이 지난 지 {@link #CLOSED_KEEP_DAYS}일이 넘은 소식도 뺀다(2026-11-05, 응답 크기를 줄인다. 저장한 소식은 브라우저에 사본이 있다).
 	 */
 	@Transactional(readOnly = true)
 	public NewsFeed list(Integer age, String region, NewsCategory category) {
@@ -60,6 +63,7 @@ public class NewsService {
 		List<NewsItem> items = news.findByReviewStatusNotOrderByIdAsc(ReviewStatus.REJECTED).stream()
 			.filter(NewsService::publishable)
 			.filter(n -> !n.endedWithoutApplyDates(today))
+			.filter(n -> n.getApplyDeadline() == null || !n.getApplyDeadline().isBefore(today.minusDays(CLOSED_KEEP_DAYS)))
 			.filter(n -> category == null || n.categoryList().contains(category))
 			.filter(n -> age == null || ((n.getAgeMin() == null || n.getAgeMin() <= age) && (n.getAgeMax() == null || n.getAgeMax() >= age)))
 			.filter(n -> region == null || region.isBlank() || matchesRegion(n.regionsValue(), region.trim()))

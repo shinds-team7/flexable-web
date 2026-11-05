@@ -361,6 +361,20 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
+	void AI에게_보낸_통계를_인용한_해설은_통과한다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenAnswer(call -> {
+			ScenarioProposer.Input input = call.getArgument(0);
+			ScenarioProposer.TypeStat us = input.stats().stream().filter(s -> s.type().equals("US_INDEX_ETF")).findFirst().orElseThrow();
+			String drawdown = new java.math.BigDecimal(us.maxDrawdown()).movePointRight(2).abs().toPlainString();
+			return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
+					new Proposals.Draft("b", "반반", "적금과 지수 ETF", "지난 60개월 최대 하락 " + drawdown + "%를 고려했어요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)));
+		});
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+	}
+
+	@Test
 	@ExtendWith(OutputCaptureExtension.class)
 	void 옵션을_켜면_걸린_칸의_문구만_로그에_남긴다(CapturedOutput output) throws Exception {
 		when(aiProps.logRejected()).thenReturn(true);

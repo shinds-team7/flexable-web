@@ -98,12 +98,31 @@ class RestGoalScenarioAiClientTest {
 	}
 
 	@Test
-	void 프롬프트_v4는_적금_단정을_막고_숫자를_줄이라고_안내한다() {
-		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v4");
-		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v4.")
+	void 프롬프트_v5는_근거를_담은_해설과_허용_숫자를_안내한다() {
+		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v5");
+		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v5.")
 			.contains("금리가 정해져 있어요")
 			.contains("'원금이 보장돼요', '보장된 금리', '확실한 수익'이라고 쓰지 않아요")
-			.contains("숫자는 꼭 필요할 때만");
+			.contains("칠백 자에서 천 자 안팎")
+			.contains("문단 사이는 빈 줄로 나눠요")
+			.contains("다른 시나리오와 무엇이 다른지")
+			.contains("'지난 60개월 최대 하락 23.45%'")
+			.contains("앞으로의 수익을 예상하는 말처럼 쓰지 않아요")
+			.contains("수치 바로 앞에 '월 평균', '월 변동폭', '최대 하락' 중 맞는 말을 함께 써요")
+			.contains("'목표 수익'은 통계 수치와 같은 문장에 쓰지 않아요")
+			.contains("다른 시나리오의 비중은 숫자로 쓰지 말고")
+			.doesNotContain("최대 삼백 자");
+	}
+
+	@Test
+	void 응답_토큰_상한은_4000이다() {
+		server.expect(requestTo("https://example.com/v1/chat/completions"))
+			.andExpect(jsonPath("$.max_completion_tokens").value(4000))
+			.andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"stop","message":{"content":"{}","refusal":null}}]}
+				""", MediaType.APPLICATION_JSON));
+		client.propose("{}");
+		server.verify();
 	}
 
 	@Test

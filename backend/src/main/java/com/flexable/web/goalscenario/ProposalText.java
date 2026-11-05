@@ -1,25 +1,51 @@
 package com.flexable.web.goalscenario;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * 제안 문구(제목·요약·해설)의 숫자·보장 표현 검사(policies §7-6).
- * 숫자는 서버가 확인할 수 있는 것만 허용한다: 상품·지수 이름 속 숫자, 기한 안의 기간, AI에게 보낸 목표 금액·금리·세율,
- * 그 시나리오의 비중과 같은 %, 다섯 이하의 종목·가지 수. 그 밖의 금액·%·배수·횟수는 AI가 새로 만든 숫자로 보고 막는다.
+ * 숫자는 서버가 확인할 수 있는 것만 허용한다: 상품·지수 이름 속 숫자, 기한 안의 기간, AI에게 보낸 목표 금액·금리·세율·유형별 통계와
+ * 통계 기간("지난 60개월"), 그 시나리오의 비중과 같은 %, 다섯 이하의 종목·가지 수. 그 밖의 금액·%·배수·횟수는 AI가 새로 만든 숫자로 보고 막는다.
  * 보장 표현은 단정만 막고 부정문("보장되지 않아요")은 허용한다.
  */
 final class ProposalText {
 
-	/** AI에게 보낸 사실. 문구 속 숫자를 이 값과 대조한다. */
-	record Facts(long targetAmount, int months, Set<String> names, List<BigDecimal> percents) {
+	/**
+	 * AI에게 보낸 사실. 문구 속 숫자를 이 값과 대조한다.
+	 * percents는 표기한 값과 같아야 한다. stats(유형별 통계를 %로 바꾼 절댓값)는 문맥까지 본다(allowedStat).
+	 */
+	record Facts(long targetAmount, int months, Set<String> names, List<BigDecimal> percents, Map<StatKind, List<BigDecimal>> stats) {
 		static final Facts NONE = new Facts(0, 0, Set.of(), List.of());
+
+		Facts(long targetAmount, int months, Set<String> names, List<BigDecimal> percents) {
+			this(targetAmount, months, names, percents, Map.of());
+		}
 	}
+
+	/** 통계의 종류와 문구에서 그 뜻을 나타내는 단어. */
+	enum StatKind {
+		MEAN("평균"), VOLATILITY("변동"), DRAWDOWN("하락");
+
+		final String word;
+
+		StatKind(String word) {
+			this.word = word;
+		}
+	}
+
+	/** 통계 수치와 같은 문장에 있으면 과거 값을 수익 예상처럼 쓴 것으로 본다. 띄어쓰기를 지운 문장과 비교한다. */
+	private static final List<String> FORECAST_WORDS = List.of("기대", "예상", "전망", "노려", "노리", "목표수익");
+
+	/** 통계의 자료 기간. 기한 밖이어도 지난 기간이면 허용한다("60개월 뒤"처럼 앞으로의 기간은 막는다). */
+	private static final Pattern STAT_PERIOD = Pattern.compile("(?:지난|최근|과거)\\s*(?:60\\s*개월|5\\s*년)");
 
 	/** 숫자가 들어간 대표 지수 이름. 상품 이름과 함께 숫자 검사 전에 지운다. */
 	private static final List<String> INDEX_NAMES = List.of("S&P 500", "S&P500", "코스피 200", "코스피200", "KOSPI 200", "KOSPI200",
@@ -81,6 +107,9 @@ final class ProposalText {
 		for (String n : names) {
 			t = t.replace(n, " ");
 		}
+		if (!facts.stats().isEmpty()) {
+			t = STAT_PERIOD.matcher(t).replaceAll(" ");
+		}
 		Matcher m = NUMBER.matcher(t);
 		int from = 0;
 		while (m.find(from)) {
@@ -88,7 +117,7 @@ final class ProposalText {
 			String rest = t.substring(m.end());
 			Matcher unit;
 			if ((unit = PERCENT_UNIT.matcher(rest)).find()) {
-				if (!allowedPercent(n, facts, mix)) {
+				if (!allowedPercent(n, facts, mix) && !allowedStat(n, facts, t, m.start(), m.end())) {
 					return false;
 				}
 				from = m.end() + unit.end();
@@ -127,6 +156,67 @@ final class ProposalText {
 			return true;
 		}
 		return facts.percents().stream().anyMatch(p -> p.compareTo(n) == 0);
+	}
+
+	/**
+	 * 통계 수치는 소수 첫째·둘째 자리로 쓰고(정수까지 허용하면 지어낸 "연 7% 수익"이 통계와 우연히 맞는다), 같은 문장에서 가장 가까운
+	 * 종류 단어의 값과 반올림해 같아야 하며, 그 문장에 수익 예상을 뜻하는 말이 없어야 한다. 어느 상품의 값인지는 구분하지 못한다.
+	 */
+	private static boolean allowedStat(BigDecimal n, Facts facts, String t, int start, int end) {
+		if (n.scale() < 1 || n.scale() > 2) {
+			return false;
+		}
+		int from = sentenceStart(t, start);
+		String sentence = t.substring(from, sentenceEnd(t, end));
+		String compact = sentence.replaceAll("\\s+", "");
+		if (FORECAST_WORDS.stream().anyMatch(compact::contains)) {
+			return false;
+		}
+		StatKind kind = nearestKind(sentence, start - from, end - from);
+		return kind != null && facts.stats().getOrDefault(kind, List.of()).stream()
+			.anyMatch(s -> s.setScale(n.scale(), RoundingMode.HALF_UP).compareTo(n) == 0);
+	}
+
+	private static StatKind nearestKind(String sentence, int start, int end) {
+		StatKind nearest = null;
+		int best = Integer.MAX_VALUE;
+		for (StatKind kind : StatKind.values()) {
+			for (int i = sentence.indexOf(kind.word); i >= 0; i = sentence.indexOf(kind.word, i + 1)) {
+				int distance = i < start ? start - (i + kind.word.length()) : i - end;
+				if (distance < best) {
+					best = distance;
+					nearest = kind;
+				}
+			}
+		}
+		return nearest;
+	}
+
+	private static int sentenceStart(String t, int pos) {
+		for (int i = pos - 1; i >= 0; i--) {
+			if (endsSentence(t, i)) {
+				return i + 1;
+			}
+		}
+		return 0;
+	}
+
+	private static int sentenceEnd(String t, int pos) {
+		for (int i = pos; i < t.length(); i++) {
+			if (endsSentence(t, i)) {
+				return i;
+			}
+		}
+		return t.length();
+	}
+
+	/** 소수점과 구분하려고 마침표는 뒤가 공백이거나 글 끝일 때만 문장 끝으로 본다. */
+	private static boolean endsSentence(String t, int i) {
+		char c = t.charAt(i);
+		if (c == '\n' || c == '!' || c == '?') {
+			return true;
+		}
+		return c == '.' && (i + 1 == t.length() || Character.isWhitespace(t.charAt(i + 1)));
 	}
 
 	private static final Pattern MONEY_PART = Pattern.compile("\\s*(\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.(\\d+))?\\s*(억|천만|백만|만|천)?");

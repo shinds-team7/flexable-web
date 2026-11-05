@@ -3708,7 +3708,7 @@ export interface components {
             id: string;
             title: string;
             summary: string;
-            /** @description 제안기 해설. 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6) */
+            /** @description 제안기 해설. 글자 수 제한 없음(문단 사이 줄바꿈 포함). 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6) */
             explanation: string;
             /** @description 비중이 0보다 큰 유형만, 비중 합 100 */
             mix: {

@@ -32,6 +32,11 @@ final class Proposals {
 					"지수 ETF와 주식 비중을 크게 높여, 같은 목표를 더 적은 월 금액으로 노리는 조합이에요. 잘 안 풀리면 목표에 많이 못 미칠 수 있어서, 중간에 크게 줄어도 기다릴 수 있는 돈일 때만 고려해 보세요.",
 					ordered("SAVINGS", 10, "CMA", 10, "KR_INDEX_ETF", 20, "US_INDEX_ETF", 30, "KOSPI_TOP5", 30)));
 
+	/** 로그에 남기는 걸린 칸 문구의 최대 길이. 해설은 길이 제한이 없어 뒤쪽에서 걸린 문장도 보이게 넉넉히 둔다. */
+	static final int LOG_TEXT_MAX = 2000;
+	/** 글자 수를 검사하지 않는 칸(해설). 실제 길이는 응답 토큰 상한이 막는다(§7-6). */
+	private static final String NO_LENGTH_LIMIT = String.valueOf(Integer.MAX_VALUE);
+
 	private Proposals() {
 	}
 
@@ -61,13 +66,13 @@ final class Proposals {
 			return new Checked(null, problem, rejectedText);
 		}
 
-		/** 로그 한 줄. includeText면 걸린 칸의 문구도 붙인다(제어 문자는 공백으로, 최대 300자). */
+		/** 로그 한 줄. includeText면 걸린 칸의 문구도 붙인다(제어 문자는 공백으로, 최대 LOG_TEXT_MAX자). */
 		String logLine(boolean includeText) {
 			if (!includeText || rejectedText == null || rejectedText.isBlank()) {
 				return problem;
 			}
 			String clean = rejectedText.replaceAll("\\p{Cntrl}", " ").strip();
-			return problem + " \"" + (clean.length() > 300 ? clean.substring(0, 300) : clean) + "\"";
+			return problem + " \"" + (clean.length() > LOG_TEXT_MAX ? clean.substring(0, LOG_TEXT_MAX) : clean) + "\"";
 		}
 	}
 
@@ -105,7 +110,7 @@ final class Proposals {
 			if (sum != 100 || mix.isEmpty()) {
 				return Checked.fail("MIX_SUM " + at);
 			}
-			String[][] fields = { { "title", d.title(), "20" }, { "summary", d.summary(), "40" }, { "explanation", d.explanation(), "300" } };
+			String[][] fields = { { "title", d.title(), "20" }, { "summary", d.summary(), "40" }, { "explanation", d.explanation(), NO_LENGTH_LIMIT } };
 			for (String[] f : fields) {
 				String problem = text(f[1], Integer.parseInt(f[2]), facts, mix.values());
 				if (problem != null) {

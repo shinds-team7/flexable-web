@@ -1,7 +1,7 @@
 # 가상 시뮬레이션 대회: 1천만 원으로 시작해 잔액으로 판을 오르내리는 월간 판별 랭킹
 
-- 날짜: 2026-11-05 · 제안: 개발(rhkrqkq) · 결정: 사용자(11-05, 아래 "결정한 내용"의 따옴표) · 관련: Issue #252, 선행 Issue #253(가상 시뮬레이션 일반 유형 채점 없애기)
-- 상태: 스펙(이 PR). 구현은 다음 PR이다.
+- 날짜: 2026-11-05 · 제안: 개발(rhkrqkq) · 결정: 사용자(11-05, 아래 "결정한 내용"의 따옴표) · 관련: Issue #252, PR #258, 선행 Issue #253(가상 시뮬레이션 일반 유형 채점 없애기)
+- 상태: 스펙(#258). 구현은 다음 PR이다.
 - 영향: 웹 백엔드(api 대회·정산 작업, DB), API 계약(새 `/virtual-sim/contests/*`·`/me/virtual-sim/contests`, `VirtualSimSnapshot.contest`), 웹 프론트(`/simulation` 가상 시뮬레이션의 대회), 개인정보 처리(회원과 연결한 대회 기록을 DB에 저장). 일반 가상 시뮬레이션(`/virtual-sim/start` 이하)의 출제·매매 규칙, 과거 시장 연습(`/practice/*`), 앱·`mobile-demo/`는 바뀌지 않는다.
 - 기준: [가상 시뮬레이션 결정](2026-11-04-virtual-simulation.md) 1-9·2·6·9·"변경 기록", [policies](../policies.md) §5·§7-8·§8, [privacy-web.md](../product/privacy-web.md) "11-04 가상 시뮬레이션"
 
@@ -136,7 +136,7 @@
 
 | 무엇 | 어디 |
 |---|---|
-| 문서(이 PR) | 이 기록, [policies](../policies.md) §8 머리말·§8-8, `tests/policy/virtual-contest.json`(`PENDING`)·`tests/policy/README.md`, [web-api.yaml](../contracts/web-api.yaml) 대회 경로·스키마·오류 코드, `src/lib/api-schema.d.ts`(`npm run gen:api`), [privacy-web.md](../product/privacy-web.md), [가상 시뮬레이션 결정](2026-11-04-virtual-simulation.md) 변경 기록 한 줄, [PRD](../PRD.md) F1 추가 스펙, [결정 목록](README.md), [CHANGELOG](../CHANGELOG.md) |
+| 문서(#258) | 이 기록, [policies](../policies.md) §8 머리말·§8-8, `tests/policy/virtual-contest.json`(`PENDING`)·`tests/policy/README.md`, [web-api.yaml](../contracts/web-api.yaml) 대회 경로·스키마·오류 코드, `src/lib/api-schema.d.ts`(`npm run gen:api`), [privacy-web.md](../product/privacy-web.md), [가상 시뮬레이션 결정](2026-11-04-virtual-simulation.md) 변경 기록 한 줄, [PRD](../PRD.md) F1 추가 스펙, [결정 목록](README.md), [CHANGELOG](../CHANGELOG.md) |
 | DB(구현 PR) | Flyway 다음 빈 번호: 대회(`YYYY-MM`·기간·상태·정산 시각), 회원 별명, 참가(대회·회원·지금 판·잔액·도달 시각·판 수·청산·확정 순위·가장 높이 오른 판), 판(참가·`startId`·시작/끝 시각·시작/끝 잔액·시작/끝 판·상태·끝난 방식, 진행 중에만 시드·룰셋·가상 종목·제출한 매매). 탈퇴 시 `ON DELETE CASCADE` |
 | api(구현 PR) | `virtualsim` 대회 서비스·컨트롤러, 끊긴 판 정리 작업(1분), 월 정산 작업, `VirtualContestPolicyTest`·`ContractTest`·API 테스트 |
 | 화면(구현 PR) | `/simulation` 가상 시뮬레이션의 대회: 판 표시, 현재 잔액·불린 금액·수익률, 다음 판까지 남은 금액, 판별 랭킹, 판이 끝날 때 승급·강등 안내 |

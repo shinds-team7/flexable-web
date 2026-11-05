@@ -6,7 +6,6 @@ import { useSession } from '@/auth/session';
 import { loadSettings, saveSettings } from '@/auth/settings';
 import { SeedLineChart } from '@/charts/SeedLineChart';
 import { DDay } from '@/components/Icons';
-import { ProtoNote } from '@/components/Proto';
 import { RollingNumber } from '@/components/RollingNumber';
 import { useAppLink } from '@/data/appLink';
 import { useSeedMoney, useSetSeedManual, type SeedMoney } from '@/data/home';
@@ -101,12 +100,6 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
       ) : (
         <video className="hero-scene" src={SCENE_VIDEO} poster={SCENE_POSTER} autoPlay muted loop playsInline preload="auto" aria-hidden="true" />
       )}
-      <Link className="hero-gear" to="/mypage/settings" aria-label="설정">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
-        </svg>
-      </Link>
       <div className="hero-copy">
         <div className="hero-label">
           내 시드머니
@@ -311,7 +304,6 @@ export default function Home() {
   return (
     <section>
       <div className="page">
-        <ProtoNote />
         <div className="g84">
           <div className="col stagger">
             <AppLinkIntro />

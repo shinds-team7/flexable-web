@@ -123,6 +123,25 @@ public class VirtualSimStore {
 				(rs, i) -> json.readValue(rs.getString(1), VirtualSimRuleset.class), VirtualSimRuleset.VERSION, sample).stream().findFirst();
 	}
 
+	/** 저장한 룰셋과 그 행 번호. 대회 판은 행 번호를 두어 끊긴 판을 같은 룰셋으로 정산한다 */
+	public record StoredRuleset(long id, VirtualSimRuleset ruleset) {
+	}
+
+	/** 지금 버전의 최신 룰셋과 행 번호 */
+	public Optional<StoredRuleset> latestStoredRuleset(boolean sample) {
+		return jdbc.query("SELECT id, payload FROM virtual_sim_rulesets WHERE version = ? AND is_sample = ? ORDER BY id DESC LIMIT 1",
+				(rs, i) -> new StoredRuleset(rs.getLong(1), json.readValue(rs.getString(2), VirtualSimRuleset.class)), VirtualSimRuleset.VERSION, sample)
+			.stream()
+			.findFirst();
+	}
+
+	/** 행 번호로 룰셋(버전과 상관없이) */
+	public Optional<VirtualSimRuleset> ruleset(long id) {
+		return jdbc.query("SELECT payload FROM virtual_sim_rulesets WHERE id = ?", (rs, i) -> json.readValue(rs.getString(1), VirtualSimRuleset.class), id)
+			.stream()
+			.findFirst();
+	}
+
 	// ───────── 가상 회사·사건 ─────────
 
 	/** 공개 가능한 회사 한 곳(숨기지 않은 사건만). generatedAt은 글을 만든 시각 */
@@ -177,6 +196,27 @@ public class VirtualSimStore {
 					}
 				}, sample);
 		return List.copyOf(out.values());
+	}
+
+	/** 회사 한 곳(숨김·검사 버전과 상관없이, 숨긴 사건 포함). 진행 중인 대회 판을 시작할 때의 글로 정산할 때 쓴다 */
+	public Optional<Company> company(long id) {
+		List<Company> found = jdbc.query("SELECT id, name, industry, intro, model, generated_at, is_sample FROM virtual_sim_companies WHERE id = ?",
+				(rs, i) -> new Company(rs.getLong(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant(),
+						rs.getBoolean(7), new EnumMap<>(VirtualSimCategory.class)),
+				id);
+		if (found.isEmpty()) {
+			return Optional.empty();
+		}
+		Company c = found.getFirst();
+		jdbc.query("SELECT category, body FROM virtual_sim_events WHERE company_id = ?", rs -> {
+			try {
+				c.bodies().put(VirtualSimCategory.valueOf(rs.getString(1)), rs.getString(2));
+			}
+			catch (IllegalArgumentException e) {
+				// 지금 버전에 없는 유형은 쓰지 않는다
+			}
+		}, id);
+		return Optional.of(c);
 	}
 
 	/** 지금 검사 버전으로 통과한 회사 이름(숨긴 것 포함). 같은 이름은 다시 쓰지 않는다. 이전 버전 회사는 후보가 아니라 이름을 다시 쓸 수 있다 */

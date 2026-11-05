@@ -61,7 +61,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/practice/categories").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/practice/start", "/api/v1/practice/state", "/api/v1/practice/step",
                         "/api/v1/practice/decision", "/api/v1/practice/end").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/virtual-sim/status").permitAll()
+                // 가상 시뮬레이션 대회(policies §8-8)는 안내만 공개하고 배치고사·판 시작·랭킹·내 기록은 회원만(아래 authenticated)
+                .requestMatchers(HttpMethod.GET, "/api/v1/virtual-sim/status", "/api/v1/virtual-sim/contests/current").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/virtual-sim/start", "/api/v1/virtual-sim/state", "/api/v1/virtual-sim/step",
                         "/api/v1/virtual-sim/decision", "/api/v1/virtual-sim/end").permitAll()
 				.requestMatchers("/api/v1/health", "/actuator/health/**", "/error").permitAll()

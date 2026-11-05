@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.SplittableRandom;
 
 import com.flexable.web.market.PracticeMarketData.Candle;
@@ -19,12 +20,22 @@ import com.flexable.web.virtualsim.VirtualSimRuleset.Grade;
  * 가상 시세 생성(policies §8-1·8-2·8-4, decisions/2026-11-04-virtual-simulation 2·3). 시드의 결정적 난수(SplittableRandom)로
  * 아래 순서대로 뽑으므로 같은 시드·룰셋·가상 종목(유형 목록)·세션 시작일이면 같은 구간·사건 위치·OHLC가 나온다.
  * 순서: 시작일 → 길이 L → 문제 수 N → 뚜렷한 유형 2개 → 나머지 유형 → 순서 섞기 → 위치 y → 사건마다 경로·제목 → 시작가 → 등급 → 봉마다 g·r·u·d.
+ * 대회 판(decisions/2026-11-05-virtual-sim-contest 9)은 문제 수를 뽑는 자리를 건너뛰고(4 고정, v2는 길이를 뽑는 자리도 건너뛰고 120 고정), 판의 "먼저 뽑는 유형"(뚜렷한 유형 → MIXED 순)을
+ * 뽑은 뒤 나머지를 뽑으며, 등급은 판의 등급 목록에서 균등하게 뽑는다. 이 순서·계산식을 바꿔 같은 시드에서 다른 봉이 나오면 VERSION을 올린다(결정 기록 5-3).
  */
 public final class VirtualSimGenerator {
 
 	private VirtualSimGenerator() {
 	}
 
+	/**
+	 * 생성기 버전(구간·사건 위치·유형 고르기·봉 만들기의 난수 순서와 계산식). 대회 판은 시작할 때의 버전으로 끝까지 진행·정산한다.
+	 * v1: 대회 판도 길이를 120~250거래일에서 뽑음. v2(11-05 구현 PR): 대회 판은 길이를 뽑는 자리를 건너뛰고 120거래일 고정. 일반 유형은 두 버전이 같다
+	 */
+	public static final String V1 = "vsim-gen-v1";
+	public static final String VERSION = "vsim-gen-v2";
+	/** 지원하는 생성기 버전. 이전 버전 지원은 그 버전의 미완료 대회 판이 0개일 때만 지운다(결정 기록 5-3) */
+	public static final Set<String> SUPPORTED = Set.of(V1, VERSION);
 	public static final int YEAR_OFFSET = 10;
 	public static final int MIN_QUESTIONS = PracticeWindow.MIN_QUESTIONS;
 	public static final int MAX_QUESTIONS = 5;
@@ -104,15 +115,29 @@ public final class VirtualSimGenerator {
 	}
 
 	/**
+	 * 대회 판의 유형 고르기. events: 사건 수(4), clear·mixed: 먼저 뽑는 뚜렷한 유형·MIXED 유형 수, grades: 균등하게 뽑는 변동성 등급,
+	 * length: 구간 길이 고정값(0이면 120~250에서 뽑음, vsim-gen-v1)
+	 */
+	public record Board(int events, int clear, int mixed, int[] grades, int length) {
+	}
+
+	/**
 	 * 가상 종목 하나의 구간을 만든다. available: 그 회사의 공개 가능한 사건 유형(룰셋에 있는 것만). 3개 이상이고 그중 뚜렷한 유형이 2개 이상이어야 한다.
 	 */
 	public static Plan generate(long seed, VirtualSimRuleset rules, Collection<VirtualSimCategory> available, LocalDate sessionDate) {
+		return generate(seed, rules, available, sessionDate, null);
+	}
+
+	/** board가 있으면 대회 판 규칙(사건 수 고정·먼저 뽑는 유형·등급 범위), 없으면 일반 유형 */
+	public static Plan generate(long seed, VirtualSimRuleset rules, Collection<VirtualSimCategory> available, LocalDate sessionDate, Board board) {
 		List<VirtualSimCategory> usable = Arrays.stream(VirtualSimCategory.values())
 			.filter(available::contains)
 			.filter(c -> rules.stats(c).isPresent())
 			.toList();
 		List<VirtualSimCategory> clear = usable.stream().filter(c -> rules.stats(c).orElseThrow().clear()).toList();
-		if (usable.size() < MIN_QUESTIONS || clear.size() < CLEAR_QUESTIONS) {
+		List<VirtualSimCategory> mixed = usable.stream().filter(c -> !rules.stats(c).orElseThrow().clear()).toList();
+		if (board == null ? usable.size() < MIN_QUESTIONS || clear.size() < CLEAR_QUESTIONS
+				: usable.size() < board.events() || clear.size() < board.clear() || mixed.size() < board.mixed()) {
 			throw new IllegalArgumentException("공개 가능한 사건 유형이 모자라요");
 		}
 		SplittableRandom rnd = new SplittableRandom(seed);
@@ -122,20 +147,17 @@ public final class VirtualSimGenerator {
 			start = startDate(LocalDate.ofYearDay(year, rnd.nextInt(Year.of(year).length()) + 1));
 		}
 		while (start == null);
-		int length = PracticeWindow.MIN_LENGTH + rnd.nextInt(PracticeWindow.MAX_LENGTH - PracticeWindow.MIN_LENGTH + 1);
-		int n = Math.min(MIN_QUESTIONS + rnd.nextInt(MAX_QUESTIONS - MIN_QUESTIONS + 1), usable.size());
+		int length = board != null && board.length() > 0 ? board.length()
+				: PracticeWindow.MIN_LENGTH + rnd.nextInt(PracticeWindow.MAX_LENGTH - PracticeWindow.MIN_LENGTH + 1);
+		int n = board != null ? board.events() : Math.min(MIN_QUESTIONS + rnd.nextInt(MAX_QUESTIONS - MIN_QUESTIONS + 1), usable.size());
 
-		// 뚜렷한 유형에서 2개를 먼저, 나머지는 남은 유형 전체(반반 포함)에서. 뽑은 유형은 위치에 섞어 놓는다
-		List<VirtualSimCategory> pool = new ArrayList<>(clear);
+		// 먼저 뽑는 유형(일반은 뚜렷한 유형 2개, 대회 판은 판 규칙), 나머지는 남은 유형 전체(반반 포함)에서. 뽑은 유형은 위치에 섞어 놓는다
 		List<VirtualSimCategory> chosen = new ArrayList<>();
-		for (int k = 0; k < CLEAR_QUESTIONS; k++) {
-			chosen.add(pool.remove(rnd.nextInt(pool.size())));
+		draw(rnd, clear, board == null ? CLEAR_QUESTIONS : board.clear(), chosen);
+		if (board != null) {
+			draw(rnd, mixed, board.mixed(), chosen);
 		}
-		pool = new ArrayList<>(usable);
-		pool.removeAll(chosen);
-		while (chosen.size() < n) {
-			chosen.add(pool.remove(rnd.nextInt(pool.size())));
-		}
+		draw(rnd, usable, n - chosen.size(), chosen);
 		for (int i = chosen.size() - 1; i > 0; i--) {
 			Collections.swap(chosen, i, rnd.nextInt(i + 1));
 		}
@@ -156,7 +178,7 @@ public final class VirtualSimGenerator {
 		}
 
 		long price = MIN_START_PRICE + PRICE_STEP * rnd.nextInt((int) ((MAX_START_PRICE - MIN_START_PRICE) / PRICE_STEP) + 1);
-		Grade grade = rules.grades().get(rnd.nextInt(rules.grades().size()));
+		Grade grade = rules.grades().get(board == null ? rnd.nextInt(rules.grades().size()) : board.grades()[rnd.nextInt(board.grades().length)]);
 		List<LocalDate> dates = tradingDays(start, length);
 		int[] follow = new int[length];
 		Arrays.fill(follow, -1);
@@ -178,5 +200,14 @@ public final class VirtualSimGenerator {
 			price = c.close();
 		}
 		return new Plan(List.copyOf(candles), List.copyOf(events));
+	}
+
+	/** from에서 아직 고르지 않은 유형 count개를 하나씩 뽑아 chosen에 더한다 */
+	private static void draw(SplittableRandom rnd, List<VirtualSimCategory> from, int count, List<VirtualSimCategory> chosen) {
+		List<VirtualSimCategory> pool = new ArrayList<>(from);
+		pool.removeAll(chosen);
+		for (int k = 0; k < count; k++) {
+			chosen.add(pool.remove(rnd.nextInt(pool.size())));
+		}
 	}
 }

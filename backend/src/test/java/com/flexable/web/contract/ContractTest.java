@@ -152,6 +152,8 @@ class ContractTest {
 		try {
 			String spec = Files.readString(Path.of("..", "docs", "contracts", "web-api.yaml"));
 			return OpenApiInteractionValidator.createForInlineApiSpecification(spec)
+				// allOf(예: VirtualContestRoundSnapshot)를 한 스키마로 합쳐 검사한다. 합치지 않으면 갈래마다 additionalProperties를 따로 봐서 맞는 응답도 실패한다
+				.withResolveCombinators(true)
 				.withLevelResolver(LevelResolver.create()
 					// 스펙에 적지 않은 필드가 응답에 있으면 실패
 					.withLevel("validation.schema.additionalProperties", ValidationReport.Level.ERROR)
@@ -566,6 +568,57 @@ class ContractTest {
 		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
 		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
 		call(json(post("/api/v1/virtual-sim/state"), tokenBody), 410);
+	}
+
+	@Test
+	void 가상_시뮬레이션_대회() throws Exception {
+		String info = body(call(get("/api/v1/virtual-sim/contests/current"), 200));
+		String contestId = JsonPath.read(info, "$.contestId");
+		// 대회 안내만 공개, 나머지는 회원만
+		call(post("/api/v1/virtual-sim/contests/current/placement"), 401);
+		call(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\"}"), 401);
+		call(get("/api/v1/me/virtual-sim/contests"), 401);
+		call(get("/api/v1/virtual-sim/contests/" + contestId + "/boards/B10M/ranking"), 401);
+
+		String token = signup();
+		// 참가 전: alias·current는 null
+		String before = body(call(auth(get("/api/v1/me/virtual-sim/contests"), token), 200));
+		assertThat((Object) JsonPath.read(before, "$.current")).isNull();
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\"}"), token), 409);
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"nope\"}"), token), 400);
+
+		String placement = body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), token), 200));
+		String placementId = JsonPath.read(placement, "$.placementId");
+		List<String> ids = JsonPath.read(placement, "$.questions[*].id");
+		StringBuilder answers = new StringBuilder();
+		for (int i = 0; i < ids.size(); i++) {
+			answers.append(i == 0 ? "" : ",").append("{\"questionId\":\"").append(ids.get(i)).append("\",\"prediction\":")
+				.append(i % 3 == 2 ? "null" : i % 2 == 0 ? "\"POSITIVE\"" : "\"NEGATIVE\"").append("}");
+		}
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), "{\"placementId\":\"nope\",\"answers\":[" + answers + "]}"), token), 404);
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), "{\"placementId\":\"" + placementId + "\",\"answers\":[]}"), token), 400);
+		String result = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), "{\"placementId\":\"" + placementId
+				+ "\",\"answers\":[" + answers + "]}"), token), 200));
+		String board = JsonPath.read(result, "$.board");
+		call(auth(post("/api/v1/virtual-sim/contests/current/placement"), token), 409);
+
+		// 판 시작 응답은 contest가 반드시 있고, 진행은 /virtual-sim/* 그대로(채점 없음)
+		String started = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\"}"), token), 200));
+		assertThat((String) JsonPath.read(started, "$.snapshot.contest.board")).isEqualTo(board);
+		String session = JsonPath.read(started, "$.sessionToken");
+		String state = body(call(json(post("/api/v1/virtual-sim/state"), "{\"sessionToken\":\"" + session + "\"}"), 200));
+		assertThat((Object) JsonPath.read(state, "$.contest.endBalance")).isNull();
+		String stepped = body(call(json(post("/api/v1/virtual-sim/step"), command(session, 0)), 200));
+		assertThat((String) JsonPath.read(stepped, "$.status")).isEqualTo("AWAITING_DECISION");
+		call(json(post("/api/v1/virtual-sim/decision"), "{\"sessionToken\":\"" + session + "\",\"commandId\":\"" + UUID.randomUUID()
+				+ "\",\"expectedVersion\":1,\"eventId\":\"" + JsonPath.read(stepped, "$.event.id") + "\",\"action\":\"HOLD\",\"quantity\":0}"), 200);
+		call(json(post("/api/v1/virtual-sim/end"), "{\"sessionToken\":\"" + session + "\"}"), 204);
+
+		String mine = body(call(auth(get("/api/v1/me/virtual-sim/contests"), token), 200));
+		assertThat((Integer) JsonPath.read(mine, "$.current.rounds")).isEqualTo(1);
+		call(auth(get("/api/v1/virtual-sim/contests/" + contestId + "/boards/" + board + "/ranking"), token), 200);
+		call(auth(get("/api/v1/virtual-sim/contests/2020-01/boards/B10M/ranking"), token), 404);
+		call(auth(get("/api/v1/virtual-sim/contests/2020-13/boards/B10M/ranking"), token), 400);
 	}
 
 	private static String body(MvcResult r) throws Exception {

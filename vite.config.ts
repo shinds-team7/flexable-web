@@ -7,6 +7,8 @@ import { defineConfig } from 'vite';
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  // 진입 JS 파일 이름 형식. 2026-11-05 Cloudflare가 옛 index-*.js의 끊긴 사본을 캐시해 새 URL로 피하려고 바꿨다.
+  build: { rollupOptions: { output: { entryFileNames: 'assets/app-[hash].js' } } },
   server: {
     port: 5173,
     proxy: {

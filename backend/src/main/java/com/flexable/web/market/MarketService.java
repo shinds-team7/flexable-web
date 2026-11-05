@@ -108,6 +108,19 @@ public class MarketService {
 		return out;
 	}
 
+	/** 상위 목록 안 STOCK 종목의 업종 이름(코드 → 업종, 업종을 모르면 빠짐). 가상 시뮬레이션 대회 배치고사의 문제 표시에 쓴다 */
+	@Transactional(readOnly = true)
+	public Map<String, String> industries() {
+		Map<String, String> out = new HashMap<>();
+		for (Board b : Board.values()) {
+			instruments.findByBoardAndCapRankNotNullOrderByCapRankAsc(b).stream()
+				.limit(props.topLimit())
+				.filter(i -> "STOCK".equals(i.getKind()) && i.getIndustryName() != null)
+				.forEach(i -> out.put(i.getCode(), i.getIndustryName()));
+		}
+		return out;
+	}
+
 	/** 저장된 모든 종목 이름(가상 회사 글 검사의 실제 상장사 이름 대조) */
 	@Transactional(readOnly = true)
 	public Set<String> instrumentNames() {

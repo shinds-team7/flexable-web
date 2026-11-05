@@ -1,11 +1,11 @@
 {
-  "status": "PENDING",
+  "status": "IMPLEMENTED",
   "policy": "docs/policies.md §8-8",
   "decision": "docs/decisions/2026-11-05-virtual-sim-contest.md",
   "provisional": {
-    "note": "임시값. 구현 PR에서 실제 룰셋 모의 계산으로 확정",
+    "note": "없음. 배치고사 판 기준 7·9는 11-05 구현 PR 사용자 결정",
     "placementCuts": {
-      "B50M": 6,
+      "B50M": 7,
       "B100M": 9
     }
   },
@@ -50,15 +50,14 @@
   ],
   "rules": {
     "eventsPerRound": 4,
-    "minLength": 120,
-    "maxLength": 250,
+    "roundLength": 120,
     "roundsPerDay": 10,
     "liquidationBelow": 1000000,
     "rankingTop": 100,
     "retentionMonths": 12,
     "placementQuestions": 10,
     "placementMinutes": 30,
-    "dailyTargetRate": 0.05,
+    "dailyTargetRate": 0.01,
     "weeklyPromoteAt": 4,
     "weeklyDemoteAt": -4,
     "weeks": [
@@ -84,21 +83,30 @@
       ]
     ],
     "note": "배치고사만 과거 경향으로 채점. 대회 판의 decisions[].outcome·trendOutcome은 늘 null. 승급·강등하면 잔액 = 새 판의 대회 시드머니. 시드는 판마다 사람마다 새로 뽑는다",
-    "generatorVersion": "vsim-gen-v1"
+    "generatorVersion": "vsim-gen-v2",
+    "supportedGeneratorVersions": [
+      "vsim-gen-v1",
+      "vsim-gen-v2"
+    ],
+    "roundsForDailyScore": 10
   },
   "placement": {
-    "note": "맞힌 수 → 시작 판. 0~5 B10M, 6~8 B50M, 9~10 B100M(임시). 안 고른 문제는 틀림",
+    "note": "실제 과거 공시 10개(뚜렷한 유형 6 + 나머지 4). 정답 = 기준 봉 종가 → 5번째 후속 거래일 종가가 올랐으면 POSITIVE, 내렸으면 NEGATIVE. 보합 공시는 내지 않음. 맞힌 수 0~6 B10M, 7~8 B50M, 9~10 B100M. 안 고른 문제는 틀림",
+    "composition": {
+      "clear": 6,
+      "any": 4
+    },
     "cases": [
       {
         "correct": 0,
         "expected": "B10M"
       },
       {
-        "correct": 5,
+        "correct": 6,
         "expected": "B10M"
       },
       {
-        "correct": 6,
+        "correct": 7,
         "expected": "B50M"
       },
       {
@@ -116,26 +124,34 @@
     ],
     "grading": [
       {
-        "trend": "UP",
+        "baseClose": 10000,
+        "afterClose": 10300,
         "prediction": "POSITIVE",
         "correct": true
       },
       {
-        "trend": "UP",
+        "baseClose": 10000,
+        "afterClose": 10300,
         "prediction": "NEGATIVE",
         "correct": false
       },
       {
-        "trend": "DOWN",
+        "baseClose": 10000,
+        "afterClose": 9800,
         "prediction": "NEGATIVE",
         "correct": true
       },
       {
-        "trend": "DOWN",
+        "baseClose": 10000,
+        "afterClose": 9800,
         "prediction": null,
         "correct": false
       }
-    ]
+    ],
+    "flatExcluded": {
+      "baseClose": 10000,
+      "afterClose": 10000
+    }
   },
   "candidates": {
     "note": "공개 가능 유형의 경향 목록 → 판별 후보 여부. 유형 4개 이상이고 그 판의 먼저 뽑는 유형을 채울 수 있어야 후보",
@@ -293,41 +309,132 @@
     ]
   },
   "dailyScore": {
-    "note": "하루 수익률 = (그날 마지막 끝 잔액 − 그날 첫 판 시작 잔액) / 그날 첫 판 시작 잔액, 소수 4자리 내림. ≥ 목표 +1, 미만 −1, 판 없으면 0",
+    "note": "하루 수익률 = 그날 판들의 초과 수익률 평균(소수 4자리 내림). 10판이면 ≥ 목표(0.01) +1, 미만 −1. 1~9판이면 ≥ 목표 0, 미만 −1. 판 없으면 0. 11-05 구현 PR 사용자 결정",
     "cases": [
       {
-        "dayStartBalance": 10000000,
-        "dayEndBalance": 10500000,
-        "dayReturnRate": 0.05,
+        "excessRates": [
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01
+        ],
+        "dayReturnRate": 0.01,
         "points": 1
       },
       {
-        "dayStartBalance": 10000000,
-        "dayEndBalance": 10499999,
-        "dayReturnRate": 0.0499,
+        "excessRates": [
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099
+        ],
+        "dayReturnRate": 0.0099,
         "points": -1
       },
       {
-        "dayStartBalance": 13000000,
-        "dayEndBalance": 13650000,
+        "excessRates": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "dayReturnRate": 0,
+        "points": -1,
+        "note": "유지만 함"
+      },
+      {
+        "excessRates": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          -0.05,
+          -0.05,
+          -0.05,
+          -0.05,
+          -0.05
+        ],
+        "dayReturnRate": 0,
+        "points": -1
+      },
+      {
+        "excessRates": [
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.01,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099
+        ],
+        "dayReturnRate": 0.0099,
+        "points": -1,
+        "note": "평균 0.00995를 내림"
+      },
+      {
+        "excessRates": [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ],
         "dayReturnRate": 0.05,
-        "points": 1
+        "points": 0,
+        "note": "10판 미만, 목표 이상"
       },
       {
-        "dayStartBalance": 10000000,
-        "dayEndBalance": 10300000,
-        "dayReturnRate": 0.03,
-        "points": -1
+        "excessRates": [
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099,
+          0.0099
+        ],
+        "dayReturnRate": 0.0099,
+        "points": -1,
+        "note": "10판 미만, 목표 미만"
       },
       {
-        "dayStartBalance": 50000000,
-        "dayEndBalance": 48000000,
-        "dayReturnRate": -0.04,
-        "points": -1
+        "excessRates": [
+          0.01
+        ],
+        "dayReturnRate": 0.01,
+        "points": 0,
+        "note": "1판, 목표 이상"
       },
       {
-        "dayStartBalance": null,
-        "dayEndBalance": null,
+        "excessRates": [],
         "dayReturnRate": null,
         "points": 0,
         "note": "그날 시작한 판 없음"
@@ -453,12 +560,12 @@
     ]
   },
   "ranking": {
-    "note": "판 점수 큰 순 → 판 수익률 큰 순 → 그 잔액이 된 시각 이른 순 → 참가 시각 이른 순 → 웹 회원 번호 작은 순(응답에 넣지 않음). 같은 순위 번호 없음",
+    "note": "판 점수 큰 순 → 평균 초과 수익률 큰 순(끝낸 판 없으면 0) → 그 값이 된 시각 이른 순 → 참가 시각 이른 순 → 웹 회원 번호 작은 순(응답에 넣지 않음). 같은 순위 번호 없음",
     "entries": [
       {
         "member": "A",
         "boardPoints": 5,
-        "boardReturnRate": 0.1,
+        "excessRate": 0.1,
         "reachedAt": "2026-11-03T10:00:00+09:00",
         "joinedAt": "2026-11-01T09:00:00+09:00",
         "userId": 11
@@ -466,7 +573,7 @@
       {
         "member": "B",
         "boardPoints": 5,
-        "boardReturnRate": 0.2,
+        "excessRate": 0.2,
         "reachedAt": "2026-11-02T09:00:00+09:00",
         "joinedAt": "2026-11-01T12:00:00+09:00",
         "userId": 12
@@ -474,7 +581,7 @@
       {
         "member": "C",
         "boardPoints": 3,
-        "boardReturnRate": 0.9,
+        "excessRate": 0.9,
         "reachedAt": "2026-11-04T12:00:00+09:00",
         "joinedAt": "2026-11-01T08:00:00+09:00",
         "userId": 30
@@ -482,7 +589,7 @@
       {
         "member": "D",
         "boardPoints": 5,
-        "boardReturnRate": 0.2,
+        "excessRate": 0.2,
         "reachedAt": "2026-11-05T20:00:00+09:00",
         "joinedAt": "2026-11-01T07:00:00+09:00",
         "userId": 14
@@ -490,7 +597,7 @@
       {
         "member": "E",
         "boardPoints": 3,
-        "boardReturnRate": 0.9,
+        "excessRate": 0.9,
         "reachedAt": "2026-11-04T12:00:00+09:00",
         "joinedAt": "2026-11-01T08:00:00+09:00",
         "userId": 25,
@@ -503,6 +610,43 @@
       "A",
       "E",
       "C"
+    ]
+  },
+  "excess": {
+    "note": "초과 수익률 = (끝 잔액 − 유지만 했을 때 끝 잔액) / 시작 잔액, 소수 4자리 내림. 항목은 [시작, 끝, 유지만 했을 때 끝]",
+    "cases": [
+      {
+        "round": [
+          10000000,
+          10500000,
+          10400000
+        ],
+        "excessRate": 0.01
+      },
+      {
+        "round": [
+          10000000,
+          10499999,
+          10400000
+        ],
+        "excessRate": 0.0099
+      },
+      {
+        "round": [
+          10000000,
+          10300000,
+          10300000
+        ],
+        "excessRate": 0
+      },
+      {
+        "round": [
+          50000000,
+          48000000,
+          46000000
+        ],
+        "excessRate": 0.04
+      }
     ]
   }
 }

@@ -1,9 +1,9 @@
-// 내 투자 성향(/type 시작, /type/test 질문 10개, /type/choose 직접 고르기, /type/:id). 질문 결과는 참고이고 성향은 사용자가 정한다.
+// 내 투자 성향(/type 시작, /type/test 질문 12개, /type/choose 직접 고르기, /type/:id). 질문 결과는 참고이고 성향은 사용자가 정한다.
 // 사용자가 성향을 정하면 패시브(지수 ETF) : 액티브(고른 종목) 비율과,
 // 그 성향이 흔히 고르는 상품 유형·그 유형의 실제 상품(시세 API), 어느 계좌에 담는지를 보여 준다. 기획: docs/product/proposal-investor-type.md
 // 비율별 지난 3년 결과·계좌 예시는 고정 예시 값이고(ADR-3), 상품 목록만 시세 API를 그대로 쓴다. 예·적금은 이 화면에서 다루지 않는다.
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { LinkCards, Notice, PRODUCT_CARD, SIM_PAST, type LinkCardItem } from '@/components/Proto';
 import {
@@ -21,7 +21,7 @@ import {
   ratioOf,
   setInvestorType,
   TYPE_QUESTIONS,
-  typeFromAnswers,
+  typeResult,
   useInvestorType,
   type InvestorType,
   type InvestorTypeId,
@@ -46,17 +46,17 @@ function Rate({ r }: { r: number }) {
   );
 }
 
-const ratioName = (active: number) => (active === 0 ? '패시브만' : active === 100 ? '액티브만' : INVESTOR_TYPES.find((t) => t.active === active)?.name ?? `${100 - active} : ${active}`);
+const ratioName = (active: number) => (active === 0 ? '패시브만' : active === 100 ? '액티브만' : `${100 - active} : ${active}`);
 
 export function MixBar({ t }: { t: InvestorType }) {
   const parts = [
-    { label: '패시브 · 지수 ETF', pct: 100 - t.active },
-    { label: '액티브 · 고른 종목', pct: t.active },
-  ];
+    { label: '패시브 · 지수 ETF', pct: 100 - t.active, slot: 0 },
+    { label: '액티브 · 고른 종목', pct: t.active, slot: 1 },
+  ].filter((m) => m.pct > 0);
   return (
     <div className="it-mix" role="img" aria-label={parts.map((m) => `${m.label} ${m.pct}%`).join(', ')}>
-      {parts.map((m, i) => (
-        <span key={m.label} className={'it-mix-part p' + i} style={{ flexGrow: m.pct }}>
+      {parts.map((m) => (
+        <span key={m.label} className={'it-mix-part p' + m.slot} style={{ flexGrow: m.pct }}>
           {m.label} {m.pct}
         </span>
       ))}
@@ -64,7 +64,7 @@ export function MixBar({ t }: { t: InvestorType }) {
   );
 }
 
-/** 성향 아이콘(선 아이콘, 글자색을 따른다): 안정형 방패 · 균형형 저울 · 성장형 오르는 선 */
+/** 성향 아이콘(선 아이콘, 글자색을 따른다): 안정형 방패 · 안정추구형 새싹 · 위험중립형 저울 · 적극투자형 오르는 선 · 공격투자형 번개 */
 function TypeIcon({ id }: { id: InvestorTypeId }) {
   return (
     <svg viewBox="0 0 48 48" width="64" height="64" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -73,11 +73,19 @@ function TypeIcon({ id }: { id: InvestorTypeId }) {
           <path d="M24 5 9 11v11c0 10 6.4 17.6 15 21 8.6-3.4 15-11 15-21V11L24 5Z" />
           <path d="m17 24 5 5 9-10" />
         </>
-      ) : id === 'balanced' ? (
+      ) : id === 'cautious' ? (
+        <>
+          <path d="M24 42V24" />
+          <path d="M24 29c0-8-5-12-13-12 0 8 5 12 13 12Z" />
+          <path d="M24 24c0-7 4-11 12-11 0 7-4 11-12 11Z" />
+        </>
+      ) : id === 'neutral' ? (
         <>
           <path d="M24 7v34M14 41h20M10 13h28" />
           <path d="m10 13-6 13a6 6 0 0 0 12 0l-6-13ZM38 13l-6 13a6 6 0 0 0 12 0l-6-13Z" />
         </>
+      ) : id === 'aggressive' ? (
+        <path d="M27 5 11 27h11l-3 16 18-24H26l1-14Z" />
       ) : (
         <>
           <path d="M6 40h36" />
@@ -89,7 +97,7 @@ function TypeIcon({ id }: { id: InvestorTypeId }) {
   );
 }
 
-/** 세 성향 카드. 첫 방문 안내 마지막 단계에서도 쓴다(compact: 아이콘 없이 짧게) */
+/** 다섯 성향 카드. 첫 방문 안내 마지막 단계에서도 쓴다(compact: 아이콘 없이 짧게) */
 export function TypeChoices({ onPick, compact = false }: { onPick: (id: InvestorTypeId) => void; compact?: boolean }) {
   const mine = useInvestorType();
   return (
@@ -169,9 +177,8 @@ const EXIT_MS = 300;
 const EXIT_STAGGER_MS = 55;
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** /type/test: 한 화면에 한 문항. 답을 고르면 다음 문항, 다 답하면 결과(참고). 답은 저장하지 않는다 */
+/** /type/test: 한 화면에 한 문항. 답을 고르면 다음 문항, 다 답하면 바로 그 유형 상세(/type/:id). 답은 저장하지 않는다 */
 export function InvestorTypeTest() {
-  const nav = useNavigate();
   const [answers, setAnswers] = useState<number[]>([]);
   const [picked, setPicked] = useState<number | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -187,42 +194,13 @@ export function InvestorTypeTest() {
     prevStep.current = step;
   }, [step]);
 
+  // 마지막 답을 고르면 요약 없이 바로 그 유형 상세로 간다. 저장은 하지 않고, 상세의 [내 성향으로 정하기]를 눌러야 한다
   if (step === total) {
-    const t = findType(typeFromAnswers(answers))!;
-    return (
-      <section className="page col">
-        <div className="card it-start">
-          <span className="meta">답변으로 보면</span>
-          <h1 className="page-title" ref={headRef} tabIndex={-1}>
-            {t.name}에 가까워요
-          </h1>
-          <b className="it-one">{t.oneLine}</b>
-          <MixBar t={t} />
-          <div className="toolbar">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setInvestorType(t.id);
-                nav(`/type/${t.id}`);
-              }}
-            >
-              {t.name}으로 정하기
-            </button>
-            <Link className="btn btn-line" to="/type/choose">
-              다른 성향 보기
-            </Link>
-            <button type="button" className="btn-text" onClick={() => setAnswers([])}>
-              다시 하기
-            </button>
-          </div>
-          <p className="meta">참고용이에요. 성향은 직접 정하고, 언제든 바꿀 수 있어요.</p>
-        </div>
-      </section>
-    );
+    const r = typeResult(answers);
+    return <Navigate to={`/type/${r.id}`} replace state={{ fromTest: true, capped: r.capped }} />;
   }
 
-  const { q, a } = TYPE_QUESTIONS[step];
+  const { area, q, a } = TYPE_QUESTIONS[step];
   // 진행 막대는 고르는 순간 먼저 한 칸 차오르고, 선택지가 왼쪽으로 빠진 뒤 다음 문항이 들어온다
   const shown = step + (picked !== null ? 1 : 0);
   const pick = (i: number) => {
@@ -257,6 +235,7 @@ export function InvestorTypeTest() {
           <p className="it-qno" style={{ ['--i' as string]: 0 }} aria-hidden="true">
             Q{step + 1}.
           </p>
+          <span className="it-area">{area}</span>
           <h1 className="it-q" ref={headRef} tabIndex={-1} style={{ ['--i' as string]: 1 }}>
             <span className="sr-only">
               {step + 1}번째 질문.{' '}
@@ -290,14 +269,14 @@ export function InvestorTypeTest() {
   );
 }
 
-/** /type/choose: 세 성향 중 직접 고르기 */
+/** /type/choose: 다섯 성향 중 직접 고르기 */
 export function InvestorTypePick() {
   const nav = useNavigate();
   return (
     <section className="page col">
       <div className="page-head">
         <h1 className="page-title">나는 어떤 투자자에 가까울까요?</h1>
-        <p className="page-desc">성향은 시장 전체에 꾸준히 넣는 패시브와, 직접 골라 넣는 액티브를 어떤 비율로 섞는지로 나눴어요. 직접 골라 주세요. 언제든 바꿀 수 있어요.</p>
+        <p className="page-desc">다섯 가지 유형 중 지금 내 상황에 가까운 쪽을 직접 골라 주세요. 유형마다 시장 전체에 꾸준히 넣는 패시브와, 직접 골라 넣는 액티브를 섞는 비율 예시를 보여 줘요. 언제든 바꿀 수 있어요.</p>
         <div className="toolbar">
           <Link className="btn btn-line btn-sm" to="/type/test">
             질문으로 다시 알아보기
@@ -319,6 +298,8 @@ export function InvestorTypeDetail() {
   const { id } = useParams();
   const t = findType(id);
   const mine = useInvestorType();
+  const loc = useLocation();
+  const capped = (loc.state as { fromTest?: boolean; capped?: string | null } | null)?.capped ?? null;
   if (!t) return <Navigate to="/type" replace />;
 
   const more: LinkCardItem[] = [
@@ -349,9 +330,15 @@ export function InvestorTypeDetail() {
             </button>
           )}
           <Link className="btn-text" to="/type/choose">
-            세 성향 다시 보기
+            다섯 성향 다시 보기
           </Link>
         </div>
+      </div>
+
+      <div className="card">
+        {capped && <p className="it-cap">{capped}</p>}
+        <p>{t.summary}</p>
+        <p className="sub">{t.check}</p>
       </div>
 
       <div className="card">

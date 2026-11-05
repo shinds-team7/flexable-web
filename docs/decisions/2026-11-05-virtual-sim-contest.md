@@ -1,6 +1,6 @@
 # 가상 시뮬레이션 대회: 1천만 원으로 시작해 잔액으로 판을 오르내리는 월간 판별 랭킹
 
-- 날짜: 2026-11-05 · 제안: 개발(rhkrqkq) · 결정: 사용자(11-05, 아래 "결정한 내용"의 따옴표) · 관련: 대회 모드 Issue, 선행 Issue ①(가상 시뮬레이션 일반 유형 채점 없애기)
+- 날짜: 2026-11-05 · 제안: 개발(rhkrqkq) · 결정: 사용자(11-05, 아래 "결정한 내용"의 따옴표) · 관련: Issue #252, 선행 Issue #253(가상 시뮬레이션 일반 유형 채점 없애기)
 - 상태: 스펙(이 PR). 구현은 다음 PR이다.
 - 영향: 웹 백엔드(api 대회·정산 작업, DB), API 계약(새 `/virtual-sim/contests/*`·`/me/virtual-sim/contests`, `VirtualSimSnapshot.contest`), 웹 프론트(`/simulation` 가상 시뮬레이션의 대회), 개인정보 처리(회원과 연결한 대회 기록을 DB에 저장). 일반 가상 시뮬레이션(`/virtual-sim/start` 이하)의 출제·매매 규칙, 과거 시장 연습(`/practice/*`), 앱·`mobile-demo/`는 바뀌지 않는다.
 - 기준: [가상 시뮬레이션 결정](2026-11-04-virtual-simulation.md) 1-9·2·6·9·"변경 기록", [policies](../policies.md) §5·§7-8·§8, [privacy-web.md](../product/privacy-web.md) "11-04 가상 시뮬레이션"
@@ -53,7 +53,7 @@
 1. **판 수는 KST 하루 10판**까지다(사용자, 처음 3판에서 승급 완화를 위해 늘림). 시작한 판의 수로 세고(끊긴 판 포함), 같은 `startId` 재전송은 세지 않는다. 넘으면 `429 CONTEST_DAILY_LIMIT`(`retryAfterSeconds` = 다음 날 00:00까지)다. 날짜는 판을 시작한 시각으로 정한다.
 2. 판은 기존 가상 시뮬레이션 세션 위에서 진행한다. `POST /virtual-sim/contests/current/rounds`가 세션 토큰을 주고, 그 뒤는 `/virtual-sim/state·step·decision·end`를 그대로 쓴다(세션 30분 만료·`commandId` 중복 방지·세션 상한 같음). 응답 `VirtualSimSnapshot`에 `contest`(대회·시작 판·판 번호, 판이 끝나면 새 잔액·새 판)가 붙는다.
 3. **한 판의 사건은 4개로 고정한다**(일반 유형은 3~5개). 구간 길이는 일반 유형과 같이 120~250거래일이다.
-4. **채점이 없다.** 대회 판은 점수·맞음/틀림을 만들지 않고 금액으로만 겨룬다. 응답의 `decisions[].outcome`·`trendOutcome`은 늘 `null`이다. 판정 뒤의 이번 움직임(`movement`·`subsequentReturnRate`)과 유형 통계(`categoryUpShare` 등)는 일반 유형처럼 보여 준다. 선행 Issue ①이 일반 유형의 채점을 없애면 같은 모양이 된다.
+4. **채점이 없다.** 대회 판은 점수·맞음/틀림을 만들지 않고 금액으로만 겨룬다. 응답의 `decisions[].outcome`·`trendOutcome`은 늘 `null`이다. 판정 뒤의 이번 움직임(`movement`·`subsequentReturnRate`)과 유형 통계(`categoryUpShare` 등)는 일반 유형처럼 보여 준다. 선행 Issue #253이 일반 유형의 채점을 없애면 같은 모양이 된다.
 5. **사람마다 다른 시드**다. 서버가 판마다 `SecureRandom`으로 시드를 새로 뽑는다(일반 유형과 같음). 같은 시드를 여러 사람에게 내면 이후 가격이 퍼질 수 있어서다.
 6. **한 번에 진행 중인 판은 하나**다. 진행 중인 판이 있는데 새 판을 시작하면 이전 판을 먼저 끊긴 판으로 정산(5)한 뒤 새 판을 시작한다(그 판도 하루 판 수에 들어 있음).
 

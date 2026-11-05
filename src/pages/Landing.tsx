@@ -27,7 +27,7 @@ const markSeen = () => {
 type Feature = { to: string; img: string; name: string; head: string; desc: string; cta: string };
 
 /** 화면별 소개. 링크는 모두 로그인 없이 체험할 수 있는 화면이다. 투자 인사이트는 예시 차트와 함께 따로 그린다 */
-const TYPE: Feature = { to: '/type', img: 'type', name: '내 투자 성향', head: '나에게 맞는 비율부터\n차근차근 알아봐요', desc: '질문 10개로 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' };
+const TYPE: Feature = { to: '/type', img: 'type', name: '내 투자 성향', head: '나에게 맞는 비율부터\n차근차근 알아봐요', desc: '질문 12개로 5가지 유형 중 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' };
 const INVEST: Feature = { to: '/invest?demo=1', img: 'invest', name: '투자 인사이트', head: '지난 주가 위의 ▲▼ 핀으로\n그때 무슨 일이 있었는지', desc: '국내 지수·채권지수·금·환율 흐름과 시가총액·업종별 순위, 종목 3개까지 지난 주가를 견줘요. ▲▼ 핀을 누르면 그때 나온 공시와 AI 개요를 읽어요.', cta: '예시로 보기' };
 const REST: Feature[] = [
   { to: '/simulation', img: 'sim', name: '투자 시뮬레이션', head: '지난 시장으로 들어가\n사건마다 직접 판단해 봐요', desc: '업종을 고르면 종목 하나를 무작위로 골라 지난 시세를 하루씩 재생해요. 공시가 나오면 멈추고 매수·유지·매도를 골라 봐요. 실제 주문은 없어요.', cta: '시뮬레이션 해보기' },

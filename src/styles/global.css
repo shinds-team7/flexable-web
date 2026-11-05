@@ -1077,7 +1077,9 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .it-card.on{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
 .it-cards.compact .it-card:hover{border-color:var(--color-border-strong)}
 /* 큰 카드: 위 가운데 아이콘, 글자는 아래. 마우스를 올리면 파란 카드로 */
-.it-cards:not(.compact) .it-card{min-height:440px;padding:28px}
+.it-cards:not(.compact){grid-template-columns:repeat(6,minmax(0,1fr))}
+.it-cards:not(.compact) .it-card{grid-column:span 2;min-height:400px;padding:24px}
+.it-cards:not(.compact) .it-card:nth-child(n+4){grid-column:span 3}
 .it-icon{flex:1;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .it-icon svg{width:112px;height:112px;padding:28px;border-radius:50%;background:var(--brand-soft);color:var(--brand);box-sizing:border-box;transition:background-color 180ms var(--ease),color 180ms var(--ease)}
 .it-cards:not(.compact) .it-card:is(:hover,:focus-visible){background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
@@ -1180,8 +1182,17 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .it-mine{gap:12px}
 .it-answers{display:flex;flex-direction:column;gap:8px}
 @media (max-width:1023px){
-  .it-cards,.it-grid,.it-products{grid-template-columns:minmax(0,1fr)}
+  .it-cards,.it-cards:not(.compact),.it-grid,.it-products{grid-template-columns:minmax(0,1fr)}
+  .it-cards:not(.compact) .it-card,.it-cards:not(.compact) .it-card:nth-child(n+4){grid-column:auto;min-height:0}
 }
+/* 결과 화면: 다섯 유형 중 내 자리 */
+.it-scale{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:0;padding:0;list-style:none}
+.it-scale li{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-muted);text-align:center}
+.it-scale li i{display:block;width:100%;height:8px;border-radius:999px;background:var(--sunken)}
+.it-scale li.on{color:var(--brand-text);font-weight:800}
+.it-scale li.on i{background:var(--brand)}
+.it-area{display:inline-flex;align-self:center;height:24px;align-items:center;padding:0 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand-text);font-size:12px;font-weight:700}
+.it-cap{margin:0;padding:12px 14px;border-radius:var(--radius-soft-sm);background:var(--sunken);font-size:14px;color:var(--text-sub)}
 
 /* 계좌·지수·비율 화면(액티브·패시브 시안에서 유지) */
 .pv-stats{grid-template-columns:repeat(4,minmax(0,1fr))}

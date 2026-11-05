@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import { useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { Pressable, View } from "react-native";
 import { Donut } from "@/real/components/Donut";
 import { Button, Card, Screen, Segment, T } from "@/real/components/ui";
@@ -13,17 +13,32 @@ import {
 } from "./ui";
 import type { Analysis, Today } from "./types";
 import { colors } from "@/real/theme";
+const SPANS = [
+  [1, "1개월"],
+  [3, "3개월"],
+  [6, "6개월"],
+  [12, "1년"],
+] as const;
 export function AnalysisScreen() {
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriod] = useState("week");
+  // "전체"에서 고르는 기간(개월). 서버가 한 번에 읽는 최대 366일 안이다
+  const [span, setSpan] = useState(12);
   const [offset, setOffset] = useState(0);
   const [selection, setSelection] = useState<{
     from: string;
     to: string;
     categoryId: number;
   }>();
+  // 카테고리 거래내역을 보고 돌아올 때는 보던 기간을 그대로 둔다
+  const openedCategory = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      setPeriod("month");
+      if (openedCategory.current) {
+        openedCategory.current = false;
+        return;
+      }
+      setPeriod("week");
+      setSpan(12);
       setOffset(0);
       setSelection(undefined);
     }, []),
@@ -46,13 +61,18 @@ export function AnalysisScreen() {
   const sunday = new Date(d.getTime() + (6 - day) * 86400000)
     .toISOString()
     .slice(0, 10);
-  // "전체" covers the last 366 days, the longest range the API accepts.
+  // "전체" covers the last `span` months up to today (12 months is at most 366 days, the longest range the API accepts).
+  const spanStart = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - span, d.getUTCDate() + 1),
+  )
+    .toISOString()
+    .slice(0, 10);
   const from =
     period === "week"
       ? monday
       : period === "month"
         ? month.toISOString().slice(0, 10)
-        : new Date(d.getTime() - 365 * 86400000).toISOString().slice(0, 10);
+        : spanStart;
   const to = period === "week" ? sunday : period === "month" ? monthEnd : date;
   const result = useResource<Analysis>(
     from ? `/analysis/summary?from=${from}&to=${to}` : null,
@@ -112,9 +132,45 @@ export function AnalysisScreen() {
       {s && !result.loading && (
         <>
           <Card style={{ alignItems: "center", gap: 12 }}>
-            <T style={{ alignSelf: "flex-start" }}>
-              {s.from} ~ {s.to}
-            </T>
+            {period === "all" ? (
+              <View
+                style={{ alignSelf: "flex-end", flexDirection: "row", gap: 6 }}
+              >
+                {SPANS.map(([months, label]) => {
+                  const on = months === span;
+                  return (
+                    <Pressable
+                      key={months}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${label} 기간으로 보기`}
+                      accessibilityState={{ selected: on }}
+                      onPress={() => {
+                        setSpan(months);
+                        setSelection(undefined);
+                      }}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 999,
+                        backgroundColor: on ? colors.brand : colors.sunken,
+                      }}
+                    >
+                      <T
+                        size={12}
+                        weight="700"
+                        color={on ? colors.onBrand : colors.textSub}
+                      >
+                        {label}
+                      </T>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <T style={{ alignSelf: "flex-start" }}>
+                {s.from} ~ {s.to}
+              </T>
+            )}
             <T size={20} weight="800" style={{ alignSelf: "flex-start" }}>
               기록한 지출 {s.expenseCount}건
             </T>
@@ -183,6 +239,7 @@ export function AnalysisScreen() {
                 backgroundColor: colors.bg,
                 borderRadius: 16,
                 padding: 14,
+                marginTop: 14,
               }}
             >
               <T>수입 {money(s.incomeTotal)}원</T>
@@ -225,10 +282,17 @@ export function AnalysisScreen() {
                 <Pressable
                   key={c.categoryId}
                   accessibilityRole="button"
-                  accessibilityLabel={`${c.name} 카테고리 상세 보기`}
-                  onPress={() =>
-                    setSelection({ from, to, categoryId: c.categoryId })
-                  }
+                  accessibilityLabel={`${c.name} 카테고리 거래내역 보기`}
+                  onPress={() => {
+                    openedCategory.current = true;
+                    router.push({
+                      pathname: "/category-transactions",
+                      params: {
+                        categoryId: String(c.categoryId),
+                        name: c.name,
+                      },
+                    });
+                  }}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",

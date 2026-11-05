@@ -1,6 +1,7 @@
 // Coin, costume and referral endpoints (docs/API.md "코인·코스튬"). Screens call these instead of api() directly.
 import { api } from "./api/client";
 import type {
+  Attendance,
   AttendResult,
   CheckIn,
   CoinLedgerPage,
@@ -16,6 +17,7 @@ export const ackRewards = (ids: number[]) =>
   api<void>("/coins/rewards/ack", { method: "POST", body: { ids } });
 export const getWallet = () => api<CoinWallet>("/coins");
 export const collectCoins = () => api<CollectResult>("/coins/collect", { method: "POST" });
+export const getAttendance = () => api<Attendance>("/coins/attendance");
 /** Pays today's attendance once; calling again returns rewarded 0. */
 export const attend = () => api<AttendResult>("/coins/attendance", { method: "POST" });
 /** Newest first. Pass the previous page's nextBefore to read older entries. */

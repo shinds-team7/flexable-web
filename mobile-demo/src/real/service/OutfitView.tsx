@@ -60,7 +60,7 @@ export function OutfitView({
   };
   if (src === null)
     return (
-      <View style={style} {...a11y}>
+      <View style={style} pointerEvents="none" {...a11y}>
         <Poster source={poster} />
       </View>
     );
@@ -91,7 +91,7 @@ function LoopVideo({
 }) {
   const [shown, setShown] = useState(false);
   return (
-    <View style={style} {...a11y}>
+    <View style={style} pointerEvents="none" {...a11y}>
       {createElement("video", {
         src,
         autoPlay: true,

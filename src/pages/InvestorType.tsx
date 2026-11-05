@@ -3,7 +3,7 @@
 // 그 성향이 흔히 고르는 상품 유형·그 유형의 실제 상품(시세 API), 어느 계좌에 담는지를 보여 준다. 기획: docs/product/proposal-investor-type.md
 // 비율별 지난 3년 결과·계좌 예시는 고정 예시 값이고(ADR-3), 상품 목록만 시세 API를 그대로 쓴다. 예·적금은 이 화면에서 다루지 않는다.
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { LineLegend, MultiLineChart, seriesColor } from '@/charts/MultiLineChart';
 import { LinkCards, Notice, PRODUCT_CARD, SIM_PAST, type LinkCardItem } from '@/components/Proto';
 import {
@@ -177,9 +177,8 @@ const EXIT_MS = 300;
 const EXIT_STAGGER_MS = 55;
 const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** /type/test: 한 화면에 한 문항. 답을 고르면 다음 문항, 다 답하면 결과(참고). 답은 저장하지 않는다 */
+/** /type/test: 한 화면에 한 문항. 답을 고르면 다음 문항, 다 답하면 바로 그 유형 상세(/type/:id). 답은 저장하지 않는다 */
 export function InvestorTypeTest() {
-  const nav = useNavigate();
   const [answers, setAnswers] = useState<number[]>([]);
   const [picked, setPicked] = useState<number | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -195,58 +194,10 @@ export function InvestorTypeTest() {
     prevStep.current = step;
   }, [step]);
 
+  // 마지막 답을 고르면 요약 없이 바로 그 유형 상세로 간다. 저장은 하지 않고, 상세의 [내 성향으로 정하기]를 눌러야 한다
   if (step === total) {
     const r = typeResult(answers);
-    const t = findType(r.id)!;
-    return (
-      <section className="page col">
-        <div className="card it-start">
-          <span className="meta">답변으로 보면</span>
-          <h1 className="page-title" ref={headRef} tabIndex={-1}>
-            {t.name}에 가까워요
-          </h1>
-          <b className="it-one">{t.oneLine}</b>
-          <ol className="it-scale" aria-label="다섯 가지 유형 중 내 자리">
-            {INVESTOR_TYPES.map((x) => (
-              <li key={x.id} className={x.id === t.id ? 'on' : ''} aria-current={x.id === t.id ? 'true' : undefined}>
-                <i aria-hidden="true" />
-                {x.name}
-              </li>
-            ))}
-          </ol>
-          <p>{t.summary}</p>
-          <p className="sub">{t.check}</p>
-          {r.capped && <p className="it-cap">{r.capped}</p>}
-          <div>
-            <p className="sub" style={{ margin: '0 0 8px' }}>
-              흔히 알려진 나눠 넣기
-            </p>
-            <MixBar t={t} />
-          </div>
-          <div className="toolbar">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setInvestorType(t.id);
-                nav(`/type/${t.id}`);
-              }}
-            >
-              {t.name}으로 정하기
-            </button>
-            <Link className="btn btn-line" to="/type/choose">
-              다른 성향 보기
-            </Link>
-            <button type="button" className="btn-text" onClick={() => setAnswers([])}>
-              다시 하기
-            </button>
-          </div>
-          <p className="meta">
-            참고용이에요. 금융회사에서 하는 투자자정보 확인·평가를 대신하지 않고, 특정 상품의 가입 가능 여부나 투자 성과를 보장하지 않아요. 성향은 직접 정하고, 언제든 바꿀 수 있어요. 내용은 <Link className="btn-text" to="/type/about">투자성향분석이란?</Link>에서 볼 수 있어요.
-          </p>
-        </div>
-      </section>
-    );
+    return <Navigate to={`/type/${r.id}`} replace state={{ fromTest: true, capped: r.capped }} />;
   }
 
   const { area, q, a } = TYPE_QUESTIONS[step];
@@ -347,6 +298,8 @@ export function InvestorTypeDetail() {
   const { id } = useParams();
   const t = findType(id);
   const mine = useInvestorType();
+  const loc = useLocation();
+  const capped = (loc.state as { fromTest?: boolean; capped?: string | null } | null)?.capped ?? null;
   if (!t) return <Navigate to="/type" replace />;
 
   const more: LinkCardItem[] = [
@@ -383,6 +336,7 @@ export function InvestorTypeDetail() {
       </div>
 
       <div className="card">
+        {capped && <p className="it-cap">{capped}</p>}
         <p>{t.summary}</p>
         <p className="sub">{t.check}</p>
       </div>

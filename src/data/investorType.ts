@@ -1,12 +1,12 @@
-// 투자 성향(안정형·균형형·성장형) 시연 데이터. 기획은 docs/product/proposal-investor-type.md.
-// 성향은 패시브(지수 ETF) : 액티브(고른 종목) 비율로 나눈다. 예·적금은 성향과 따로 다룬다(적금 모아보기).
+// 투자 성향(안정형·안정추구형·위험중립형·적극투자형·공격투자형) 시연 데이터. 유형·설문은 /type/about 설명서를 따른다. 기획은 docs/product/proposal-investor-type.md.
+// 성향마다 패시브(지수 ETF) : 액티브(고른 종목) 비율 예시를 붙인다(100:0 · 70:30 · 50:50 · 30:70 · 0:100). 예·적금은 성향과 따로 다룬다(적금 모아보기).
 // 사용자가 직접 고른 성향은 지금 이 브라우저에만 남긴다(fx.investorType, 방침 제8조).
 // TODO(BE): 회원 저장 PUT /api/v1/me/investor-type, 성향 정의 GET /api/v1/investor-types, 비율 배분 계산(web-api.yaml에 먼저 추가)
 // 금액·비율은 미리 계산해 둔 고정 예시다(isSample). 화면에서 계산하지 않는다(ADR-3).
 // 세율·한도는 2026-10 기준 확인 전 값이다(proposal-active-passive.md §6 사실 확인 목록).
 import { useSyncExternalStore } from 'react';
 
-export type InvestorTypeId = 'stable' | 'balanced' | 'growth';
+export type InvestorTypeId = 'stable' | 'cautious' | 'neutral' | 'active' | 'aggressive';
 
 /** 상품 유형. 목록은 시세 API(ETF·코스피·코스닥)에서 실제 이름을 가져온다 */
 export type ProductKind = 'krIndex' | 'globalIndex' | 'bond' | 'gold' | 'kospi' | 'kosdaq';
@@ -62,15 +62,19 @@ export const ROLLING = [
   { start: '2023.01', rate: 0.263, worstRate: -0.105 },
 ];
 
-/* ───────── 세 성향 ───────── */
+/* ───────── 다섯 성향(solpa 투자성향분석 설명서 /type/about 기준) ───────── */
 
 export type InvestorType = {
   id: InvestorTypeId;
   name: string;
   oneLine: string;
+  /** 설명서의 유형 설명 */
+  summary: string;
+  /** 설명서의 "상품을 살펴볼 때" 확인할 점 */
+  check: string;
   /** 원금이 줄어드는 것 / 돈을 둘 기간 */
   traits: { k: string; v: string }[];
-  /** 액티브(고른 종목) 비율. 나머지는 패시브(지수 ETF) */
+  /** 액티브(고른 종목) 비율. 나머지는 패시브(지수 ETF). 비율별 지난 3년 예시(RATIOS)가 있는 0·30·50·70·100만 쓴다 */
   active: number;
   ways: string[];
   /** 이 성향이 흔히 고르는 상품 유형(보여 주는 순서) */
@@ -81,19 +85,37 @@ export const INVESTOR_TYPES: InvestorType[] = [
   {
     id: 'stable',
     name: '안정형',
-    oneLine: '크게 흔들리지 않는 게 먼저예요',
+    oneLine: '내 돈을 지키는 게 가장 중요해요',
+    summary: '투자한 돈을 지키는 것을 가장 중요하게 생각하는 유형이에요. 수익이 크지 않더라도 원금 손실 가능성이 낮고 자금을 안정적으로 관리할 수 있는 방법을 선호해요.',
+    check: '상품을 살펴볼 때는 원금 손실 가능성과 예금자보호 여부, 필요한 시점에 돈을 찾을 수 있는지부터 확인하는 것이 좋아요.',
+    traits: [
+      { k: '원금이 줄어드는 것', v: '거의 받아들이기 어려워요' },
+      { k: '돈을 둘 기간', v: '짧거나 정해지지 않았어요' },
+    ],
+    active: 0,
+    ways: ['고른 종목 없이 시장 전체를 따라가는 지수 ETF 위주로 매달 넣어요', '채권 ETF를 함께 담아 흔들림을 줄이는 경우가 많아요', '예·적금은 이 화면 밖에서 따로 비교해요'],
+    kinds: ['bond', 'krIndex', 'globalIndex'],
+  },
+  {
+    id: 'cautious',
+    name: '안정추구형',
+    oneLine: '안정이 먼저, 예적금보다는 조금 더 바라요',
+    summary: '자금의 안정성을 중요하게 생각하면서도 예적금보다 높은 수익을 기대하는 유형이에요. 다만 수익을 위해 받아들일 수 있는 손실의 범위는 제한적인 편이에요.',
+    check: '기대수익과 함께 가격이 얼마나 변할 수 있는지, 손실이 생기면 생활에 어떤 영향을 주는지 살펴볼 필요가 있어요.',
     traits: [
       { k: '원금이 줄어드는 것', v: '조금만 줄어도 불안해요' },
-      { k: '돈을 둘 기간', v: '3년 이상' },
+      { k: '돈을 둘 기간', v: '1~3년' },
     ],
     active: 30,
     ways: ['대부분을 시장 전체를 따라가는 지수 ETF에 매달 넣어요', '채권 ETF를 섞어 흔들림을 줄이는 경우가 많아요', '고른 종목은 일부만, 잘 아는 큰 회사 위주로 담아요'],
     kinds: ['krIndex', 'globalIndex', 'bond', 'kospi'],
   },
   {
-    id: 'balanced',
-    name: '균형형',
-    oneLine: '시장만큼 가면서 조금 더 해 보고 싶어요',
+    id: 'neutral',
+    name: '위험중립형',
+    oneLine: '수익과 위험을 함께 놓고 따져 봐요',
+    summary: '투자에는 손실 위험이 따른다는 점을 이해하고, 수익과 위험을 함께 고려하는 유형이에요. 기대하는 수익을 얻기 위해 일정 수준의 손실 가능성을 받아들일 수 있어요.',
+    check: '자금을 여러 자산에 나누는 방법과 투자 기간, 전체 자산에서 위험자산이 차지하는 비중을 함께 생각해 볼 수 있어요.',
     traits: [
       { k: '원금이 줄어드는 것', v: '어느 정도는 기다릴 수 있어요' },
       { k: '돈을 둘 기간', v: '3~5년' },
@@ -103,9 +125,11 @@ export const INVESTOR_TYPES: InvestorType[] = [
     kinds: ['krIndex', 'globalIndex', 'kospi', 'gold'],
   },
   {
-    id: 'growth',
-    name: '성장형',
-    oneLine: '직접 골라서 더 크게 키우고 싶어요',
+    id: 'active',
+    name: '적극투자형',
+    oneLine: '큰 변동도 받아들이며 기회를 찾아요',
+    summary: '높은 수익을 기대하며 비교적 큰 가격 변동과 손실 위험을 받아들일 수 있는 유형이에요. 투자 기회를 적극적으로 살펴보는 경향이 있어요.',
+    check: '상품의 구조를 충분히 이해하고 있는지, 손실이 커졌을 때도 감당할 수 있는 금액으로 투자하는지 확인하는 것이 중요해요.',
     traits: [
       { k: '원금이 줄어드는 것', v: '많이 줄어도 기다릴 수 있어요' },
       { k: '돈을 둘 기간', v: '5년 이상' },
@@ -114,31 +138,78 @@ export const INVESTOR_TYPES: InvestorType[] = [
     ways: ['고른 종목 비중을 크게 두고, 지수 ETF로 바탕을 깔아 둬요', '사건이 생겼을 때 왜 움직였는지 짚어 보며 판단해요', '한 업종에 몰리지 않게 가진 종목을 자주 점검해요'],
     kinds: ['kospi', 'kosdaq', 'globalIndex', 'krIndex'],
   },
+  {
+    id: 'aggressive',
+    name: '공격투자형',
+    oneLine: '높은 수익을 위해 큰 손실 가능성까지 감수해요',
+    summary: '높은 수익을 목표로 큰 가격 변동과 손실 가능성까지 받아들이려는 유형이에요.',
+    check: '위험을 감수할 의향과 별개로 실제 손실 감당 능력도 확인해야 해요. 특히 레버리지나 파생상품처럼 구조가 복잡한 상품은 추가적인 이해와 주의가 필요해요.',
+    traits: [
+      { k: '원금이 줄어드는 것', v: '크게 줄어도 감수할 수 있어요' },
+      { k: '돈을 둘 기간', v: '5년 이상, 여유자금' },
+    ],
+    active: 100,
+    ways: ['직접 고른 종목 위주로 담고, 종목마다 사업·실적을 직접 확인해요', '한 종목·한 업종에 몰리지 않는지 자주 점검해요', '생활비·곧 쓸 돈과 투자금을 확실히 나눠 두고, 감당할 수 있는 금액만 넣어요'],
+    kinds: ['kosdaq', 'kospi', 'globalIndex'],
+  },
 ];
 
 export const findType = (id: string | undefined) => INVESTOR_TYPES.find((t) => t.id === id) ?? null;
 
-/* ───────── 성향 알아보기(질문 10개, 결과는 참고) ───────── */
+/* ───────── 성향 알아보기(질문 12개, 결과는 참고) ───────── */
 
-// 답은 차례로 안정 1점 · 균형 2점 · 성장 3점. 합계 10~16 안정형, 17~23 균형형, 24~30 성장형.
-// 결과는 참고로만 보여 주고, 성향은 사용자가 [정하기]를 눌러야 저장한다. 답은 저장하지 않는다.
-export const TYPE_QUESTIONS: { q: string; a: [string, string, string] }[] = [
-  { q: '투자해 본 적이 있어요?', a: ['처음이에요', '지수 ETF·펀드를 해 봤어요', '종목을 직접 사 봤어요'] },
-  { q: '투자하기 전에 얼마나 알아보는 편이에요?', a: ['거의 안 알아봐요. 깊게 찾아보는 건 부담스러워요', '기사 정도는 찾아봐요', '실적·사업 내용까지 꼼꼼히 알아봐요'] },
-  { q: '투자 앱을 얼마나 자주 열어 볼 것 같아요?', a: ['한 달에 한 번쯤', '일주일에 한 번쯤', '거의 매일'] },
-  { q: '넣은 돈이 한 달 만에 10% 줄었어요. 어떻게 할 것 같아요?', a: ['불안해서 빼고 싶어요', '조금 더 지켜볼래요', '그대로 두고 계속 넣을래요'] },
-  { q: '가진 종목 하나가 30% 내렸어요. 먼저 드는 생각은?', a: ['종목은 안 고르는 게 낫겠어요', '왜 내렸는지 찾아볼래요', '다른 종목과 비교해 다시 골라 볼래요'] },
-  { q: '이 돈이 갑자기 필요해질 일이 있을까요?', a: ['있을 수 있어요', '아마 없을 거예요', '거의 없어요'] },
-  { q: '이 돈을 얼마나 꺼내지 않고 둘 수 있어요?', a: ['3년 이하', '3~5년', '5년 넘게'] },
-  { q: '이 돈으로 가장 바라는 건 뭐예요?', a: ['크게 잃지 않고 조금씩 불리기', '시장만큼은 따라가기', '흔들려도 크게 불리기'] },
-  { q: '지난 결과를 볼 때 더 마음이 놓이는 건?', a: ['크게 줄어든 적이 없었던 것', '줄어든 만큼 다시 오른 것', '크게 줄어도 결국 많이 오른 것'] },
-  { q: '더 끌리는 쪽은?', a: ['시장 전체를 따라 꾸준히', '시장을 따르면서 일부만 직접', '직접 고른 종목 위주로'] },
+// 설명서가 말한 네 영역(자금 여건 · 투자 경험과 이해도 · 투자 목표와 태도 · 투자 기간)을 묻는다.
+// 선택지는 위험을 덜 받아들이는 쪽부터 놓고, 답마다 1점부터 차례로 더한다(선택지 수가 달라도 같은 비율로 맞춘다).
+// 합계를 0~1로 바꿔 0.2·0.4·0.6·0.8 미만으로 안정형 → 공격투자형을 나눈다.
+// 덧붙인 규칙 2개(질문 9 "줄어드는 건 안 돼요" → 안정형, 질문 12 "1년 안에" → 안정추구형까지)는 TYPE_CAPS.
+// 결과는 참고로만 보여 주고, 성향은 사용자가 [정하기]를 눌러야 저장한다. 답은 저장하지 않는다(방침 제8조).
+export type TypeQuestion = { area: string; q: string; a: string[] };
+
+export const TYPE_QUESTIONS: TypeQuestion[] = [
+  { area: '자금 여건', q: '나이대가 어떻게 되세요?', a: ['60세 이상', '50대', '40대', '30대', '20대 이하'] },
+  { area: '자금 여건', q: '수입은 어떤 편이에요?', a: ['정기 수입이 없어요', '정기 수입이 있지만 생활비로 거의 써요', '정기 수입이 있고 어느 정도 남아요', '정기 수입이 안정적이고 여유가 커요'] },
+  { area: '자금 여건', q: '이 투자금은 내 금융자산(예금·투자 등) 중 얼마쯤이에요?', a: ['절반 넘게', '30~50%', '10~30%', '10% 미만'] },
+  { area: '자금 여건', q: '투자금이 줄어도 생활비나 예정된 지출에 문제가 없을까요?', a: ['문제가 생겨요', '일부는 조정해야 해요', '큰 문제는 없어요', '전혀 영향이 없어요'] },
+  { area: '투자 경험과 이해도', q: '지금까지 투자해 본 상품 중 위험이 가장 큰 건?', a: ['투자해 본 적이 없어요', '채권·원금이 지켜지는 상품', '펀드·지수 ETF', '주식 직접 투자', '레버리지·파생상품'] },
+  { area: '투자 경험과 이해도', q: '투자한 경험은 얼마나 됐어요?', a: ['없거나 1년 미만', '1~3년', '3~5년', '5년 이상'] },
+  { area: '투자 경험과 이해도', q: '투자 상품의 수익과 손실 구조를 얼마나 이해하고 있나요?', a: ['거의 몰라요', '예금과 달리 원금이 줄 수 있다는 정도 알아요', '수익과 손실이 어떻게 나는지 설명할 수 있어요', '설명서를 직접 읽고 구조까지 확인해요'] },
+  { area: '투자 목표와 태도', q: '이 돈으로 가장 바라는 건 뭐예요?', a: ['원금을 지키는 것', '예·적금보다 조금 더 불리기', '시장 수익만큼 불리기', '위험이 있어도 크게 불리기'] },
+  { area: '투자 목표와 태도', q: '원금이 얼마까지 줄어드는 건 받아들일 수 있어요?', a: ['줄어드는 건 안 돼요', '5% 안쪽', '10% 안쪽', '20% 안쪽', '20%를 넘어도 기회라면 괜찮아요'] },
+  { area: '투자 목표와 태도', q: '넣은 돈이 한 달 만에 10% 줄었어요. 어떻게 할 것 같아요?', a: ['불안해서 대부분 뺄래요', '일부를 빼서 줄일래요', '그대로 지켜볼래요', '기회라고 보고 더 넣을래요'] },
+  { area: '투자 목표와 태도', q: '더 끌리는 결과는?', a: ['손실 없이 연 3%', '연 5%, 줄어도 5% 안쪽', '연 10%, 줄면 15%까지', '연 20% 이상, 줄면 30% 넘게'] },
+  { area: '투자 기간', q: '이 돈은 언제쯤 쓸 예정이에요?', a: ['1년 안에', '1~3년 사이', '3~5년 사이', '5년이 넘어서'] },
 ];
 
-/** 답(0·1·2 = 안정·균형·성장)으로 가까운 성향 */
-export function typeFromAnswers(answers: number[]): InvestorTypeId {
-  const score = answers.reduce((s, a) => s + a + 1, 0);
-  return score <= 16 ? 'stable' : score <= 23 ? 'balanced' : 'growth';
+/** 점수 규칙에 덧붙인 제한(질문 번호는 0부터). 걸리면 결과 화면에 이유를 보여 준다 */
+export type TypeCap = { question: number; answer: number; max: InvestorTypeId; reason: string };
+export const TYPE_CAPS: TypeCap[] = [
+  { question: 8, answer: 0, max: 'stable', reason: '원금이 줄어드는 건 안 된다고 답해서 안정형으로 봤어요.' },
+  { question: 11, answer: 0, max: 'cautious', reason: '1년 안에 쓸 돈이라 점수와 관계없이 안정추구형까지만 봤어요. 곧 쓸 돈은 가격이 내려가 있을 때 꺼내야 할 수 있어요.' },
+];
+
+const ORDER: InvestorTypeId[] = INVESTOR_TYPES.map((t) => t.id);
+
+/** 답(선택지 번호)으로 가까운 성향. level은 0~1 위험 감내 점수, capped는 점수보다 낮게 정했을 때의 이유 */
+export function typeResult(answers: number[]): { id: InvestorTypeId; level: number; capped: string | null } {
+  let sum = 0;
+  let min = 0;
+  let max = 0;
+  TYPE_QUESTIONS.forEach((x, i) => {
+    sum += (answers[i] ?? 0) + 1;
+    min += 1;
+    max += x.a.length;
+  });
+  const level = max === min ? 0 : (sum - min) / (max - min);
+  let idx = level < 0.2 ? 0 : level < 0.4 ? 1 : level < 0.6 ? 2 : level < 0.8 ? 3 : 4;
+  let capped: string | null = null;
+  for (const c of TYPE_CAPS) {
+    const limit = ORDER.indexOf(c.max);
+    if (answers[c.question] === c.answer && idx > limit) {
+      idx = limit;
+      capped = c.reason;
+    }
+  }
+  return { id: ORDER[idx], level, capped };
 }
 
 /** 상품 유형 설명. match는 ETF 이름으로 유형을 나누는 기준(시세 API 이름 그대로), skip은 빼는 이름 */
@@ -233,7 +304,10 @@ const listeners = new Set<() => void>();
 function read(): InvestorTypeId | null {
   try {
     const v = localStorage.getItem(KEY);
-    return v === 'stable' || v === 'balanced' || v === 'growth' ? v : null;
+    // 세 성향 때 저장한 값(balanced·growth)은 가까운 새 유형으로 옮겨 읽는다
+    if (v === 'balanced') return 'neutral';
+    if (v === 'growth') return 'active';
+    return v === 'stable' || v === 'cautious' || v === 'neutral' || v === 'active' || v === 'aggressive' ? v : null;
   } catch {
     return null;
   }

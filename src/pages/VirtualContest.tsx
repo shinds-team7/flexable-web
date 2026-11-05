@@ -38,7 +38,7 @@ function Rules({ info }: { info: ContestInfo }) {
       <li>매달 1일 00시에 열고 다음 달 1일 00시에 마감해요. 시즌마다 배치고사 {r.placementQuestions}문제로 시작 판을 정해요(맞힌 수 {r.placementCuts.B50M}개 이상 5천만 판, {r.placementCuts.B100M}개 이상 1억 판, 그 아래 1천만 판).</li>
       <li>배치고사는 실제 과거 공시 10개(경향이 뚜렷한 유형 6개 + 나머지 4개)를 보고 그 뒤 5거래일 동안 오를지 내릴지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜는 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
       <li>한 판은 지금 대회 잔액 전부로 시작하고 120거래일 동안 사건 {r.eventsPerRound}개를 만나요. 판이 끝난 총자산이 다음 판의 잔액이 되고, 대회 판은 채점하지 않아요.</li>
-      <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 그날 {r.roundsForDailyScore}판을 모두 하면 평균이 {pp(r.dailyTargetRate)} 이상일 때 +1, 못 미치면 −1이고, {r.roundsForDailyScore}판을 채우지 않은 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
+      <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 −1이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 +1, 덜 했으면 0이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
       <li>주(1~7일, 8~14일, 15~21일, 22~28일, 29일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 승급, {points(r.weeklyDemoteAt)} 이하면 한 단계 강등이에요. 판이 바뀌면 잔액은 새 판의 대회 시드머니로 다시 시작해요.</li>
       <li>판이 끝난 뒤 잔액이 {money(r.liquidationBelow)} 미만이면 이번 시즌은 청산되어 더 할 수 없어요.</li>
       <li>순위는 판 점수 → 매매 성과 평균 → 그 값에 먼저 도달한 순서로 정하고, 판별 상위 {r.rankingTop}위와 내 순위를 회원만 봐요. 이름 대신 서버가 붙인 별명이 보여요.</li>
@@ -147,7 +147,7 @@ function Dashboard({ entry, onPlay, busy }: { entry: ContestEntry; onPlay: () =>
         <h2 id="contestTodayTitle">오늘 목표</h2>
         <p className="contest-big">{rate == null ? (t.rounds ? '오늘 끝낸 판이 아직 없어요' : '오늘 아직 판을 하지 않았어요') : <>오늘 매매 성과 평균 <b className={tone(rate)}>{pp(rate)}</b> · 목표 {pp(t.targetRate)} 이상</>}</p>
         <div className="contest-meter" aria-hidden="true"><span style={{ width: `${progress * 100}%` }} /></div>
-        <p className="practice-muted">{t.startBalance == null ? `하루 10판을 모두 하면 매매 성과(내 판 수익률 − 가만히 있었을 때 수익률)의 평균이 ${pp(t.targetRate)} 이상일 때 +1점, 못 미치면 −1점이에요. 10판을 채우지 않은 날은 0점이에요.` : `오늘 끝낸 판마다 "내 판 수익률 − 가만히 있었을 때 수익률"을 평균한 값이에요. 10판을 모두 해야 하루 점수를 매겨요(지금 ${t.rounds}/10판).`}</p>
+        <p className="practice-muted">{t.startBalance == null ? `매매 성과(내 판 수익률 − 가만히 있었을 때 수익률)의 그날 평균이 ${pp(t.targetRate)}에 못 미치면 −1점이에요. 목표 이상이면 10판을 모두 했을 때 +1점, 덜 했으면 0점이에요. 판을 안 한 날은 0점이에요.` : `오늘 끝낸 판마다 "내 판 수익률 − 가만히 있었을 때 수익률"을 평균한 값이에요. +1점은 10판을 모두 해야 받아요(지금 ${t.rounds}/10판).`}</p>
         <div className="contest-play">
           <span>오늘 {t.rounds}판 · <b>{t.roundsLeft}판 남음</b></span>
           <button className="btn btn-primary" type="button" onClick={onPlay} disabled={busy || entry.liquidated || t.roundsLeft === 0}>{entry.activeRound ? '진행 중인 판 대신 새 판 시작' : '판 시작'}</button>

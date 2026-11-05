@@ -529,7 +529,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 			Long startBalance = rounds.isEmpty() ? null : rounds.getFirst().startBalance();
 			Long endBalance = rounds.stream().max(Comparator.comparing(RoundRow::endedAt).thenComparingLong(RoundRow::id)).map(RoundRow::endBalance).orElse(null);
 			BigDecimal rate = VirtualContestRules.dayRate(roundRates(rounds));
-			// 그날 10판을 모두 시작한 날만 점수를 매긴다(끊긴 판 포함)
+			// +1은 그날 10판을 모두 시작한 날만(끊긴 판 포함), 못 미치면 판 수와 상관없이 −1
 			int points = VirtualContestRules.dailyPoints(rate, rounds.size());
 			EntryRow before = e;
 			Instant at = now();

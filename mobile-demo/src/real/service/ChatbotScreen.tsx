@@ -13,19 +13,8 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import {
-  type ViewStyle,
-  Animated,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { type ViewStyle, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Modal } from "@/components/PhoneModal";
 import Svg, {
   Defs,
   Ellipse,
@@ -780,7 +769,7 @@ function Menu({
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "web" ? undefined : "padding"}
     >
       <RoomHeader onBack={onBack} onSettings={onSettings} />
       <EnterView>
@@ -866,10 +855,18 @@ function Chat({
 }) {
   const scroll = useRef<ScrollView>(null);
   const m = mates.find((x) => x.id === mate)!;
+  // 키보드가 올라오면 가장 최근 대화가 키보드 바로 위에 보이게 맨 아래로 내린다.
+  useEffect(() => {
+    const sub = Keyboard.addListener(
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+      () => setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50),
+    );
+    return () => sub.remove();
+  }, []);
   return (
     <KeyboardAvoidingView
       style={styles.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "web" ? undefined : "padding"}
     >
       <RoomHeader onBack={onBack} onSettings={onSettings} />
       <EnterView style={{ backgroundColor: "#F6F8FC" }}>

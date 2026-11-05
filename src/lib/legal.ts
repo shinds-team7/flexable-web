@@ -1,5 +1,5 @@
 // 약관·개인정보처리방침 주소. 웹과 앱은 같은 운영자지만 개인정보처리방침은 각자 둔다(웹은 pages/Privacy, 앱은 앱 웹).
-// 이용약관·고객지원은 아직 앱 웹(flexable-app) 것을 쓴다.
+// 이용약관은 앱 웹(flexable-app)을 쓰고, 웹 고객지원은 /support에 둔다.
 
 /** 앱 웹. 이용약관·고객지원과 웹 방침 시행 전의 개인정보처리방침이 있다. */
 export const LEGAL_BASE = 'https://project2-flex-sh.vercel.app';

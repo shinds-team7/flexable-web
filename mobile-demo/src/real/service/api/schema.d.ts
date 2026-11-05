@@ -1798,6 +1798,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ads/reward-callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AdMob 보상형 광고 서버 검증(SSV) 콜백. 앱이 부르지 않고 구글 서버가 부른다
+         * @description 서명이 맞으면 user_id에게 10코인(하루 3회, transaction_id당 한 번)을 준다. 이미 줬거나 한도를 넘어도 200
+         */
+        get: {
+            parameters: {
+                query: {
+                    transaction_id: string;
+                    user_id: string;
+                    signature: string;
+                    key_id: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 처리함(지급했거나 이미 줬거나 한도 초과) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description user_id·transaction_id 형식 오류 */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description 서명이 맞지 않음 */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2371,6 +2427,15 @@ export interface components {
         Wallet: {
             /** Format: int64 */
             balance: number;
+            /** @description 보상형 광고(상점 [광고 보기]). 보상은 AdMob 서버 검증 콜백이 지급하므로 앱은 광고를 본 뒤 이 값을 다시 읽는다 */
+            ad: {
+                /** @description 오늘 받은 횟수(KST) */
+                rewardedToday: number;
+                /** @description 하루 한도(3) */
+                dailyLimit: number;
+                /** @description 1회 코인(10) */
+                reward: number;
+            };
             passive: {
                 collectable: number;
                 collectedToday: number;
@@ -2385,7 +2450,7 @@ export interface components {
             /** Format: int64 */
             id: number;
             /** @enum {string} */
-            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE";
+            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE" | "AD_REWARD";
             amount: number;
             /**
              * Format: date
@@ -2399,7 +2464,7 @@ export interface components {
             /** Format: int64 */
             id: number;
             /** @enum {string} */
-            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE";
+            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE" | "AD_REWARD";
             /** @description 적립은 양수, 사용(PURCHASE)은 음수 */
             amount: number;
             /**

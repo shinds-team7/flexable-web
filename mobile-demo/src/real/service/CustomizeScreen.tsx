@@ -1,13 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 import { Button, Card, Screen, T } from "@/real/components/ui";
 import { SubHeader } from "@/real/components/SubHeader";
+import { levelLabel, levelName } from "@/real/components/LevelIcon";
 import { colors, radius } from "@/real/theme";
 import { sessionGeneration } from "./api/client";
 import {
-  collectCoins,
   demoUnlockOutfit,
   equipOutfit,
   getOutfits,
@@ -16,15 +16,20 @@ import {
 } from "./coinApi";
 import { DemoLock } from "./DemoUnlock";
 import { useToast } from "@/real/components/Toast";
+import { AdRewardCard } from "./AdRewardCard";
+import { showRewardedAd } from "./adReward";
+import { useSession } from "./Session";
 import { DEFAULT_OUTFIT_ID } from "./outfits";
 import { OutfitView } from "./OutfitView";
 import { PurchaseModal } from "./PurchaseModal";
-import type { CoinWallet, Outfit, OutfitList } from "./types";
+import type { Outfit, OutfitList } from "./types";
 import { ErrorNotice, Loading, money } from "./ui";
 import { publishWallet, useWallet } from "./wallet";
 
-// 레벨 코스튬은 모두 3개가 될 예정이라, 아직 열리지 않은(서버에 없는) 칸은 자물쇠로 채운다.
-const LEVEL_SLOTS = 3;
+// 레벨 코스튬은 6단계(광부·마구간지기·상인·기사·귀족·왕족)다. 디자인 중이라 서버가 아직 내려 주지 않는 칸은
+// cat-unlock 실루엣과 자물쇠로 채운다.
+const LEVEL_SLOTS = 6;
+const UNLOCK_CAT = require("../../../assets/real/outfits/cat-unlock.png");
 
 export function CustomizeScreen() {
   const [list, setList] = useState<OutfitList>();
@@ -37,6 +42,8 @@ export function CustomizeScreen() {
   const [breaking, setBreaking] = useState<string | null>(null);
   const toast = useToast();
   const wallet = useWallet();
+  const { user } = useSession();
+  const [adMessage, setAdMessage] = useState("");
   const lock = useRef(false);
   const focus = useRef(0);
 
@@ -44,7 +51,7 @@ export function CustomizeScreen() {
     const seq = ++focus.current;
     const generation = sessionGeneration();
     setLoadError(undefined);
-    // Only the collect button needs the wallet; without it the shop still works from the outfit list.
+    // Only the ad button needs the wallet; without it the shop still works from the outfit list.
     getWallet()
       .then((w) => publishWallet(w, generation))
       .catch(() => {});
@@ -117,12 +124,32 @@ export function CustomizeScreen() {
     else load();
     toast("코스튬을 해금했어요");
   };
-  const collect = () =>
+  // 보상은 구글 검증 콜백이 서버에서 지급하므로, 광고를 본 뒤 지갑을 다시 읽어 늘었는지 확인한다(몇 초 걸릴 수 있다).
+  const watchAd = () =>
     run(async () => {
+      if (!user) return;
+      setAdMessage("");
       const generation = sessionGeneration();
-      const r = await collectCoins();
-      publishWallet(r.wallet, generation);
-      setList((l) => l && { ...l, balance: r.wallet.balance });
+      const before = wallet?.ad.rewardedToday ?? 0;
+      const result = await showRewardedAd(user.id);
+      if (result === "failed") {
+        setAdMessage("광고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요");
+        return;
+      }
+      if (result === "closed") {
+        setAdMessage("광고를 끝까지 봐야 코인을 받아요");
+        return;
+      }
+      for (let i = 0; i < 8; i++) {
+        const w = await getWallet();
+        publishWallet(w, generation);
+        if (w.ad.rewardedToday > before) {
+          setList((l) => l && { ...l, balance: w.balance });
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      setAdMessage("코인 지급이 조금 늦어지고 있어요. 잠시 후 다시 확인해 주세요");
     });
   const apply = (id: string) =>
     run(async () => {
@@ -146,11 +173,12 @@ export function CustomizeScreen() {
         {!list && !loadError && <Loading />}
         {list && selected && (
           <>
-            <CoinCard
+            <AdRewardCard
               balance={list.balance}
               wallet={wallet}
               busy={busy}
-              onCollect={collect}
+              message={adMessage}
+              onWatch={watchAd}
             />
             <Card style={{ alignItems: "center", gap: 12 }}>
               <OutfitView
@@ -204,6 +232,7 @@ export function CustomizeScreen() {
               selected={selected}
               onSelect={setSelected}
               empty={Math.max(0, LEVEL_SLOTS - levels.length)}
+              emptyFrom={levels.length + 1}
             />
             <T size={14} weight="700" color={colors.textSub}>
               코인 코스튬
@@ -229,64 +258,6 @@ export function CustomizeScreen() {
         onClose={() => setBought(null)}
       />
     </View>
-  );
-}
-
-/** 잔액과 [모으기]. 지갑을 못 받았으면(코인 API가 없는 서버) 잔액만 보인다 */
-function CoinCard({
-  balance,
-  wallet,
-  busy,
-  onCollect,
-}: {
-  balance: number;
-  wallet: CoinWallet | null;
-  busy: boolean;
-  onCollect: () => void;
-}) {
-  const ready = wallet?.passive.collectable ?? 0;
-  const hint = wallet && ready <= 0 ? collectHint(wallet) : "";
-  return (
-    <Card style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-      <View style={{ flex: 1, gap: 2 }}>
-        <View accessible accessibilityLabel={`코인 ${balance}개`}>
-          <T size={24} weight="800" num>
-            🪙 {money(balance)}
-          </T>
-        </View>
-        {hint !== "" && (
-          <T size={12} color={colors.textMuted}>
-            {hint}
-          </T>
-        )}
-      </View>
-      {wallet && (
-        <View>
-          <Button
-            label={ready > 0 ? `모으기 +${ready}` : "모으기"}
-            disabled={busy || ready <= 0}
-            onPress={onCollect}
-            style={{ minHeight: 44, paddingVertical: 8, paddingHorizontal: 18 }}
-          />
-          {ready > 0 && (
-            <View
-              accessibilityLabel="모을 코인 있음"
-              style={{
-                position: "absolute",
-                top: 2,
-                right: 2,
-                width: 9,
-                height: 9,
-                borderRadius: 5,
-                borderWidth: 1.5,
-                borderColor: colors.card,
-                backgroundColor: colors.danger,
-              }}
-            />
-          )}
-        </View>
-      )}
-    </Card>
   );
 }
 
@@ -317,7 +288,7 @@ function Action({
         style={stretch}
       />
     );
-  // 시연: 실제 앱의 'Lv.N 달성 시 열림' 대신 바로 여는 [해금하기]
+  // 시연: 실제 앱의 '달성 시 열림' 대신 바로 여는 [해금하기]
   if (outfit.unlockLevel !== null)
     return (
       <View style={{ alignSelf: "stretch", gap: 6 }}>
@@ -329,7 +300,7 @@ function Action({
           style={stretch}
         />
         <T size={12} color={colors.textMuted} style={{ textAlign: "center" }}>
-          실제 앱에서는 Lv.{outfit.unlockLevel}을 달성하면 열려요. 시연에서는 바로 무료로 열어요
+          실제 앱에서는 {levelLabel(outfit.unlockLevel)}을 달성하면 열려요. 시연에서는 바로 무료로 열어요
         </T>
       </View>
     );
@@ -350,24 +321,26 @@ function Grid({
   selected,
   onSelect,
   empty = 0,
+  emptyFrom = 1,
 }: {
   items: Outfit[];
   selected: string;
   onSelect: (id: string) => void;
   empty?: number;
+  /** 첫 준비 중 칸의 레벨(이름을 붙인다) */
+  emptyFrom?: number;
 }) {
   return (
     <View style={grid.wrap}>
       {items.map((o) => {
         const on = o.id === selected;
-        const caption =
-          o.unlockLevel === null
-            ? `🪙 ${money(o.price ?? 0)}`
-            : o.equipped
-              ? "적용 중"
-              : o.owned
-                ? "보유"
-                : `Lv.${o.unlockLevel}`;
+        const caption = o.equipped
+          ? "적용 중"
+          : o.owned
+            ? "보유 중"
+            : o.unlockLevel === null
+              ? `${money(o.price ?? 0)} 코인`
+              : levelLabel(o.unlockLevel);
         return (
           <Pressable
             key={o.id}
@@ -395,15 +368,22 @@ function Grid({
         <View
           key={`empty-${i}`}
           accessible
-          accessibilityLabel="준비 중인 코스튬"
+          accessibilityLabel={`${levelName(emptyFrom + i)} 코스튬, 준비 중`}
           style={grid.cell}
         >
           <View style={[grid.thumb, grid.center]}>
-            <Ionicons name="lock-closed" size={18} color={colors.textMuted} />
+            <Image
+              source={UNLOCK_CAT}
+              resizeMode="contain"
+              tintColor={colors.textFaint}
+              style={grid.unlockCat}
+            />
+            <View style={[StyleSheet.absoluteFill, grid.center]}>
+              <Ionicons name="lock-closed" size={18} color={colors.textMuted} />
+            </View>
           </View>
-          {/* 이름 칸 높이를 맞춰 옆 칸과 줄이 어긋나지 않게 한다 */}
-          <T size={12} aria-hidden>
-            {"\u00A0"}
+          <T size={12} color={colors.textMuted}>
+            {levelLabel(emptyFrom + i)}
           </T>
         </View>
       ))}
@@ -443,16 +423,5 @@ const grid = StyleSheet.create({
     backgroundColor: "rgba(16, 24, 40, 0.32)",
   },
   center: { alignItems: "center", justifyContent: "center" },
+  unlockCat: { width: "100%", height: "86%", opacity: 0.55 },
 });
-
-function collectHint(w: CoinWallet): string {
-  const { collectedToday, dailyLimit, nextAt } = w.passive;
-  if (collectedToday >= dailyLimit) return "오늘 코인을 모두 모았어요";
-  if (!nextAt) return "";
-  const at = new Date(nextAt).toLocaleTimeString("ko-KR", {
-    timeZone: "Asia/Seoul",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `다음 코인은 ${at}에 쌓여요`;
-}

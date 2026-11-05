@@ -75,6 +75,53 @@ function SeedChip() {
   );
 }
 
+function ProfileMenu() {
+  const { user } = useSession();
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => setOpen(false), [location]);
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+
+  return (
+    <div className="profile-menu" ref={box} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
+    }}>
+      <button ref={trigger} type="button" className="avatar" aria-label={`${displayName(user)} 프로필 메뉴`}
+        aria-expanded={open} aria-controls="profile-links" onClick={() => setOpen((value) => !value)}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" />
+        </svg>
+      </button>
+      {open && <nav className="profile-links" id="profile-links" aria-label="프로필" onClick={() => setOpen(false)}>
+        <Link to="/mypage">마이페이지</Link>
+        <Link to="/mypage/settings">설정</Link>
+        <Link to="/support">고객지원</Link>
+      </nav>}
+    </div>
+  );
+}
+
 export function Layout() {
   return (
     <LoginModalProvider>
@@ -85,7 +132,7 @@ export function Layout() {
 
 function LayoutBody() {
   const { openLogin } = useLoginModal();
-  const { status, user } = useSession();
+  const { status } = useSession();
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
   const [closedSub, setClosedSub] = useState<string | null>(null);
@@ -133,14 +180,7 @@ function LayoutBody() {
               메뉴
             </button>
             {member && <SeedChip />}
-            {member && (
-              <Link className="avatar" to="/mypage" aria-label={`${displayName(user)} 마이페이지`}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z" />
-                </svg>
-              </Link>
-            )}
+            {(member || exploring) && <ProfileMenu />}
             {status === 'guest' && (
               <button type="button" className="nav-login" onClick={() => openLogin()}>
                 로그인
@@ -154,7 +194,7 @@ function LayoutBody() {
           </div>
         </div>
       </header>
-      {exploring && (
+      {exploring && pathname !== '/support' && (
         <div className="demo-banner" role="status">
           <div className="wrap">
             <span>{['/deposit', '/parking', '/cma'].includes(pathname)
@@ -183,7 +223,7 @@ export function Footer() {
       <a href={`${LEGAL_BASE}/terms`}>이용약관</a>
       <a href={privacyHref}>개인정보처리방침</a>
       {privacyNotice && <Link to="/privacy">웹 개인정보처리방침 시행 안내({fmtEffective()})</Link>}
-      <a href={`${LEGAL_BASE}/support`}>고객지원</a>
+      <Link to="/support">고객지원</Link>
       <a href={PLAY_URL} target="_blank" rel="noreferrer">
         앱 받기(Google Play)
       </a>

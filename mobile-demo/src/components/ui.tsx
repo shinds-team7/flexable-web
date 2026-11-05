@@ -1,20 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import {
-  AccessibilityInfo,
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text as RNText,
-  View,
-  type PressableProps,
-  type StyleProp,
-  type TextProps,
-  type ViewStyle,
-} from 'react-native';
+import { AccessibilityInfo, Animated, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, View, type PressableProps, type StyleProp, type TextProps, type ViewStyle } from "react-native";
+import { Modal } from "@/components/PhoneModal";
 
 import { colors, floating, font, motion, pressed as pressedFx, pressTransition, radius } from '@/theme';
 

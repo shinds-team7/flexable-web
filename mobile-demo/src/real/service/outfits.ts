@@ -34,6 +34,14 @@ const VIDEOS: Record<string, { video: number; poster: ImageSourcePropType }> = {
     video: require("../../../assets/real/outfits/outfit-05.mp4"),
     poster: require("../../../assets/real/outfits/outfit-05.jpg"),
   },
+  "outfit-07": {
+    video: require("../../../assets/real/outfits/outfit-07.mp4"),
+    poster: require("../../../assets/real/outfits/outfit-07.jpg"),
+  },
+  "outfit-08": {
+    video: require("../../../assets/real/outfits/outfit-08.mp4"),
+    poster: require("../../../assets/real/outfits/outfit-08.jpg"),
+  },
 };
 
 /** 정지 그림(첫 장면). null이면 기본 캐릭터. 영상이 아직 없는 id(앱보다 서버에 먼저 추가된 상품 포함)는 기본 캐릭터 그림 */

@@ -23,6 +23,7 @@ import Privacy from '@/pages/Privacy';
 import { Cma, Deposit, Parking } from '@/pages/LumpSum';
 import Savings from '@/pages/Savings';
 import Signup from '@/pages/Signup';
+import Support from '@/pages/Support';
 
 // 화면·경로 기준: docs/product/README.md §5. 새 화면은 Placeholder 자리를 바꿔 끼운다.
 export const router = createBrowserRouter([
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
       { path: '/mypage/settings', element: <Me /> },
       { path: '/me', element: <Navigate to="/mypage/settings" replace /> },
       { path: '/privacy', element: <Privacy /> },
+      { path: '/support', element: <Support /> },
       {
         path: '*',
         element: (

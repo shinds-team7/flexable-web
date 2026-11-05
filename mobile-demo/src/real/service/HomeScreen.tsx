@@ -1,3 +1,4 @@
+import { CoinIcon } from "@/real/components/CoinIcon";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,12 +15,14 @@ import {
   pointsStatus,
   type PaceStatus,
 } from "@/real/components/CharacterStage";
+import { LevelGuide } from "./LevelGuide";
 import { AttendanceModal } from "./AttendanceModal";
 import { WeekExpensesSheet } from "./WeekExpensesSheet";
 import { OutfitView } from "./OutfitView";
 import { RewardModal } from "./RewardModal";
 import { sessionGeneration } from "./api/client";
-import { ackRewards, checkIn } from "./coinApi";
+import { ackRewards, checkIn, getAttendance } from "./coinApi";
+import { levelName } from "@/real/components/LevelIcon";
 import { TodayHeroView } from "@/real/components/TodayHeroView";
 import { colors } from "@/real/theme";
 import { SeedMoneyCard } from "./SeedMoneyCard";
@@ -44,7 +47,9 @@ export function HomeScreen() {
   const wallet = useWallet();
   const [rewards, setRewards] = useState<CoinReward[]>([]);
   const checking = useRef(false);
-  // Opening or returning to the home runs check-in; the header shop button reads the wallet it returns.
+  // 자동 출석 모달은 하루(서버 날짜)에 한 번만 연다. 실패하거나 닫아도 같은 날 또 띄우지 않는다.
+  const autoDay = useRef<string | null>(null);
+  // Opening or returning to the home runs check-in; the coin chip reads the wallet it returns.
   const runCheckIn = useCallback(() => {
     if (checking.current) return;
     checking.current = true;
@@ -61,6 +66,13 @@ export function HomeScreen() {
           if (r.rewards.some((x) => x.reason === "BUDGET_BONUS"))
             setAttendance(true);
         }
+      })
+      .then(() => getAttendance())
+      .then((a) => {
+        // 자정이 지난 뒤 처음 열었으면 출석 모달이 열려 출석을 자동으로 처리한다
+        if (a.checkedToday || autoDay.current === a.today) return;
+        autoDay.current = a.today;
+        setAttendance(true);
       })
       .catch(() => {})
       .finally(() => {
@@ -139,11 +151,21 @@ export function HomeScreen() {
             <CharacterStage
               level={status.level}
               character={
-                <OutfitView
-                  outfitId={wallet?.equippedOutfitId ?? null}
-                  style={{ flex: 1 }}
-                  accessibilityLabel={`Lv.${status.level} 캐릭터`}
-                />
+                // Android의 영상 뷰(네이티브)가 터치를 먹어 Pressable로 감싸면 눌러도 반응이 없었다.
+                // 영상은 터치를 받지 않게 하고, 그 위에 투명한 Pressable을 따로 덮는다.
+                <View style={{ flex: 1 }}>
+                  <OutfitView
+                    outfitId={wallet?.equippedOutfitId ?? null}
+                    style={{ flex: 1 }}
+                    accessibilityLabel={`${levelName(status.level)} 단계 캐릭터`}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${levelName(status.level)} 단계 캐릭터, 상점 열기`}
+                    onPress={() => router.push("/customize")}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </View>
               }
               coin={<CoinChip balance={wallet?.balance ?? 0} />}
               attendance={
@@ -258,20 +280,8 @@ export function HomeScreen() {
               onClose={() => setLevelHelp(false)}
               title="레벨업 조건 및 가이드"
             >
-              <ScrollView contentContainerStyle={{ gap: 12 }}>
-                <T>
-                  하루 예산 이하로 쓰면 +15점, 넘으면 −50점이에요. 점수는
-                  0~200점이며 오늘 결과는 내일 반영돼요
-                </T>
-                <T>Lv.1은 0~99점, Lv.2는 100~199점, Lv.3은 200점이에요</T>
-                <T>
-                  고정지출 자동 기록은 판정에서 제외해요. 앱을 열지 않은 날은
-                  마지막으로 확인한 하루 예산을 기준으로 해요
-                </T>
-                <T>
-                  한 번 달성한 레벨의 코스튬은 점수가 내려가도 해금 상태가
-                  유지돼요
-                </T>
+              <ScrollView>
+                <LevelGuide />
               </ScrollView>
             </Sheet>
             <WeekExpensesSheet
@@ -351,10 +361,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.9)",
   },
 });
-// Mirrors the server rule in docs/API.md: a kept day adds 15 points, an overspent day takes 50, within 0-200 (Lv.3 for now).
-const UP = 15;
-const DOWN = 50;
-const MAX = 200;
+// Mirrors the server rule in docs/policies.md §4: attending adds 10, a kept day adds 20, an overspent day takes 50, within 0-500.
+// The home screen shows after the attendance modal, so the hint counts today's attendance: kept 10+20, overspent 10-50.
+const UP = 30;
+const DOWN = 40;
+const MAX = 500;
 function statusOf(s: Today): PaceStatus {
   const points = Math.min(MAX, Math.max(0, s.characterPoints ?? 0));
   const delta = s.characterDelta ?? 0;
@@ -376,7 +387,7 @@ function statusOf(s: Today): PaceStatus {
         : "오늘 예산을 넘었어요";
   return pointsStatus(points, yesterday ? `${yesterday} · ${today}` : today);
 }
-/** Coin balance floating over the character video; it opens the coin history, where the shop button sits. */
+/** Coin balance floating over the character video; it opens the coin history, where [모으기] is. */
 function CoinChip({ balance }: { balance: number }) {
   return (
     <Pressable
@@ -387,7 +398,7 @@ function CoinChip({ balance }: { balance: number }) {
       style={styles.coinChip}
     >
       <T size={14} weight="800" num>
-        🪙 {money(balance)}
+        <CoinIcon size={14} />{money(balance)}
       </T>
     </Pressable>
   );

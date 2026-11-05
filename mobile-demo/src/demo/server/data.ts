@@ -59,10 +59,12 @@ export const OUTFITS: OutfitDef[] = [
   { id: 'outfit-03', name: '선비냥이', price: 200, unlockLevel: null },
   { id: 'outfit-04', name: '유령냥이', price: 200, unlockLevel: null },
   { id: 'outfit-05', name: '고양마녀', price: 200, unlockLevel: null },
+  { id: 'outfit-07', name: '달밤 낚시 고양이', price: 200, unlockLevel: null },
+  { id: 'outfit-08', name: '산타냥이', price: 200, unlockLevel: null },
 ];
 
 /** 시연 기본 코인 — 코인 코스튬을 모두 사고도 남는다 */
-export const START_COINS = 1118;
+export const START_COINS = 1518;
 export const REFERRAL_CODE = 'FLEXDEMO';
 export const REFERRAL_REWARD = 100;
 
@@ -184,15 +186,15 @@ export function buildScheduled(categories: Category[], now: number): ScheduledEx
 }
 
 /**
- * 코인 적립 내역(오래된 순). 합이 START_COINS(1,118)가 되게 만든다.
- * 가입 선물 200 + 친구 초대 100×2 + 출석 4일(5·5·55·5) + 예산 보너스 5×12 + 시간 적립 588
+ * 코인 적립 내역(오래된 순). 합이 START_COINS(1,518)가 되게 만든다.
+ * 가입 선물 200 + 친구 초대 100×2 + 출석 4일(5·5·55·5) + 예산 보너스 5×12 + 시간 적립 988
  */
 export function buildLedger(now: number): CoinLedgerEntry[] {
   const today = kstDate(now);
   const rows: Omit<CoinLedgerEntry, 'id'>[] = [];
   const at = (offset: number, hour: number) => isoAt(startOfDay(addDays(today, offset)) + hour * 3600000);
-  rows.push({ reason: 'SIGNUP_GIFT', amount: 200, refDate: null, outfitId: null, createdAt: at(-59, 9) });
-  for (let d = -58; d <= -1; d++)
+  rows.push({ reason: 'SIGNUP_GIFT', amount: 200, refDate: null, outfitId: null, createdAt: at(-99, 9) });
+  for (let d = -98; d <= -1; d++)
     rows.push({ reason: 'PASSIVE', amount: 10, refDate: null, outfitId: null, createdAt: at(d, 21) });
   rows.push({ reason: 'REFERRAL_INVITER', amount: 100, refDate: null, outfitId: null, createdAt: at(-31, 20) });
   rows.push({ reason: 'REFERRAL_INVITER', amount: 100, refDate: null, outfitId: null, createdAt: at(-12, 13) });

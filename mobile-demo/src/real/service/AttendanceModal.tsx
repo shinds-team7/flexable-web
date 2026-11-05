@@ -1,7 +1,9 @@
+import { CoinIcon } from "@/real/components/CoinIcon";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState } from "react";
-import { Image, Modal, StyleSheet, View } from "react-native";
-import { Button, T } from "@/real/components/ui";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, Platform, StyleSheet, View } from "react-native";
+import { Modal } from "@/components/PhoneModal";
+import { Button, T, useAnimValue, useReducedMotion } from "@/real/components/ui";
 import { colors, floating } from "@/real/theme";
 import { sessionGeneration } from "./api/client";
 import { attend } from "./coinApi";
@@ -15,11 +17,19 @@ const CYCLE = 7;
 const COIN_DAY = 3;
 const COSTUME_DAY = 7;
 const MILESTONE_COIN = 50;
-/** 칸이 좁아도 원끼리 겹치지 않게, 칸 폭 안에서 줄어들고 이 크기를 넘지 않는다 */
-const CIRCLE_MAX = 34;
+/** 원의 지름은 줄 폭을 7칸으로 나눈 값에 맞춰 줄어들고 이 크기를 넘지 않는다. 폭·높이를 같은 숫자로 줘야 정확한 원이다 */
+const CIRCLE_MAX = 38;
+const CIRCLE_MIN = 24;
+const TRACK_PAD = 6;
+const GOLD = "#E3A600";
+const GOLD_SOFT = "#FFF6D6";
+const GOLD_TEXT = "#B07F00";
+/** 모달이 열린 뒤 자동 출석까지 기다리는 시간. 원 일곱 개가 먼저 보이게 한다 */
+const AUTO_DELAY = 700;
 
 /**
- * 출석 모달. 홈 캐릭터 오른쪽 위 달력 버튼으로 열고, [출석하기]를 눌러야 출석한다.
+ * 출석 모달. 자정이 지난 뒤 처음 홈에 오면 홈이 자동으로 열고, 열리면 오늘 출석을 자동으로 처리한다
+ * (홈 캐릭터 오른쪽 위 달력 버튼으로도 열 수 있다. 자동 출석이 실패하면 [출석하기]로 다시 한다).
  * 누적 일수·보상은 서버 값만 보여 준다(docs/coin-plan.md §1 출석). 어제 예산을 지킨 보너스가 있으면 같은 모달의 설명 줄에 함께 보여 준다.
  */
 export function AttendanceModal({
@@ -41,7 +51,10 @@ export function AttendanceModal({
   }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
+  // 열릴 때마다 자동 출석은 한 번만 시도한다(실패하면 [출석하기]로 사용자가 다시 한다)
+  const autoTried = useRef(false);
   const close = () => {
+    autoTried.current = false;
     setAfter(undefined);
     setError(undefined);
     onClose();
@@ -63,6 +76,13 @@ export function AttendanceModal({
       .catch(setError)
       .finally(() => setBusy(false));
   };
+  const pending = visible && !!a && !a.checkedToday;
+  useEffect(() => {
+    if (!pending || autoTried.current) return;
+    autoTried.current = true;
+    const timer = setTimeout(check, AUTO_DELAY);
+    return () => clearTimeout(timer);
+  }, [pending]);
   return (
     <Modal
       visible={visible}
@@ -80,12 +100,15 @@ export function AttendanceModal({
               rewarded={after?.rewarded}
               outfitId={after?.outfitId ?? null}
               budgetBonus={budgetBonus}
+              justChecked={!!after && after.rewarded > 0}
             />
           )}
           <ErrorNotice error={error} />
           {a ? (
             <Button
-              label={a.checkedToday ? "확인" : "출석하기"}
+              label={
+                a.checkedToday ? "확인" : busy ? "출석하는 중…" : "출석하기"
+              }
               onPress={a.checkedToday ? close : check}
               disabled={busy}
               style={{ marginTop: 20 }}
@@ -104,13 +127,22 @@ function AttendanceBody({
   rewarded,
   outfitId,
   budgetBonus,
+  justChecked,
 }: {
   attendance: Attendance;
   /** 방금 출석해서 받은 코인. 모달을 다시 열었을 때는 undefined */
   rewarded?: number;
   outfitId: string | null;
   budgetBonus: CoinReward | null;
+  /** 이 모달에서 방금 출석했다. 그날 원이 커졌다 한 바퀴 돌고 돌아오는 움직임을 보여 준다 */
+  justChecked: boolean;
 }) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  // 칸 일곱이 폭을 나눠 가지므로, 지름을 칸 폭보다 조금 작게 잡아 원끼리 겹치지 않게 한다
+  const size = Math.max(
+    CIRCLE_MIN,
+    Math.min(CIRCLE_MAX, Math.floor((trackWidth - TRACK_PAD * 2) / CYCLE) - 4),
+  );
   const done = a.checkedToday ? ((a.total - 1) % CYCLE) + 1 : a.total % CYCLE;
   // 7일차 코스튬은 처음 7일에만 있다. 8일째부터는 7일차도 코인이다
   const firstCycle = (a.checkedToday ? a.total : a.total + 1) <= CYCLE;
@@ -147,7 +179,7 @@ function AttendanceBody({
           <T size={15} style={{ textAlign: "center", lineHeight: 23 }}>
             어제 예산을 지켰어요{" "}
             <T size={15} weight="800" color={colors.brandDark} num>
-              +{budgetBonus.amount} 🪙
+              +{budgetBonus.amount} <CoinIcon size={14} />
             </T>
           </T>
         )}
@@ -155,7 +187,7 @@ function AttendanceBody({
           <T size={15} style={{ textAlign: "center", lineHeight: 23 }}>
             출석 보상{" "}
             <T size={15} weight="800" color={colors.brandDark} num>
-              +{rewarded} 🪙
+              +{rewarded} <CoinIcon size={14} />
             </T>
           </T>
         )}
@@ -172,7 +204,7 @@ function AttendanceBody({
           >
             오늘 출석하면{" "}
             <T size={15} weight="800" color={colors.brandDark} num>
-              +{a.todayReward} 🪙
+              +{a.todayReward} <CoinIcon size={14} />
             </T>
             {a.todayOutfitId ? " 와 코스튬" : ""}
           </T>
@@ -183,13 +215,18 @@ function AttendanceBody({
           </T>
         )}
       </View>
-      <View style={styles.track}>
+      <View
+        style={styles.track}
+        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+      >
         {Array.from({ length: CYCLE }, (_, i) => i + 1).map((day) => (
           <DayCircle
             key={day}
             day={day}
+            size={size}
             on={day <= done}
             next={!a.checkedToday && day === done + 1}
+            pulse={justChecked && a.checkedToday && day === done}
             firstCycle={firstCycle}
           />
         ))}
@@ -200,17 +237,65 @@ function AttendanceBody({
 
 function DayCircle({
   day,
+  size,
   on,
   next,
+  pulse,
   firstCycle,
 }: {
   day: number;
+  size: number;
   on: boolean;
   next: boolean;
+  pulse: boolean;
   firstCycle: boolean;
 }) {
   const costume = day === COSTUME_DAY && firstCycle;
   const coin = day === COIN_DAY || (day === COSTUME_DAY && !firstCycle);
+  const reduced = useReducedMotion();
+  const scale = useAnimValue(1);
+  const turn = useAnimValue(0);
+  // 방금 출석한 날의 원: 부드럽게 커지고(강조) 한 바퀴 돈 뒤 원래 크기로 돌아온다
+  useEffect(() => {
+    if (!pulse || reduced) return;
+    const native = Platform.OS !== "web";
+    scale.setValue(1);
+    turn.setValue(0);
+    const animation = Animated.parallel([
+      Animated.sequence([
+        Animated.timing(scale, {
+          toValue: 1.55,
+          duration: 280,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: native,
+        }),
+        Animated.delay(620),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 320,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: native,
+        }),
+      ]),
+      Animated.sequence([
+        Animated.delay(280),
+        Animated.timing(turn, {
+          toValue: 1,
+          duration: 620,
+          easing: Easing.inOut(Easing.cubic),
+          useNativeDriver: native,
+        }),
+      ]),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [pulse, reduced, scale, turn]);
+  const rotate = turn.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+  // 보상이 있는 날은 금색 테두리(코스튬 날은 옅은 금색 바탕). 출석하면 파란 원으로 채운다
+  const gold = (costume || coin) && !on;
   return (
     <View
       style={styles.col}
@@ -224,25 +309,36 @@ function DayCircle({
       >
         {day}일차
       </T>
-      <View
+      <Animated.View
         style={[
           styles.circle,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            zIndex: pulse ? 1 : 0,
+            transform: [{ scale }, { rotate }],
+          },
           on && styles.on,
           next && styles.next,
+          gold && styles.gold,
           costume && !on && styles.costume,
         ]}
       >
         {on ? (
-          <Ionicons name="checkmark" size={18} color={colors.onBrand} />
+          <Ionicons
+            name="checkmark"
+            size={Math.round(size * 0.5)}
+            color={colors.onBrand}
+          />
         ) : costume ? (
-          // 코스튬 예시 자리. 영상이 들어오기 전까지 기본 캐릭터 그림을 놓는다
-          <Image source={outfitSource("outfit-06")} style={styles.costumeImg} />
+          <Image source={outfitSource("outfit-07")} style={styles.costumeImg} />
         ) : coin ? (
-          <T size={11} weight="800" color={colors.warn} num>
+          <T size={11} weight="800" color={GOLD_TEXT} num>
             +{MILESTONE_COIN}
           </T>
         ) : null}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -268,23 +364,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 20,
     paddingVertical: 14,
-    paddingHorizontal: 6,
+    paddingHorizontal: TRACK_PAD,
     borderRadius: 18,
     backgroundColor: colors.sunken,
   },
-  // 칸 일곱이 폭을 나눠 가지므로 원은 칸을 넘지 않는다(겹침 방지)
   col: {
     flex: 1,
     minWidth: 0,
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 1,
   },
   circle: {
-    width: "100%",
-    maxWidth: CIRCLE_MAX,
-    aspectRatio: 1,
-    borderRadius: CIRCLE_MAX,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
@@ -292,6 +382,7 @@ const styles = StyleSheet.create({
   },
   on: { backgroundColor: colors.brand },
   next: { borderWidth: 2, borderColor: colors.brand },
-  costume: { borderWidth: 1.5, borderColor: colors.textFaint },
+  gold: { borderWidth: 2, borderColor: GOLD },
+  costume: { backgroundColor: GOLD_SOFT },
   costumeImg: { width: "100%", height: "100%" },
 });

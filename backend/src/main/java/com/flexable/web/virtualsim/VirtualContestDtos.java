@@ -29,7 +29,7 @@ public final class VirtualContestDtos {
 	public record Cuts(int B50M, int B100M) {
 	}
 
-	public record Rules(int roundsPerDay, int eventsPerRound, BigDecimal dailyTargetRate, int weeklyPromoteAt, int weeklyDemoteAt, int placementQuestions,
+	public record Rules(int roundsPerDay, int roundsForDailyScore, int eventsPerRound, BigDecimal dailyTargetRate, int weeklyPromoteAt, int weeklyDemoteAt, int placementQuestions,
 			Cuts placementCuts, long liquidationBelow, int rankingTop) {
 	}
 

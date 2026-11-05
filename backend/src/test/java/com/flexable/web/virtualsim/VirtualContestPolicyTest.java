@@ -208,23 +208,23 @@ class VirtualContestPolicyTest {
 	}
 
 	@Test
-	void daily_score() throws Exception {
+	void excess_and_daily_score() throws Exception {
+		for (JsonNode c : root().get("excess").get("cases")) {
+			JsonNode r = c.get("round");
+			assertThat(VirtualContestRules.excess(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong())).as(c.toString())
+				.isEqualByComparingTo(new BigDecimal(c.get("excessRate").asString()));
+		}
+		assertThat(VirtualContestRules.ROUNDS_FOR_SCORE).isEqualTo(root().get("rules").get("roundsForDailyScore").asInt());
 		for (JsonNode c : root().get("dailyScore").get("cases")) {
-			List<BigDecimal> rates = new ArrayList<>();
-			int k = 0;
-			for (JsonNode r : c.get("rounds")) {
-				BigDecimal one = VirtualContestRules.excess(r.get(0).asLong(), r.get(1).asLong(), r.get(2).asLong());
-				assertThat(one).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("excessRates").get(k++).asString()));
-				rates.add(one);
-			}
+			List<BigDecimal> rates = c.get("excessRates").valueStream().map(x -> new BigDecimal(x.asString())).toList();
 			BigDecimal rate = VirtualContestRules.dayRate(rates);
-			if (rate == null) {
-				assertThat(c.get("dayReturnRate").isNull()).isTrue();
+			if (c.get("dayReturnRate").isNull()) {
+				assertThat(rate).isNull();
 			}
 			else {
 				assertThat(rate).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("dayReturnRate").asString()));
 			}
-			assertThat(VirtualContestRules.dailyPoints(rate)).as(c.toString()).isEqualTo(c.get("points").asInt());
+			assertThat(VirtualContestRules.dailyPoints(rate, rates.size())).as(c.toString()).isEqualTo(c.get("points").asInt());
 		}
 	}
 

@@ -448,7 +448,7 @@ class VirtualContestApiTest {
 				(rs, i) -> VirtualContestRules.excess(rs.getLong(1), rs.getLong(2), rs.getLong(3)), entry, LocalDate.of(2026, 11, 10));
 		assertThat(rates).hasSize(10);
 		assertThat((java.math.BigDecimal) day.get("return_rate")).isEqualByComparingTo(VirtualContestRules.dayRate(rates));
-		assertThat(((Number) day.get("points")).intValue()).isEqualTo(VirtualContestRules.dailyPoints(VirtualContestRules.dayRate(rates)));
+		assertThat(((Number) day.get("points")).intValue()).isEqualTo(VirtualContestRules.dailyPoints(VirtualContestRules.dayRate(rates), rates.size()));
 		contest.tick();
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_days WHERE entry_id = ? AND on_date = ?", Integer.class, entry,
 				LocalDate.of(2026, 11, 10))).isEqualTo(1);
@@ -475,17 +475,20 @@ class VirtualContestApiTest {
 		join(d);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_placements WHERE id = 'legacy-1'", Integer.class)).isZero();
 		long entry = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, user);
-		// 1일에 참가해 1~4일 유지보다 +6% 더 벌었다(5~7일은 판 없음): 1주 합 +4 → B10M에서 B50M으로 승급, 잔액은 새 판 시드머니
+		// 1일에 참가해 1~4일 하루 10판씩 유지보다 +6% 더 벌었다(5~7일은 판 없음): 1주 합 +4 → B10M에서 B50M으로 승급, 잔액은 새 판 시드머니
 		Instant joined = ZonedDateTime.of(2026, 11, 1, 9, 0, 0, 0, SEOUL).toInstant();
 		jdbc.update("UPDATE virtual_contest_entries SET board = 'B10M', highest_board = 'B10M', balance = 12624770, joined_at = ?, reached_at = ? WHERE id = ?",
 				java.sql.Timestamp.from(joined), java.sql.Timestamp.from(joined), entry);
 		long balance = 10_000_000;
-		for (int day = 1; day <= 4; day++) {
+		int number = 0;
+		// 하루 점수는 그날 10판을 모두 시작한 날만 매긴다
+		for (int day = 1; day <= 4; day++) for (int k = 0; k < VirtualContestRules.ROUNDS_FOR_SCORE; k++) {
 			long end = balance * 106 / 100;
-			Instant s = ZonedDateTime.of(2026, 11, day, 10, 0, 0, 0, SEOUL).toInstant();
+			Instant s = ZonedDateTime.of(2026, 11, day, 10, k, 0, 0, SEOUL).toInstant();
+			number++;
 			jdbc.update(
 					"INSERT INTO virtual_contest_rounds (entry_id, start_id, round_number, board, generator, on_date, start_balance, end_balance, hold_balance, started_at, expires_at, ended_at, status, end_reason) VALUES (?, ?, ?, 'B10M', ?, ?, ?, ?, ?, ?, ?, ?, 'SETTLED', 'COMPLETED')",
-					entry, UUID.randomUUID().toString(), day, VirtualSimGenerator.VERSION, LocalDate.of(2026, 11, day), balance, end, balance, java.sql.Timestamp.from(s),
+					entry, UUID.randomUUID().toString(), number, VirtualSimGenerator.VERSION, LocalDate.of(2026, 11, day), balance, end, balance, java.sql.Timestamp.from(s),
 					java.sql.Timestamp.from(s.plusSeconds(1800)), java.sql.Timestamp.from(s.plusSeconds(600)));
 			balance = end;
 		}

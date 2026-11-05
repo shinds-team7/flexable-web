@@ -209,7 +209,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				weeks.add(new Week(i + 1, ranges.get(i)[0].toString(), ranges.get(i)[1].toString()));
 			}
 			return new Contest(c.id(), format(c.startsAt()), format(c.endsAt()), weeks, boards,
-					new VirtualContestDtos.Rules(VirtualContestRules.ROUNDS_PER_DAY, VirtualContestRules.EVENTS, VirtualContestRules.DAILY_TARGET,
+					new VirtualContestDtos.Rules(VirtualContestRules.ROUNDS_PER_DAY, VirtualContestRules.ROUNDS_FOR_SCORE, VirtualContestRules.EVENTS, VirtualContestRules.DAILY_TARGET,
 							VirtualContestRules.PROMOTE_AT, VirtualContestRules.DEMOTE_AT, VirtualContestRules.PLACEMENT_QUESTIONS,
 							new Cuts(VirtualContestRules.CUT_B50M, VirtualContestRules.CUT_B100M), VirtualContestRules.LIQUIDATION_BELOW,
 							VirtualContestRules.RANKING_TOP));
@@ -529,7 +529,8 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 			Long startBalance = rounds.isEmpty() ? null : rounds.getFirst().startBalance();
 			Long endBalance = rounds.stream().max(Comparator.comparing(RoundRow::endedAt).thenComparingLong(RoundRow::id)).map(RoundRow::endBalance).orElse(null);
 			BigDecimal rate = VirtualContestRules.dayRate(roundRates(rounds));
-			int points = VirtualContestRules.dailyPoints(rate);
+			// 그날 10판을 모두 시작한 날만 점수를 매긴다(끊긴 판 포함)
+			int points = VirtualContestRules.dailyPoints(rate, rounds.size());
 			EntryRow before = e;
 			Instant at = now();
 			tx.executeWithoutResult(t -> {

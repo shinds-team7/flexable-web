@@ -87,9 +87,15 @@ public final class VirtualContestRules {
 		return balance < LIQUIDATION_BELOW;
 	}
 
-	/** 하루 점수: 목표 이상 +1, 못 미치면 −1, 그날 판이 없으면(null) 0 */
-	public static int dailyPoints(BigDecimal dayRate) {
-		return dayRate == null ? 0 : dayRate.compareTo(DAILY_TARGET) >= 0 ? 1 : -1;
+	/** 하루 점수를 매기는 판 수(11-05 구현 PR 사용자 결정): 그날 이만큼 시작해야 점수를 매긴다 */
+	public static final int ROUNDS_FOR_SCORE = ROUNDS_PER_DAY;
+
+	/** 하루 점수: 그날 시작한 판이 10판이면 하루 수익률이 목표 이상 +1, 못 미치면 −1. 10판 미만(판이 없는 날 포함)이면 0 */
+	public static int dailyPoints(BigDecimal dayRate, int roundsStarted) {
+		if (roundsStarted < ROUNDS_FOR_SCORE || dayRate == null) {
+			return 0;
+		}
+		return dayRate.compareTo(DAILY_TARGET) >= 0 ? 1 : -1;
 	}
 
 	/** 주간 판정: +4 이상 한 단계 승급, −4 이하 한 단계 강등(끝 판은 그대로) */

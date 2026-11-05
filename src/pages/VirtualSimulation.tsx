@@ -311,7 +311,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
               <div><dt>오늘 매매 성과 평균</dt><dd>{contest.today.returnRate == null ? '계산 중' : <b className={tone(contest.today.returnRate)}>{pp(contest.today.returnRate)}</b>}</dd></div>
               <div><dt>목표</dt><dd>{pp(contest.today.targetRate)} 이상</dd></div>
             </dl>
-            <small>매매 성과 = 내 판 수익률 − 사건마다 가만히 있었을 때의 수익률이에요. 하루 점수는 오늘이 끝난 뒤 그날 판들의 평균으로 정해요.</small>
+            <small>매매 성과 = 내 판 수익률 − 사건마다 가만히 있었을 때의 수익률이에요. 오늘 {contest.today.rounds}/10판 · 10판을 모두 해야 하루 점수를 매겨요.</small>
           </div>}
           <p className="vsim-intro"><Written sample={sample} /> {snapshot.company.intro}</p>
           <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
@@ -319,7 +319,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           {contest && finished && <button className="btn btn-primary practice-start" type="button" onClick={nextRound} disabled={busy || noRoundsLeft}>{noRoundsLeft ? '오늘 판을 모두 했어요' : '다음 판 시작'}</button>}
           <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
         </section>}
-        {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 1%p 이상 높으면(매매 성과) 하루 점수 +1, 못 미치면 −1이에요.</li></ol></div>
+        {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>하루 10판을 모두 하면, 사건마다 가만히 있었을 때보다 수익률이 평균 1%p 이상 높을 때(매매 성과) 하루 점수 +1, 못 미치면 −1이에요. 10판을 채우지 않은 날은 0점이에요.</li></ol></div>
           : <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>가상 종목의 120~250거래일 구간을 재생하고, 가상 사건을 3번 이상 만나요.</li><li>사건과 사건 사이 시세가 3초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>그 유형 공시의 과거 경향으로 채점하고, 이번 5거래일 가상 등락도 함께 보여 줘요.</li></ol></div>}
       </aside>
       <main className="practice-market">

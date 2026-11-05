@@ -3402,9 +3402,11 @@ export interface components {
             rules: {
                 /** @description KST 하루 판 수(10) */
                 roundsPerDay: number;
+                /** @description 하루 점수를 매기는 판 수(10). 그날 시작한 판이 이보다 적으면 하루 점수 0 */
+                roundsForDailyScore: number;
                 /** @description 한 판 사건 수(4) */
                 eventsPerRound: number;
-                /** @description 하루 목표(0.01). 하루 수익률(그날 판들의 초과 수익률 평균, 초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액)이 이상이면 +1, 못 미치면 −1, 판 없는 날 0 */
+                /** @description 하루 목표(0.01). 하루 수익률(그날 판들의 초과 수익률 평균, 초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액)이 이상이면 +1, 못 미치면 −1. 그날 roundsForDailyScore판을 채우지 않은 날(판 없는 날 포함)은 0 */
                 dailyTargetRate: number;
                 /** @description 주 점수가 이 값 이상이면 승급(4) */
                 weeklyPromoteAt: number;

@@ -6,12 +6,18 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -56,6 +62,46 @@ class RestGoalScenarioAiClientTest {
 		server.expect(requestTo("https://example.com/v1/chat/completions")).andRespond(withServerError().body("secret-body"));
 		assertThatThrownBy(() -> client.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class)
 			.hasMessage("AI_FAILED").hasNoCause();
+	}
+
+	private void assertReason(String reason) {
+		assertThatThrownBy(() -> client.propose("{}")).isInstanceOfSatisfying(GoalScenarioAiClient.Failed.class, e -> {
+			assertThat(e.reason()).isEqualTo(reason);
+			assertThat(e.getMessage()).isEqualTo("AI_FAILED");
+			assertThat(e).hasNoCause();
+		});
+		server.verify();
+		server.reset();
+	}
+
+	@Test
+	void 실패_원인을_분류하고_본문과_키는_담지_않는다() {
+		String url = "https://example.com/v1/chat/completions";
+		server.expect(requestTo(url)).andRespond(withServerError().body("secret-body"));
+		assertReason("HTTP_500");
+		server.expect(requestTo(url)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).body("secret-body"));
+		assertReason("HTTP_429");
+		server.expect(requestTo(url)).andRespond(withException(new SocketTimeoutException("secret-body")));
+		assertReason("TIMEOUT");
+		server.expect(requestTo(url)).andRespond(withException(new IOException("secret-body")));
+		assertReason("NETWORK");
+		server.expect(requestTo(url)).andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"length","message":{"content":"{}","refusal":null}}]}
+				""", MediaType.APPLICATION_JSON));
+		assertReason("TRUNCATED");
+		server.expect(requestTo(url)).andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"stop","message":{"content":null,"refusal":"no"}}]}
+				""", MediaType.APPLICATION_JSON));
+		assertReason("REFUSED");
+		server.expect(requestTo(url)).andRespond(withSuccess("not json", MediaType.APPLICATION_JSON));
+		assertReason("BAD_RESPONSE");
+	}
+
+	@Test
+	void 프롬프트_v4는_적금_단정을_막고_숫자를_줄이라고_안내한다() {
+		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v4");
+		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v4.")
+			.contains("금리가 정해져 있어요").contains("원금이 보장돼요").contains("숫자는 꼭 필요할 때만");
 	}
 
 	@Test

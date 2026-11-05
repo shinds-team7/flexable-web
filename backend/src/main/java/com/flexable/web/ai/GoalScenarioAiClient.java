@@ -13,10 +13,20 @@ public interface GoalScenarioAiClient {
 	public record Result(String content, String model, Integer promptTokens, Integer completionTokens) {
 	}
 
-	/** 원인 예외·응답 본문을 보존하지 않는다(로그에 키·본문이 섞이지 않게 한다). */
+	/**
+	 * 원인 예외·응답 본문을 보존하지 않는다(로그에 키·본문이 섞이지 않게 한다).
+	 * reason은 서버가 정한 분류만 담는다: NO_KEY·TIMEOUT·NETWORK·HTTP_상태코드·TRUNCATED·REFUSED·BAD_RESPONSE.
+	 */
 	class Failed extends RuntimeException {
-		public Failed() {
+		private final String reason;
+
+		public Failed(String reason) {
 			super("AI_FAILED");
+			this.reason = reason;
+		}
+
+		public String reason() {
+			return reason;
 		}
 	}
 }

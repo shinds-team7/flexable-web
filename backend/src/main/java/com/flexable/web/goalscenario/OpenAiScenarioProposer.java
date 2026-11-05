@@ -35,7 +35,7 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 			content = client.propose(JSON.writeValueAsString(input)).content();
 		}
 		catch (GoalScenarioAiClient.Failed e) {
-			throw new Failed("AI_FAILED");
+			throw new Failed(e.reason());
 		}
 		return parse(content);
 	}
@@ -47,7 +47,7 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 			root = JSON.readTree(content);
 		}
 		catch (RuntimeException e) {
-			throw new Failed("AI_FAILED");
+			throw new Failed("BAD_RESPONSE");
 		}
 		List<Proposals.Draft> out = new ArrayList<>();
 		for (JsonNode s : root.path("scenarios")) {

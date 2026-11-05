@@ -534,11 +534,13 @@ class ContractTest {
 			assertThat(body(call(json(post("/api/v1/virtual-sim/step"), stepCommand), 200))).isEqualTo(snapshot);
 			// 공개한 봉까지만 준다
 			assertThat((Integer) JsonPath.read(snapshot, "$.candles.length()")).isLessThanOrEqualTo(totalDays);
-			// 판정 전 결과·경향은 null이고 판정 뒤에는 둘 다 있다
+			// 채점은 없다(outcome·trendOutcome 늘 null). 판정 전 움직임·경향은 null이고 판정 뒤에는 둘 다 있다
 			List<Map<String, Object>> decisions = JsonPath.read(snapshot, "$.decisions");
 			for (Map<String, Object> d : decisions) {
-				assertThat(d.get("trend") == null).isEqualTo(d.get("outcome") == null);
-				assertThat(d.get("categoryUpShare") == null).isEqualTo(d.get("outcome") == null);
+				assertThat(d.get("outcome")).isNull();
+				assertThat(d.get("trendOutcome")).isNull();
+				assertThat(d.get("trend") == null).isEqualTo(d.get("movement") == null);
+				assertThat(d.get("categoryUpShare") == null).isEqualTo(d.get("movement") == null);
 			}
 			String state = JsonPath.read(snapshot, "$.status");
 			if ("FINISHED".equals(state)) {
@@ -561,10 +563,13 @@ class ContractTest {
 		}
 		assertThat(asked).isBetween(3, 5);
 		List<Map<String, Object>> decisions = JsonPath.read(snapshot, "$.decisions");
-		assertThat(decisions).allSatisfy(d -> assertThat(d.get("trendOutcome")).isNotNull());
-		assertThat(decisions.stream().filter(d -> !"MIXED".equals(d.get("trend")))).hasSizeGreaterThanOrEqualTo(2);
-		assertThat(decisions).allSatisfy(d -> assertThat(d.get("movement")).isIn("UP", "DOWN", "FLAT"));
-		assertThat(decisions.stream().filter(d -> "HOLD".equals(d.get("action")))).allSatisfy(d -> assertThat(d.get("trendOutcome")).isEqualTo("NEUTRAL"));
+		assertThat(decisions).allSatisfy(d -> {
+			assertThat(d.get("outcome")).isNull();
+			assertThat(d.get("trendOutcome")).isNull();
+			assertThat(d.get("trend")).isIn("UP", "DOWN", "MIXED");
+			assertThat(d.get("movement")).isIn("UP", "DOWN", "FLAT");
+		});
+		assertThat((String) JsonPath.read(snapshot, "$.notice")).doesNotContain("채점해요").contains("채점하지 않아요");
 		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
 		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
 		call(json(post("/api/v1/virtual-sim/state"), tokenBody), 410);

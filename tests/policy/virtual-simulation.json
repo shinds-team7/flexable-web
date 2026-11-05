@@ -3,11 +3,11 @@
   "policy": "docs/policies.md §8",
   "versions": { "types": "vsim-types-v2", "ruleset": "vsim-rules-v2", "check": "vsim-check-v3" },
   "tradeAndQuiz": {
-    "note": "평가는 §5 그대로(practice.json 아래 키). 사건 매매는 수량 직접 입력(order). quizCases는 점수에 넣지 않는 '이번 결과' 판정으로 다시 쓴다",
+    "note": "평가는 §5 그대로(practice.json 아래 키). 사건 매매는 수량 직접 입력(order). 11-05(#253)부터 채점이 없어 quizCases는 쓰지 않는다(noScore)",
     "source": "practice.json",
-    "keys": ["tradeSequence", "insufficientCash", "negativeRounding", "quizCases"]
+    "keys": ["tradeSequence", "insufficientCash", "negativeRounding"]
   },
-  "window": { "minLength": 120, "maxLength": 250, "minQuestions": 3, "maxQuestions": 5, "minClearQuestions": 2, "leadDays": 14, "followDays": 5 },
+  "window": { "minLength": 120, "maxLength": 250, "minQuestions": 3, "maxQuestions": 5, "leadDays": 14, "followDays": 5 },
   "dates": {
     "yearOffset": 10,
     "baseYear": [
@@ -122,20 +122,11 @@
       { "paths": 200, "up": 90, "upShare": 0.45, "expected": "DOWN" },
       { "paths": 150, "up": 60, "upShare": 0.4, "expected": "DOWN" },
       { "paths": 99, "up": 70, "upShare": 0.707, "expected": "MIXED", "note": "경로 100개 미만" }
-    ],
-    "scoringNote": "#253 구현 PR에서 삭제(noScore)",
-    "scoring": [
-      { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "CORRECT", "outcome": "CORRECT", "movement": "UP" },
-      { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "CORRECT", "outcome": "INCORRECT", "movement": "DOWN" },
-      { "trend": "DOWN", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "INCORRECT", "outcome": "CORRECT", "movement": "UP" },
-      { "trend": "DOWN", "action": "SELL", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": "CORRECT", "outcome": "NEUTRAL", "movement": "FLAT" },
-      { "trend": "MIXED", "action": "SELL", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": "NEUTRAL", "outcome": "CORRECT", "movement": "DOWN" },
-      { "trend": "UP", "action": "HOLD", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": "NEUTRAL", "outcome": "NEUTRAL", "movement": "UP", "note": "유지는 예상이 없어 채점하지 않는다" }
     ]
   },
   "noScore": {
-    "status": "PENDING",
-    "note": "#253 사용자 결정(11-05). 일반 세션도 trendOutcome·outcome 늘 null, movement·유형 통계만. 출제는 뚜렷한 유형 최소 개수 없이 균등. 구현 PR에서 trend.scoring·window.minClearQuestions를 지우고 이 블록으로 바꾼다",
+    "status": "IMPLEMENTED",
+    "note": "#253 사용자 결정(11-05). 일반 세션도 trendOutcome·outcome 늘 null, movement·유형 통계만. 출제는 뚜렷한 유형 최소 개수 없이 균등(후보 조건 ruleset.minClearTypes는 그대로)",
     "minClearQuestions": 0,
     "cases": [
       { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": null, "outcome": null, "movement": "UP" },
@@ -164,7 +155,7 @@
       "모든 봉이 전날 종가의 ±30% 제한 안이다",
       "길이는 120~250이고 날짜는 평일만, 하루씩 이어진다",
       "시작일 연도 = 세션 시작일 연도 + 10",
-      "문제는 3~5개이고 유형이 서로 다르며, 경향이 뚜렷한 유형(UP·DOWN)이 2개 이상이고, PracticeWindow.questions가 모두 출제한다",
+      "문제는 3~5개이고 유형이 서로 다르며, PracticeWindow.questions가 모두 출제한다",
       "사건 뒤 1~5번째 봉의 종가 등락이 그 유형에서 뽑은 경로 값과 같다(제한에 걸리지 않은 경우)"
     ]
   },

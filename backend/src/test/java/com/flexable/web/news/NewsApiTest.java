@@ -59,6 +59,8 @@ class NewsApiTest {
 		news.saveCollected(draft("busan-job", List.of(), null, 39, false, List.of("부산"), asOf));
 		news.saveCollected(draft("culture-pass", List.of(NewsCategory.CULTURE), 19, 24, true, null, asOf));
 		news.saveCollected(draft("rejected", List.of(NewsCategory.TAX), 15, 34, true, null, asOf));
+		// 마감일이 지난 지 7일이 넘은 소식은 목록에서 빠진다(아래 목록 검증이 4건 그대로인 것으로 확인)
+		news.saveCollected(closedLongAgo("closed-old", asOf));
 		news.saveCollected(draft("no-region", List.of(NewsCategory.JOB), 19, 34, false, null, asOf));
 		jdbc.update("UPDATE youth_news SET review_status = 'REJECTED' WHERE external_id = 'rejected'");
 		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN' WHERE external_id = 'all-savings'");
@@ -72,7 +74,12 @@ class NewsApiTest {
 
 	private static PolicyDraft draft(String id, List<NewsCategory> c, Integer min, Integer max, boolean nationwide, List<String> regions, LocalDate asOf) {
 		return new PolicyDraft("FAKE", id, "{\"id\":\"" + id + "\"}", id + " 제목", c, min, max, Boolean.TRUE, nationwide, regions,
-				LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 30), false, "○○기관(예시)", "https://example.com/" + id, asOf, null, List.of("키워드"), null);
+				LocalDate.of(2026, 10, 1), LocalDate.of(2099, 12, 31), false, "○○기관(예시)", "https://example.com/" + id, asOf, null, List.of("키워드"), null);
+	}
+
+	private static PolicyDraft closedLongAgo(String id, LocalDate asOf) {
+		return new PolicyDraft("FAKE", id, "{\"id\":\"" + id + "\"}", id + " 제목", List.of(NewsCategory.FINANCE), 19, 34, Boolean.TRUE, true, null,
+				LocalDate.of(2020, 1, 1), LocalDate.of(2020, 1, 31), false, "○○기관(예시)", "https://example.com/" + id, asOf, null, List.of("키워드"), null);
 	}
 
 	private void view(String externalId, String viewer, int expected) throws Exception {
@@ -139,7 +146,7 @@ class NewsApiTest {
 			.andExpect(jsonPath("$.items[0].audience.ageMin", is(19)))
 			.andExpect(jsonPath("$.items[0].audience.incomeLimit", is(true)))
 			.andExpect(jsonPath("$.items[0].regions[0]", is("서울")))
-			.andExpect(jsonPath("$.items[0].applyDeadline", is("2026-11-30")))
+			.andExpect(jsonPath("$.items[0].applyDeadline", is("2099-12-31")))
 			.andExpect(jsonPath("$.items[0].source.org", is("○○기관(예시)")))
 			.andExpect(jsonPath("$.items[0].source.url", is("https://example.com/seoul-rent")))
 			.andExpect(jsonPath("$.items[0].source.asOf", is("2026-10-21")))

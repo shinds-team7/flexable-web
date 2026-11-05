@@ -34,6 +34,45 @@ http.createServer((req, res) => {
   const send = (status, text, type = 'text/html; charset=utf-8') => { res.writeHead(status, {'Content-Type': type}); res.end(text); };
   if (url.pathname === '/_mode') { mode = url.searchParams.get('value') || 'ok'; return send(200, mode, 'text/plain'); }
   if (url.pathname === '/_pages') return send(200, String(pages), 'text/plain');
+  if (url.pathname.startsWith('/kdb-')) {
+    if (req.method !== 'POST' || req.headers['content-type'] !== 'application/x-www-form-urlencoded'
+        || !req.headers.accept?.includes('application/json')) return send(400, 'Expected public form query');
+    let body = ''; req.on('data', chunk => body += chunk); req.on('end', () => {
+      let q;
+      try { q = JSON.parse(decodeURIComponent(new URLSearchParams(body).get('_JSON_'))); }
+      catch { return send(400, 'Expected double encoded JSON form'); }
+      pages++;
+      const id = n => String(100000000000 + n);
+      const name = code => '합성 입출금 ' + code;
+      const header = {COMMON_HEAD:{ERROR:false}};
+      const json = data => send(200, JSON.stringify({...header, ...data}), 'application/json; charset=utf-8');
+      if (url.pathname.startsWith('/kdb-catalog-')) {
+        const page = Number(url.pathname.at(-1));
+        if (q.CTG_N1_SNO?.[0]?.value !== '1010300' || q.PRD_JIN_TGT_C?.[0]?.value !== '10'
+            || q.XPO_TGT_C?.[0]?.value !== 20 || q.WEB_PRD_CLSF_C !== 10 || q.WGD_NM !== ''
+            || q.HEADER_STD_WEB?.REQ_PAGE_NO !== page || q.HEADER_STD_WEB?.PAGE_ROW_COUNT !== 10
+            || q.HEADER_STD_WEB?.NEXT_PAGE_YN !== (page === 1 ? 'S' : 'M')) return send(400, 'Expected complete personal demand catalog');
+        const rows = Array.from({length: page === 1 ? 10 : mode === 'kdb-partial' ? 0 : 1}, (_, i) => {
+          const code = id((page - 1) * 10 + i + 1);
+          return {PRD_C:code,PRD_IRT_C:code,WGD_NM:name(code),CTG_N1_NM:'입출금자유상품',PRD_JIN_TGT_C:'10',WEB_PRD_CLSF_C:'10',SLE_YN:'Y'};
+        });
+        return json({HEADER_STD_WEB:{TOT_PAG_ROW_CNT:11,TOT_PAG_CNT:2,REQ_PAGE_NO:page,PAGE_ROW_COUNT:10,NEXT_PAGE_YN:page===1?'Y':'N'},GRID_LIST:rows});
+      }
+      const code = url.pathname.split('-').at(-1);
+      if (q.PRD_C !== code) return send(400, 'Expected matching product');
+      if (url.pathname.startsWith('/kdb-detail-')) {
+        if (q.XPO_TGT_C !== 20 || q.WEB_PRD_CLSF_C !== 10) return send(400, 'Expected personal product detail');
+        if (mode === 'kdb-last-error' && code === id(11)) return send(503, 'Final detail unavailable');
+        return json({BSC_DATA:{PRD_C:code,PRD_IRT_C:code,WGD_NM:name(code),WEB_PRD_CLSF_C:'10',SLE_YN:'Y',DPW_PRT_TGT_PRD_YN:'Y'},
+          DET_DATA:{PRD_C:code,PRD_JIN_TGT_DES:'실명의 개인',JIN_MANR_DES:'영업점',JIN_AMT_OTL:'제한없음'},
+          COL_LIST:[{PRD_C:code,PRD_COL_NM:'이자지급시기',PRD_COL_DES_INF:'매월 지급'}]});
+      }
+      if (q.PRD_IRT_C !== code) return send(400, 'Expected matching rate code');
+      return json({BSE_DT:'20261105',IRT_LIST:[{PRD_C:mode==='kdb-wrong-rate'&&code===id(11)?id(99):code,
+        PRD_IRT_C:code,BSE_DT:'20261105',DEL_YN:'N',OPB_YN:'Y',MNG_ITSR_GRP_NM:name(code),MNG_PRD_IRT_STG_NM1:'-',AVR_ITSR:'1.23'}],
+        HI_FIVE_LIST:[{PRD_C:id(99),AVR_ITSR:'99'}]});
+    }); return;
+  }
   if (url.pathname === '/robots.txt') return send(200, `User-agent: *\n${mode === 'robots' ? 'Disallow' : 'Allow'}: /\n${mode === 'query-robots' ? 'Disallow: /ux/kor/finance/cma/' : ''}`, 'text/plain');
   if (url.pathname === '/samsung') { pages++; return send(200, samsungHtml); }
   if (url.pathname === '/hanwha') { pages++; return send(200, '<div class="FI211_1p_numList"><ol><li><p>금액 구간별 세전, 연 1.23% ~ 2.34%, 2026.10.30 기준 RP 자동투자</p></li></ol></div>'); }

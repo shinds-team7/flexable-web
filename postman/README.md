@@ -1,5 +1,9 @@
 # 공식 공시 수집 HTTP 검증
 
+11-05 KDB 개인 입출금은 10개 단위 전체 페이지·개인/입출금 분류의 이중 인코딩 폼·모든 상세/현재 금리·추천 상품 제외를 추가했다. `KdbCashSimulationTest`는 2페이지/11개 합성 상품에서 마지막 상세 503·마지막 페이지 누락·다른 상품 금리·robots 제한 시 기존 전체 보존을 검사한다. 실제 출처는 `CASH_LIVE_CHECK=true`, `CASH_LIVE_SOURCES=KDB`로 제한해 검증한다(11-05 관측 6개). 공식 출처 링크는 공개 상품 목록이며, 전체 은행/시장 모집단 완료를 뜻하지 않는다.
+
+실제 조건으로 화면을 확인할 때만 `CASH_LIVE_REPORT_DIR`을 OS 임시 폴더로 지정하면 검증한 공개 카탈로그 API 응답(`parking.json`/`cma.json`)을 내보낸다. 운영 DB·인증정보·원본 응답의 내부 필드는 포함하지 않는다. 이 파일과 화면 캡처는 저장소에 커밋하지 않는다. 내보낸 응답을 화면에 연결하는 확인은 실제 배포/CORS 검증과 구분한다.
+
 공개 JSON 확장 후에는 FSB 전체 조회의 이중 인코딩 폼·전체 건수, 삼성 RP/발행어음의 분리 조회와 부분 실패, KB·신한·메리츠·케이뱅크·SK·SC JSON 요청, 제주 전체 목록과 개별 상세 실패 시 기존본 보존까지 검증한다. JSON Accept와 실제 공개 조회의 필드·메서드·Content-Type도 검사한다. 합성 HTML의 오래된 높은 금리를 실제 JSON 대신 선택하지 않는지 순수 파서 테스트로 확인한다. 선택적 실제 검증은 GET/POST 공개 읽기 요청이며 `CASH_LIVE_SOURCES=SC,JEJU`처럼 enum 이름으로 출처를 제한할 수 있다. 미지정 시 연결된 전체 출처를 읽는다.
 
 운영 기관이나 운영 DB에 장애를 일으키지 않고 실제 `OfficialCashClient` → `CashCatalogJob` → H2 스냅샷 저장을 실행한다. mock의 HTML·금리는 합성 자료이며 운영에 넣지 않는다. 기관 소유 mock·계약이 없어 현재 공식 페이지에서 확인한 표 구조와 저장소 호출 방식에 맞춘 로컬 stand-in이다. Postman CLI 1.73.0은 스킬의 `status` 명령이 없어 소유자 검색을 수행하지 않았다. 클라우드 push·배포·공유는 하지 않는다.
@@ -14,7 +18,7 @@ Java 21 셸에서:
 
 ```powershell
 $env:CASH_SIMULATION_URL = 'http://127.0.0.1:4510/official'
-./backend/gradlew.bat -p backend test --tests '*OfficialCashSimulationTest' --rerun-tasks
+./backend/gradlew.bat -p backend test --tests '*OfficialCashSimulationTest' --tests '*KdbCashSimulationTest' --rerun-tasks
 Remove-Item Env:CASH_SIMULATION_URL
 ```
 

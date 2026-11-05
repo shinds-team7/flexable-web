@@ -140,15 +140,15 @@ class VirtualSimServiceTest {
 		assertThat(decided.decisions().getFirst().categoryUpShare()).isNull();
 		assertThat(decided.decisions().getFirst().title()).isIn(s.event().category().titles());
 
-		// 다음 진행에서 체결하고 다섯 번째 후속 거래일에 판정·경향 채점을 함께 정한다
+		// 다음 진행에서 체결하고 다섯 번째 후속 거래일에 판정한다. 채점은 없다(outcome·trendOutcome null)
 		Snapshot next = service.step(new Command(token, UUID.randomUUID(), 2));
 		var judged = next.decisions().getFirst();
 		assertThat(judged.execution()).isIn("FILLED", "NO_FILL");
 		assertThat(judged.executedShares()).isEqualTo(limits.maxSellShares());
 		assertThat(judged.movement()).isIn("UP", "DOWN", "FLAT");
-		assertThat(judged.outcome()).isNotNull();
+		assertThat(judged.outcome()).isNull();
 		assertThat(judged.trend()).isIn("UP", "DOWN", "MIXED");
-		assertThat(judged.trendOutcome()).isEqualTo(VirtualSimService.trendOutcome(judged.trend(), Prediction.NEGATIVE));
+		assertThat(judged.trendOutcome()).isNull();
 		assertThat(judged.categorySampleCount()).isEqualTo(300);
 		var stats = VirtualSimSample.ruleset().stats(judged.category()).orElseThrow();
 		assertThat(judged.categoryDownShare()).isEqualByComparingTo(VirtualSimRules.upShare(stats.paths(), stats.down()));

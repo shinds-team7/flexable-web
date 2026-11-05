@@ -154,7 +154,7 @@ class VirtualContestPolicyTest {
 		}
 	}
 
-	/** 대회 판 규칙을 더해도 일반 유형의 결과는 그대로다. 값은 대회 구현 전(f07ea7c) 생성기로 같은 입력을 돌려 잰 것 */
+	/** 대회 판 규칙을 더해도 일반 유형의 결과는 그대로다. 값은 #253(일반 출제에서 뚜렷한 유형을 먼저 뽑지 않음) 생성기로 같은 입력을 돌려 잰 것. 대회 판의 난수 순서는 바뀌지 않아 생성기 버전은 그대로다 */
 	@Test
 	void general_generation_unchanged() {
 		var all = EnumSet.of(VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES,
@@ -169,7 +169,7 @@ class VirtualContestPolicyTest {
 				h = h * 31 + e.index() * 101 + e.category().ordinal() + e.title().hashCode();
 			}
 		}
-		assertThat(h).isEqualTo(-4560467443519171430L);
+		assertThat(h).isEqualTo(-7166366154250459648L);
 	}
 
 	private static Portfolio play(JsonNode c) {

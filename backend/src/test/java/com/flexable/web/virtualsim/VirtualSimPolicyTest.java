@@ -86,7 +86,7 @@ class VirtualSimPolicyTest {
 	}
 
 	@Test
-	void trade_and_quiz_reuse_practice_cases() throws Exception {
+	void trade_reuses_practice_cases() throws Exception {
 		JsonNode keys = root().get("tradeAndQuiz").get("keys");
 		JsonNode p = read(root().get("tradeAndQuiz").get("source").asString());
 		assertThat(keys.valueStream().map(JsonNode::asString)).allMatch(k -> p.get(k) != null);
@@ -98,10 +98,6 @@ class VirtualSimPolicyTest {
 		var holding = PracticeEngine.trade(new Holding(cash.get("initialAmount").asLong(), 0), Action.BUY, p.get("initialAllocationPercent").asInt(),
 				cash.get("open").asLong()).holding();
 		assertPortfolio(PracticeEngine.value(holding, cash.get("close").asLong(), cash.get("initialAmount").asLong()), cash.get("expected"));
-		for (JsonNode c : p.get("quizCases")) {
-			assertThat(PracticeEngine.outcome(c.get("baseline").asLong(), c.get("afterFiveSessions").asLong(), Prediction.valueOf(c.get("prediction").asString())))
-				.isEqualTo(c.get("expected").asString());
-		}
 	}
 
 	@Test
@@ -111,7 +107,6 @@ class VirtualSimPolicyTest {
 		assertThat(PracticeWindow.MAX_LENGTH).isEqualTo(w.get("maxLength").asInt());
 		assertThat(VirtualSimGenerator.MIN_QUESTIONS).isEqualTo(w.get("minQuestions").asInt());
 		assertThat(VirtualSimGenerator.MAX_QUESTIONS).isEqualTo(w.get("maxQuestions").asInt());
-		assertThat(VirtualSimGenerator.CLEAR_QUESTIONS).isEqualTo(w.get("minClearQuestions").asInt());
 		assertThat(PracticeWindow.LEAD_DAYS).isEqualTo(w.get("leadDays").asInt());
 		assertThat(PracticeWindow.FOLLOW_DAYS).isEqualTo(w.get("followDays").asInt());
 	}
@@ -243,10 +238,10 @@ class VirtualSimPolicyTest {
 		}));
 	}
 
-	// ───────── 8-6 경향과 채점 ─────────
+	// ───────── 8-6 경향과 판정 뒤 정보 ─────────
 
 	@Test
-	void trend_and_scoring() throws Exception {
+	void trend() throws Exception {
 		JsonNode t = root().get("trend");
 		assertThat(VirtualSimRules.UP_AT_LEAST).isEqualByComparingTo(new BigDecimal(t.get("upAtLeast").asString()));
 		assertThat(VirtualSimRules.DOWN_AT_MOST).isEqualByComparingTo(new BigDecimal(t.get("downAtMost").asString()));
@@ -256,11 +251,16 @@ class VirtualSimPolicyTest {
 			assertThat(share).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("upShare").asString()));
 			assertThat(VirtualSimRules.trend(c.get("paths").asInt(), share)).as(c.toString()).isEqualTo(c.get("expected").asString());
 		}
-		for (JsonNode c : t.get("scoring")) {
-			Prediction p = VirtualSimService.prediction(Action.valueOf(c.get("action").asString()));
+	}
+
+	/** 일반 세션도 채점하지 않는다(11-05, #253): 예시의 outcome·trendOutcome은 null이고 movement만 정한다. 세션 응답은 VirtualSimServiceTest가 본다 */
+	@Test
+	void no_score() throws Exception {
+		JsonNode n = root().get("noScore");
+		for (JsonNode c : n.get("cases")) {
 			long base = c.get("baseline").asLong(), after = c.get("afterFiveSessions").asLong();
-			assertThat(VirtualSimService.trendOutcome(c.get("trend").asString(), p)).as(c.toString()).isEqualTo(c.get("trendOutcome").asString());
-			assertThat(p == null ? "NEUTRAL" : PracticeEngine.outcome(base, after, p)).as(c.toString()).isEqualTo(c.get("outcome").asString());
+			assertThat(c.get("trendOutcome").isNull()).as(c.toString()).isTrue();
+			assertThat(c.get("outcome").isNull()).as(c.toString()).isTrue();
 			assertThat(VirtualSimService.movement(base, after)).as(c.toString()).isEqualTo(c.get("movement").asString());
 		}
 	}
@@ -342,7 +342,6 @@ class VirtualSimPolicyTest {
 			List<Planned> events = plan.events();
 			assertThat(events.size()).isBetween(3, 5);
 			assertThat(events.stream().map(Planned::category).distinct()).hasSize(events.size());
-			assertThat(events.stream().filter(e -> rules.stats(e.category()).orElseThrow().clear())).hasSizeGreaterThanOrEqualTo(2);
 			assertAllAsked(c.size(), events.stream().mapToInt(Planned::index).toArray());
 			// 사건 뒤 1~5번째 봉의 종가는 그 유형에서 뽑은 경로 값으로 만든 것이다
 			for (Planned e : events) {

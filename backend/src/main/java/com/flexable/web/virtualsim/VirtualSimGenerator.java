@@ -19,7 +19,7 @@ import com.flexable.web.virtualsim.VirtualSimRuleset.Grade;
 /**
  * 가상 시세 생성(policies §8-1·8-2·8-4, decisions/2026-11-04-virtual-simulation 2·3). 시드의 결정적 난수(SplittableRandom)로
  * 아래 순서대로 뽑으므로 같은 시드·룰셋·가상 종목(유형 목록)·세션 시작일이면 같은 구간·사건 위치·OHLC가 나온다.
- * 순서: 시작일 → 길이 L → 문제 수 N → 뚜렷한 유형 2개 → 나머지 유형 → 순서 섞기 → 위치 y → 사건마다 경로·제목 → 시작가 → 등급 → 봉마다 g·r·u·d.
+ * 순서: 시작일 → 길이 L → 문제 수 N → 유형(일반은 균등, 11-05부터 뚜렷한 유형을 먼저 뽑지 않음) → 순서 섞기 → 위치 y → 사건마다 경로·제목 → 시작가 → 등급 → 봉마다 g·r·u·d.
  * 대회 판(decisions/2026-11-05-virtual-sim-contest 9)은 문제 수를 뽑는 자리를 건너뛰고(4 고정, v2는 길이를 뽑는 자리도 건너뛰고 120 고정), 판의 "먼저 뽑는 유형"(뚜렷한 유형 → MIXED 순)을
  * 뽑은 뒤 나머지를 뽑으며, 등급은 판의 등급 목록에서 균등하게 뽑는다. 이 순서·계산식을 바꿔 같은 시드에서 다른 봉이 나오면 VERSION을 올린다(결정 기록 5-3).
  */
@@ -39,7 +39,8 @@ public final class VirtualSimGenerator {
 	public static final int YEAR_OFFSET = 10;
 	public static final int MIN_QUESTIONS = PracticeWindow.MIN_QUESTIONS;
 	public static final int MAX_QUESTIONS = 5;
-	public static final int CLEAR_QUESTIONS = 2;
+	/** 가상 종목 후보 조건: 공개 가능한 유형 중 뚜렷한 유형(UP·DOWN) 수. 일반 출제는 이 유형을 먼저 뽑지 않는다(11-05) */
+	public static final int MIN_CLEAR_TYPES = 2;
 	public static final long MIN_START_PRICE = 5_000;
 	public static final long MAX_START_PRICE = 200_000;
 	public static final long PRICE_STEP = 100;
@@ -122,7 +123,7 @@ public final class VirtualSimGenerator {
 	}
 
 	/**
-	 * 가상 종목 하나의 구간을 만든다. available: 그 회사의 공개 가능한 사건 유형(룰셋에 있는 것만). 3개 이상이고 그중 뚜렷한 유형이 2개 이상이어야 한다.
+	 * 가상 종목 하나의 구간을 만든다. available: 그 회사의 공개 가능한 사건 유형(룰셋에 있는 것만). 3개 이상이고 그중 뚜렷한 유형이 2개 이상이어야 한다(후보 조건, 출제는 균등).
 	 */
 	public static Plan generate(long seed, VirtualSimRuleset rules, Collection<VirtualSimCategory> available, LocalDate sessionDate) {
 		return generate(seed, rules, available, sessionDate, null);
@@ -136,7 +137,7 @@ public final class VirtualSimGenerator {
 			.toList();
 		List<VirtualSimCategory> clear = usable.stream().filter(c -> rules.stats(c).orElseThrow().clear()).toList();
 		List<VirtualSimCategory> mixed = usable.stream().filter(c -> !rules.stats(c).orElseThrow().clear()).toList();
-		if (board == null ? usable.size() < MIN_QUESTIONS || clear.size() < CLEAR_QUESTIONS
+		if (board == null ? usable.size() < MIN_QUESTIONS || clear.size() < MIN_CLEAR_TYPES
 				: usable.size() < board.events() || clear.size() < board.clear() || mixed.size() < board.mixed()) {
 			throw new IllegalArgumentException("공개 가능한 사건 유형이 모자라요");
 		}
@@ -151,10 +152,10 @@ public final class VirtualSimGenerator {
 				: PracticeWindow.MIN_LENGTH + rnd.nextInt(PracticeWindow.MAX_LENGTH - PracticeWindow.MIN_LENGTH + 1);
 		int n = board != null ? board.events() : Math.min(MIN_QUESTIONS + rnd.nextInt(MAX_QUESTIONS - MIN_QUESTIONS + 1), usable.size());
 
-		// 먼저 뽑는 유형(일반은 뚜렷한 유형 2개, 대회 판은 판 규칙), 나머지는 남은 유형 전체(반반 포함)에서. 뽑은 유형은 위치에 섞어 놓는다
+		// 대회 판은 판 규칙의 유형을 먼저 뽑고, 나머지(일반은 전부)는 남은 유형 전체(반반 포함)에서 균등하게. 뽑은 유형은 위치에 섞어 놓는다
 		List<VirtualSimCategory> chosen = new ArrayList<>();
-		draw(rnd, clear, board == null ? CLEAR_QUESTIONS : board.clear(), chosen);
 		if (board != null) {
+			draw(rnd, clear, board.clear(), chosen);
 			draw(rnd, mixed, board.mixed(), chosen);
 		}
 		draw(rnd, usable, n - chosen.size(), chosen);

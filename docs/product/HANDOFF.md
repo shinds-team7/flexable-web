@@ -18,7 +18,7 @@
 - 완료·종료: #115 F7 범위 확정, #243 AI 문구 검사(#249), #205 가상 시뮬레이션(#235), #241 저축과 투자 9편(#254). #249는 실제 OpenAI 응답을 확인하지 못했다고 명시하므로 코드 병합을 운영 AI 성공으로 해석하지 않는다. #235 역시 운영 최초 채움·추가 검증과 구분한다.
 - 착수 가능한 잔여 작업: #245 허용된 공식 출처 확대/전체 목록 대조. #143 필터 분류·로고, #113 청년미래적금, #247 금액별 계산은 근거·정책/계약 초안부터 가능하며 미확정 규칙을 임의로 구현하지 않는다.
 - 선행 결과 필요: #114 F3 범위·담당 결정, #198 소식 worker·#246 cash 운영 배포/적재는 사용자 운영 확인.
-- #253 일반 가상 시뮬레이션 채점 제거: 스펙 확정(#PR, [결정 기록](../decisions/2026-11-04-virtual-simulation.md) "변경 기록 11-05", policies §8-6, `tests/policy/virtual-simulation.json` `noScore` `PENDING`), 구현 PR 남음 — #252 구현 병합 뒤 진행.
+- #253 일반 가상 시뮬레이션 채점 제거: 구현됨([결정 기록](../decisions/2026-11-04-virtual-simulation.md) "변경 기록 11-05", policies §8-6, `tests/policy/virtual-simulation.json` `noScore` `IMPLEMENTED`). 일반 세션도 `outcome`·`trendOutcome` null, 출제는 유형 균등, 결과 화면 점수·경향 맞힘 문구 없음.
 - #252 대회 모드: 스펙 PR(spec-change)에서 규칙을 사용자 결정으로 정했다([결정](../decisions/2026-11-05-virtual-sim-contest.md), policies §8-8, 계약 `/virtual-sim/contests/*`·`/me/virtual-sim/contests`, `tests/policy/virtual-contest.json` `PENDING`). 배치고사·하루 목표·주간 승급/강등·점수 랭킹으로 정했고(#258 리뷰), 구현(대회 자동 개설·정산, 배치고사, 판 진행 연결, 하루/주 판정, 판별 출제, 랭킹·내 기록 API와 화면, Flyway 다음 빈 번호)과 `Privacy.tsx` 개정은 다음 구현 PR이다. 판별 상위권 앱 스킨·코인 보상은 앱 저장소 계약과 함께 별도 Issue가 필요하다. 순위 제외 규칙은 일반 가상 시뮬레이션에만 남는다.
 - #255 투자 성향 5유형·12문항 개편도 병합됐다. 현재 구현은 안정형·안정추구형·위험중립형·적극투자형·공격투자형이며 설문 12문항이다. 열린 PR은 이번 문서 PR #251이다.
 

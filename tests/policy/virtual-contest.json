@@ -83,7 +83,8 @@
         31
       ]
     ],
-    "note": "배치고사만 과거 경향으로 채점. 대회 판의 decisions[].outcome·trendOutcome은 늘 null. 승급·강등하면 잔액 = 새 판의 대회 시드머니. 시드는 판마다 사람마다 새로 뽑는다"
+    "note": "배치고사만 과거 경향으로 채점. 대회 판의 decisions[].outcome·trendOutcome은 늘 null. 승급·강등하면 잔액 = 새 판의 대회 시드머니. 시드는 판마다 사람마다 새로 뽑는다",
+    "generatorVersion": "vsim-gen-v1"
   },
   "placement": {
     "note": "맞힌 수 → 시작 판. 0~5 B10M, 6~8 B50M, 9~10 B100M(임시). 안 고른 문제는 틀림",
@@ -452,41 +453,55 @@
     ]
   },
   "ranking": {
-    "note": "판 점수 큰 순 → 판 수익률 큰 순 → 그 잔액이 된 시각 이른 순 → 참가 시각 이른 순. 같은 순위 번호 없음",
+    "note": "판 점수 큰 순 → 판 수익률 큰 순 → 그 잔액이 된 시각 이른 순 → 참가 시각 이른 순 → 웹 회원 번호 작은 순(응답에 넣지 않음). 같은 순위 번호 없음",
     "entries": [
       {
         "member": "A",
         "boardPoints": 5,
         "boardReturnRate": 0.1,
         "reachedAt": "2026-11-03T10:00:00+09:00",
-        "joinedAt": "2026-11-01T09:00:00+09:00"
+        "joinedAt": "2026-11-01T09:00:00+09:00",
+        "userId": 11
       },
       {
         "member": "B",
         "boardPoints": 5,
         "boardReturnRate": 0.2,
         "reachedAt": "2026-11-02T09:00:00+09:00",
-        "joinedAt": "2026-11-01T12:00:00+09:00"
+        "joinedAt": "2026-11-01T12:00:00+09:00",
+        "userId": 12
       },
       {
         "member": "C",
         "boardPoints": 3,
         "boardReturnRate": 0.9,
         "reachedAt": "2026-11-04T12:00:00+09:00",
-        "joinedAt": "2026-11-01T08:00:00+09:00"
+        "joinedAt": "2026-11-01T08:00:00+09:00",
+        "userId": 30
       },
       {
         "member": "D",
         "boardPoints": 5,
         "boardReturnRate": 0.2,
         "reachedAt": "2026-11-05T20:00:00+09:00",
-        "joinedAt": "2026-11-01T07:00:00+09:00"
+        "joinedAt": "2026-11-01T07:00:00+09:00",
+        "userId": 14
+      },
+      {
+        "member": "E",
+        "boardPoints": 3,
+        "boardReturnRate": 0.9,
+        "reachedAt": "2026-11-04T12:00:00+09:00",
+        "joinedAt": "2026-11-01T08:00:00+09:00",
+        "userId": 25,
+        "note": "C와 회원 번호만 다름"
       }
     ],
     "expectedOrder": [
       "B",
       "D",
       "A",
+      "E",
       "C"
     ]
   }

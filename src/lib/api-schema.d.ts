@@ -823,7 +823,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description version=0, 첫 봉만 공개. snapshot.contest가 붙는다. 이 세션이 끝나면(완주·end·30분 만료·서버 재시작·대회 마감) 서버가 남은 봉을 끝까지 돌려 마지막 봉 총자산을 새 대회 잔액으로 한 번만 반영한다. 하루 점수·주간 승급·강등은 날·주가 끝난 뒤 정한다(policies §8-8) */
+                /** @description version=0, 첫 봉만 공개. snapshot은 contest가 반드시 있는 VirtualContestRoundSnapshot이다. 이 세션이 끝나면(완주·end·30분 만료·서버 재시작·대회 마감) 서버가 남은 봉을 끝까지 돌려 마지막 봉 총자산을 새 대회 잔액으로 한 번만 반영한다. 하루 점수·주간 승급·강등은 날·주가 끝난 뒤 정한다(policies §8-8) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -833,7 +833,7 @@ export interface paths {
                             sessionToken: string;
                             /** Format: date-time */
                             expiresAt: string;
-                            snapshot: components["schemas"]["VirtualSimSnapshot"];
+                            snapshot: components["schemas"]["VirtualContestRoundSnapshot"];
                             round: {
                                 /** @description 이번 대회에서 몇 번째 판인가 */
                                 roundNumber: number;
@@ -874,7 +874,7 @@ export interface paths {
         };
         /**
          * 판별 랭킹(회원만). 상위 100위와 내 순위
-         * @description 판 점수 큰 순, 같으면 판 수익률 큰 순, 같으면 그 잔액에 먼저 도달한 사람(판이 없으면 참가 시각), 그것도 같으면 먼저 참가한 사람. 진행 중 대회는 지금 그 판에 있는 참가자로 계산(진행 중인 판은 시작 잔액), 정산 뒤에는 마지막 판의 확정 순위. 탈퇴한 회원의 행은 빠지고 다른 확정 순위 번호는 그대로. 없는 대회·보관 기간이 지난 대회는 404
+         * @description 판 점수 큰 순, 같으면 판 수익률 큰 순, 같으면 그 잔액에 먼저 도달한 사람(판이 없으면 참가 시각), 같으면 먼저 참가한 사람, 그것도 같으면 웹 회원 번호가 작은 사람(같은 순위 번호 없음). 진행 중 대회는 지금 그 판에 있는 참가자로 계산(진행 중인 판은 시작 잔액), 정산 뒤에는 마지막 판의 확정 순위. 탈퇴한 회원의 행은 빠지고 다른 확정 순위 번호는 그대로. 없는 대회·보관 기간이 지난 대회는 404
          */
         get: {
             parameters: {
@@ -1824,7 +1824,7 @@ export interface paths {
                             /** @description 서버가 붙인 익명 별명(vsim-alias-v1). 한 번도 참가하지 않았으면 null */
                             alias: string | null;
                             /** @description 이번 대회 배치고사를 마치지 않았으면 null */
-                            current: components["schemas"]["VirtualContestEntry"] | null;
+                            current: components["schemas"]["VirtualContestEntry"] | (null);
                             /** @description 정산한 지난 대회, 최신순. 대회가 끝난 뒤 12개월이 지나면 빠진다 */
                             history: components["schemas"]["VirtualContestResult"][];
                         };
@@ -3215,18 +3215,7 @@ export interface components {
             initialAmount: number;
             /** @description 예시 작성기·예시 룰셋으로 만든 학습용 자료. AI 생성 여부는 generator.aiGenerated */
             isSample: boolean;
-            /** @description 대회 판일 때만(policies §8-8). 일반 세션은 이 필드가 없다. 대회 판은 채점이 없어 decisions[].outcome·trendOutcome이 늘 null이고 사건은 4개다 */
-            contest?: {
-                contestId: string;
-                /** @description 이 판의 판(출제 규칙의 기준). 판이 바뀌는 것은 주간 판정 때뿐이다 */
-                board: components["schemas"]["VirtualContestBoard"];
-                roundNumber: number;
-                /**
-                 * Format: int64
-                 * @description status=FINISHED일 때만 새 대회 잔액(= 마지막 portfolio.total). 그 전에는 null
-                 */
-                endBalance: number | null;
-            } | null;
+            contest?: components["schemas"]["VirtualSimContestRound"];
             /** @description 이번 실행의 전체 거래일 수(평일만 센 가상 날짜). 가격·사건은 공개한 봉까지만 준다 */
             totalDays: number;
             /** @description 공개된 봉만 날짜 오름차순. 날짜는 세션 시작일 연도 + 10년의 가상 날짜(평일). 서버가 룰셋으로 만든 값 */
@@ -3340,9 +3329,25 @@ export interface components {
                  */
                 trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
             }[];
-            /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
+            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 채점을 말하지 않는 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
             notice: string;
             sources: string[];
+        };
+        /** @description 대회 판일 때만 VirtualSimSnapshot에 붙는다(policies §8-8). 일반 세션은 이 필드가 없다(null도 아님). 대회 판은 채점이 없어 decisions[].outcome·trendOutcome이 늘 null이고 사건은 4개이며 notice는 대회 문장이다 */
+        VirtualSimContestRound: {
+            contestId: string;
+            /** @description 이 판의 판(출제 규칙의 기준). 판이 바뀌는 것은 주간 판정 때뿐이다 */
+            board: components["schemas"]["VirtualContestBoard"];
+            roundNumber: number;
+            /**
+             * Format: int64
+             * @description status=FINISHED일 때만 새 대회 잔액(= 마지막 portfolio.total). 그 전에는 null
+             */
+            endBalance: number | null;
+        };
+        /** @description 대회 판 시작 응답의 snapshot. VirtualSimSnapshot에 contest가 반드시 있다 */
+        VirtualContestRoundSnapshot: components["schemas"]["VirtualSimSnapshot"] & {
+            contest: components["schemas"]["VirtualSimContestRound"];
         };
         /**
          * @description 판(티어). 대회 시드머니 B10M 10,000,000 · B50M 50,000,000 · B100M 100,000,000원. 시작 판은 배치고사, 판은 주간 점수로 바뀐다(policies §8-8)
@@ -3537,7 +3542,7 @@ export interface components {
             participants: number;
             items: components["schemas"]["VirtualContestRankingRow"][];
             /** @description 내 행(100위 밖이어도). 지금(정산 뒤면 마지막에) 이 판에 없으면 null */
-            me: components["schemas"]["VirtualContestRankingRow"] | null;
+            me: components["schemas"]["VirtualContestRankingRow"] | (null);
         };
         /** @description 다른 회원에게는 별명과 아래 값만 보인다(이메일·회원 번호 없음) */
         VirtualContestRankingRow: {

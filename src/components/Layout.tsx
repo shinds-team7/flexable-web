@@ -25,7 +25,15 @@ const NAV: NavItem[] = [
       { to: '/invest?board=ETF', label: 'ETF' },
     ],
   },
-  { to: '/simulation', label: '시뮬레이션' },
+  {
+    to: '/simulation',
+    label: '시뮬레이션',
+    sub: [
+      { to: '/simulation?mode=past', label: '과거 시장 연습' },
+      { to: '/simulation?mode=virtual', label: '가상 시뮬레이션' },
+      { to: '/simulation?mode=contest', label: '가상 시뮬레이션 대회' },
+    ],
+  },
   {
     to: '/savings',
     label: '예적금',

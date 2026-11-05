@@ -4,7 +4,6 @@
   "decision": "docs/decisions/2026-11-05-virtual-sim-contest.md",
   "provisional": {
     "note": "임시값. 구현 PR에서 실제 룰셋 모의 계산으로 확정",
-    "dailyTargetRate": 0.03,
     "placementCuts": {
       "B50M": 6,
       "B100M": 9
@@ -59,7 +58,7 @@
     "retentionMonths": 12,
     "placementQuestions": 10,
     "placementMinutes": 30,
-    "dailyTargetRate": 0.03,
+    "dailyTargetRate": 0.05,
     "weeklyPromoteAt": 4,
     "weeklyDemoteAt": -4,
     "weeks": [
@@ -297,21 +296,27 @@
     "cases": [
       {
         "dayStartBalance": 10000000,
-        "dayEndBalance": 10300000,
-        "dayReturnRate": 0.03,
+        "dayEndBalance": 10500000,
+        "dayReturnRate": 0.05,
         "points": 1
       },
       {
         "dayStartBalance": 10000000,
-        "dayEndBalance": 10299999,
-        "dayReturnRate": 0.0299,
+        "dayEndBalance": 10499999,
+        "dayReturnRate": 0.0499,
         "points": -1
       },
       {
         "dayStartBalance": 13000000,
-        "dayEndBalance": 13390000,
-        "dayReturnRate": 0.03,
+        "dayEndBalance": 13650000,
+        "dayReturnRate": 0.05,
         "points": 1
+      },
+      {
+        "dayStartBalance": 10000000,
+        "dayEndBalance": 10300000,
+        "dayReturnRate": 0.03,
+        "points": -1
       },
       {
         "dayStartBalance": 50000000,

@@ -3389,7 +3389,7 @@ export interface components {
                 roundsPerDay: number;
                 /** @description 한 판 사건 수(4) */
                 eventsPerRound: number;
-                /** @description 하루 목표 수익률(0.03, 임시). 이상이면 +1, 못 미치면 −1, 판 없는 날 0 */
+                /** @description 하루 목표 수익률(0.05). 이상이면 +1, 못 미치면 −1, 판 없는 날 0 */
                 dailyTargetRate: number;
                 /** @description 주 점수가 이 값 이상이면 승급(4) */
                 weeklyPromoteAt: number;
@@ -3500,7 +3500,7 @@ export interface components {
                 startBalance: number | null;
                 /** @description 지금까지 끝난 판 기준 오늘 수익률(확정은 하루가 끝난 뒤). 오늘 판이 없으면 null */
                 returnRate: number | null;
-                /** @description 하루 목표(0.03, 임시) */
+                /** @description 하루 목표(0.05) */
                 targetRate: number;
                 rounds: number;
                 roundsLeft: number;

@@ -1773,7 +1773,7 @@ components:
           properties:
             roundsPerDay: { type: integer, description: 'KST 하루 판 수(10)' }
             eventsPerRound: { type: integer, description: '한 판 사건 수(4)' }
-            dailyTargetRate: { type: number, description: '하루 목표 수익률(0.03, 임시). 이상이면 +1, 못 미치면 −1, 판 없는 날 0' }
+            dailyTargetRate: { type: number, description: '하루 목표 수익률(0.05). 이상이면 +1, 못 미치면 −1, 판 없는 날 0' }
             weeklyPromoteAt: { type: integer, description: '주 점수가 이 값 이상이면 승급(4)' }
             weeklyDemoteAt: { type: integer, description: '주 점수가 이 값 이하면 강등(−4)' }
             placementQuestions: { type: integer, description: '배치고사 문제 수(10)' }
@@ -1880,7 +1880,7 @@ components:
           properties:
             startBalance: { type: integer, format: int64, nullable: true, description: '오늘 첫 판의 시작 잔액. 오늘 판이 없으면 null' }
             returnRate: { type: number, nullable: true, description: '지금까지 끝난 판 기준 오늘 수익률(확정은 하루가 끝난 뒤). 오늘 판이 없으면 null' }
-            targetRate: { type: number, description: '하루 목표(0.03, 임시)' }
+            targetRate: { type: number, description: '하루 목표(0.05)' }
             rounds: { type: integer, minimum: 0, maximum: 10 }
             roundsLeft: { type: integer, minimum: 0, maximum: 10 }
         rank: { type: integer, minimum: 1, description: '지금 판 안 순위' }

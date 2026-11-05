@@ -101,7 +101,9 @@ class RestGoalScenarioAiClientTest {
 	void 프롬프트_v4는_적금_단정을_막고_숫자를_줄이라고_안내한다() {
 		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v4");
 		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v4.")
-			.contains("금리가 정해져 있어요").contains("원금이 보장돼요").contains("숫자는 꼭 필요할 때만");
+			.contains("금리가 정해져 있어요")
+			.contains("'원금이 보장돼요', '보장된 금리', '확실한 수익'이라고 쓰지 않아요")
+			.contains("숫자는 꼭 필요할 때만");
 	}
 
 	@Test

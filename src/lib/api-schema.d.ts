@@ -3272,7 +3272,7 @@ export interface components {
                     maxSellShares: number;
                 };
             } | null;
-            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상, 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 공개 가능한 유형 전체에서 서로 다른 유형을 균등하게 뽑는다(뚜렷한 유형 최소 개수 없음, 11-05), 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
             decisions: {
                 eventId: string;
                 category: components["schemas"]["VirtualSimCategory"];

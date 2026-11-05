@@ -590,7 +590,7 @@ export interface paths {
                         action: "BUY" | "SELL" | "HOLD";
                         /**
                          * Format: int64
-                         * @description HOLD는 0만, BUY는 1~orderLimits.maxBuyShares, SELL은 1~orderLimits.maxSellShares
+                         * @description HOLD는 0만, BUY는 1~orderLimits.maxBuyShares, SELL은 1~orderLimits.maxSellShares. 대회 판은 잔액 상한이 없어 고정 최대값을 두지 않는다
                          */
                         quantity: number;
                     };
@@ -650,6 +650,210 @@ export interface paths {
                 400: components["responses"]["Error"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/contests/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 이번 달 대회 안내(로그인 없음). policies §8-8
+         * @description 대회는 매달 1일 00:00 ~ 다음 달 1일 00:00(KST). 직전 대회 정산이 끝나기 전에는 status=PREPARING이고 참가·판 시작은 409 CONTEST_CLOSED
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 이번 대회 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VirtualContest"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/contests/current/entry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 이번 대회 참가(회원). 잔액은 자기 판의 대회 시드머니로 시작
+         * @description 자기 판(처음은 B10M, 정산 때 승급·강등)이 아니면 409 CONTEST_BOARD_MISMATCH. 대회 기간 밖·PREPARING이면 409 CONTEST_CLOSED. 이미 참가했으면 처음 참가 그대로 200(잔액이 바뀌지 않음). 처음 참가할 때 서버가 익명 별명을 붙인다
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        board: components["schemas"]["VirtualContestBoard"];
+                    };
+                };
+            };
+            responses: {
+                /** @description 내 이번 대회 기록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VirtualContestEntry"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/contests/current/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 대회 판 시작(회원). 대회 잔액 전부로 시작하고 사건 4개 고정, 판 진행은 /virtual-sim/state·step·decision·end
+         * @description no-store. 투자금을 받지 않고 대회 잔액을 initialAmount로 쓴다(§5 최초 매수 그대로). 판 규칙(판별 변동성 등급·유형 고르기·채점 없음)은 policies §8-8. 같은 startId는 같은 판: 세션이 살아 있으면 같은 응답, 이미 끝났으면 409 PRACTICE_CONFLICT, 하루 판 수에 세지 않는다. 진행 중인 다른 판이 있으면 그 판을 남은 사건 유지로 끝까지 돌려 정산한 뒤 시작한다. 오류: 참가 전 409 CONTEST_NOT_JOINED, 기간 밖 409 CONTEST_CLOSED, 청산 409 CONTEST_LIQUIDATED, 하루 3판 초과 429 CONTEST_DAILY_LIMIT(retryAfterSeconds = 다음 날 00:00 KST까지), 판에 맞는 후보가 없으면 503 PRACTICE_UNAVAILABLE, 세션 상한 503 PRACTICE_CAPACITY
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        startId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description version=0, 첫 봉만 공개. snapshot.contest가 붙는다. 이 세션이 끝나면(완주·end·30분 만료·서버 재시작·대회 마감) 서버가 남은 봉을 끝까지 돌려 마지막 봉 총자산을 새 대회 잔액으로 한 번만 반영한다 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            sessionToken: string;
+                            /** Format: date-time */
+                            expiresAt: string;
+                            snapshot: components["schemas"]["VirtualSimSnapshot"];
+                            round: {
+                                /** @description 이번 대회에서 몇 번째 판인가 */
+                                roundNumber: number;
+                                /**
+                                 * Format: int64
+                                 * @description 이 판을 시작한 대회 잔액(= snapshot.initialAmount)
+                                 */
+                                startBalance: number;
+                                /** @description 이 판을 뺀 오늘(KST) 남은 판 수 */
+                                roundsLeftToday: number;
+                            };
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                429: components["responses"]["Error"];
+                503: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/virtual-sim/contests/{contestId}/boards/{board}/ranking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description 대회 이름 YYYY-MM. 이번 대회 또는 보관 중인 지난 대회(끝난 뒤 12개월) */
+                contestId: string;
+                board: components["schemas"]["VirtualContestBoard"];
+            };
+            cookie?: never;
+        };
+        /**
+         * 판별 랭킹(회원만). 상위 100위와 내 순위
+         * @description 잔액 큰 순, 같으면 그 잔액에 먼저 도달한 사람(판이 없으면 참가 시각), 그것도 같으면 먼저 참가한 사람. 진행 중 대회는 지금 잔액으로 계산(진행 중인 판은 시작 잔액), 정산 뒤에는 확정 순위. 탈퇴한 회원의 행은 빠지고 다른 확정 순위 번호는 그대로. 없는 대회·보관 기간이 지난 대회는 404
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description 대회 이름 YYYY-MM. 이번 대회 또는 보관 중인 지난 대회(끝난 뒤 12개월) */
+                    contestId: string;
+                    board: components["schemas"]["VirtualContestBoard"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 랭킹 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VirtualContestRanking"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1537,6 +1741,51 @@ export interface paths {
                 404: components["responses"]["Error"];
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/virtual-sim/contests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 내 대회 기록: 지금 판·별명, 이번 대회 내 기록, 지난 대회 결과(최대 12개). policies §8-8 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 내 기록 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            board: components["schemas"]["VirtualContestBoard"];
+                            /** @description 서버가 붙인 익명 별명(vsim-alias-v1). 한 번도 참가하지 않았으면 null */
+                            alias: string | null;
+                            /** @description 이번 대회에 참가하지 않았으면 null */
+                            current: components["schemas"]["VirtualContestEntry"] | null;
+                            /** @description 정산한 지난 대회, 최신순. 대회가 끝난 뒤 12개월이 지나면 빠진다 */
+                            history: components["schemas"]["VirtualContestResult"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2909,10 +3158,24 @@ export interface components {
                 /** Format: date */
                 dataTo: string | null;
             };
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description 이 실행의 투자금. 일반 세션은 /virtual-sim/start의 initialAmount(10,000~100,000,000), 대회 판은 시작한 대회 잔액(1,000,000 이상, 상한 없음)
+             */
             initialAmount: number;
             /** @description 예시 작성기·예시 룰셋으로 만든 학습용 자료. AI 생성 여부는 generator.aiGenerated */
             isSample: boolean;
+            /** @description 대회 판일 때만(policies §8-8). 일반 세션은 이 필드가 없다. 대회 판은 채점이 없어 decisions[].outcome·trendOutcome이 늘 null이고 사건은 4개다 */
+            contest?: {
+                contestId: string;
+                board: components["schemas"]["VirtualContestBoard"];
+                /**
+                 * Format: int64
+                 * @description 판의 대회 시드머니
+                 */
+                seedMoney: number;
+                roundNumber: number;
+            } | null;
             /** @description 이번 실행의 전체 거래일 수(평일만 센 가상 날짜). 가격·사건은 공개한 봉까지만 준다 */
             totalDays: number;
             /** @description 공개된 봉만 날짜 오름차순. 날짜는 세션 시작일 연도 + 10년의 가상 날짜(평일). 서버가 룰셋으로 만든 값 */
@@ -2968,7 +3231,7 @@ export interface components {
                     maxSellShares: number;
                 };
             } | null;
-            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 한 실행의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상 */
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상, 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
             decisions: {
                 eventId: string;
                 category: components["schemas"]["VirtualSimCategory"];
@@ -2997,7 +3260,7 @@ export interface components {
                 /** Format: int64 */
                 executedShares: number | null;
                 /**
-                 * @description 이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다
+                 * @description 이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다. 대회 판은 늘 null
                  * @enum {string|null}
                  */
                 outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
@@ -3021,7 +3284,7 @@ export interface components {
                  */
                 trend: "UP" | "DOWN" | "MIXED" | null;
                 /**
-                 * @description 판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null
+                 * @description 판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null. 대회 판은 채점이 없어 늘 null
                  * @enum {string|null}
                  */
                 trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
@@ -3029,6 +3292,136 @@ export interface components {
             /** @description 서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6 */
             notice: string;
             sources: string[];
+        };
+        /**
+         * @description 판. 대회 시드머니 B10M 10,000,000 · B50M 50,000,000 · B100M 100,000,000원. 처음은 B10M(policies §8-8)
+         * @enum {string}
+         */
+        VirtualContestBoard: "B10M" | "B50M" | "B100M";
+        VirtualContest: {
+            /** @description 대회 이름 YYYY-MM */
+            contestId: string;
+            /**
+             * Format: date-time
+             * @description 그달 1일 00:00+09:00
+             */
+            startsAt: string;
+            /**
+             * Format: date-time
+             * @description 다음 달 1일 00:00+09:00(이 시각부터 마감)
+             */
+            endsAt: string;
+            /**
+             * @description PREPARING: 직전 대회 정산 중이라 참가를 아직 받지 않음
+             * @enum {string}
+             */
+            status: "PREPARING" | "OPEN";
+            boards: {
+                board: components["schemas"]["VirtualContestBoard"];
+                /** Format: int64 */
+                seedMoney: number;
+                /** @description 판에서 균등하게 뽑는 변동성 등급(B10M 0~1, B50M 0~2, B100M 1~2) */
+                volatilityGrades: number[];
+                participants: number;
+                /** @description 판에 맞는 후보 가상 종목이 있으면 true. false면 판 시작이 503 */
+                available: boolean;
+            }[];
+            rules: {
+                /** @description KST 하루 판 수(3) */
+                roundsPerDay: number;
+                /** @description 한 판 사건 수(4) */
+                eventsPerRound: number;
+                /**
+                 * Format: int64
+                 * @description 판이 끝난 뒤 잔액이 이 값 미만이면 청산(1,000,000)
+                 */
+                liquidationBelow: number;
+                /** @description 승급 상위 비율(20). 승급은 잔액 > 시드머니, 강등은 잔액 < 시드머니 */
+                promoteTopPercent: number;
+                /** @description 랭킹에 보이는 순위 수(100) */
+                rankingTop: number;
+            };
+        };
+        /** @description 이번 대회 내 기록. 금액·수익률은 서버 계산(수익률은 대회 시드머니 기준 소수 4자리 내림) */
+        VirtualContestEntry: {
+            contestId: string;
+            board: components["schemas"]["VirtualContestBoard"];
+            /** Format: int64 */
+            seedMoney: number;
+            alias: string;
+            /**
+             * Format: int64
+             * @description 지금 대회 잔액(진행 중인 판은 시작 잔액)
+             */
+            balance: number;
+            /**
+             * Format: int64
+             * @description 잔액 − 대회 시드머니
+             */
+            profit: number;
+            returnRate: number;
+            /** @description 판 안 지금 순위 */
+            rank: number;
+            participants: number;
+            /** @description 이번 대회에서 끝낸 판 수 */
+            rounds: number;
+            roundsLeftToday: number;
+            /** @description 진행 중인 판이 있으면 true. 새 판을 시작하면 그 판은 남은 사건 유지로 정산된다 */
+            activeRound: boolean;
+            /** @description 잔액이 1,000,000원 미만으로 끝나 이번 대회를 더 할 수 없음 */
+            liquidated: boolean;
+            /** Format: date-time */
+            joinedAt: string;
+        };
+        VirtualContestRanking: {
+            contestId: string;
+            board: components["schemas"]["VirtualContestBoard"];
+            /**
+             * @description OPEN이면 지금 순위, SETTLED면 확정 순위
+             * @enum {string}
+             */
+            status: "OPEN" | "SETTLED";
+            participants: number;
+            items: components["schemas"]["VirtualContestRankingRow"][];
+            /** @description 내 행(100위 밖이어도). 이 대회·판에 참가하지 않았으면 null */
+            me: components["schemas"]["VirtualContestRankingRow"] | null;
+        };
+        /** @description 다른 회원에게는 별명과 아래 값만 보인다(이메일·회원 번호 없음) */
+        VirtualContestRankingRow: {
+            rank: number;
+            alias: string;
+            /** Format: int64 */
+            balance: number;
+            /** Format: int64 */
+            profit: number;
+            returnRate: number;
+            rounds: number;
+            liquidated: boolean;
+            /**
+             * @description 정산 뒤만. 진행 중이면 null
+             * @enum {string|null}
+             */
+            result: "PROMOTED" | "STAYED" | "DEMOTED" | null;
+            isMe: boolean;
+        };
+        /** @description 정산한 지난 대회의 내 결과 */
+        VirtualContestResult: {
+            contestId: string;
+            board: components["schemas"]["VirtualContestBoard"];
+            /** Format: int64 */
+            seedMoney: number;
+            /** Format: int64 */
+            balance: number;
+            /** Format: int64 */
+            profit: number;
+            returnRate: number;
+            rank: number;
+            participants: number;
+            rounds: number;
+            liquidated: boolean;
+            /** @enum {string} */
+            result: "PROMOTED" | "STAYED" | "DEMOTED";
+            nextBoard: components["schemas"]["VirtualContestBoard"];
         };
         /**
          * @description SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2
@@ -3211,7 +3604,7 @@ export interface components {
         };
         Error: {
             /** @enum {string} */
-            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "GOAL_CHANGED" | "EMAIL_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "MARKET_UNAVAILABLE" | "LINK_CODE_INVALID" | "APP_LINK_EXISTS" | "APP_LINK_IN_PROGRESS" | "APP_LINK_RESULT_UNKNOWN" | "APP_UNAVAILABLE" | "INTERNAL_ERROR" | "PRACTICE_CONFLICT" | "PRACTICE_EXPIRED" | "PRACTICE_UNAVAILABLE" | "PRACTICE_CAPACITY" | "GOAL_SCENARIO_LIMIT" | "GOAL_SCENARIO_EXPIRED";
+            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "GOAL_CHANGED" | "EMAIL_UNAVAILABLE" | "TOO_MANY_ATTEMPTS" | "MARKET_UNAVAILABLE" | "LINK_CODE_INVALID" | "APP_LINK_EXISTS" | "APP_LINK_IN_PROGRESS" | "APP_LINK_RESULT_UNKNOWN" | "APP_UNAVAILABLE" | "INTERNAL_ERROR" | "PRACTICE_CONFLICT" | "PRACTICE_EXPIRED" | "PRACTICE_UNAVAILABLE" | "PRACTICE_CAPACITY" | "GOAL_SCENARIO_LIMIT" | "GOAL_SCENARIO_EXPIRED" | "CONTEST_CLOSED" | "CONTEST_BOARD_MISMATCH" | "CONTEST_NOT_JOINED" | "CONTEST_LIQUIDATED" | "CONTEST_DAILY_LIMIT";
             message: string;
             /** @description VALIDATION_FAILED에서 필드별 문장 */
             fields?: {
@@ -3219,7 +3612,7 @@ export interface components {
             };
             /**
              * Format: int64
-             * @description TOO_MANY_ATTEMPTS
+             * @description TOO_MANY_ATTEMPTS, CONTEST_DAILY_LIMIT(다음 날 00:00 KST까지)
              */
             retryAfterSeconds?: number;
             /**

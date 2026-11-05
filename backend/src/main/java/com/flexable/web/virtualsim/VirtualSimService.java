@@ -45,14 +45,14 @@ import com.flexable.web.virtualsim.VirtualSimStore.Company;
  * 시작할 때 최신 룰셋과 고른 가상 회사의 글을 복사하고 시드로 구간·사건·OHLC를 한 번에 만든다. 시드는 응답·로그에 넣지 않는다.
  * VIRTUAL_SIM_SOURCE=fake면 예시 룰셋·예시 회사만, 아니면 실제 것만 쓴다(한 실행에 섞지 않음). 세션 시작에서 AI를 부르지 않는다.
  * 대회 판(decisions/2026-11-05-virtual-sim-contest 3-8)도 같은 세션으로 진행한다. VirtualContestService가 판을 만들어 넣고(startContest),
- * 매매 제출·완주·종료·만료를 RoundListener로 알려 DB의 판 기록을 바꾸게 한다. 대회 판은 채점하지 않는다(outcome·trendOutcome null).
+ * 매매 제출·완주·종료·만료를 RoundListener로 알려 DB의 판 기록을 바꾸게 한다. 일반·대회 판 모두 채점하지 않는다(outcome·trendOutcome null).
  */
 @Service
 @EnableScheduling
 public class VirtualSimService {
 
-	static final String NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 매수는 오른다, 매도는 내린다는 예상으로 보고 그 유형 공시의 과거 경향과 비교해 채점하며(유지는 채점하지 않아요), 이번 움직임은 따로 보여 줘요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 뒤 움직임은 같은 유형의 과거 공시 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
-	static final String SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 사건 뒤 움직임은 예시 통계에서 무작위로 뽑았고, 매수·매도는 예시 통계의 경향과 비교해 채점해요(유지는 채점하지 않아요). 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	static final String NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 채점하지 않고, 사건마다 이후 5거래일 움직임과 같은 유형 공시의 과거 통계를 보여 줘요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 뒤 움직임은 같은 유형의 과거 공시 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	static final String SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 사건 뒤 움직임은 예시 통계에서 무작위로 뽑았고, 채점하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	static final String CONTEST_NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 뒤 움직임은 같은 유형의 과거 공시 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	static final String CONTEST_SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	private static final Logger log = LoggerFactory.getLogger(VirtualSimService.class);
@@ -160,7 +160,7 @@ public class VirtualSimService {
 	private List<Company> candidates(VirtualSimRuleset rules) {
 		return store.companies(sample, VirtualSimChecker.VERSION).stream().filter(c -> {
 			var usable = c.bodies().keySet().stream().map(rules::stats).flatMap(Optional::stream).toList();
-			return usable.size() >= VirtualSimGenerator.MIN_QUESTIONS && usable.stream().filter(CategoryStats::clear).count() >= VirtualSimGenerator.CLEAR_QUESTIONS;
+			return usable.size() >= VirtualSimGenerator.MIN_QUESTIONS && usable.stream().filter(CategoryStats::clear).count() >= VirtualSimGenerator.MIN_CLEAR_TYPES;
 		}).toList();
 	}
 
@@ -362,19 +362,17 @@ public class VirtualSimService {
 				long price = s.candles.get(baseline).close();
 				String eventId = r.eventId();
 				CategoryStats stats = s.questions.stream().filter(q -> q.id().equals(eventId)).findFirst().orElseThrow().stats();
-				// 대회 판은 채점하지 않는다(결정 기록 3-10): 이번 결과·경향 채점은 null, 이번 움직임·유형 통계는 보인다
-				boolean graded = s.contest == null;
+				// 일반·대회 모두 채점하지 않는다(policies §8-6, 11-05): 이번 결과·경향 채점은 null, 이번 움직임·유형 통계는 보인다
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
-						r.execution(), r.executedDate(), r.executedPrice(), r.executedShares(),
-						!graded ? null : r.prediction() == null ? "NEUTRAL" : PracticeEngine.outcome(price, candle.close(), r.prediction()), candle.date(),
+						r.execution(), r.executedDate(), r.executedPrice(), r.executedShares(), null, candle.date(),
 						PracticeEngine.rate(candle.close() - price, price), movement(price, candle.close()), stats.upShare(), VirtualSimRules.upShare(stats.paths(), stats.down()), stats.paths(), stats.trend(),
-						graded ? trendOutcome(stats.trend(), r.prediction()) : null);
+						null);
 			}
 			s.decisions.set(n, r);
 		}
 	}
 
-	/** 매매 방향의 예상: 매수는 오른다, 매도는 내린다, 유지는 예상 없음(채점 제외) */
+	/** 매매 방향의 예상: 매수는 오른다, 매도는 내린다, 유지는 예상 없음. 채점에는 쓰지 않는다 */
 	static Prediction prediction(Action action) {
 		return switch (action) {
 			case BUY -> Prediction.POSITIVE;
@@ -412,14 +410,6 @@ public class VirtualSimService {
 	/** 수량 입력 상한: 기준 가격(지금 종가)과 그 가격에 지금 현금으로 살 수 있는 수량, 보유 수량 */
 	static OrderLimits limits(PracticeEngine.Holding h, long close) {
 		return new OrderLimits(close, h.cash() / close, h.shares());
-	}
-
-	/** 경향 채점(policies §8-6): UP에 POSITIVE, DOWN에 NEGATIVE면 CORRECT, 반대면 INCORRECT, MIXED이거나 유지(예상 없음)면 NEUTRAL */
-	static String trendOutcome(String trend, Prediction prediction) {
-		if (prediction == null || VirtualSimRules.MIXED.equals(trend)) {
-			return "NEUTRAL";
-		}
-		return VirtualSimRules.UP.equals(trend) == (prediction == Prediction.POSITIVE) ? "CORRECT" : "INCORRECT";
 	}
 
 	public synchronized Snapshot decide(Decision input) {

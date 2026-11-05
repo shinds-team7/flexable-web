@@ -706,7 +706,7 @@ export interface paths {
         put?: never;
         /**
          * 이번 시즌 배치고사 시작(회원, 본문 없음). 가상 사건 10개, 정답 없음
-         * @description no-store. 문제는 지금 룰셋에서 경향이 뚜렷한 유형(UP·DOWN)의 공개 가능한 가상 사건 10개(서로 다른 사건, 유형은 겹칠 수 있음). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 사건이 10개 미만이면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8
+         * @description no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시): 지금 룰셋에서 경향이 뚜렷한 유형(UP·DOWN) 6개 + 유형 상관없이 4개. 업종·유형·공시 제목만 보이고 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8
          */
         post: {
             parameters: {
@@ -748,7 +748,7 @@ export interface paths {
         put?: never;
         /**
          * 배치고사 제출·채점·참가(회원). 맞힌 수로 시작 판, 잔액 = 그 판의 대회 시드머니
-         * @description 과거 경향으로 채점(UP에 POSITIVE, DOWN에 NEGATIVE면 맞음, null은 틀림). 맞힌 수 0~5 B10M, 6~8 B50M, 9~10 B100M(임시). 같은 placementId를 다시 보내거나 30분이 지난 뒤 보내면 처음(또는 서버가 매긴) 결과 그대로 200. 없는 placementId·남의 것은 404, 문제 id가 맞지 않으면 400
+         * @description 그 공시 뒤 5거래일 실제 방향으로 채점(올랐으면 POSITIVE, 내렸으면 NEGATIVE가 맞음, null은 틀림). 맞힌 수 0~6 B10M, 7~8 B50M, 9~10 B100M. 같은 placementId를 다시 보내거나 30분이 지난 뒤 보내면 처음(또는 서버가 매긴) 결과 그대로 200. 없는 placementId·남의 것은 404, 문제 id가 맞지 않으면 400
          */
         post: {
             parameters: {
@@ -874,7 +874,7 @@ export interface paths {
         };
         /**
          * 판별 랭킹(회원만). 상위 100위와 내 순위
-         * @description 판 점수 큰 순, 같으면 판 수익률 큰 순, 같으면 그 잔액에 먼저 도달한 사람(판이 없으면 참가 시각), 같으면 먼저 참가한 사람, 그것도 같으면 웹 회원 번호가 작은 사람(같은 순위 번호 없음). 진행 중 대회는 지금 그 판에 있는 참가자로 계산(진행 중인 판은 시작 잔액), 정산 뒤에는 마지막 판의 확정 순위. 탈퇴한 회원의 행은 빠지고 다른 확정 순위 번호는 그대로. 없는 대회·보관 기간이 지난 대회는 404
+         * @description 판 점수 큰 순, 같으면 평균 초과 수익률(excessRate, 끝낸 판이 없으면 0) 큰 순, 같으면 그 값에 먼저 도달한 사람(마지막으로 잔액이 바뀐 시각, 판이 없으면 참가 시각), 같으면 먼저 참가한 사람, 그것도 같으면 웹 회원 번호가 작은 사람(같은 순위 번호 없음). 진행 중 대회는 지금 그 판에 있는 참가자로 계산(진행 중인 판은 시작 잔액), 정산 뒤에는 마지막 판의 확정 순위. 탈퇴한 회원의 행은 빠지고 다른 확정 순위 번호는 그대로. 없는 대회·보관 기간이 지난 대회는 404
          */
         get: {
             parameters: {
@@ -3345,6 +3345,15 @@ export interface components {
              * @description status=FINISHED일 때만 새 대회 잔액(= 마지막 portfolio.total). 그 전에는 null
              */
             endBalance: number | null;
+            /**
+             * Format: int64
+             * @description status=FINISHED일 때만 같은 판(같은 봉)을 사건마다 유지만 했을 때의 끝 잔액(첫 봉 시가 50% 최초 매수만). 그 전에는 null
+             */
+            holdBalance: number | null;
+            /** @description status=FINISHED일 때만 유지만 했을 때의 수익률 = (holdBalance − initialAmount) / initialAmount(소수 4자리 내림). 내 판 수익률(portfolio.returnRate)과 비교해 보인다. 그 전에는 null */
+            holdReturnRate: number | null;
+            /** @description status=FINISHED일 때만 이 판의 초과 수익률 = (endBalance − holdBalance) / initialAmount(소수 4자리 내림). 하루 점수는 그날 판들의 이 값 평균으로 정한다. 그 전에는 null */
+            excessRate: number | null;
         };
         /** @description 대회 판 시작 응답의 snapshot. VirtualSimSnapshot에 contest가 반드시 있다 */
         VirtualContestRoundSnapshot: components["schemas"]["VirtualSimSnapshot"] & {
@@ -3395,7 +3404,7 @@ export interface components {
                 roundsPerDay: number;
                 /** @description 한 판 사건 수(4) */
                 eventsPerRound: number;
-                /** @description 하루 목표 수익률(0.05). 이상이면 +1, 못 미치면 −1, 판 없는 날 0 */
+                /** @description 하루 목표(0.01). 하루 수익률(그날 판들의 초과 수익률 평균, 초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액)이 이상이면 +1, 못 미치면 −1, 판 없는 날 0 */
                 dailyTargetRate: number;
                 /** @description 주 점수가 이 값 이상이면 승급(4) */
                 weeklyPromoteAt: number;
@@ -3403,7 +3412,7 @@ export interface components {
                 weeklyDemoteAt: number;
                 /** @description 배치고사 문제 수(10) */
                 placementQuestions: number;
-                /** @description 배치고사 맞힌 수가 이 값 이상이면 그 판(임시 B50M 6, B100M 9). 그 아래는 B10M */
+                /** @description 배치고사 맞힌 수가 이 값 이상이면 그 판(B50M 7, B100M 9). 그 아래는 B10M */
                 placementCuts: {
                     B50M: number;
                     B100M: number;
@@ -3417,7 +3426,7 @@ export interface components {
                 rankingTop: number;
             };
         };
-        /** @description 배치고사 문제. 정답·경향·가격은 없다 */
+        /** @description 배치고사 문제(실제 과거 공시, 예시 자료면 예시 글). 회사명·날짜·정답·경향·가격은 없다(결과에서 공개) */
         VirtualContestPlacement: {
             placementId: string;
             /**
@@ -3427,14 +3436,14 @@ export interface components {
             expiresAt: string;
             questions: {
                 id: string;
-                company: {
-                    name: string;
-                    industry: string;
-                };
+                /** @description 그 회사의 업종(회사명은 결과에서 공개) */
+                industry: string;
                 category: components["schemas"]["VirtualSimCategory"];
                 categoryName: string;
+                /** @description 실제 DART 공시 제목(예시 자료는 유형별 제목 형식) */
                 title: string;
-                body: string;
+                /** @description 실제 공시는 null(본문 없음, 제목만), 예시 자료는 예시 글 */
+                body: string | null;
             }[];
         };
         VirtualContestPlacementResult: {
@@ -3448,15 +3457,30 @@ export interface components {
                 questionId: string;
                 /** @enum {string|null} */
                 prediction: "POSITIVE" | "NEGATIVE" | null;
+                /** @description 결과에서 공개하는 실제 회사 이름(예시 자료는 예시 회사) */
+                company: string;
                 /**
-                 * @description 그 유형의 과거 경향(배치고사는 뚜렷한 유형만)
+                 * Format: date
+                 * @description 공시 접수일(예시 자료는 null)
+                 */
+                date: string | null;
+                /**
+                 * @description 그 공시 뒤 5거래일 실제 방향(기준 봉 종가 → 5번째 후속 거래일 종가). 정답
                  * @enum {string}
                  */
-                trend: "UP" | "DOWN";
+                movement: "UP" | "DOWN";
+                /** @description 그 5거래일 실제 등락(소수 4자리 내림) */
+                subsequentReturnRate: number;
+                /** @description movement가 UP이면 POSITIVE, DOWN이면 NEGATIVE가 맞음. null은 틀림 */
                 correct: boolean;
-                categoryUpShare: number;
-                categoryDownShare: number;
-                categorySampleCount: number;
+                /**
+                 * @description 그 유형의 과거 경향(지금 룰셋, 룰셋에 없는 유형이면 null). 채점에는 쓰지 않는다
+                 * @enum {string|null}
+                 */
+                trend: "UP" | "DOWN" | "MIXED" | null;
+                categoryUpShare: number | null;
+                categoryDownShare: number | null;
+                categorySampleCount: number | null;
             }[];
             entry: components["schemas"]["VirtualContestEntry"];
         };
@@ -3487,6 +3511,8 @@ export interface components {
             profit: number;
             /** @description 판 수익률 */
             returnRate: number;
+            /** @description 지금 판(참가 또는 마지막 승급·강등 뒤)에서 끝낸 판들의 평균 초과 수익률(초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액, 소수 4자리 내림). 순위 2순위 기준이고 끝낸 판이 없으면 null(순위에서는 0으로 봄) */
+            excessRate: number | null;
             /** @description 지금 판에 들어온 뒤 받은 하루 점수의 합(랭킹 기준) */
             boardPoints: number;
             /** @description 이번 주 판정 */
@@ -3504,9 +3530,9 @@ export interface components {
                  * @description 오늘 첫 판의 시작 잔액. 오늘 판이 없으면 null
                  */
                 startBalance: number | null;
-                /** @description 지금까지 끝난 판 기준 오늘 수익률(확정은 하루가 끝난 뒤). 오늘 판이 없으면 null */
+                /** @description 오늘 수익률 = 오늘 시작해 지금까지 끝난 판들의 초과 수익률(유지만 했을 때 대비) 평균(소수 4자리 내림, 확정은 하루가 끝난 뒤). 오늘 끝난 판이 없으면 null */
                 returnRate: number | null;
-                /** @description 하루 목표(0.05) */
+                /** @description 하루 목표(0.01, 초과 수익률 평균 기준) */
                 targetRate: number;
                 rounds: number;
                 roundsLeft: number;
@@ -3531,6 +3557,55 @@ export interface components {
             } | null;
             /** Format: date-time */
             joinedAt: string;
+            /** @description 이번 대회에서 시작한 판, 최신순 최대 30개(본인만). 진행 중인 판은 끝 잔액·수익률이 null */
+            recentRounds: components["schemas"]["VirtualContestRoundRecord"][];
+            /** @description 하루 점수를 정한 날, 최신순(본인만). 판을 안 한 날은 점수 0·수익률 null */
+            scoredDays: {
+                /** Format: date */
+                date: string;
+                board: components["schemas"]["VirtualContestBoard"];
+                /** @description 그날 시작한 판 수 */
+                rounds: number;
+                /** @description 그날 판들의 초과 수익률 평균(하루 수익률). 판이 없으면 null */
+                excessRate: number | null;
+                points: number;
+            }[];
+        };
+        /** @description 내 판 하나의 결과. 금액·수익률은 서버 계산(소수 4자리 내림) */
+        VirtualContestRoundRecord: {
+            roundNumber: number;
+            board: components["schemas"]["VirtualContestBoard"];
+            /**
+             * Format: date
+             * @description 판을 시작한 KST 날짜(하루 점수의 그날)
+             */
+            date: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "SETTLED";
+            /**
+             * @description COMPLETED 완주, ENDED 그만둠, EXPIRED 30분 만료, RESTARTED 서버 재시작, REPLACED 새 판 시작, CLOSED 대회 마감. 진행 중이면 null
+             * @enum {string|null}
+             */
+            endReason: "COMPLETED" | "ENDED" | "EXPIRED" | "RESTARTED" | "REPLACED" | "CLOSED" | null;
+            /** Format: int64 */
+            startBalance: number;
+            /** Format: int64 */
+            endBalance: number | null;
+            /**
+             * Format: int64
+             * @description 같은 판을 사건마다 유지만 했을 때 끝 잔액. 진행 중이거나 이 값이 생기기 전에 끝난 판은 null
+             */
+            holdBalance: number | null;
+            /** @description 내 판 수익률 (endBalance − startBalance) / startBalance */
+            returnRate: number | null;
+            /** @description 유지만 했을 때 수익률 (holdBalance − startBalance) / startBalance */
+            holdReturnRate: number | null;
+            /** @description 초과 수익률(매매 성과) (endBalance − holdBalance) / startBalance */
+            excessRate: number | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string | null;
         };
         VirtualContestRanking: {
             contestId: string;
@@ -3558,7 +3633,9 @@ export interface components {
              * @description 잔액 − 판 대회 시드머니
              */
             profit: number;
-            /** @description 판 수익률(순위 2순위 기준) */
+            /** @description 지금 판(참가 또는 마지막 승급·강등 뒤)에서 끝낸 판들의 평균 초과 수익률(초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액, 소수 4자리 내림). 순위 2순위 기준이고 끝낸 판이 없으면 null(순위에서는 0으로 봄) */
+            excessRate: number | null;
+            /** @description 판 수익률(잔액 기준, 순위에는 쓰지 않음) */
             returnRate: number;
             rounds: number;
             liquidated: boolean;
@@ -3579,6 +3656,8 @@ export interface components {
             /** Format: int64 */
             profit: number;
             returnRate: number;
+            /** @description finalBoard에서 끝낸 판들의 평균 초과 수익률(순위 2순위 기준). 판이 없으면 null */
+            excessRate: number | null;
             /** @description finalBoard 안 확정 순위 */
             rank: number;
             /** @description finalBoard의 확정 참가자 수 */

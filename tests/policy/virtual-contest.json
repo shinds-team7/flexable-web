@@ -1,0 +1,508 @@
+{
+  "status": "PENDING",
+  "policy": "docs/policies.md §8-8",
+  "decision": "docs/decisions/2026-11-05-virtual-sim-contest.md",
+  "provisional": {
+    "note": "임시값. 구현 PR에서 실제 룰셋 모의 계산으로 확정",
+    "placementCuts": {
+      "B50M": 6,
+      "B100M": 9
+    }
+  },
+  "boards": [
+    {
+      "board": "B10M",
+      "seedMoney": 10000000,
+      "volatilityGrades": [
+        0,
+        1
+      ],
+      "first": {
+        "clear": 2,
+        "mixed": 0
+      }
+    },
+    {
+      "board": "B50M",
+      "seedMoney": 50000000,
+      "volatilityGrades": [
+        0,
+        1,
+        2
+      ],
+      "first": {
+        "clear": 1,
+        "mixed": 1
+      }
+    },
+    {
+      "board": "B100M",
+      "seedMoney": 100000000,
+      "volatilityGrades": [
+        1,
+        2
+      ],
+      "first": {
+        "clear": 0,
+        "mixed": 2
+      }
+    }
+  ],
+  "rules": {
+    "eventsPerRound": 4,
+    "minLength": 120,
+    "maxLength": 250,
+    "roundsPerDay": 10,
+    "liquidationBelow": 1000000,
+    "rankingTop": 100,
+    "retentionMonths": 12,
+    "placementQuestions": 10,
+    "placementMinutes": 30,
+    "dailyTargetRate": 0.05,
+    "weeklyPromoteAt": 4,
+    "weeklyDemoteAt": -4,
+    "weeks": [
+      [
+        1,
+        7
+      ],
+      [
+        8,
+        14
+      ],
+      [
+        15,
+        21
+      ],
+      [
+        22,
+        28
+      ],
+      [
+        29,
+        31
+      ]
+    ],
+    "note": "배치고사만 과거 경향으로 채점. 대회 판의 decisions[].outcome·trendOutcome은 늘 null. 승급·강등하면 잔액 = 새 판의 대회 시드머니. 시드는 판마다 사람마다 새로 뽑는다",
+    "generatorVersion": "vsim-gen-v1"
+  },
+  "placement": {
+    "note": "맞힌 수 → 시작 판. 0~5 B10M, 6~8 B50M, 9~10 B100M(임시). 안 고른 문제는 틀림",
+    "cases": [
+      {
+        "correct": 0,
+        "expected": "B10M"
+      },
+      {
+        "correct": 5,
+        "expected": "B10M"
+      },
+      {
+        "correct": 6,
+        "expected": "B50M"
+      },
+      {
+        "correct": 8,
+        "expected": "B50M"
+      },
+      {
+        "correct": 9,
+        "expected": "B100M"
+      },
+      {
+        "correct": 10,
+        "expected": "B100M"
+      }
+    ],
+    "grading": [
+      {
+        "trend": "UP",
+        "prediction": "POSITIVE",
+        "correct": true
+      },
+      {
+        "trend": "UP",
+        "prediction": "NEGATIVE",
+        "correct": false
+      },
+      {
+        "trend": "DOWN",
+        "prediction": "NEGATIVE",
+        "correct": true
+      },
+      {
+        "trend": "DOWN",
+        "prediction": null,
+        "correct": false
+      }
+    ]
+  },
+  "candidates": {
+    "note": "공개 가능 유형의 경향 목록 → 판별 후보 여부. 유형 4개 이상이고 그 판의 먼저 뽑는 유형을 채울 수 있어야 후보",
+    "cases": [
+      {
+        "trends": [
+          "UP",
+          "UP",
+          "DOWN",
+          "MIXED",
+          "MIXED"
+        ],
+        "expected": {
+          "B10M": true,
+          "B50M": true,
+          "B100M": true
+        }
+      },
+      {
+        "trends": [
+          "UP",
+          "DOWN",
+          "UP",
+          "MIXED"
+        ],
+        "expected": {
+          "B10M": true,
+          "B50M": true,
+          "B100M": false
+        }
+      },
+      {
+        "trends": [
+          "UP",
+          "DOWN",
+          "UP",
+          "DOWN"
+        ],
+        "expected": {
+          "B10M": true,
+          "B50M": false,
+          "B100M": false
+        }
+      },
+      {
+        "trends": [
+          "UP",
+          "MIXED",
+          "MIXED",
+          "MIXED"
+        ],
+        "expected": {
+          "B10M": false,
+          "B50M": true,
+          "B100M": true
+        }
+      },
+      {
+        "trends": [
+          "UP",
+          "DOWN",
+          "MIXED"
+        ],
+        "expected": {
+          "B10M": false,
+          "B50M": false,
+          "B100M": false
+        }
+      }
+    ]
+  },
+  "rounds": {
+    "note": "판 하나: 시작 잔액 전부를 투자금으로 §5 최초 매수(첫 시가 50%), 사건 매매는 8-7, 끝 잔액 = 마지막 종가 × 보유 + 현금. 판 수익률 = (잔액 − 지금 판 대회 시드머니) / 대회 시드머니 소수 4자리 내림",
+    "cases": [
+      {
+        "board": "B10M",
+        "startBalance": 10000000,
+        "firstOpen": 12300,
+        "initialShares": 406,
+        "initialCash": 5006200,
+        "orders": [],
+        "lastClose": 13050,
+        "endBalance": 10304500,
+        "liquidated": false,
+        "boardReturnRate": 0.0304
+      },
+      {
+        "board": "B10M",
+        "startBalance": 10304500,
+        "firstOpen": 8700,
+        "initialShares": 592,
+        "initialCash": 5154100,
+        "orders": [],
+        "lastClose": 8100,
+        "endBalance": 9949300,
+        "liquidated": false,
+        "boardReturnRate": -0.0051
+      },
+      {
+        "board": "B50M",
+        "startBalance": 50000000,
+        "firstOpen": 40000,
+        "initialShares": 625,
+        "initialCash": 25000000,
+        "orders": [
+          {
+            "event": 1,
+            "action": "BUY",
+            "quantity": 100,
+            "fillOpen": 41000
+          }
+        ],
+        "abandoned": true,
+        "note": "첫 사건 매수 뒤 이탈, 남은 사건은 유지(0주)로 끝까지",
+        "lastClose": 39500,
+        "endBalance": 49537500,
+        "liquidated": false,
+        "boardReturnRate": -0.0093
+      },
+      {
+        "board": "B100M",
+        "startBalance": 100000000,
+        "firstOpen": 100000,
+        "initialShares": 500,
+        "initialCash": 50000000,
+        "orders": [],
+        "lastClose": 160000,
+        "endBalance": 130000000,
+        "liquidated": false,
+        "note": "잔액 상한 없음, 다음 판 initialAmount 130,000,000",
+        "boardReturnRate": 0.3
+      },
+      {
+        "board": "B10M",
+        "startBalance": 1234567,
+        "firstOpen": 5000,
+        "initialShares": 123,
+        "initialCash": 619567,
+        "orders": [],
+        "lastClose": 1000,
+        "endBalance": 742567,
+        "liquidated": true,
+        "boardReturnRate": -0.9258
+      }
+    ],
+    "liquidation": [
+      {
+        "balance": 999999,
+        "liquidated": true
+      },
+      {
+        "balance": 1000000,
+        "liquidated": false
+      }
+    ]
+  },
+  "dailyScore": {
+    "note": "하루 수익률 = (그날 마지막 끝 잔액 − 그날 첫 판 시작 잔액) / 그날 첫 판 시작 잔액, 소수 4자리 내림. ≥ 목표 +1, 미만 −1, 판 없으면 0",
+    "cases": [
+      {
+        "dayStartBalance": 10000000,
+        "dayEndBalance": 10500000,
+        "dayReturnRate": 0.05,
+        "points": 1
+      },
+      {
+        "dayStartBalance": 10000000,
+        "dayEndBalance": 10499999,
+        "dayReturnRate": 0.0499,
+        "points": -1
+      },
+      {
+        "dayStartBalance": 13000000,
+        "dayEndBalance": 13650000,
+        "dayReturnRate": 0.05,
+        "points": 1
+      },
+      {
+        "dayStartBalance": 10000000,
+        "dayEndBalance": 10300000,
+        "dayReturnRate": 0.03,
+        "points": -1
+      },
+      {
+        "dayStartBalance": 50000000,
+        "dayEndBalance": 48000000,
+        "dayReturnRate": -0.04,
+        "points": -1
+      },
+      {
+        "dayStartBalance": null,
+        "dayEndBalance": null,
+        "dayReturnRate": null,
+        "points": 0,
+        "note": "그날 시작한 판 없음"
+      }
+    ]
+  },
+  "weekly": {
+    "note": "그 주 하루 점수 합 ≥ +4 승급(B100M 제외), ≤ −4 강등(B10M 제외). 판이 바뀌면 잔액 = 새 판 대회 시드머니",
+    "cases": [
+      {
+        "board": "B10M",
+        "days": [
+          1,
+          1,
+          1,
+          1,
+          0,
+          0,
+          0
+        ],
+        "sum": 4,
+        "nextBoard": "B50M",
+        "balance": 13500000,
+        "nextBalance": 50000000
+      },
+      {
+        "board": "B10M",
+        "days": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          -1,
+          -1
+        ],
+        "sum": 3,
+        "nextBoard": "B10M",
+        "balance": 13500000,
+        "nextBalance": 13500000
+      },
+      {
+        "board": "B50M",
+        "days": [
+          -1,
+          -1,
+          -1,
+          -1,
+          0,
+          0,
+          0
+        ],
+        "sum": -4,
+        "nextBoard": "B10M",
+        "balance": 70000000,
+        "nextBalance": 10000000
+      },
+      {
+        "board": "B10M",
+        "days": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "sum": -5,
+        "nextBoard": "B10M",
+        "balance": 8000000,
+        "nextBalance": 8000000
+      },
+      {
+        "board": "B100M",
+        "days": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          0
+        ],
+        "sum": 5,
+        "nextBoard": "B100M",
+        "balance": 120000000,
+        "nextBalance": 120000000
+      },
+      {
+        "board": "B50M",
+        "days": [
+          1,
+          1,
+          1
+        ],
+        "sum": 3,
+        "nextBoard": "B50M",
+        "balance": 52000000,
+        "nextBalance": 52000000,
+        "note": "29~31일 짧은 주"
+      }
+    ]
+  },
+  "dailyLimit": {
+    "note": "KST 날짜는 판을 시작한 시각. 같은 startId 재전송은 세지 않는다",
+    "cases": [
+      {
+        "startedToday": 9,
+        "request": "new",
+        "expected": "OK"
+      },
+      {
+        "startedToday": 10,
+        "request": "new",
+        "expected": "CONTEST_DAILY_LIMIT"
+      },
+      {
+        "startedToday": 10,
+        "request": "sameStartId",
+        "expected": "OK"
+      }
+    ]
+  },
+  "ranking": {
+    "note": "판 점수 큰 순 → 판 수익률 큰 순 → 그 잔액이 된 시각 이른 순 → 참가 시각 이른 순 → 웹 회원 번호 작은 순(응답에 넣지 않음). 같은 순위 번호 없음",
+    "entries": [
+      {
+        "member": "A",
+        "boardPoints": 5,
+        "boardReturnRate": 0.1,
+        "reachedAt": "2026-11-03T10:00:00+09:00",
+        "joinedAt": "2026-11-01T09:00:00+09:00",
+        "userId": 11
+      },
+      {
+        "member": "B",
+        "boardPoints": 5,
+        "boardReturnRate": 0.2,
+        "reachedAt": "2026-11-02T09:00:00+09:00",
+        "joinedAt": "2026-11-01T12:00:00+09:00",
+        "userId": 12
+      },
+      {
+        "member": "C",
+        "boardPoints": 3,
+        "boardReturnRate": 0.9,
+        "reachedAt": "2026-11-04T12:00:00+09:00",
+        "joinedAt": "2026-11-01T08:00:00+09:00",
+        "userId": 30
+      },
+      {
+        "member": "D",
+        "boardPoints": 5,
+        "boardReturnRate": 0.2,
+        "reachedAt": "2026-11-05T20:00:00+09:00",
+        "joinedAt": "2026-11-01T07:00:00+09:00",
+        "userId": 14
+      },
+      {
+        "member": "E",
+        "boardPoints": 3,
+        "boardReturnRate": 0.9,
+        "reachedAt": "2026-11-04T12:00:00+09:00",
+        "joinedAt": "2026-11-01T08:00:00+09:00",
+        "userId": 25,
+        "note": "C와 회원 번호만 다름"
+      }
+    ],
+    "expectedOrder": [
+      "B",
+      "D",
+      "A",
+      "E",
+      "C"
+    ]
+  }
+}

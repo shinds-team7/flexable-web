@@ -24,7 +24,7 @@ tags:
   - name: practice
     description: '사건 퀴즈 투자 시뮬레이션(#88 구현). 기존 simulation과 별도이며 policies §5 적용'
   - name: virtual-sim
-    description: '가상 시뮬레이션(구현 전). AI가 만든 가상 종목·사건 글과 실제 공시 전체 통계 룰셋으로 서버가 만든 가상 시세. 매매·평가는 policies §5, 날짜·봉·검사·경향 채점은 §8. practice와 세션·상한을 따로 둔다'
+    description: '가상 시뮬레이션(구현 전). AI가 만든 가상 종목·사건 글과 실제 공시 전체 통계 룰셋으로 서버가 만든 가상 시세. 매매·평가는 policies §5, 날짜·봉·검사·경향 채점은 §8. practice와 세션·상한을 따로 둔다. 회원 월간 대회(/virtual-sim/contests/*, /me/virtual-sim/contests, 구현 전)는 §8-8: 시즌마다 배치고사로 시작 판, 같은 판 안에서 잔액을 이어 가며 하루 목표 점수를 주마다 더해 승급·강등, 사건 4개·대회 판 채점 없음·하루 10판·판별 점수 랭킹'
   - name: savings
     description: '적금 비교(F2). 로그인 없이 쓴다. finlife 공시·온통청년 정책을 DB에서 읽고 만기 금액은 서버가 계산(내림)'
   - name: deposit
@@ -301,7 +301,7 @@ paths:
                 expectedVersion: { type: integer, minimum: 0 }
                 eventId: { type: string }
                 action: { type: string, enum: [BUY, SELL, HOLD] }
-                quantity: { type: integer, format: int64, minimum: 0, maximum: 100000000, description: 'HOLD는 0만, BUY는 1~orderLimits.maxBuyShares, SELL은 1~orderLimits.maxSellShares' }
+                quantity: { type: integer, format: int64, minimum: 0, description: 'HOLD는 0만, BUY는 1~orderLimits.maxBuyShares, SELL은 1~orderLimits.maxSellShares. 대회 판은 잔액 상한이 없어 고정 최대값을 두지 않는다' }
       responses:
         '200':
           description: 선택을 접수한 상태. 판정 전 정답은 없음
@@ -324,6 +324,126 @@ paths:
       responses:
         '204': { description: 삭제 완료 }
         '400': { $ref: '#/components/responses/Error' }
+  /virtual-sim/contests/current:
+    get:
+      tags: [virtual-sim]
+      summary: '이번 달 대회 안내(로그인 없음). policies §8-8'
+      description: '대회(시즌)는 매달 1일 00:00 ~ 다음 달 1일 00:00(KST). 배치고사로 참가하며 1일 00:00부터 받는다'
+      security: []
+      responses:
+        '200':
+          description: 이번 대회
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VirtualContest' }
+  /virtual-sim/contests/current/placement:
+    post:
+      tags: [virtual-sim]
+      summary: '이번 시즌 배치고사 시작(회원, 본문 없음). 가상 사건 10개, 정답 없음'
+      description: 'no-store. 문제는 지금 룰셋에서 경향이 뚜렷한 유형(UP·DOWN)의 공개 가능한 가상 사건 10개(서로 다른 사건, 유형은 겹칠 수 있음). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 사건이 10개 미만이면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8'
+      responses:
+        '200':
+          description: 배치고사 문제
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VirtualContestPlacement' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /virtual-sim/contests/current/placement/answers:
+    post:
+      tags: [virtual-sim]
+      summary: '배치고사 제출·채점·참가(회원). 맞힌 수로 시작 판, 잔액 = 그 판의 대회 시드머니'
+      description: '과거 경향으로 채점(UP에 POSITIVE, DOWN에 NEGATIVE면 맞음, null은 틀림). 맞힌 수 0~5 B10M, 6~8 B50M, 9~10 B100M(임시). 같은 placementId를 다시 보내거나 30분이 지난 뒤 보내면 처음(또는 서버가 매긴) 결과 그대로 200. 없는 placementId·남의 것은 404, 문제 id가 맞지 않으면 400'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [placementId, answers]
+              properties:
+                placementId: { type: string }
+                answers:
+                  type: array
+                  minItems: 10
+                  maxItems: 10
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [questionId, prediction]
+                    properties:
+                      questionId: { type: string }
+                      prediction: { type: string, nullable: true, enum: [POSITIVE, NEGATIVE, null], description: 'POSITIVE = 오른다, NEGATIVE = 내린다, null = 고르지 않음(틀림)' }
+      responses:
+        '200':
+          description: 채점 결과와 이번 대회 내 기록
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VirtualContestPlacementResult' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /virtual-sim/contests/current/rounds:
+    post:
+      tags: [virtual-sim]
+      summary: '대회 판 시작(회원, 배치고사 뒤). 대회 잔액 전부·지금 판으로 시작하고 사건 4개 고정, 판 진행은 /virtual-sim/state·step·decision·end'
+      description: 'no-store. 투자금·판을 받지 않고 대회 잔액을 initialAmount로, 지금 판의 출제 규칙(판별 변동성 등급·유형 고르기)을 쓴다(§5 최초 매수 그대로, 채점 없음). policies §8-8. 같은 startId는 같은 판: 세션이 살아 있으면 같은 응답, 이미 끝났으면 409 PRACTICE_CONFLICT, 하루 판 수에 세지 않는다. 진행 중인 다른 판이 있으면 그 판을 남은 사건 유지로 끝까지 돌려 정산한 뒤 시작한다. 오류: 배치고사 전 409 CONTEST_NOT_JOINED, 기간 밖 409 CONTEST_CLOSED, 청산 409 CONTEST_LIQUIDATED, 하루 10판 초과 429 CONTEST_DAILY_LIMIT(retryAfterSeconds = 다음 날 00:00 KST까지), 판에 맞는 후보가 없으면 503 PRACTICE_UNAVAILABLE, 세션 상한 503 PRACTICE_CAPACITY'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [startId]
+              properties:
+                startId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 'version=0, 첫 봉만 공개. snapshot은 contest가 반드시 있는 VirtualContestRoundSnapshot이다. 이 세션이 끝나면(완주·end·30분 만료·서버 재시작·대회 마감) 서버가 남은 봉을 끝까지 돌려 마지막 봉 총자산을 새 대회 잔액으로 한 번만 반영한다. 하루 점수·주간 승급·강등은 날·주가 끝난 뒤 정한다(policies §8-8)'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [sessionToken, expiresAt, snapshot, round]
+                properties:
+                  sessionToken: { type: string, minLength: 43, maxLength: 128 }
+                  expiresAt: { type: string, format: date-time }
+                  snapshot: { $ref: '#/components/schemas/VirtualContestRoundSnapshot' }
+                  round:
+                    type: object
+                    additionalProperties: false
+                    required: [roundNumber, startBalance, roundsLeftToday]
+                    properties:
+                      roundNumber: { type: integer, minimum: 1, description: '이번 대회에서 몇 번째 판인가' }
+                      startBalance: { type: integer, format: int64, minimum: 1000000, description: '이 판을 시작한 대회 잔액(= snapshot.initialAmount)' }
+                      roundsLeftToday: { type: integer, minimum: 0, maximum: 9, description: '이 판을 뺀 오늘(KST) 남은 판 수' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /virtual-sim/contests/{contestId}/boards/{board}/ranking:
+    parameters:
+      - { name: contestId, in: path, required: true, schema: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }, description: '대회 이름 YYYY-MM. 이번 대회 또는 보관 중인 지난 대회(끝난 뒤 12개월)' }
+      - { name: board, in: path, required: true, schema: { $ref: '#/components/schemas/VirtualContestBoard' } }
+    get:
+      tags: [virtual-sim]
+      summary: '판별 랭킹(회원만). 상위 100위와 내 순위'
+      description: '판 점수 큰 순, 같으면 판 수익률 큰 순, 같으면 그 잔액에 먼저 도달한 사람(판이 없으면 참가 시각), 같으면 먼저 참가한 사람, 그것도 같으면 웹 회원 번호가 작은 사람(같은 순위 번호 없음). 진행 중 대회는 지금 그 판에 있는 참가자로 계산(진행 중인 판은 시작 잔액), 정산 뒤에는 마지막 판의 확정 순위. 탈퇴한 회원의 행은 빠지고 다른 확정 순위 번호는 그대로. 없는 대회·보관 기간이 지난 대회는 404'
+      responses:
+        '200':
+          description: 랭킹
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VirtualContestRanking' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /auth/signup:
     post:
       tags: [auth]
@@ -711,6 +831,28 @@ paths:
         '204': { description: 지움 }
         '401': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+  /me/virtual-sim/contests:
+    get:
+      tags: [virtual-sim]
+      summary: '내 대회 기록: 별명, 이번 대회 내 기록(배치고사·지금 판·판 점수·이번 주·오늘), 지난 대회 결과(최대 12개). policies §8-8'
+      responses:
+        '200':
+          description: 내 기록
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [alias, current, history]
+                properties:
+                  alias: { type: string, nullable: true, description: '서버가 붙인 익명 별명(vsim-alias-v1). 한 번도 참가하지 않았으면 null' }
+                  current: { anyOf: [{ $ref: '#/components/schemas/VirtualContestEntry' }, { nullable: true, enum: [null] }], description: '이번 대회 배치고사를 마치지 않았으면 null' }
+                  history:
+                    type: array
+                    maxItems: 12
+                    description: '정산한 지난 대회, 최신순. 대회가 끝난 뒤 12개월이 지나면 빠진다'
+                    items: { $ref: '#/components/schemas/VirtualContestResult' }
+        '401': { $ref: '#/components/responses/Error' }
   /market/instruments:
     get:
       tags: [market]
@@ -1487,8 +1629,9 @@ components:
             version: { type: string }
             dataFrom: { type: string, format: date, nullable: true }
             dataTo: { type: string, format: date, nullable: true }
-        initialAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000 }
+        initialAmount: { type: integer, format: int64, minimum: 10000, description: '이 실행의 투자금. 일반 세션은 /virtual-sim/start의 initialAmount(10,000~100,000,000), 대회 판은 시작한 대회 잔액(1,000,000 이상, 상한 없음)' }
         isSample: { type: boolean, description: '예시 작성기·예시 룰셋으로 만든 학습용 자료. AI 생성 여부는 generator.aiGenerated' }
+        contest: { $ref: '#/components/schemas/VirtualSimContestRound' }
         totalDays: { type: integer, minimum: 120, maximum: 250, description: '이번 실행의 전체 거래일 수(평일만 센 가상 날짜). 가격·사건은 공개한 봉까지만 준다' }
         candles:
           type: array
@@ -1542,7 +1685,7 @@ components:
         decisions:
           type: array
           maxItems: 5
-          description: '이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 한 실행의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상'
+          description: '이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상, 대회 판은 4개이고 판별 유형 규칙(policies §8-8)'
           items:
             type: object
             additionalProperties: false
@@ -1560,7 +1703,7 @@ components:
               executedDate: { type: string, format: date, nullable: true }
               executedPrice: { type: integer, format: int64, nullable: true, minimum: 1 }
               executedShares: { type: integer, format: int64, nullable: true, minimum: 0 }
-              outcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다' }
+              outcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다. 대회 판은 늘 null' }
               outcomeDate: { type: string, format: date, nullable: true }
               subsequentReturnRate: { type: number, nullable: true }
               movement: { type: string, nullable: true, enum: [UP, DOWN, FLAT, null], description: '판정 뒤만. 이후 5거래일 가상 등락의 방향(원 가격 비교). 판정 전에는 null' }
@@ -1568,12 +1711,247 @@ components:
               categoryDownShare: { type: number, nullable: true, minimum: 0, maximum: 1, description: '판정 뒤만. 같은 유형 공시 뒤 5거래일 종가가 내린 비율(소수 4자리 내림). 보합은 오름·내림 어디에도 들지 않으므로 1 − categoryUpShare와 다를 수 있다. 판정 전에는 null' }
               categorySampleCount: { type: integer, nullable: true, minimum: 1, description: '판정 뒤만. categoryUpShare·categoryDownShare를 센 공시 수. 판정 전에는 null' }
               trend: { type: string, nullable: true, enum: [UP, DOWN, MIXED, null], description: '판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null' }
-              trendOutcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null' }
-        notice: { type: string, description: '서버 고정 문장을 isSample로 고른다. 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6' }
+              trendOutcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null. 대회 판은 채점이 없어 늘 null' }
+        notice: { type: string, description: '서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 채점을 말하지 않는 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외' }
         sources:
           type: array
           minItems: 1
           items: { type: string }
+    VirtualSimContestRound:
+      type: object
+      additionalProperties: false
+      description: '대회 판일 때만 VirtualSimSnapshot에 붙는다(policies §8-8). 일반 세션은 이 필드가 없다(null도 아님). 대회 판은 채점이 없어 decisions[].outcome·trendOutcome이 늘 null이고 사건은 4개이며 notice는 대회 문장이다'
+      required: [contestId, board, roundNumber, endBalance]
+      properties:
+        contestId: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+        board: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '이 판의 판(출제 규칙의 기준). 판이 바뀌는 것은 주간 판정 때뿐이다' }
+        roundNumber: { type: integer, minimum: 1 }
+        endBalance: { type: integer, format: int64, minimum: 0, nullable: true, description: 'status=FINISHED일 때만 새 대회 잔액(= 마지막 portfolio.total). 그 전에는 null' }
+    VirtualContestRoundSnapshot:
+      description: '대회 판 시작 응답의 snapshot. VirtualSimSnapshot에 contest가 반드시 있다'
+      allOf:
+        - $ref: '#/components/schemas/VirtualSimSnapshot'
+        - type: object
+          required: [contest]
+          properties:
+            contest: { $ref: '#/components/schemas/VirtualSimContestRound' }
+    VirtualContestBoard:
+      type: string
+      enum: [B10M, B50M, B100M]
+      description: '판(티어). 대회 시드머니 B10M 10,000,000 · B50M 50,000,000 · B100M 100,000,000원. 시작 판은 배치고사, 판은 주간 점수로 바뀐다(policies §8-8)'
+    VirtualContest:
+      type: object
+      additionalProperties: false
+      required: [contestId, startsAt, endsAt, weeks, boards, rules]
+      properties:
+        contestId: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$', description: '대회 이름 YYYY-MM' }
+        startsAt: { type: string, format: date-time, description: '그달 1일 00:00+09:00' }
+        endsAt: { type: string, format: date-time, description: '다음 달 1일 00:00+09:00(이 시각부터 마감)' }
+        weeks:
+          type: array
+          minItems: 4
+          maxItems: 5
+          description: '주간 판정 구간. 1~7일, 8~14일, 15~21일, 22~28일, 29일~말일(있으면)'
+          items:
+            type: object
+            additionalProperties: false
+            required: [week, startsOn, endsOn]
+            properties:
+              week: { type: integer, minimum: 1, maximum: 5 }
+              startsOn: { type: string, format: date }
+              endsOn: { type: string, format: date }
+        boards:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items:
+            type: object
+            additionalProperties: false
+            required: [board, seedMoney, volatilityGrades, participants, available]
+            properties:
+              board: { $ref: '#/components/schemas/VirtualContestBoard' }
+              seedMoney: { type: integer, format: int64, description: '판의 대회 시드머니. 배치·승급·강등 때 잔액을 이 값으로 정한다' }
+              volatilityGrades: { type: array, minItems: 1, maxItems: 3, items: { type: integer, minimum: 0, maximum: 2 }, description: '판에서 균등하게 뽑는 변동성 등급(B10M 0~1, B50M 0~2, B100M 1~2)' }
+              participants: { type: integer, minimum: 0, description: '지금 이 판에 있는 참가자 수' }
+              available: { type: boolean, description: '판에 맞는 후보 가상 종목이 있으면 true. false면 그 판의 판 시작이 503' }
+        rules:
+          type: object
+          additionalProperties: false
+          required: [roundsPerDay, eventsPerRound, dailyTargetRate, weeklyPromoteAt, weeklyDemoteAt, placementQuestions, placementCuts, liquidationBelow, rankingTop]
+          properties:
+            roundsPerDay: { type: integer, description: 'KST 하루 판 수(10)' }
+            eventsPerRound: { type: integer, description: '한 판 사건 수(4)' }
+            dailyTargetRate: { type: number, description: '하루 목표 수익률(0.05). 이상이면 +1, 못 미치면 −1, 판 없는 날 0' }
+            weeklyPromoteAt: { type: integer, description: '주 점수가 이 값 이상이면 승급(4)' }
+            weeklyDemoteAt: { type: integer, description: '주 점수가 이 값 이하면 강등(−4)' }
+            placementQuestions: { type: integer, description: '배치고사 문제 수(10)' }
+            placementCuts:
+              type: object
+              additionalProperties: false
+              description: '배치고사 맞힌 수가 이 값 이상이면 그 판(임시 B50M 6, B100M 9). 그 아래는 B10M'
+              required: [B50M, B100M]
+              properties:
+                B50M: { type: integer }
+                B100M: { type: integer }
+            liquidationBelow: { type: integer, format: int64, description: '판이 끝난 뒤 잔액이 이 값 미만이면 청산(1,000,000)' }
+            rankingTop: { type: integer, description: '랭킹에 보이는 순위 수(100)' }
+    VirtualContestPlacement:
+      type: object
+      additionalProperties: false
+      description: '배치고사 문제. 정답·경향·가격은 없다'
+      required: [placementId, expiresAt, questions]
+      properties:
+        placementId: { type: string }
+        expiresAt: { type: string, format: date-time, description: '시작 후 30분. 지나면 안 고른 문제를 틀림으로 서버가 채점' }
+        questions:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, company, category, categoryName, title, body]
+            properties:
+              id: { type: string }
+              company:
+                type: object
+                additionalProperties: false
+                required: [name, industry]
+                properties:
+                  name: { type: string, minLength: 2, maxLength: 10 }
+                  industry: { type: string }
+              category: { $ref: '#/components/schemas/VirtualSimCategory' }
+              categoryName: { type: string }
+              title: { type: string, maxLength: 40 }
+              body: { type: string, maxLength: 240 }
+    VirtualContestPlacementResult:
+      type: object
+      additionalProperties: false
+      required: [placementId, correct, total, board, items, entry]
+      properties:
+        placementId: { type: string }
+        correct: { type: integer, minimum: 0, maximum: 10 }
+        total: { type: integer, description: '10' }
+        board: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '배치된 시작 판' }
+        items:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            type: object
+            additionalProperties: false
+            required: [questionId, prediction, trend, correct, categoryUpShare, categoryDownShare, categorySampleCount]
+            properties:
+              questionId: { type: string }
+              prediction: { type: string, nullable: true, enum: [POSITIVE, NEGATIVE, null] }
+              trend: { type: string, enum: [UP, DOWN], description: '그 유형의 과거 경향(배치고사는 뚜렷한 유형만)' }
+              correct: { type: boolean }
+              categoryUpShare: { type: number, minimum: 0, maximum: 1 }
+              categoryDownShare: { type: number, minimum: 0, maximum: 1 }
+              categorySampleCount: { type: integer, minimum: 1 }
+        entry: { $ref: '#/components/schemas/VirtualContestEntry' }
+    VirtualContestEntry:
+      type: object
+      additionalProperties: false
+      description: '이번 대회 내 기록. 금액·수익률·점수는 서버 계산(판 수익률은 지금 판 대회 시드머니 기준 소수 4자리 내림)'
+      required: [contestId, alias, placement, board, seedMoney, balance, profit, returnRate, boardPoints, week, today, rank, participants, rounds, activeRound, liquidated, lastBoardChange, joinedAt]
+      properties:
+        contestId: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+        alias: { type: string }
+        placement:
+          type: object
+          additionalProperties: false
+          required: [correct, board]
+          properties:
+            correct: { type: integer, minimum: 0, maximum: 10 }
+            board: { $ref: '#/components/schemas/VirtualContestBoard' }
+        board: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '지금 판' }
+        seedMoney: { type: integer, format: int64, description: '지금 판의 대회 시드머니' }
+        balance: { type: integer, format: int64, minimum: 0, description: '지금 대회 잔액(진행 중인 판은 시작 잔액)' }
+        profit: { type: integer, format: int64, description: '잔액 − 지금 판 대회 시드머니' }
+        returnRate: { type: number, description: '판 수익률' }
+        boardPoints: { type: integer, description: '지금 판에 들어온 뒤 받은 하루 점수의 합(랭킹 기준)' }
+        week:
+          type: object
+          additionalProperties: false
+          description: '이번 주 판정'
+          required: [week, endsOn, points]
+          properties:
+            week: { type: integer, minimum: 1, maximum: 5 }
+            endsOn: { type: string, format: date }
+            points: { type: integer, description: '이번 주에 정해진 하루 점수의 합(+4 이상 승급, −4 이하 강등)' }
+        today:
+          type: object
+          additionalProperties: false
+          description: '오늘(KST) 진행'
+          required: [startBalance, returnRate, targetRate, rounds, roundsLeft]
+          properties:
+            startBalance: { type: integer, format: int64, nullable: true, description: '오늘 첫 판의 시작 잔액. 오늘 판이 없으면 null' }
+            returnRate: { type: number, nullable: true, description: '지금까지 끝난 판 기준 오늘 수익률(확정은 하루가 끝난 뒤). 오늘 판이 없으면 null' }
+            targetRate: { type: number, description: '하루 목표(0.05)' }
+            rounds: { type: integer, minimum: 0, maximum: 10 }
+            roundsLeft: { type: integer, minimum: 0, maximum: 10 }
+        rank: { type: integer, minimum: 1, description: '지금 판 안 순위' }
+        participants: { type: integer, minimum: 1, description: '지금 판의 참가자 수' }
+        rounds: { type: integer, minimum: 0, description: '이번 대회에서 끝낸 판 수' }
+        activeRound: { type: boolean, description: '진행 중인 판이 있으면 true. 새 판을 시작하면 그 판은 남은 사건 유지로 정산된다' }
+        liquidated: { type: boolean, description: '잔액이 1,000,000원 미만으로 끝나 이번 대회를 더 할 수 없음' }
+        lastBoardChange:
+          type: object
+          nullable: true
+          additionalProperties: false
+          description: '이번 시즌의 마지막 승급·강등(주간 판정). 없으면 null'
+          required: [from, to, weekPoints, at]
+          properties:
+            from: { $ref: '#/components/schemas/VirtualContestBoard' }
+            to: { $ref: '#/components/schemas/VirtualContestBoard' }
+            weekPoints: { type: integer }
+            at: { type: string, format: date-time }
+        joinedAt: { type: string, format: date-time }
+    VirtualContestRanking:
+      type: object
+      additionalProperties: false
+      required: [contestId, board, status, participants, items, me]
+      properties:
+        contestId: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+        board: { $ref: '#/components/schemas/VirtualContestBoard' }
+        status: { type: string, enum: [OPEN, SETTLED], description: 'OPEN이면 지금 그 판에 있는 참가자의 지금 순위, SETTLED면 마지막 판 기준 확정 순위' }
+        participants: { type: integer, minimum: 0 }
+        items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/VirtualContestRankingRow' } }
+        me: { anyOf: [{ $ref: '#/components/schemas/VirtualContestRankingRow' }, { nullable: true, enum: [null] }], description: '내 행(100위 밖이어도). 지금(정산 뒤면 마지막에) 이 판에 없으면 null' }
+    VirtualContestRankingRow:
+      type: object
+      additionalProperties: false
+      description: '다른 회원에게는 별명과 아래 값만 보인다(이메일·회원 번호 없음)'
+      required: [rank, alias, boardPoints, balance, profit, returnRate, rounds, liquidated, isMe]
+      properties:
+        rank: { type: integer, minimum: 1 }
+        alias: { type: string }
+        boardPoints: { type: integer, description: '판 점수(순위 1순위 기준)' }
+        balance: { type: integer, format: int64, minimum: 0 }
+        profit: { type: integer, format: int64, description: '잔액 − 판 대회 시드머니' }
+        returnRate: { type: number, description: '판 수익률(순위 2순위 기준)' }
+        rounds: { type: integer, minimum: 0 }
+        liquidated: { type: boolean }
+        isMe: { type: boolean }
+    VirtualContestResult:
+      type: object
+      additionalProperties: false
+      description: '정산한 지난 대회의 내 결과(마지막 판 기준). 판별 상위 비율 보상은 별도 Issue(결정 기록 8)'
+      required: [contestId, placementBoard, finalBoard, highestBoard, boardPoints, balance, profit, returnRate, rank, participants, rounds, liquidated]
+      properties:
+        contestId: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
+        placementBoard: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '배치고사로 시작한 판' }
+        finalBoard: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '시즌이 끝났을 때의 판(순위를 매긴 판)' }
+        highestBoard: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '그 시즌에 가장 높이 오른 판' }
+        boardPoints: { type: integer }
+        balance: { type: integer, format: int64, minimum: 0 }
+        profit: { type: integer, format: int64 }
+        returnRate: { type: number }
+        rank: { type: integer, minimum: 1, description: 'finalBoard 안 확정 순위' }
+        participants: { type: integer, minimum: 1, description: 'finalBoard의 확정 참가자 수' }
+        rounds: { type: integer, minimum: 0 }
+        liquidated: { type: boolean }
     GoalScenarioProductType:
       type: string
       enum: [SAVINGS, CMA, KR_INDEX_ETF, US_INDEX_ETF, KOSPI_TOP5]
@@ -1724,13 +2102,14 @@ components:
           enum: [VALIDATION_FAILED, UNAUTHORIZED, INVALID_CREDENTIALS, SOCIAL_ACCOUNT, OAUTH_CODE_INVALID, NOT_FOUND,
             GOAL_CHANGED, EMAIL_UNAVAILABLE, TOO_MANY_ATTEMPTS, MARKET_UNAVAILABLE, LINK_CODE_INVALID, APP_LINK_EXISTS,
             APP_LINK_IN_PROGRESS, APP_LINK_RESULT_UNKNOWN, APP_UNAVAILABLE, INTERNAL_ERROR,
-            PRACTICE_CONFLICT, PRACTICE_EXPIRED, PRACTICE_UNAVAILABLE, PRACTICE_CAPACITY, GOAL_SCENARIO_LIMIT, GOAL_SCENARIO_EXPIRED]
+            PRACTICE_CONFLICT, PRACTICE_EXPIRED, PRACTICE_UNAVAILABLE, PRACTICE_CAPACITY, GOAL_SCENARIO_LIMIT, GOAL_SCENARIO_EXPIRED,
+            CONTEST_CLOSED, CONTEST_NOT_JOINED, CONTEST_ALREADY_JOINED, CONTEST_LIQUIDATED, CONTEST_DAILY_LIMIT]
         message: { type: string }
         fields:
           type: object
           description: VALIDATION_FAILED에서 필드별 문장
           additionalProperties: { type: string }
-        retryAfterSeconds: { type: integer, format: int64, description: 'TOO_MANY_ATTEMPTS' }
+        retryAfterSeconds: { type: integer, format: int64, description: 'TOO_MANY_ATTEMPTS, CONTEST_DAILY_LIMIT(다음 날 00:00 KST까지)' }
         plan: { type: string, enum: [FREE], description: '목표 안내 횟수 초과' }
         limitPerDay: { type: integer, description: '목표 안내 횟수 초과' }
         field: { type: string, description: 'MARKET_UNAVAILABLE의 종목 코드' }

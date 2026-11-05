@@ -52,9 +52,22 @@ final class Proposals {
 	 * 검사 결과. 통과하면 plans, 걸리면 problem(어긴 규칙·몇 번째 시나리오·칸, 예: "TEXT_NUMBER #2.explanation").
 	 * problem에는 AI가 쓴 문구를 넣지 않는다(로그용).
 	 */
-	record Checked(List<Plan> plans, String problem) {
+	record Checked(List<Plan> plans, String problem, String rejectedText) {
 		static Checked fail(String problem) {
-			return new Checked(null, problem);
+			return new Checked(null, problem, null);
+		}
+
+		static Checked fail(String problem, String rejectedText) {
+			return new Checked(null, problem, rejectedText);
+		}
+
+		/** 로그 한 줄. includeText면 걸린 칸의 문구도 붙인다(제어 문자는 공백으로, 최대 300자). */
+		String logLine(boolean includeText) {
+			if (!includeText || rejectedText == null || rejectedText.isBlank()) {
+				return problem;
+			}
+			String clean = rejectedText.replaceAll("\\p{Cntrl}", " ").strip();
+			return problem + " \"" + (clean.length() > 300 ? clean.substring(0, 300) : clean) + "\"";
 		}
 	}
 
@@ -96,12 +109,12 @@ final class Proposals {
 			for (String[] f : fields) {
 				String problem = text(f[1], Integer.parseInt(f[2]), facts, mix.values());
 				if (problem != null) {
-					return Checked.fail(problem + " " + at + "." + f[0]);
+					return Checked.fail(problem + " " + at + "." + f[0], f[1]);
 				}
 			}
 			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), d.explanation().strip(), mix));
 		}
-		return new Checked(out, null);
+		return new Checked(out, null, null);
 	}
 
 	/** 문구 규칙을 어기면 이유 코드, 지키면 null. */

@@ -28,6 +28,7 @@ interface ScenarioProposer {
 			String maxDrawdown) {
 	}
 
+	/** message는 서버가 정한 실패 분류(GoalScenarioAiClient.Failed)만 담는다. 응답 본문을 넣지 않는다. */
 	class Failed extends RuntimeException {
 		Failed(String message) {
 			super(message);

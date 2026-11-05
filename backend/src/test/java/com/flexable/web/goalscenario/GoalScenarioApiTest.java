@@ -33,6 +33,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -72,6 +73,8 @@ class GoalScenarioApiTest {
 	JdbcTemplate jdbc;
 	@MockitoBean
 	ScenarioProposer proposer;
+	@MockitoSpyBean
+	GoalScenarioAiProperties aiProps;
 
 	private static boolean seeded;
 
@@ -355,6 +358,30 @@ class GoalScenarioApiTest {
 		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation").doesNotContain("연 7%").doesNotContain("비밀 목표");
+	}
+
+	@Test
+	@ExtendWith(OutputCaptureExtension.class)
+	void 옵션을_켜면_걸린_칸의_문구만_로그에_남긴다(CapturedOutput output) throws Exception {
+		when(aiProps.logRejected()).thenReturn(true);
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(List.of(
+				new Proposals.Draft("a", "저축만", "적금 위주", "다른 칸의 해설이에요", Map.of("SAVINGS", 100)),
+				new Proposals.Draft("b", "반반", "요약 문구예요", "연 7% 수익을\n노려요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
+		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation \"연 7% 수익을 노려요\"")
+			.doesNotContain("다른 칸의 해설이에요").doesNotContain("요약 문구예요").doesNotContain("비밀 목표");
+	}
+
+	@Test
+	@ExtendWith(OutputCaptureExtension.class)
+	void AI_호출_실패는_원인_분류만_로그에_남긴다(CapturedOutput output) throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenThrow(new ScenarioProposer.Failed("TRUNCATED"));
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_FAILED");
+		assertThat(output).contains("goal scenario AI failed: TRUNCATED").doesNotContain("비밀 목표");
 	}
 
 	@Test

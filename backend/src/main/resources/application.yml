@@ -52,6 +52,8 @@ app:
         free-daily-limit: ${GOAL_SCENARIO_AI_DAILY_LIMIT:3}
         plus-daily-limit: ${GOAL_SCENARIO_AI_PLUS_DAILY_LIMIT:10}
         daily-cap: ${GOAL_SCENARIO_AI_DAILY_CAP:300}
+        # 검사에 걸린 칸의 문구를 서버 로그에 남김. 원인을 찾을 때만 켠다(policies §7-6)
+        log-rejected: ${GOAL_SCENARIO_AI_LOG_REJECTED:false}
   auth:
     jwt:
       # 웹 전용 서명 키. 앱(project2)의 JWT_SECRET과 다른 값을 쓴다(04 §4).

@@ -66,9 +66,11 @@ public class GoalScenarioService {
 	private final ObjectProvider<ScenarioProposer> proposer;
 	private final ScenarioResultCache results;
 	private final ScenarioAiQuota quota;
+	private final GoalScenarioAiProperties aiProps;
 
 	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results,
-			ScenarioAiQuota quota) {
+			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps) {
+		this.aiProps = aiProps;
 		this.market = market;
 		this.savings = savings;
 		this.proposer = proposer;
@@ -158,11 +160,12 @@ public class GoalScenarioService {
 						quota.cache(userId, target, years, asOf, drafts, "openai");
 						return new Chosen(checked.plans(), null, usage(userId), false);
 					}
-					// 어긴 규칙·위치만 남긴다(AI 문구·목표 이름·회원 번호는 남기지 않음)
-					log.warn("goal scenario AI rejected: {}", checked.problem());
+					// 어긴 규칙·위치만 남긴다. 옵션을 켜면 걸린 칸의 문구도 남긴다(목표 이름·회원 번호는 남기지 않음)
+					log.warn("goal scenario AI rejected: {}", checked.logLine(aiProps.logRejected()));
 					reason = "AI_REJECTED";
 				}
 				catch (ScenarioProposer.Failed e) {
+					log.warn("goal scenario AI failed: {}", e.getMessage());
 					reason = "AI_FAILED";
 				}
 				quota.refund(userId);

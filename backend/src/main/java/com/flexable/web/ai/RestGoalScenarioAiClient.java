@@ -1,6 +1,8 @@
 package com.flexable.web.ai;
 
+import java.net.SocketTimeoutException;
 import java.net.http.HttpClient;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,7 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -21,10 +25,10 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Component
 public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
-	static final String PROMPT_VERSION = "goal-scenario-v3";
+	static final String PROMPT_VERSION = "goal-scenario-v4";
 	static final List<String> TYPES = List.of("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
 	static final String PROMPT = """
-			goal-scenario-v3. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 두 개나 세 개 만들어요.
+			goal-scenario-v4. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 두 개나 세 개 만들어요.
 			상품 유형: SAVINGS(은행 적금, 금리 확정), CMA(수시 입출금, 예시 금리라 바뀔 수 있음), KR_INDEX_ETF(국내 대표 지수 ETF),
 			US_INDEX_ETF(미국 대표 지수 ETF, 국내 상장), KOSPI_TOP5(코스피 시가총액 상위 다섯 종목에 같은 금액).
 			입력의 stats는 서버가 지난 육십 개월 월 수익률로 계산한 유형별 평균·변동폭·최대 하락이에요. 이 값을 근거로 비중을 정해요.
@@ -35,10 +39,12 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 			- id는 s1, s2, s3 순서예요. 한국어 '~해요'체로 쓰고, 글자 수(띄어쓰기 포함)를 꼭 지켜요:
 			  title은 열다섯 자 안팎(최대 스무 자), summary는 서른 자 안팎(최대 마흔 자), explanation은 이백오십 자 안팎(최대 삼백 자).
 			- explanation에는 왜 이렇게 나눴는지, 유형마다 맡는 역할, 기한이 다가올 때 주의할 점, 어떤 사람에게 맞는지를 담아요.
-			- 숫자는 입력에 있는 것만 써요: 상품·지수 이름, 기한, 목표 금액, 적금·CMA 금리, 세율, 이 시나리오의 비중(예: mix의 SAVINGS가 70이면 '적금 70%').
+			- 숫자는 꼭 필요할 때만 쓰고, 되도록 숫자 없이 설명해요. 금액·확률은 화면이 따로 보여 줘요.
+			- 숫자를 쓴다면 입력에 있는 것만 써요: 상품·지수 이름, 기한, 목표 금액, 적금·CMA 금리, 세율, 이 시나리오의 비중(예: mix의 SAVINGS가 70이면 '적금 70%').
 			  입력에 없는 금액·수익률·확률·배수(예상 수익, 매달 넣을 돈, 달성 가능성 등)는 쓰지 않아요. 서버가 따로 계산해서 보여 줘요.
 			  SAVINGS·KOSPI_TOP5 같은 유형 코드는 쓰지 말고 '적금', '코스피 대형주'처럼 우리말로 써요.
 			- '원금 보장', '확실히 오른다', '무조건' 같은 단정과 가입·매수 권유를 하지 않아요. 위험을 말할 때는 '수익이 보장되지 않아요', '줄어들 수 있어요'처럼 써요.
+			- 적금·CMA를 설명할 때도 '원금이 보장돼요', '보장된 금리', '확실한 수익'이라고 쓰지 않아요. '적금은 금리가 정해져 있어요', '값이 크게 흔들리지 않아요'처럼 써요.
 			""";
 	private final RestClient http;
 	private final OpenAiProperties props;
@@ -71,7 +77,7 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 	@Override
 	public Result propose(String inputJson) {
 		if (!enabled()) {
-			throw new Failed();
+			throw new Failed("NO_KEY");
 		}
 		try {
 			Map<String, Object> body = Map.of("model", props.model(), "temperature", 0.3, "max_completion_tokens", 1200,
@@ -83,20 +89,39 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 				.body(body).retrieve().body(String.class);
 			JsonNode response = json.readTree(raw);
 			JsonNode choice = response.path("choices").path(0);
-			if (!"stop".equals(choice.path("finish_reason").asString())
-					|| !choice.path("message").path("content").isString()
-					|| !choice.path("message").path("refusal").isMissingNode()
-							&& !choice.path("message").path("refusal").isNull()) {
-				throw new Failed();
+			if (!choice.path("message").path("refusal").isMissingNode() && !choice.path("message").path("refusal").isNull()) {
+				throw new Failed("REFUSED");
+			}
+			if ("length".equals(choice.path("finish_reason").asString())) {
+				throw new Failed("TRUNCATED");
+			}
+			if (!"stop".equals(choice.path("finish_reason").asString()) || !choice.path("message").path("content").isString()) {
+				throw new Failed("BAD_RESPONSE");
 			}
 			String content = choice.path("message").path("content").asString();
 			json.readTree(content);
 			return new Result(content, props.model(), tokens(response.path("usage").path("prompt_tokens")),
 					tokens(response.path("usage").path("completion_tokens")));
 		}
-		catch (RuntimeException e) {
-			throw new Failed();
+		catch (Failed e) {
+			throw e;
 		}
+		catch (RuntimeException e) {
+			throw new Failed(classify(e));
+		}
+	}
+
+	/** 실패를 분류만 한다. 예외 메시지에는 응답 본문이 들어갈 수 있어 쓰지 않는다. */
+	private static String classify(RuntimeException e) {
+		if (e instanceof RestClientResponseException response) {
+			return "HTTP_" + response.getStatusCode().value();
+		}
+		for (Throwable t = e; t != null; t = t.getCause()) {
+			if (t instanceof SocketTimeoutException || t instanceof HttpTimeoutException) {
+				return "TIMEOUT";
+			}
+		}
+		return e instanceof ResourceAccessException ? "NETWORK" : "BAD_RESPONSE";
 	}
 
 	private static Integer tokens(JsonNode node) {

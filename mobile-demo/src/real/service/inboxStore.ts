@@ -27,14 +27,49 @@ function write(id: number, part: string, value: unknown) {
 }
 // SecureStore 한 칸의 크기를 넘지 않도록 읽음 기록을 나눠 저장한다.
 const READ_PAGE_SIZE = 25;
-async function readReceipts(id: number) {
-  const count = await read<number>(id, "read-pages", 0);
+// 읽음("read")과 지운 알림("deleted")이 같은 방식으로 나눠 저장한다.
+type Receipts = "read" | "deleted";
+const pageCount = (name: Receipts) => `${name}-pages`;
+async function readReceipts(id: number, name: Receipts = "read") {
+  const count = await read<number>(id, pageCount(name), 0);
   const pages = await Promise.all(
     Array.from({ length: count }, (_, page) =>
-      read<ReadReceipt[]>(id, `read.${page}`, []),
+      read<ReadReceipt[]>(id, `${name}.${page}`, []),
     ),
   );
   return { count, receipts: pages.flat() };
+}
+/** 알림 키 여러 개를 기록에 더한다. 30일이 지난 기록은 버리고, 이미 있는 키는 그대로 둔다 */
+async function addReceipts(id: number, name: Receipts, items: ReadReceipt[]) {
+  const { count, receipts } = await readReceipts(id, name);
+  const fresh = items.filter(
+    (item, i) =>
+      !receipts.some((receipt) => receipt.key === item.key) &&
+      items.findIndex((other) => other.key === item.key) === i,
+  );
+  if (fresh.length === 0) return false;
+  const since = Date.now() - 30 * 86400000;
+  const next = [
+    ...receipts.filter((receipt) => receipt.at >= since),
+    ...fresh.map((item) => ({ key: item.key, at: item.at })),
+  ];
+  const pages = Math.ceil(next.length / READ_PAGE_SIZE);
+  await Promise.all(
+    Array.from({ length: pages }, (_, page) =>
+      write(
+        id,
+        `${name}.${page}`,
+        next.slice(page * READ_PAGE_SIZE, (page + 1) * READ_PAGE_SIZE),
+      ),
+    ),
+  );
+  await write(id, pageCount(name), pages);
+  await Promise.all(
+    Array.from({ length: Math.max(0, count - pages) }, (_, page) =>
+      writeStorage(key(id, `${name}.${pages + page}`), null),
+    ),
+  );
+  return true;
 }
 // 읽고 고쳐 쓰는 일이 섞이지 않게 차례로 처리한다.
 let queue: Promise<unknown> = Promise.resolve();
@@ -106,51 +141,44 @@ export function readInbox(id: number) {
     const budget = await read<BudgetNote[]>(id, "budget", []);
     const seen = await read<number>(id, "seen", 0);
     const { receipts } = await readReceipts(id);
-    return { sent: planned.sent, budget, seen, read: receipts };
+    const { receipts: deleted } = await readReceipts(id, "deleted");
+    return { sent: planned.sent, budget, seen, read: receipts, deleted };
   });
 }
 
 /** 직접 누른 한 항목만 읽음으로 저장한다. 다른 알림은 시각·정렬 순서와 관계없이 유지한다. */
 export function markInboxItemRead(id: number, item: ReadReceipt) {
+  return markInboxItemsRead(id, [item]);
+}
+
+/** [전체 확인]: 주어진 알림을 모두 읽음으로 저장한다 */
+export function markInboxItemsRead(id: number, items: ReadReceipt[]) {
   return serial(async () => {
-    const { count, receipts } = await readReceipts(id);
-    if (receipts.some((receipt) => receipt.key === item.key)) return;
-    const since = Date.now() - 30 * 86400000;
-    const next = [
-      ...receipts.filter((receipt) => receipt.at >= since),
-      { key: item.key, at: item.at },
-    ];
-    const pages = Math.ceil(next.length / READ_PAGE_SIZE);
-    await Promise.all(
-      Array.from({ length: pages }, (_, page) =>
-        write(
-          id,
-          `read.${page}`,
-          next.slice(page * READ_PAGE_SIZE, (page + 1) * READ_PAGE_SIZE),
-        ),
-      ),
-    );
-    await write(id, "read-pages", pages);
-    await Promise.all(
-      Array.from({ length: Math.max(0, count - pages) }, (_, page) =>
-        writeStorage(key(id, `read.${pages + page}`), null),
-      ),
-    );
-    changed();
+    if (await addReceipts(id, "read", items)) changed();
+  });
+}
+
+/** 밀어서 지운 알림. 코인·고정지출 알림은 서버에서 다시 읽으므로 지운 키를 기기에 남겨 계속 숨긴다. */
+export function deleteInboxItem(id: number, item: ReadReceipt) {
+  return serial(async () => {
+    if (await addReceipts(id, "deleted", [item])) changed();
   });
 }
 
 /** 로그아웃·탈퇴하면 그 사용자의 알림함 기록을 지운다(거래 임시 저장과 같이) */
 export function clearInbox(id: number) {
   return serial(async () => {
-    const count = await read<number>(id, "read-pages", 0);
+    const readCount = await read<number>(id, pageCount("read"), 0);
+    const deletedCount = await read<number>(id, pageCount("deleted"), 0);
     await Promise.all(
       [
         "planned",
         "budget",
         "seen",
-        "read-pages",
-        ...Array.from({ length: count }, (_, page) => `read.${page}`),
+        pageCount("read"),
+        pageCount("deleted"),
+        ...Array.from({ length: readCount }, (_, page) => `read.${page}`),
+        ...Array.from({ length: deletedCount }, (_, page) => `deleted.${page}`),
       ].map((part) => writeStorage(key(id, part), null)),
     );
     changed();

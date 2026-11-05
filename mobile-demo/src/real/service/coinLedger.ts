@@ -15,6 +15,7 @@ const LABELS: Record<string, string> = {
   PURCHASE: "코스튬 구매",
   REFUND: "코스튬 구매 코인 돌려받음",
   ATTENDANCE: "출석체크",
+  AD_REWARD: "광고 시청",
 };
 /** A milestone day pays this bonus on top of the daily 5, so the entry is above 5 (docs/coin-plan.md §1). */
 const DAILY_REWARD = 5;

@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Share, StyleSheet, View } from "react-native";
+import { Platform, Pressable, Share, StyleSheet, View } from "react-native";
 import {
   Button,
   Card,
@@ -13,13 +13,18 @@ import {
 } from "@/real/components/ui";
 import { useToast } from "@/real/components/Toast";
 import { colors } from "@/real/theme";
-import { api, sessionGeneration } from "./api/client";
+import { ApiError, api, sessionGeneration } from "./api/client";
 import { getReferral, registerReferral } from "./coinApi";
 import { APP_VERSION, SUPPORT_EMAIL } from "./config";
 import {
   useEntryReminderSetting,
+  useEntryReminderTime,
   useSeedReminderSetting,
 } from "./reminderSetting";
+import {
+  EntryReminderTimeSheet,
+  reminderTimeText,
+} from "./EntryReminderTimeSheet";
 import { useSession } from "./Session";
 import { ErrorNotice, Field } from "./ui";
 import { PROVIDER_NAME } from "./oauth";
@@ -49,6 +54,8 @@ function ReferralCard() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
+  // 추천 코드는 평소에는 접어 두고 눌러서 펼친다
+  const [open, setOpen] = useState(false);
   const lock = useRef(false);
   const focus = useRef(0);
   useFocusEffect(
@@ -89,7 +96,15 @@ function ReferralCard() {
       setCode("");
       toast(`코인 ${result.amount}개를 받았어요`);
     } catch (e) {
-      if (generation === sessionGeneration()) setError(e);
+      if (generation === sessionGeneration())
+        // 서버 문구는 두 경우를 한 줄로 말하므로(코드 확인 + 내 코드 불가), 입력한 코드에 맞는 쪽만 보여 준다
+        setError(
+          e instanceof ApiError && e.code === "REFERRAL_CODE_INVALID"
+            ? code.trim().toUpperCase() === referral.code.toUpperCase()
+              ? "내 코드는 등록할 수 없어요"
+              : "추천 코드를 확인해 주세요"
+            : e,
+        );
     } finally {
       lock.current = false;
       setBusy(false);
@@ -97,42 +112,53 @@ function ReferralCard() {
   };
   return (
     <Card style={styles.group}>
-      <T
-        size={14}
-        weight="700"
-        color={colors.textSub}
-        style={styles.groupTitle}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="추천 코드"
+        accessibilityState={{ expanded: open }}
+        aria-expanded={open}
+        onPress={() => setOpen(!open)}
+        style={styles.groupHead}
       >
-        추천 코드
-      </T>
-      <View style={styles.referral}>
-        <T size={22} weight="800" num selectable>
-          {referral.code}
+        <T size={14} weight="700" color={colors.textSub} style={{ flex: 1 }}>
+          추천 코드
         </T>
-        <T size={13} color={colors.textMuted}>
-          친구가 코드를 입력하면 나와 친구가 코인 {referral.rewardAmount}개씩
-          받아요 (지금까지 {referral.invitedCount}명)
-        </T>
-        <Button label="추천 코드 공유" variant="soft" onPress={share} />
-        {!referral.registered && (
-          <View style={{ gap: 10, marginTop: 8 }}>
-            <Field
-              label="친구에게 받은 추천 코드"
-              value={code}
-              onChangeText={setCode}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={12}
-            />
-            <ErrorNotice error={error} />
-            <Button
-              label={busy ? "등록 중이에요" : "추천 코드 등록"}
-              disabled={busy || !code.trim()}
-              onPress={register}
-            />
-          </View>
-        )}
-      </View>
+        <Ionicons
+          name={open ? "chevron-up" : "chevron-down"}
+          size={20}
+          color={colors.textMuted}
+        />
+      </Pressable>
+      {open && (
+        <View style={styles.referral}>
+          <T size={22} weight="800" num selectable>
+            {referral.code}
+          </T>
+          <T size={13} color={colors.textMuted}>
+            친구가 코드를 입력하면 나와 친구가 코인 {referral.rewardAmount}개씩
+            받아요 (지금까지 {referral.invitedCount}명)
+          </T>
+          <Button label="추천 코드 공유" variant="soft" onPress={share} />
+          {!referral.registered && (
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <Field
+                label="친구에게 받은 추천 코드"
+                value={code}
+                onChangeText={setCode}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={12}
+              />
+              <ErrorNotice error={error} />
+              <Button
+                label={busy ? "등록 중이에요" : "추천 코드 등록"}
+                disabled={busy || !code.trim()}
+                onPress={register}
+              />
+            </View>
+          )}
+        </View>
+      )}
     </Card>
   );
 }
@@ -147,6 +173,10 @@ export function MyScreen() {
   const [remind, setRemind] = useSeedReminderSetting();
   // Same for the reminder to record; the service layout reschedules it.
   const [remindEntry, setRemindEntry] = useEntryReminderSetting();
+  const [entryTime, setEntryTime] = useEntryReminderTime();
+  const [timeSheet, setTimeSheet] = useState(false);
+  // 시트를 열 때마다 새로 만들어 저장하지 않은 선택이 남지 않게 한다
+  const [timeSheetKey, setTimeSheetKey] = useState(0);
   const logout = async () => {
     if (lock.current) return;
     lock.current = true;
@@ -214,6 +244,20 @@ export function MyScreen() {
             right={<SwitchMark on={remindEntry} />}
             onPress={() => setRemindEntry(!remindEntry)}
           />
+          {remindEntry && (
+            <Row
+              label="기록 알림 시간"
+              caption={
+                entryTime
+                  ? `기록이 없는 날 ${reminderTimeText(entryTime)}에 알려 드려요`
+                  : "자동: 마지막 기록 24시간 뒤"
+              }
+              onPress={() => {
+                setTimeSheetKey((k) => k + 1);
+                setTimeSheet(true);
+              }}
+            />
+          )}
         </Card>
       )}
       <Card style={styles.group}>
@@ -252,9 +296,18 @@ export function MyScreen() {
       />
       <Button
         label="계정 삭제"
-        variant="ghost"
+        style={styles.deleteAccount}
         onPress={() => router.push("/account/delete")}
       />
+      {Platform.OS !== "web" && (
+        <EntryReminderTimeSheet
+          key={timeSheetKey}
+          visible={timeSheet}
+          time={entryTime}
+          onClose={() => setTimeSheet(false)}
+          onChange={setEntryTime}
+        />
+      )}
       <ConfirmModal
         visible={confirm}
         title="로그아웃할까요?"
@@ -278,5 +331,12 @@ const styles = StyleSheet.create({
   },
   group: { padding: 0, overflow: "hidden" },
   referral: { gap: 8, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 20 },
-  groupTitle: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  // 로그아웃 버튼과 같은 크기의 짙은 회색 박스
+  deleteAccount: { backgroundColor: "#4B5563" },
+  groupHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 52,
+    paddingHorizontal: 20,
+  },
 });

@@ -1,4 +1,6 @@
-import { Modal, StyleSheet, View } from "react-native";
+import { CoinIcon } from "@/real/components/CoinIcon";
+import { StyleSheet, View } from "react-native";
+import { Modal } from "@/components/PhoneModal";
 import { Button, T } from "@/real/components/ui";
 import { colors, floating } from "@/real/theme";
 import type { CoinReward } from "./types";
@@ -42,9 +44,9 @@ export function RewardModal({
       <View style={styles.dim}>
         {reward && (
           <View style={[styles.dialog, floating]} accessibilityViewIsModal>
-            <T size={32} style={{ textAlign: "center" }}>
-              🪙
-            </T>
+            <View style={{ alignItems: "center" }}>
+              <CoinIcon size={40} />
+            </View>
             <T
               size={18}
               weight="700"

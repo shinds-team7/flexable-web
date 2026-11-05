@@ -74,6 +74,7 @@ type State = {
   acked: Set<number>;
   passive: { collectable: number; collectedToday: number };
   attendance: { total: number; checkedToday: boolean };
+  adRewardedToday: number;
   owned: Set<string>;
   equipped: string | null;
   referral: { invitedCount: number; registered: boolean };
@@ -146,6 +147,7 @@ function create(seed: DemoSeed): State {
     acked: new Set(),
     passive: { collectable: 2, collectedToday: 8 },
     attendance: { total: 4, checkedToday: false },
+    adRewardedToday: 0,
     owned: new Set(['costume-lv1']),
     equipped: null,
     referral: { invitedCount: 2, registered: false },
@@ -274,6 +276,9 @@ function settingsView(s: State) {
 }
 
 // ───────────── 코인·코스튬 ─────────────
+/** 보상형 광고: 실제 앱은 광고를 끝까지 보면 서버가 10코인(하루 3번)을 준다. 시연은 광고 대신 잠깐 기다린 뒤 같은 보상을 준다 */
+const AD_DAILY_LIMIT = 3;
+const AD_REWARD = 10;
 const balance = (s: State) => s.ledger.reduce((a, e) => a + e.amount, 0);
 function nextPassiveAt(s: State) {
   if (s.passive.collectedToday + s.passive.collectable >= 10) return null;
@@ -283,6 +288,7 @@ function nextPassiveAt(s: State) {
 function wallet(s: State) {
   return {
     balance: balance(s),
+    ad: { rewardedToday: s.adRewardedToday, dailyLimit: AD_DAILY_LIMIT, reward: AD_REWARD },
     passive: {
       collectable: s.passive.collectable,
       collectedToday: s.passive.collectedToday,
@@ -634,6 +640,13 @@ export function handle(method: string, url: string, body: unknown, key?: string)
     s.acked.add(post(s, 'ATTENDANCE', reward));
     s.attendance = { total: s.attendance.total + 1, checkedToday: true };
     return { rewarded: reward, outfitId: null, attendance: attendanceView(s), wallet: wallet(s) };
+  }
+  if (route === 'POST /coins/demo-ad') {
+    if (s.adRewardedToday < AD_DAILY_LIMIT) {
+      s.adRewardedToday += 1;
+      post(s, 'AD_REWARD', AD_REWARD);
+    }
+    return wallet(s);
   }
   if (route === 'GET /coins/ledger') {
     const before = r.query.get('before');

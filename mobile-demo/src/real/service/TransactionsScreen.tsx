@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Card, Screen, Segment, T } from "@/real/components/ui";
 import { MonthCalendar, type DayTotals } from "@/real/components/MonthCalendar";
@@ -26,6 +26,12 @@ const categoryOf = (t: Transaction) => t.category ?? NO_CATEGORY;
 export function TransactionsScreen() {
   const extensions = useServerExtensions();
   const [offset, setOffset] = useState(0);
+  // 다른 달을 보다가 다른 화면에 다녀오면 다시 이번 달 달력을 보여 준다
+  useFocusEffect(
+    useCallback(() => {
+      setOffset(0);
+    }, []),
+  );
   const [filter, setFilter] = useState("ALL");
   const [y, m] = seoulDate().split("-").map(Number);
   const month = new Date(Date.UTC(y, m - 1 + offset, 1));

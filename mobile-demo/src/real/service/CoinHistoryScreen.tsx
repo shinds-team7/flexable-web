@@ -1,24 +1,23 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import { useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { Button, Card, Screen, T } from "@/real/components/ui";
 import { SubHeader } from "@/real/components/SubHeader";
 import { colors } from "@/real/theme";
 import { sessionGeneration } from "./api/client";
-import { getLedger } from "./coinApi";
+import { CoinCard } from "./CoinCard";
+import { collectCoins, getLedger } from "./coinApi";
+import { publishWallet } from "./wallet";
 import { ledgerDetail, ledgerTitle } from "./coinLedger";
 import type { CoinLedgerEntry, CoinLedgerPage, CoinWallet } from "./types";
 import {
   ErrorNotice,
   Loading,
-  money,
   seoulDate,
   toSeoulInput,
   useResource,
 } from "./ui";
 
-/** 코인 적립·사용 내역. 홈 캐릭터 영상 위 코인 칩에서 들어온다(GET /coins/ledger, 최신순). 보유 코인 옆 버튼으로 상점에 간다. */
+/** 코인 적립·사용 내역. 홈 캐릭터 영상 위 코인 칩에서 들어온다(GET /coins/ledger, 최신순). 맨 위 카드에서 시간 적립 코인을 모은다. */
 export function CoinHistoryScreen() {
   const first = useResource<CoinLedgerPage>("/coins/ledger");
   const wallet = useResource<CoinWallet>("/coins");
@@ -27,14 +26,36 @@ export function CoinHistoryScreen() {
     base: CoinLedgerPage;
     page: CoinLedgerPage;
   }>();
+  // 모은 직후 서버가 돌려준 지갑. 처음 읽은 지갑(wallet.data)보다 새롭다.
+  const [collected, setCollected] = useState<CoinWallet>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const lock = useRef(false);
 
+  const current = collected ?? wallet.data;
   const base = first.data;
   const extra = base && older?.base === base ? older.page : undefined;
   const items = [...(base?.items ?? []), ...(extra?.items ?? [])];
   const nextBefore = extra ? extra.nextBefore : base?.nextBefore;
+
+  const collect = async () => {
+    if (lock.current) return;
+    lock.current = true;
+    const generation = sessionGeneration();
+    setBusy(true);
+    setError(undefined);
+    try {
+      const r = await collectCoins();
+      publishWallet(r.wallet, generation);
+      setCollected(r.wallet);
+      first.retry();
+    } catch (e) {
+      if (generation === sessionGeneration()) setError(e);
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  };
 
   const loadMore = async () => {
     if (lock.current || !base || nextBefore == null) return;
@@ -70,35 +91,13 @@ export function CoinHistoryScreen() {
     <View style={{ flex: 1 }}>
       <SubHeader title="코인 내역" fallback="/home" />
       <Screen>
-        {wallet.data && (
-          <View style={styles.top}>
-            <Card style={{ flex: 1 }}>
-              <T size={13} color={colors.textSub}>
-                보유 코인
-              </T>
-              <View
-                accessible
-                accessibilityLabel={`보유 코인 ${wallet.data.balance}개`}
-              >
-                <T size={24} weight="800" num>
-                  🪙 {money(wallet.data.balance)}
-                </T>
-              </View>
-            </Card>
-            <Card
-              style={styles.shop}
-              accessibilityLabel="상점"
-              onPress={() => router.push("/customize")}
-            >
-              <Ionicons name="storefront-outline" size={24} color={colors.text} />
-              <T size={13} weight="700">
-                상점
-              </T>
-              {wallet.data.passive.collectable > 0 && (
-                <View style={styles.dot} />
-              )}
-            </Card>
-          </View>
+        {current && (
+          <CoinCard
+            balance={current.balance}
+            wallet={current}
+            busy={busy}
+            onCollect={collect}
+          />
         )}
         <ErrorNotice error={first.error} retry={first.retry} />
         {first.loading && !base ? (
@@ -186,20 +185,3 @@ function Row({ entry }: { entry: CoinLedgerEntry }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  top: { flexDirection: "row", gap: 12 },
-  // The dot says coins are waiting to be collected in the shop.
-  shop: { alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 24 },
-  dot: {
-    position: "absolute",
-    top: 12,
-    right: 14,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: "#fff",
-    backgroundColor: colors.danger,
-  },
-});

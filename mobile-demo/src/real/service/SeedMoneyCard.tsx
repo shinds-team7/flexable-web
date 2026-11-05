@@ -1,17 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
-import { Button, RadioMark, Sheet, T } from "@/real/components/ui";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Modal } from "@/components/PhoneModal";
+import { router } from "expo-router";
+import { Button, ConfirmModal, RadioMark, Sheet, T } from "@/real/components/ui";
 import { colors, floating, radius } from "@/real/theme";
 import { styles as heroStyles } from "@/real/components/HomeStyles";
 import { api } from "./api/client";
@@ -34,9 +26,11 @@ export function SeedMoneyCard({
 }) {
   const [later, setLater] = useState<string | null>(null);
   const [history, setHistory] = useState(false);
+  const [help, setHelp] = useState(false);
   const [transfer, setTransfer] = useState(false);
   const [edit, setEdit] = useState(false);
   const pending = seed.pending;
+  const amountSize = amountFont(`${money(seed.total)} 원`.length);
   return (
     <>
       {/* Same blue panel as the today card it sits beside. Pressing it opens the history. */}
@@ -50,16 +44,20 @@ export function SeedMoneyCard({
           시드머니
         </T>
         <View style={styles.amountRow}>
+          {/* 자릿수가 늘면 글자를 줄여 줄바꿈 없이 한 줄에 둔다 */}
           <T
-            size={38}
+            size={amountSize.number}
             weight="800"
             color={colors.onBrand}
             num
-            style={{ flex: 1, lineHeight: 46 }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            style={{ flex: 1, lineHeight: amountSize.number + 8 }}
             accessibilityLabel={`시드머니 ${money(seed.total)}원`}
           >
             {money(seed.total)}
-            <T size={22} weight="700" color={colors.onBrand}>
+            <T size={amountSize.unit} weight="700" color={colors.onBrand}>
               {" "}
               원
             </T>
@@ -75,16 +73,47 @@ export function SeedMoneyCard({
           </Pressable>
         </View>
         <View style={[heroStyles.heroFoot, styles.foot]}>
-          <T size={12} color={colors.onBrandSub} num>
-            모아둔 돈 {money(seed.base)}원 + 반영한 돈 {money(seed.saved)}원 ·
-            매달 {money(seed.monthlyGoal)}원 저축
-          </T>
+          {(
+            [
+              ["모아둔 돈", seed.base],
+              ["반영한 돈", seed.saved],
+              ["매달 저축액", seed.monthlyGoal],
+            ] as const
+          ).map(([label, value], i) => (
+            <View key={label} style={[styles.stat, i > 0 && styles.statLine]}>
+              <T size={12} color={colors.onBrandSub}>
+                {label}
+              </T>
+              <T
+                size={14}
+                weight="700"
+                color={colors.onBrand}
+                num
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {money(value)}원
+              </T>
+            </View>
+          ))}
         </View>
       </Pressable>
       <Sheet
         visible={history}
         onClose={() => setHistory(false)}
         title="시드머니 모은 기록"
+        titleAccessory={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="시드머니가 무엇인지 보기"
+            hitSlop={10}
+            onPress={() => setHelp(true)}
+            style={styles.help}
+          >
+            <Ionicons name="help" size={16} color={colors.textSub} />
+          </Pressable>
+        }
       >
         <ScrollView contentContainerStyle={{ gap: 16 }}>
           <T>
@@ -108,7 +137,10 @@ export function SeedMoneyCard({
             >
               <T weight="700">{money(entry.amount)}원</T>
               <T size={13}>
-                {entry.choice === "EXTRA" ? entry.cycleEnd : `${entry.cycleEnd}까지`} ·{" "}
+                {entry.choice === "EXTRA"
+                  ? entry.cycleEnd
+                  : `${entry.cycleEnd}까지`}{" "}
+                ·{" "}
                 {
                   {
                     GOAL: "매달 저축할 돈",
@@ -131,6 +163,21 @@ export function SeedMoneyCard({
           }}
         />
       </Sheet>
+      <ConfirmModal
+        visible={help}
+        title="시드머니가 뭐예요?"
+        message={
+          "시드머니는 재테크에 쓸 수 있는 돈을 기록해 두는 곳이에요. 앱에서는 따로 쓸 일이 없고, 모아둔 돈을 기록하는 의미예요.\n\n텅장관리 웹사이트에 연동하면 이 시드머니로 투자·적금을 실험해 볼 수 있어요."
+        }
+        cancelLabel="닫기"
+        confirmLabel="웹서비스 연동하기"
+        onCancel={() => setHelp(false)}
+        onConfirm={() => {
+          setHelp(false);
+          setHistory(false);
+          router.push("/web-links");
+        }}
+      />
       {transfer && (
         <AmountModal
           title="시드머니로 보내기"
@@ -183,6 +230,11 @@ export function SeedMoneyCard({
   );
 }
 type Pending = NonNullable<SeedMoney["pending"]>;
+/** 금액 글자 크기. 카드 폭에 한 줄로 들어가도록 글자 수(쉼표·원 포함)가 늘수록 줄인다 */
+function amountFont(chars: number) {
+  const number = chars <= 9 ? 38 : chars <= 11 ? 32 : chars <= 13 ? 27 : 23;
+  return { number, unit: Math.round(number * 0.58) };
+}
 /** 금액 하나를 적어 저장하는 가운데 창. min·max를 벗어나면 저장할 수 없다. */
 function AmountModal({
   title,
@@ -420,8 +472,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // The caption may wrap to two lines, so the footer sits at the bottom instead of a fixed gap.
-  foot: { marginTop: "auto" },
+  // The footer is three columns of label over amount, pinned to the bottom of the card.
+  foot: { marginTop: "auto", alignItems: "flex-start" },
+  stat: { flex: 1, gap: 2 },
+  statLine: {
+    paddingLeft: 12,
+    borderLeftWidth: 1,
+    borderLeftColor: "rgba(255,255,255,0.22)",
+  },
+  help: {
+    width: 24,
+    height: 24,
+    marginLeft: 8,
+    borderRadius: 12,
+    backgroundColor: colors.sunken,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   dim: {
     flex: 1,
     justifyContent: "center",

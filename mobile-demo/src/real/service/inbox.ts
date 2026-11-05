@@ -105,6 +105,8 @@ type Local = {
   budget: BudgetNote[];
   seen: number;
   read: ReadReceipt[];
+  /** 밀어서 지운 알림. 목록과 안 읽음 표시에서 뺀다 */
+  deleted: ReadReceipt[];
 };
 
 /**
@@ -174,13 +176,14 @@ export function useInbox() {
   const items = useMemo(() => {
     if (!id || server?.id !== id || local?.id !== id) return undefined;
     const since = server.at - DAYS * DAY;
+    const gone = new Set(local.deleted.map((d) => d.key));
     return [
       ...server.ledger.map(coinItem),
       ...server.fixed.map(fixedItem),
       ...local.budget.map(budgetItem),
       ...local.sent.map(reminderItem),
     ]
-      .filter((i) => !Number.isNaN(i.at) && i.at >= since)
+      .filter((i) => !Number.isNaN(i.at) && i.at >= since && !gone.has(i.key))
       .sort((a, b) => b.at - a.at);
   }, [id, server, local]);
   const readState = local?.id === id ? local : undefined;

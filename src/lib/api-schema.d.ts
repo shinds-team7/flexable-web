@@ -569,7 +569,7 @@ export interface paths {
         put?: never;
         /**
          * 현재 가상 사건의 가상 매매 선택(수량 직접 입력, no-store)
-         * @description AWAITING_DECISION의 eventId만 허용하고 다음 step에서 다음 거래일 시가로 체결한다. 예상 버튼은 없고 매매 방향이 예상이다(BUY = 오른다, SELL = 내린다, HOLD = 채점 제외, policies §8-6). quantity는 HOLD면 0, BUY·SELL은 1 이상이고 event.orderLimits 안이어야 한다(넘으면 400 VALIDATION_FAILED, 응답 `fields.quantity`). 매수는 체결 시가로 그때 현금에 살 수 있는 만큼만 체결한다(부분 체결, 0주면 NO_FILL)
+         * @description AWAITING_DECISION의 eventId만 허용하고 다음 step에서 다음 거래일 시가로 체결한다. 예상 버튼은 없고 매매 방향이 예상이다(BUY = 오른다, SELL = 내린다, HOLD = 예상 없음, 채점 없음, policies §8-6). quantity는 HOLD면 0, BUY·SELL은 1 이상이고 event.orderLimits 안이어야 한다(넘으면 400 VALIDATION_FAILED, 응답 `fields.quantity`). 매수는 체결 시가로 그때 현금에 살 수 있는 만큼만 체결한다(부분 체결, 0주면 NO_FILL)
          */
         post: {
             parameters: {
@@ -3272,7 +3272,7 @@ export interface components {
                     maxSellShares: number;
                 };
             } | null;
-            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 경향이 뚜렷한 유형이 2개 이상, 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 공개 가능한 유형 전체에서 서로 다른 유형을 균등하게 뽑는다(뚜렷한 유형 최소 개수 없음, 11-05), 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
             decisions: {
                 eventId: string;
                 category: components["schemas"]["VirtualSimCategory"];
@@ -3301,7 +3301,7 @@ export interface components {
                 /** Format: int64 */
                 executedShares: number | null;
                 /**
-                 * @description 이번 결과: 예상을 이후 5거래일 가상 등락과 비교(policies §5 판정). 유지(예상 없음)는 NEUTRAL. 점수에 넣지 않는다. 대회 판은 늘 null
+                 * @description 늘 null(11-05 일반 세션 채점 없음, #253). 대회 판도 null. 이후 5거래일 방향은 movement·subsequentReturnRate로 본다
                  * @enum {string|null}
                  */
                 outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
@@ -3313,7 +3313,7 @@ export interface components {
                  * @enum {string|null}
                  */
                 movement: "UP" | "DOWN" | "FLAT" | null;
-                /** @description 판정 뒤(outcome이 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
+                /** @description 판정 뒤(movement가 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
                 categoryUpShare: number | null;
                 /** @description 판정 뒤만. 같은 유형 공시 뒤 5거래일 종가가 내린 비율(소수 4자리 내림). 보합은 오름·내림 어디에도 들지 않으므로 1 − categoryUpShare와 다를 수 있다. 판정 전에는 null */
                 categoryDownShare: number | null;
@@ -3325,16 +3325,16 @@ export interface components {
                  */
                 trend: "UP" | "DOWN" | "MIXED" | null;
                 /**
-                 * @description 판정 뒤만. 매매 방향의 예상을 과거 경향과 비교한 채점(점수에 들어감). MIXED이거나 HOLD면 NEUTRAL. 판정 전에는 null. 대회 판은 채점이 없어 늘 null
+                 * @description 늘 null(11-05 일반 세션 채점 없음, #253). 대회 판도 null. 유형의 경향은 trend로 본다
                  * @enum {string|null}
                  */
                 trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
             }[];
-            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 채점을 말하지 않는 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 매수·매도를 과거 경향으로 채점(유지 제외)하고 이번 움직임은 따로 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
+            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 이후 5거래일 움직임·유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
             notice: string;
             sources: string[];
         };
-        /** @description 대회 판일 때만 VirtualSimSnapshot에 붙는다(policies §8-8). 일반 세션은 이 필드가 없다(null도 아님). 대회 판은 채점이 없어 decisions[].outcome·trendOutcome이 늘 null이고 사건은 4개이며 notice는 대회 문장이다 */
+        /** @description 대회 판일 때만 VirtualSimSnapshot에 붙는다(policies §8-8). 일반 세션은 이 필드가 없다(null도 아님). 대회 판도 일반 세션처럼 채점이 없어 decisions[].outcome·trendOutcome이 늘 null이고 사건은 4개이며 notice는 대회 문장이다 */
         VirtualSimContestRound: {
             contestId: string;
             /** @description 이 판의 판(출제 규칙의 기준). 판이 바뀌는 것은 주간 판정 때뿐이다 */

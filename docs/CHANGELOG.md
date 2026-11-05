@@ -8,6 +8,10 @@
 
 - [#251, Refs #115, #243, #205, #241, #252, #253] 최신 main 반영 후 병합·종료된 AI 검사/가상 시뮬레이션/가이드와 신규 후속 이슈를 재대조했다. HANDOFF·PRD·F7 현재 상태를 최신화하고 과거 전수 점검을 이력으로 구분했다 — 영향: 문서·진행 관리
 
+## 2026-11-05
+
+- [#256] 투자 성향 설문을 마치면 요약 화면 없이 바로 그 유형 상세(`/type/:id`)로 이동하게 했다. 저장은 상세의 [내 성향으로 정하기]를 눌러야 한다([결정](decisions/2026-11-04-investor-type-five.md)) — 영향: 프론트
+
 ## 2026-11-04
 
 - [#235, Refs #205] 가상 시뮬레이션을 구현했다(worker 전체 공시 수집·룰셋·Gemini 회사 글, api `virtualsim`, 화면 `VirtualSimulation.tsx`, Flyway V26(V24는 파킹·CMA, V25는 목표 시나리오 AI(#228)라 다음 빈 번호), `virtual-simulation.json` `IMPLEMENTED`). 구현 중 사용자 결정으로 사건 매매를 바꿨다([결정](decisions/2026-11-04-virtual-simulation.md) "변경 기록", policies §8-6·§8-7): 긍정/부정 예상 버튼을 없애고 매수 = 오른다·매도 = 내린다를 예상으로 보며 유지는 채점에서 뺀다. 25/50/100% 대신 수량을 직접 입력하고(상한 = 선택 시점 종가 기준 최대 매수·보유 수량, 넘으면 400, 매수는 다음 시가로 살 수 있는 만큼 부분 체결), 화면은 수량 × 기준 가격 추정만 보인다. 계약 `/virtual-sim/decision`: `prediction`·`allocationPercent` 삭제, `quantity` 추가. `VirtualSimSnapshot.event.orderLimits`·`decisions[].quantity`·`movement` 추가, `decisions[].prediction` nullable. 사건 본문을 자세히 쓰도록 자동 검사 길이를 2~4문장 60~240자로 바꿨다(`vsim-check-v3`, 계약 `event.body` maxLength 240, 프롬프트 `vsim-prompt-v2`, policies §8-5). v2로 만든 회사는 후보에서 빠져 다시 생성해야 한다. 화면 공시 제목을 실제 DART 제목과 대조해 소송·사고 제목을 "소송등의제기ㆍ신청(일정금액이상의청구)"로 바꿨다(결정 기록 1-1). 리뷰 반영: 판정 뒤 `decisions[].categoryDownShare`(하락 비율, 보합 제외) 추가, `/virtual-sim/start` 클라이언트(IP)별 10분 20번 제한(429, IP는 메모리에서만 셈 — `Privacy.tsx`·`privacy-web.md`에 한 문장), 수량 오류 위치 `fields.quantity`로 문서 정정, 채점 설명(매수·매도 채점·유지 제외) 정정. `/practice/*`·개인정보처리방침은 바뀌지 않는다 — 영향: 프론트(`npm run gen:api`)·백엔드·운영(재생성)

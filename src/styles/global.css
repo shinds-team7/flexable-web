@@ -657,6 +657,15 @@ details p{margin-top:8px;color:var(--text-sub);font-size:14px}
 .set-row:last-child{border-bottom:0}
 .set-row .k{font-weight:600}
 .set-row .v{color:var(--text-muted);font-size:14px}
+.settings-account-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(var(--density-gap)/2)}
+.settings-withdraw-note{margin-top:calc(var(--density-gap)/2);font-size:13px;color:var(--color-text-tertiary)}
+.settings-withdraw-note a{color:inherit;text-decoration:underline}
+.settings-withdraw-form{gap:calc(var(--density-gap)/2);margin-top:calc(var(--density-gap)/2)}
+.settings-subscription{display:flex;flex-direction:column;gap:calc(var(--density-gap)/2)}
+.settings-plan-toggle button{height:var(--density-control-sm);border-radius:var(--radius-soft-sm);font-size:var(--font-size-body)}
+.settings-plan-compare{display:flex;flex-direction:column;gap:calc(var(--density-gap)/2)}
+.settings-plan-compare th[scope="row"]{font-weight:500}
+.settings-plan-more{display:flex;justify-content:flex-end}
 
 /* ───────── 섞어보기 ───────── */
 .mix-row{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px;display:flex;flex-direction:column;gap:8px}
@@ -938,8 +947,8 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .sv-policy.open .sv-detail-body{max-width:none;padding:8px 16px 20px;background:var(--sunken)}
 .sv-detail td{background:var(--sunken);padding:8px 20px 20px}
 .sv-detail-body{max-width:720px}
-.to-top{position:fixed;right:24px;bottom:24px;z-index:60;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:var(--sunken);color:var(--text-muted);box-shadow:var(--shadow-float);cursor:pointer;transition:background 140ms var(--ease),transform 140ms var(--ease)}
-.to-top:hover{background:var(--line);transform:translateY(-2px)}
+.to-top{position:fixed;right:24px;bottom:24px;z-index:60;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:var(--color-brand-primary);color:var(--color-on-brand);box-shadow:var(--shadow-float);cursor:pointer;transition:background 140ms var(--ease),transform 140ms var(--ease)}
+.to-top:hover{background:var(--color-brand-primary-hover);transform:translateY(-2px)}
 .to-top:focus-visible{outline:2px solid var(--color-focus);outline-offset:3px}
 @media (max-width:1279px){
   .sv-cond-bar{flex-wrap:wrap}

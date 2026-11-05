@@ -151,7 +151,7 @@ export default function Plus() {
               <h2>자주 묻는 질문</h2>
               <details>
                 <summary>해지는 어떻게 해요?</summary>
-                <p>내 정보 → 구독 → 해지를 누르고 한 번 더 확인하면 끝나요. 결제한 기간이 끝날 때까지는 계속 쓸 수 있어요.</p>
+                <p>현재는 시연용 모의 결제라 실제 구독이나 청구가 없고, 해지할 구독도 없어요.</p>
               </details>
               <details>
                 <summary>지금 결제하면 돈이 나가나요?</summary>

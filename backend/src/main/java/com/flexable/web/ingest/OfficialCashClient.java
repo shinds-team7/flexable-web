@@ -19,6 +19,7 @@ public class OfficialCashClient {
         KBANK_OTHER("kbank-other-demand", "parking", "https://www.kbanknow.com/web/customer/use-info/info?tab=rate-info"),
         SC("sc-personal-demand", "parking", "https://www.standardchartered.co.kr/np/kr/pl/et/InterestRateDeposit3P.jsp"),
         JEJU("jeju-personal-demand", "parking", "https://www.jejubank.co.kr/hmpg/prdGdnc/sid/iomn.do"),
+        KDB("kdb-personal-demand", "parking", "https://banking.kdb.co.kr/bp/BMDEWP01N00.act"),
         EUGENE("eugene-cma-rp", "cma", "https://www.eugenefn.com/ingo/igca/igca100r.do"),
         FSB("fsb-demand-deposits", "parking", "https://www.fsb.or.kr/ratanym_0100.act"),
         MIRAE_RP("mirae-cma-rp", "cma", "https://securities.miraeasset.com/hks/hks4033/n01.do"),
@@ -48,6 +49,31 @@ public class OfficialCashClient {
         Target target = testTargets.getOrDefault(source, new Target(official, official.resolve("/robots.txt")));
         String robots = get(target.robots(), true);
         allowed(robots, official.getRawPath() + (official.getRawQuery() == null ? "" : "?" + official.getRawQuery()));
+        if (source == Source.KDB) {
+            var candidates = new java.util.ArrayList<KdbCashParser.Candidate>();
+            var ids = new java.util.HashSet<String>();
+            int total = -1, pages = 1;
+            for (int page = 1; page <= pages; page++) {
+                var batch = KdbCashParser.catalog(query(source, target, robots, "/bp/BMDEWP01R00.jct",
+                    "kdb-catalog-" + page, kdbForm(KdbCashParser.catalogRequest(page)), false), page);
+                if (total >= 0 && total != batch.total()) throw new IllegalStateException("KDB 전체 건수 변경");
+                total = batch.total(); pages = (total + 9) / 10;
+                for (var candidate : batch.items()) {
+                    if (!ids.add(candidate.id())) throw new IllegalStateException("KDB 상품 코드 중복");
+                    candidates.add(candidate);
+                }
+            }
+            if (candidates.size() != total) throw new IllegalStateException("KDB 전체 목록 불일치");
+            var result = new java.util.ArrayList<Product>();
+            for (var candidate : candidates) {
+                String detail = query(source, target, robots, "/bp/BMDEWP01R10.jct", "kdb-detail-" + candidate.id(),
+                    kdbForm("{\"PRD_C\":\"" + candidate.id() + "\",\"WEB_PRD_CLSF_C\":10,\"XPO_TGT_C\":20}"), false);
+                String rates = query(source, target, robots, "/bp/BMDEWP01R12.jct", "kdb-rates-" + candidate.id(),
+                    kdbForm("{\"PRD_C\":\"" + candidate.id() + "\",\"PRD_IRT_C\":\"" + candidate.rateId() + "\"}"), false);
+                result.add(KdbCashParser.detail(candidate, detail, rates, verifiedAt));
+            }
+            return List.copyOf(result);
+        }
         if (source == Source.FSB) {
             String filters = "{\"ORDERBY\":\"BANK_NAME ASC\",\"RATE_HIGH\":\"0\",\"RATE_HIGH_UPPER\":\"true\",\"DEPO_INTS_PRVS_MTHD_CD\":\"1|2|3|4|5|6\",\"JOIN_LOCATION\":\"1|2|3|4|5|9\",\"END_NUM\":\"100000\",\"START_NUM\":\"1\",\"SEARCH_SELECT_IN\":\"\",\"SEARCH_TEXT_IN\":\"\"}";
             String encoded = java.net.URLEncoder.encode(filters, StandardCharsets.UTF_8).replace("+", "%20");
@@ -100,6 +126,10 @@ public class OfficialCashClient {
     }
     private static void allowed(String robots, String path) {
         if (robots != null && !CashRobots.allowed(robots, path)) throw new IllegalStateException("robots 정책으로 수집하지 않습니다");
+    }
+    private static String kdbForm(String json) {
+        return "_JSON_=" + java.net.URLEncoder.encode(java.net.URLEncoder.encode(json, StandardCharsets.UTF_8)
+            .replace("+", "%20"), StandardCharsets.UTF_8);
     }
     private String query(Source source, Target target, String robots, String path, String fixturePath, String body, boolean jsonBody) {
         allowed(robots, path);

@@ -28,6 +28,7 @@ const rows: { label: string; value: (p: Product) => string }[] = [
 
 export function CashCatalog({ kind }: { kind: Kind }) {
   const [search, setSearch] = useState('');
+  const [condition, setCondition] = useState('');
   const [company, setCompany] = useState('');
   const [sector, setSector] = useState('');
   const [category, setCategory] = useState('');
@@ -37,7 +38,8 @@ export function CashCatalog({ kind }: { kind: Kind }) {
   const all = query.data?.items ?? [];
   const companies = [...new Set(all.map(p => p.company))];
   const visible = all.filter(p => (!company || p.company === company) && (!sector || p.sector === sector)
-    && (!category || p.category === category) && `${p.company} ${p.name}`.includes(search.trim()));
+    && (!category || p.category === category) && `${p.company} ${p.name}`.includes(search.trim())
+    && [p.conditions, p.interestPayment, p.reinvestment].filter(Boolean).join(' ').includes(condition.trim()));
   const selected = all.filter(p => picked.includes(p.id));
   const toggle = (id: string) => {
     if (picked.includes(id)) { setPicked(picked.filter(p => p !== id)); setMessage(''); }
@@ -56,6 +58,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
         <p role="status">{query.data.notice}</p>
         {all.length > 0 && <div className="cash-filters">
           <label>상품·회사 검색<input value={search} onChange={e => setSearch(e.target.value)} type="search" /></label>
+          <label>금액·우대조건 검색<input value={condition} onChange={e => setCondition(e.target.value)} type="search" placeholder="공시 원문의 문구로 검색" /></label>
           <label>금융회사<select value={company} onChange={e => setCompany(e.target.value)}><option value="">전체</option>{companies.map(c => <option key={c}>{c}</option>)}</select></label>
           {kind === 'parking' ? <label>금융권<select value={sector} onChange={e => setSector(e.target.value)}><option value="">전체</option><option value="BANK">은행</option><option value="SAVINGS_BANK">저축은행</option></select></label>
             : <label>상품 종류<select value={category} onChange={e => setCategory(e.target.value)}><option value="">전체</option><option value="RP">RP형</option><option value="PROMISSORY_NOTE">발행어음형</option></select></label>}

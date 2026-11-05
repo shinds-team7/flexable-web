@@ -34,8 +34,17 @@ class OfficialCashLiveTest {
                 assertThat(products).hasSize(Integer.parseInt(System.getenv("CASH_FSB_EXPECTED_COUNT")));
             catalog.publish(source.kind, source.key, "PUBLIC_FACTS; live verification; source=" + source.url, products);
             counts.merge(source.kind, products.size(), Integer::sum);
-            mvc.perform(get("/api/v1/" + source.kind + "/products")).andExpect(status().isOk())
-                    .andExpect(jsonPath("$.isSample").value(false)).andExpect(jsonPath("$.items.length()").value(counts.get(source.kind)));
+            var response = mvc.perform(get("/api/v1/" + source.kind + "/products")).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.isSample").value(false)).andExpect(jsonPath("$.items.length()").value(counts.get(source.kind)))
+                    .andReturn().getResponse();
+            // 공개 카탈로그 응답만 선택적으로 내보내 실제 조건의 로컬 화면 검증에 재사용한다.
+            String reportDir = System.getenv("CASH_LIVE_REPORT_DIR");
+            if (reportDir != null && !reportDir.isBlank()) {
+                var dir = java.nio.file.Path.of(reportDir);
+                java.nio.file.Files.createDirectories(dir);
+                java.nio.file.Files.writeString(dir.resolve(source.kind + ".json"),
+                    response.getContentAsString(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.UTF_8);
+            }
             products.forEach(p -> System.out.println("LIVE " + p.company() + " / " + p.name()
                 + " base=" + p.baseRate() + " max=" + p.maxRate() + " asOf=" + p.sourceAsOf()));
         }

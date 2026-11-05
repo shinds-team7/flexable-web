@@ -2,6 +2,13 @@ purpose:
   stands_in_for: 케이뱅크·유진·저축은행중앙회 전체 다운로드·미래에셋 공식 HTML과 robots HTTP 응답
   unblocks: 실제 수집 HTTP 클라이언트·스케줄 작업·H2 저장의 실패 보존 검증
 assumptions:
+  - id: kdb-complete-personal-demand-snapshot
+    status: supported
+    claim: KDB 개인 입출금 분류의 모든 페이지와 해당 상품 상세·금리가 성공한 경우에만 한 출처 스냅샷을 교체한다. 추천 목록은 금리로 사용하지 않는다.
+    reason: 공식 공개 화면의 개인/입출금 조회와 6개 상세·금리 구조를 확인했다. 기관 소유 mock이 없어 관측한 구조로 합성 HTTP 응답을 작성했다. 전체 은행/시장 모집단 검증과는 다르다.
+    verification: KdbCashSimulationTest의 2페이지·11개 실제 HTTP 수집/H2 저장, 마지막 상세 503·부분 페이지·다른 상품 금리·robots 제한 시 기존본 보존 통과. OfficialCashLiveTest는 CASH_LIVE_SOURCES=KDB로 실제 6개를 격리 H2에 저장한 뒤 공개 API/isSample=false를 확인했다.
+    source: backend/src/test/java/com/flexable/web/ingest/KdbCashSimulationTest.java
+    updated_at: '2026-11-05'
   - id: parse-current-official-tables
     status: supported
     claim: 2026-11-04 플러스박스 1개·유진 개인 RP 2개·FSB 전체 표 158개·미래에셋 개인 RP 1개를 테스트 DB와 API로 연결했다. 전체 시장 수집은 아니다.

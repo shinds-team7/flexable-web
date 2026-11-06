@@ -86,11 +86,12 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 	}
 
 	/**
-	 * 배치고사 문제 사본(채점하면 지운다). 실제 과거 공시 하나와 그 뒤 5거래일 실제 방향(up)·등락(returnRate). company·date는 풀 때 숨기고 결과에서 공개한다.
-	 * trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null)
+	 * 배치고사 문제 사본(채점하면 주요 내용까지 함께 지운다). 실제 과거 공시 하나와 그 뒤 5거래일 실제 방향(up)·등락(returnRate). company·date는 풀 때 숨기고 결과에서 공개한다.
+	 * details: 공시 주요 내용(없으면 null). trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null)
 	 */
-	record StoredQuestion(String id, String company, String industry, VirtualSimCategory category, String title, String body, String date, Boolean up,
-			BigDecimal returnRate, String trend, BigDecimal upShare, BigDecimal downShare, Integer paths) {
+	record StoredQuestion(String id, String company, String industry, VirtualSimCategory category, String title, String body,
+			List<PlacementDetails.Detail> details, String date, Boolean up, BigDecimal returnRate, String trend, BigDecimal upShare, BigDecimal downShare,
+			Integer paths) {
 	}
 
 	/** 실제 공시 문제 풀(6시간마다 다시 만든다). 예시 자료면 쓰지 않는다 */
@@ -119,9 +120,10 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 					continue;
 				}
 				var rows = market.dailyPrices(stock.code(), from);
+				var details = sims.details(stock.code());
 				var filings = sims.disclosures(stock.code()).stream()
 					.filter(d -> !d.date().isBefore(from))
-					.map(d -> new VirtualContestQuestions.Filing(d.receiptNo(), d.title(), d.date()))
+					.map(d -> new VirtualContestQuestions.Filing(d.receiptNo(), d.title(), d.date(), details.get(d.receiptNo())))
 					.toList();
 				out.addAll(VirtualContestQuestions.fromFilings(stock.name(), industries.getOrDefault(stock.code(), "업종 미분류"), filings,
 						rows.stream().map(PriceRow::date).toList(), rows.stream().map(PriceRow::close).toList()));
@@ -263,7 +265,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 			for (int k = 0; k < drawn.size(); k++) {
 				VirtualContestQuestions.Past q = drawn.get(k);
 				Optional<CategoryStats> st = rules.rules().stats(q.category());
-				questions.add(new StoredQuestion("q" + (k + 1), q.company(), q.industry(), q.category(), q.title(), q.body(),
+				questions.add(new StoredQuestion("q" + (k + 1), q.company(), q.industry(), q.category(), q.title(), q.body(), q.details(),
 						q.date() == null ? null : q.date().toString(), q.up(), VirtualContestRules.rate(q.afterClose(), q.baseClose()),
 						st.map(CategoryStats::trend).orElse(null), st.map(CategoryStats::upShare).orElse(null),
 						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null)));
@@ -298,7 +300,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 
 	private Placement placement(PlacementRow p) {
 		List<Question> qs = questions(p).stream()
-			.map(q -> new Question(q.id(), q.industry(), q.category(), q.category().displayName(), q.title(), q.body()))
+			.map(q -> new Question(q.id(), q.industry(), q.category(), q.category().displayName(), q.title(), q.body(), q.details()))
 			.toList();
 		return new Placement(p.id(), format(p.expiresAt()), qs);
 	}

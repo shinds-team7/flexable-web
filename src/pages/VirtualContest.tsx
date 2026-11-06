@@ -8,6 +8,7 @@ import {
   type ContestRankingRow, type ContestResult, type Prediction,
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
+import { CATEGORY_GUIDE, SUBSIDIARY_NOTE, cleanTitle } from '@/data/placementGuide';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
 import { ApiError, errorText } from '@/lib/api';
@@ -264,50 +265,115 @@ function useRemaining(until: string | null) {
   return Math.max(0, Math.floor((new Date(until).getTime() - now) / 1000));
 }
 
-function PlacementForm({ placement, busy, error, onSubmit, onBack }: { placement: ContestPlacement; busy: boolean; error: string;
+type PlacementQuestion = ContestPlacement['questions'][number];
+
+/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 주요 내용(있을 때만). 결과 화면도 같은 모양을 쓴다 */
+function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
+  const t = cleanTitle(q.title);
+  return <>
+    <h3 id={headingId} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="contest-q-title">{t.main}</h3>
+    {(t.kind || t.notes.length > 0) && <p className="contest-q-kind">{[t.kind, ...t.notes].filter(Boolean).join(' · ')}</p>}
+    <p className="contest-q-guide">{CATEGORY_GUIDE[q.category]}</p>
+    {t.subsidiary && <p className="contest-q-note">{SUBSIDIARY_NOTE}</p>}
+    {q.body && <p className="contest-q-body">{q.body}</p>}
+    {q.details && q.details.length > 0 && <div className="contest-q-details">
+      <p className="contest-q-details-title">공시 주요 내용{sample && <span className="tag-ex">예시</span>}</p>
+      <dl>{q.details.map(d => <div key={d.label}><dt>{d.label}</dt><dd>{d.value}</dd></div>)}</dl>
+    </div>}
+  </>;
+}
+
+/** 배치고사: 한 화면에 한 문제. 답을 고르고 [다음 문제]로 넘어가며, [이전 문제]·문제 번호로 돌아갈 수 있다. 채점은 제출 때 서버가 한다 */
+function PlacementForm({ placement, sample, busy, error, onSubmit, onBack }: { placement: ContestPlacement; sample: boolean; busy: boolean; error: string;
   onSubmit: (answers: Record<string, Prediction>) => void; onBack: () => void }) {
   const [answers, setAnswers] = useState<Record<string, Prediction>>({});
+  const [index, setIndex] = useState(0);
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  const moved = useRef(false);
   const left = useRemaining(placement.expiresAt);
-  const missing = placement.questions.filter(q => !answers[q.id]).length;
+  const total = placement.questions.length;
+  const q = placement.questions[index];
+  const done = placement.questions.filter(x => answers[x.id]).length;
+  const last = index === total - 1;
+  const firstOpen = placement.questions.findIndex(x => !answers[x.id]);
+  // 문제를 바꾸면(처음 열 때 말고) 새 문제 제목으로 포커스를 옮겨 화면 읽기 프로그램이 바로 읽게 한다
+  useEffect(() => {
+    if (!moved.current) return;
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.closest('.contest-placement')?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  }, [index]);
+  const go = (i: number) => { if (i < 0 || i >= total || i === index) return; moved.current = true; setIndex(i); };
+  const choose = (v: Exclude<Prediction, null>) => setAnswers(a => ({ ...a, [q.id]: a[q.id] === v ? null : v }));
   const submit = (e: FormEvent) => { e.preventDefault(); onSubmit(answers); };
   return <form className="contest-placement" onSubmit={submit}>
     <div className="contest-placement-head">
-      <div><h2>배치고사</h2><p className="practice-muted">실제 과거 공시를 보고, 그 뒤 5거래일 동안 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요.</p></div>
-      <p className={`contest-timer ${left != null && left < 300 ? 'urgent' : ''}`} role="timer" aria-live="off">{left == null ? '' : left > 0 ? `남은 시간 ${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '시간이 지났어요. 제출하면 고른 답 없이 채점된 결과를 보여 줘요'}</p>
+      <div className="contest-placement-title">
+        <h2>배치고사</h2>
+        {left != null && <span className={`contest-timer ${left === 0 ? 'over' : left < 300 ? 'urgent' : ''}`} role="timer" aria-live="off"
+          aria-label={left > 0 ? `남은 시간 ${Math.floor(left / 60)}분 ${left % 60}초` : '제한 시간이 지났어요'}>
+          <span aria-hidden="true">⏱</span>{left > 0 ? `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '시간 종료'}
+        </span>}
+      </div>
+      <p className="practice-muted">실제 과거 공시를 보고, 그 뒤 5거래일 동안 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요. 회사 이름과 날짜는 제출한 뒤 공개해요.</p>
+      {left === 0 && <p role="status" className="contest-timer-over">제한 시간이 지났어요. 제출하면 고른 답 없이 채점된 결과를 보여 줘요.</p>}
     </div>
-    <ol className="contest-questions">
-      {placement.questions.map((q, i) => <li key={q.id}>
-        <fieldset>
-          <legend><span className="contest-q-no">{i + 1}</span>{q.industry} 회사 <span className="contest-chip">{q.categoryName}</span></legend>
-          <h3>{q.title}</h3>
-          {q.body ? <p>{q.body}</p> : <p className="contest-q-hint">실제 과거 공시예요. 회사 이름과 날짜는 제출한 뒤 공개해요.</p>}
-          <div className="contest-answer" role="group" aria-label={`${i + 1}번 답`}>
-            {(['POSITIVE', 'NEGATIVE'] as const).map(v => <button key={v} type="button" className={`${v === 'POSITIVE' ? 'up' : 'down'} ${answers[q.id] === v ? 'selected' : ''}`}
-              aria-pressed={answers[q.id] === v} onClick={() => setAnswers(a => ({ ...a, [q.id]: a[q.id] === v ? null : v }))}>{v === 'POSITIVE' ? '▲ 오른다' : '▼ 내린다'}</button>)}
-          </div>
-        </fieldset>
-      </li>)}
-    </ol>
+    <div className="contest-progress" aria-label="배치고사 진행">
+      <div className="contest-progress-count">
+        <span role="status" aria-live="polite"><b>{done}</b>/{total} 답함</span>
+        <span className="contest-progress-bar" aria-hidden="true"><i style={{ '--progress': `${(done / total) * 100}%` } as CSSProperties} /></span>
+      </div>
+    </div>
+    <nav className="contest-q-jump" aria-label="문제 번호로 이동">
+      <ol>{placement.questions.map((x, i) => <li key={x.id}>
+        <button type="button" className={`${i === index ? 'current' : ''} ${answers[x.id] ? 'answered' : ''}`} aria-current={i === index ? 'step' : undefined}
+          aria-label={`${i + 1}번 문제${answers[x.id] ? `, ${answers[x.id] === 'POSITIVE' ? '오른다' : '내린다'} 고름` : ', 안 고름'}`} onClick={() => go(i)}>{i + 1}</button>
+      </li>)}</ol>
+      {firstOpen >= 0 && firstOpen !== index && done > 0 && <button type="button" className="btn btn-sm" onClick={() => go(firstOpen)}>안 푼 문제로</button>}
+    </nav>
+    <section key={q.id} className="contest-q-card" aria-labelledby={`contestQ-${q.id}`}>
+      <p className="contest-q-meta"><span className="contest-q-no">{index + 1}</span><span className="contest-q-of">/ {total}</span>{q.industry} 회사<span className="contest-chip">{q.categoryName}</span></p>
+      <QuestionBody q={q} sample={sample} headingId={`contestQ-${q.id}`} headingRef={heading} />
+      <div className="contest-answer" role="group" aria-label={`${index + 1}번 답`}>
+        {(['POSITIVE', 'NEGATIVE'] as const).map(v => <button key={v} type="button" className={`${v === 'POSITIVE' ? 'up' : 'down'} ${answers[q.id] === v ? 'selected' : ''}`}
+          aria-pressed={answers[q.id] === v} onClick={() => choose(v)}>
+          <span className="contest-answer-mark" aria-hidden="true">{answers[q.id] === v ? '✓' : v === 'POSITIVE' ? '▲' : '▼'}</span>{v === 'POSITIVE' ? '오른다' : '내린다'}</button>)}
+      </div>
+      <p className="contest-q-tip practice-muted">{answers[q.id] ? '같은 답을 다시 누르면 고른 답이 취소돼요.' : '고르지 않고 넘어가도 돼요. 고르지 않은 문제는 틀린 것으로 채점해요.'}</p>
+      <div className="contest-q-nav">
+        <button type="button" className="btn" onClick={() => go(index - 1)} disabled={index === 0}>← 이전 문제</button>
+        {last
+          ? <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '채점 중…' : '제출하고 시작 판 보기'}</button>
+          : <button type="button" className={`btn ${answers[q.id] ? 'btn-primary' : ''}`} onClick={() => go(index + 1)}>다음 문제 →</button>}
+      </div>
+    </section>
     <div className="contest-placement-foot">
-      {missing > 0 && <p className="practice-muted">고르지 않은 문제 {missing}개는 틀린 것으로 채점해요.</p>}
+      {last && total - done > 0 && <p className="practice-muted">고르지 않은 문제 {total - done}개는 틀린 것으로 채점해요.</p>}
       {error && <p role="alert" className="practice-rise">{error}</p>}
-      <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '채점 중…' : '제출하고 시작 판 보기'}</button>
       <button className="btn" type="button" onClick={onBack} disabled={busy}>나중에 이어 풀기</button>
+      {!last && <button className="btn btn-sm contest-early-submit" type="submit" disabled={busy}>{busy ? '채점 중…' : '지금 제출하기'}</button>}
     </div>
   </form>;
 }
 
-function PlacementDone({ result, onStart }: { result: ContestPlacementResult; onStart: () => void }) {
+function PlacementDone({ result, questions, sample, onStart }: { result: ContestPlacementResult; questions: PlacementQuestion[]; sample: boolean; onStart: () => void }) {
+  // 결과에는 주요 내용을 다시 싣지 않아(채점하면 문제 사본을 지움) 풀 때 받은 문제와 questionId로 잇는다
+  const byId = new Map(questions.map(q => [q.id, q]));
   return <section className="contest-card contest-result" aria-labelledby="contestResultTitle">
     <h2 id="contestResultTitle">배치고사 결과</h2>
     <p className="contest-big">{result.total}문제 중 <b>{result.correct}개</b> 맞혔어요 → <b>{BOARD_LABEL[result.board]}</b>에서 시작해요</p>
     <p className="practice-muted">시작 잔액은 {money(result.entry.seedMoney)}이에요. 공시 하나 뒤의 5거래일은 같은 유형이어도 방향이 자주 갈려서, 배치고사는 시작 판을 정하는 가벼운 퀴즈예요. 실력은 주간 점수로 겨뤄요.</p>
     <ol className="contest-graded">
-      {result.items.map((it, i) => <li key={it.questionId} className={it.correct ? 'ok' : 'no'}>
-        <span className="contest-q-no">{i + 1}</span>
-        <span>{it.correct ? '맞음' : '틀림'} · <b>{it.company}</b>{it.date ? ` · ${it.date}` : ''} · 5거래일 뒤 <b className={tone(it.subsequentReturnRate)}>{percent(it.subsequentReturnRate)}</b> · 내 답 {it.prediction === 'POSITIVE' ? '오른다' : it.prediction === 'NEGATIVE' ? '내린다' : '고르지 않음'}</span>
+      {result.items.map((it, i) => { const q = byId.get(it.questionId); return <li key={it.questionId} className={it.correct ? 'ok' : 'no'}>
+        <p className="contest-graded-head">
+          <span className="contest-q-no">{i + 1}</span>
+          <span>{it.correct ? '맞음' : '틀림'} · <b>{it.company}</b>{it.date ? ` · ${it.date}` : ''} · 5거래일 뒤 <b className={tone(it.subsequentReturnRate)}>{percent(it.subsequentReturnRate)}</b> · 내 답 {it.prediction === 'POSITIVE' ? '오른다' : it.prediction === 'NEGATIVE' ? '내린다' : '고르지 않음'}</span>
+        </p>
         {it.categorySampleCount != null && it.categoryUpShare != null && it.categoryDownShare != null && <small>같은 유형 공시 {fmt.format(it.categorySampleCount)}건 중 {share(it.categoryUpShare)}% 올랐고 {share(it.categoryDownShare)}% 내렸어요{it.trend === 'MIXED' ? ' · 방향을 알기 어려운 유형' : it.trend === 'UP' ? ' · 대체로 오른 유형' : it.trend === 'DOWN' ? ' · 대체로 내린 유형' : ''}</small>}
-      </li>)}
+        {q && <div className="contest-graded-question">
+          <p className="contest-q-meta">{q.industry} 회사<span className="contest-chip">{q.categoryName}</span></p>
+          <QuestionBody q={q} sample={sample} />
+        </div>}
+      </li>; })}
     </ol>
     <button className="btn btn-primary" type="button" onClick={onStart}>대회 화면으로</button>
   </section>;
@@ -694,8 +760,8 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
     </section>
     {error && <StateBox kind="error" text={error} onRetry={() => { setError(''); void load(); }} />}
 
-    {view === 'placement' && placement ? <PlacementForm placement={placement} busy={busy} error={error} onSubmit={answers => void submit(answers)} onBack={() => setView('home')} />
-      : view === 'result' && result ? <PlacementDone result={result} onStart={() => setView('home')} />
+    {view === 'placement' && placement ? <PlacementForm placement={placement} sample={sample} busy={busy} error={error} onSubmit={answers => void submit(answers)} onBack={() => setView('home')} />
+      : view === 'result' && result ? <PlacementDone result={result} questions={placement?.questions ?? []} sample={sample} onStart={() => setView('home')} />
       : !member ? <>
         <Reveal><ContestGuide info={info} joined={false} /></Reveal>
         <Reveal order={1}><Participation info={info} entry={null} /></Reveal>

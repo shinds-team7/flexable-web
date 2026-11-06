@@ -53,9 +53,22 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 		for (JsonNode s : root.path("scenarios")) {
 			Map<String, Integer> mix = new LinkedHashMap<>();
 			s.path("mix").properties().forEach(e -> mix.put(e.getKey(), e.getValue().isIntegralNumber() ? e.getValue().asInt() : null));
-			out.add(new Proposals.Draft(text(s, "id"), text(s, "title"), text(s, "summary"), text(s, "explanation"), mix));
+			out.add(new Proposals.Draft(text(s, "id"), text(s, "title"), text(s, "summary"), explanation(s), mix));
 		}
 		return out;
+	}
+
+	/** 해설 네 칸을 문단으로 합친다. 한 칸이라도 비면 null이라 검증에서 걸린다(TEXT_EMPTY). */
+	private static String explanation(JsonNode scenario) {
+		List<String> parts = new ArrayList<>();
+		for (String field : GoalScenarioAiClient.EXPLANATION_FIELDS) {
+			String part = text(scenario, field);
+			if (part == null || part.isBlank()) {
+				return null;
+			}
+			parts.add(part.strip());
+		}
+		return String.join("\n\n", parts);
 	}
 
 	private static String text(JsonNode node, String field) {

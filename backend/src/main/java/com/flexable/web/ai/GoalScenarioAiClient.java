@@ -5,6 +5,9 @@ package com.flexable.web.ai;
  * 목표 이름·회원 식별자·이메일은 받지 않는다. 금액·확률은 웹 서버가 계산하고, 여기서는 유형별 비중과 문구만 받는다.
  */
 public interface GoalScenarioAiClient {
+	/** 응답 스키마의 해설 칸. 순서대로 문단으로 합쳐 해설 하나가 된다: 조합 이유, 상품별 역할과 근거, 다른 시나리오와의 차이, 주의할 점과 맞는 사람. */
+	java.util.List<String> EXPLANATION_FIELDS = java.util.List.of("reason", "roles", "comparison", "fit");
+
 	boolean enabled();
 
 	/** inputJson을 보내고 구조화 출력(JSON 문자열)을 돌려준다. 실패하면 Failed. */

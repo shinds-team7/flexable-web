@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -188,6 +189,32 @@ class VirtualContestApiTest {
 		return body(call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + startId + "\"}"), token), expected));
 	}
 
+	/**
+	 * 풀 때 응답에 회사를 찾아낼 단서가 없는지: 회사명·날짜 칸이 없고, 제목·주요 내용에 회사명(예시 회사 이름)·날짜·절대 금액(네 자리 이상 숫자·천 단위 쉼표)·상대방 이름이 없다.
+	 * 주요 내용에는 방향·경향·상승 비율 표현이 없다
+	 */
+	private static void assertNoLeak(String placement) {
+		assertThat(placement).doesNotContain("\"company\"").doesNotContain("\"date\"").doesNotContain("receipt").doesNotContain("rcept");
+		List<String> values = JsonPath.read(placement, "$.questions[*].details[*].value");
+		List<String> labels = JsonPath.read(placement, "$.questions[*].details[*].label");
+		List<String> titles = JsonPath.read(placement, "$.questions[*].title");
+		// 예시 자료의 사건 글(body)은 예시 회사 이름을 쓰는 가상 글이라 보지 않는다(실제 공시는 body가 null)
+		VirtualSimSample.companies().forEach(c -> assertThat(concat(concat(values, labels), titles)).noneMatch(t -> t.contains(c.name())));
+		assertThat(values).isNotEmpty();
+		assertThat(values).allSatisfy(v -> assertThat(v).doesNotContainPattern("\\d{4,}").doesNotContainPattern("\\d,\\d{3}").doesNotContainPattern("\\d+원")
+			.doesNotContainPattern("\\d{1,2}월").doesNotContainPattern("\\d{1,2}일"));
+		for (String t : concat(values, labels)) {
+			assertThat(t).doesNotContain("오르").doesNotContain("오른").doesNotContain("내리").doesNotContain("내린").doesNotContain("상승").doesNotContain("하락")
+				.doesNotContain("경향").doesNotContain("호재").doesNotContain("악재").doesNotContain("주식회사").doesNotContain("(주)").doesNotContain("㈜");
+		}
+	}
+
+	private static List<String> concat(List<String> a, List<String> b) {
+		List<String> out = new java.util.ArrayList<>(a);
+		out.addAll(b);
+		return out;
+	}
+
 	/** 문제마다 "오른다"로 낸 제출 본문 */
 	private static String allUp(String placement) {
 		String id = JsonPath.read(placement, "$.placementId");
@@ -248,6 +275,13 @@ class VirtualContestApiTest {
 		assertThat(placement).doesNotContain("trend").doesNotContain("upShare").doesNotContain("movement").doesNotContain("\"company\"");
 		assertThat((List<?>) JsonPath.read(placement, "$.questions")).hasSize(10);
 		String id = JsonPath.read(placement, "$.placementId");
+		assertNoLeak(placement);
+		// 공시 주요 내용: 구조화 자료가 있는 유형(예시 룰셋의 유상증자·자기주식 취득)은 항목이, 없는 유형(공급 계약·실적·배당)은 null
+		List<Map<String, Object>> qs = JsonPath.read(placement, "$.questions");
+		assertThat(qs).allSatisfy(q -> assertThat(q.get("details") != null).as(q.toString())
+			.isEqualTo(Set.of("NEW_SHARES", "BUYBACK_ACQUIRE").contains((String) q.get("category"))));
+		// 채점 전 문제 사본에는 주요 내용이 있다
+		assertThat(jdbc.queryForObject("SELECT questions FROM virtual_contest_placements WHERE id = ?", String.class, id)).contains("\"details\":[");
 		// 진행 중이면 같은 문제를 다시 준다
 		assertThat((String) JsonPath.read(body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), a), 200)), "$.placementId")).isEqualTo(id);
 		// 문제 id가 맞지 않으면 400, 남의 배치고사·없는 배치고사는 404
@@ -269,8 +303,9 @@ class VirtualContestApiTest {
 		String again = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), allUp(placement)), a), 200));
 		assertThat((Integer) JsonPath.read(again, "$.correct")).isEqualTo(correct);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_entries WHERE user_id = ?", Integer.class, userId(a))).isEqualTo(1);
-		// 채점하면 문제 사본은 지운다
+		// 채점하면 문제 사본은 주요 내용까지 지우고, 결과에는 주요 내용을 다시 남기지 않는다
 		assertThat(jdbc.queryForObject("SELECT questions FROM virtual_contest_placements WHERE id = ?", String.class, id)).isNull();
+		assertThat(jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = ?", String.class, id)).doesNotContain("details").doesNotContain("label");
 		// 다시 시작은 409
 		assertThat(body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), a), 409))).contains("CONTEST_ALREADY_JOINED");
 

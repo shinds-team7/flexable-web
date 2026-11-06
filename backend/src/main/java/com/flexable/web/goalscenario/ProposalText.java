@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 /**
  * 제안 문구(제목·요약·해설)의 숫자·보장 표현 검사(policies §7-6).
  * 숫자는 서버가 확인할 수 있는 것만 허용한다: 상품·지수 이름 속 숫자, 기한 안의 기간, AI에게 보낸 목표 금액·금리·세율·유형별 통계와
- * 통계 기간("지난 60개월"), 그 시나리오의 비중과 같은 %, 다섯 이하의 종목·가지 수. 그 밖의 금액·%·배수·횟수는 AI가 새로 만든 숫자로 보고 막는다.
+ * 통계 기간("지난 60개월"), 그 시나리오의 비중과 같은 %, 합쳤다는 말과 함께 쓴 비중의 합, 다섯 이하의 종목·가지 수. 그 밖의 금액·%·배수·횟수는 AI가 새로 만든 숫자로 보고 막는다.
  * 보장 표현은 단정만 막고 부정문("보장되지 않아요")은 허용한다.
  */
 final class ProposalText {
@@ -44,6 +44,12 @@ final class ProposalText {
 	/** 통계 수치와 같은 문장에 있으면 과거 값을 수익 예상처럼 쓴 것으로 본다. 띄어쓰기를 지운 문장과 비교한다. */
 	private static final List<String> FORECAST_WORDS = List.of("기대", "예상", "전망", "노려", "노리", "목표수익");
 
+	/** 비중을 합쳤다는 뜻의 말과 그 말을 찾는 범위. */
+	private static final List<String> SUM_WORDS = List.of("나머지", "합쳐", "합해", "합계", "합친", "더해", "더한", "모두", "전체");
+	private static final int SUM_WORD_RANGE = 12;
+	/** 합계와 함께 있으면 비중이 아니라 수익·확률·예상으로 쓴 것으로 본다. */
+	private static final List<String> NOT_MIX_WORDS = List.of("수익", "이익", "확률", "가능성", "달성률", "상승", "성장", "예상", "기대", "전망");
+
 	/** 통계의 자료 기간. 기한 밖이어도 지난 기간이면 허용한다("60개월 뒤"처럼 앞으로의 기간은 막는다). */
 	private static final Pattern STAT_PERIOD = Pattern.compile("(?:지난|최근|과거)\\s*(?:60\\s*개월|5\\s*년)");
 
@@ -60,6 +66,36 @@ final class ProposalText {
 			"이안", "은안", "할수없", "될수없", "되는건아니", "되는것은아니", "되는게아니", "하는건아니", "하는것은아니", "된건아니" };
 
 	private ProposalText() {
+	}
+
+	/** 해설에서 규칙에 걸려 지운 문장과 이유 코드. */
+	record Removed(String problem, String sentence) {
+	}
+
+	/** 걸린 문장을 지운 해설과 지운 문장들. 전부 걸리면 text가 빈 문자열이다. */
+	record Cleaned(String text, List<Removed> removed) {
+	}
+
+	/** 문장별로 검사해 걸린 문장만 지운다. 문단 줄바꿈은 유지하고, 문장이 빠져 남은 빈 줄은 한 줄로 줄인다. */
+	static Cleaned clean(String text, Facts facts, Collection<Integer> mix) {
+		StringBuilder kept = new StringBuilder();
+		List<Removed> removed = new java.util.ArrayList<>();
+		int start = 0;
+		for (int i = 0; i < text.length(); i++) {
+			if (endsSentence(text, i) || i == text.length() - 1) {
+				String piece = text.substring(start, i + 1);
+				start = i + 1;
+				String problem = piece.isBlank() ? null : problem(piece.strip(), facts, mix);
+				if (problem == null) {
+					kept.append(piece);
+				}
+				else {
+					removed.add(new Removed(problem, piece.strip()));
+				}
+			}
+		}
+		String out = kept.toString().replaceAll("[ \\t]*\\n[ \\t\\n]*\\n[ \\t]*", "\n\n").strip();
+		return new Cleaned(out, removed);
 	}
 
 	/** 규칙을 어기면 이유 코드(TEXT_NUMBER·TEXT_ASSERTION), 지키면 null. mix는 그 시나리오의 비중. */
@@ -117,7 +153,7 @@ final class ProposalText {
 			String rest = t.substring(m.end());
 			Matcher unit;
 			if ((unit = PERCENT_UNIT.matcher(rest)).find()) {
-				if (!allowedPercent(n, facts, mix) && !allowedStat(n, facts, t, m.start(), m.end())) {
+				if (!allowedPercent(n, facts, mix) && !allowedStat(n, facts, t, m.start(), m.end()) && !allowedMixSum(n, mix, t, m.start(), m.end())) {
 					return false;
 				}
 				from = m.end() + unit.end();
@@ -175,6 +211,43 @@ final class ProposalText {
 		StatKind kind = nearestKind(sentence, start - from, end - from);
 		return kind != null && facts.stats().getOrDefault(kind, List.of()).stream()
 			.anyMatch(s -> s.setScale(n.scale(), RoundingMode.HALF_UP).compareTo(n) == 0);
+	}
+
+	/**
+	 * 그 시나리오의 비중을 두 개 이상 더한 값. 합쳤다는 말이 숫자 바로 앞(SUM_WORD_RANGE자 안)에 있어야 한다. 문장 처음부터 숫자 바로 뒤까지
+	 * 수익·확률·예상을 뜻하는 말이 없어야 하고, 숫자 바로 앞이 "연"이면 안 된다("나머지 70%"는 통과, "예상 수익은 모두 합쳐 연 80%"는 막힘).
+	 * 숫자에서 먼 뒤쪽은 보지 않는다("나머지 70%는 지수 ETF에 나눠 성장 가능성을 노려요"는 비중을 말한 문장이다).
+	 */
+	private static boolean allowedMixSum(BigDecimal n, Collection<Integer> mix, String t, int start, int end) {
+		if (n.scale() != 0 || !isMixSum(n.intValue(), mix)) {
+			return false;
+		}
+		int from = sentenceStart(t, start);
+		String near = t.substring(Math.max(from, start - SUM_WORD_RANGE), start);
+		if (SUM_WORDS.stream().noneMatch(near::contains) || near.stripTrailing().endsWith("연")) {
+			return false;
+		}
+		String around = t.substring(from, start) + t.substring(end, Math.min(sentenceEnd(t, end), end + SUM_WORD_RANGE));
+		return NOT_MIX_WORDS.stream().noneMatch(around::contains);
+	}
+
+	private static boolean isMixSum(int n, Collection<Integer> mix) {
+		List<Integer> values = List.copyOf(mix);
+		for (int bits = 1; bits < 1 << values.size(); bits++) {
+			if (Integer.bitCount(bits) < 2) {
+				continue;
+			}
+			int sum = 0;
+			for (int i = 0; i < values.size(); i++) {
+				if ((bits >> i & 1) == 1) {
+					sum += values.get(i);
+				}
+			}
+			if (sum == n) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static StatKind nearestKind(String sentence, int start, int end) {

@@ -113,6 +113,56 @@ class ProposalTextTest {
 		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isEqualTo("TEXT_NUMBER");
 	}
 
+	/** MIX의 합: 15+25=40, 50+10=60 등. 45는 어떤 조합으로도 나오지 않는다. */
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"나머지 40%는 국내 대표 지수 ETF와 코스피 대형주에 나누어 투자해 높은 성장 가능성을 노려요.",
+			"적금과 CMA를 합쳐 60%예요.",
+			"두 상품을 모두 더한 40%를 넣어요." })
+	void 합쳤다는_말과_함께_쓴_비중의_합은_통과(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"수익 40%를 노려요.",
+			"나머지 수익 40%예요.",
+			"예상 수익은 모두 합쳐 연 40%예요.",
+			"기대 수익은 모두 합쳐 40%예요.",
+			"모두 합쳐 연 40%예요.",
+			"수익이 크지 않은 상품을 합쳐 40%예요.",
+			"나머지 40% 수익이 나요.",
+			"합쳐 45%예요.",
+			"40%를 모두 합쳐요.",
+			"나머지 40.5%예요." })
+	void 비중의_합이_아니거나_다른_뜻이면_막힘(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	@Test
+	void 비중_하나뿐인_시나리오는_합이_없다() {
+		assertThat(ProposalText.problem("나머지 200%예요.", FACTS, List.of(100))).isEqualTo("TEXT_NUMBER");
+	}
+
+	@Test
+	void 걸린_문장만_지우고_문단을_유지한다() {
+		ProposalText.Cleaned cleaned = ProposalText.clean("첫 문장이에요. 연 7% 수익이에요.\n\n둘째 문단이에요.\n\n수익이 보장돼요.\n\n셋째 문단이에요", FACTS, MIX);
+		assertThat(cleaned.text()).isEqualTo("첫 문장이에요.\n\n둘째 문단이에요.\n\n셋째 문단이에요");
+		assertThat(cleaned.removed()).containsExactly(new ProposalText.Removed("TEXT_NUMBER", "연 7% 수익이에요."),
+				new ProposalText.Removed("TEXT_ASSERTION", "수익이 보장돼요."));
+	}
+
+	@Test
+	void 소수점과_숫자_쉼표에서는_문장을_나누지_않는다() {
+		String text = "적금 금리 3.5%예요. 1,500만 원을 모아요.";
+		assertThat(ProposalText.clean(text, FACTS, MIX)).isEqualTo(new ProposalText.Cleaned(text, List.of()));
+	}
+
+	@Test
+	void 모든_문장이_걸리면_빈_문자열이다() {
+		assertThat(ProposalText.clean("연 7%예요. 무조건 올라요.", FACTS, MIX).text()).isEmpty();
+	}
+
 	@Test
 	void 통계가_없으면_자료_기간도_막힘() {
 		assertThat(ProposalText.problem("지난 60개월 자료예요.", FACTS, MIX)).isEqualTo("TEXT_NUMBER");

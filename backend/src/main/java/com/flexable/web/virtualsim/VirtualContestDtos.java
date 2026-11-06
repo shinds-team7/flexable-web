@@ -38,8 +38,12 @@ public final class VirtualContestDtos {
 
 	// ───────── 배치고사 ─────────
 
-	/** 배치고사 문제(실제 과거 공시). 회사명·날짜는 결과에서 공개한다. body: 실제 공시는 null(제목만), 예시 자료는 예시 글 */
-	public record Question(String id, String industry, VirtualSimCategory category, String categoryName, String title, String body) {
+	/**
+	 * 배치고사 문제(실제 과거 공시). 회사명·날짜는 결과에서 공개한다. body: 실제 공시는 null(본문을 저장하지 않음), 예시 자료는 예시 글.
+	 * details: 공시 주요 내용(비율·규모 구간, 최대 4개). 구조화 자료가 없는 유형이거나 받지 못했으면 null
+	 */
+	public record Question(String id, String industry, VirtualSimCategory category, String categoryName, String title, String body,
+			List<PlacementDetails.Detail> details) {
 	}
 
 	public record Placement(String placementId, String expiresAt, List<Question> questions) {

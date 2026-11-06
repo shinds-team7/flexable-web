@@ -3060,8 +3060,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * 청년 금융 소식(수집한 소식을 검수 없이 게시, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
-         * @description - 매일 06:00 수집한 소식을 사람 검수 없이 내보낸다(2026-10-26 결정). 반려(REJECTED)한 것만 뺀다.
+         * 청년 금융 소식(AI 요약 완료 후 게시, 01 §F4). 필터는 고르지 않으면 빼고 본다. 5분 캐시(Cache-Control max-age=300, public)
+         * @description - 매일 06:00 수집한 소식 중 AI 요약 검사를 통과한 소식만 사람 검수 없이 내보낸다(2026-11-06 결정). 반려·요약 대기·실패·빈 요약은 제외한다. 원문 변경 시 이전 요약을 비우고 다시 요약한 뒤 공개한다.
          *     - category: 소식이 드는 분야(categories) 중 하나라도 맞으면 보인다.
          *     - age: 원문에서 확인 못 한 나이 쪽(null)은 막지 않는다.
          *     - region: 전국 소식은 어느 지역을 골라도 보인다. 지역을 확인 못 한 소식은 나오지 않는다.
@@ -3140,7 +3140,7 @@ export interface paths {
                          *             "HOUSING"
                          *           ],
                          *           "title": "청년 월세 지원(예시)",
-                         *           "summary": null,
+                         *           "summary": "서울 청년에게 월세를 지원해요.",
                          *           "benefit": null,
                          *           "audience": {
                          *             "summary": null,
@@ -3200,6 +3200,7 @@ export interface paths {
          * @description - 소식을 연 방문자 수만 센다. 같은 방문자가 같은 소식을 같은 날 여러 번 열어도 1이다.
          *     - basis: 순위를 만든 근거. 지금은 SITE(이 사이트 열람)뿐이다. 구글 검색량은 공식 API·키가 없어 쓰지 않는다.
          *     - 열람이 아직 없으면 items는 빈 목록이다. 화면은 이때 마감 임박 순으로 대신 채운다.
+         *     - AI 요약이 없거나 반려된 소식은 순위에서 제외하고, 남은 소식 중 최대 10건을 반환한다.
          */
         get: {
             parameters: {
@@ -3254,7 +3255,7 @@ export interface paths {
          * 소식을 열었다고 센다(방문자·소식·날짜당 한 번). 계정과 연결하지 않는다
          * @description - viewerId는 브라우저가 처음 한 번 만들어 localStorage에 둔 임의 UUID이다. 계정·IP와 이어 두지 않고 30일 뒤 지운다.
          *     - 이미 센 열람, 방문자 한 명의 하루 한도(40개 소식)를 넘은 열람은 오류 없이 204로 넘어간다.
-         *     - 없거나 반려한 소식은 404, viewerId가 UUID가 아니면 400.
+         *     - 없거나 반려·미요약인 소식은 404, viewerId가 UUID가 아니면 400.
          */
         post: {
             parameters: {
@@ -5168,8 +5169,8 @@ export interface components {
             /** @description 이 소식이 드는 분야 전부. 첫 번째가 대표(category) */
             categories: components["schemas"]["NewsCategory"][];
             title: string;
-            /** @description AI 요약(Gemini, 1~3문장). 원문에 없는 숫자가 있으면 버려서 null. 화면에 "AI 요약" 표시 */
-            summary: string | null;
+            /** @description 검사를 통과한 AI 요약(Gemini, 1~3문장). 없거나 공백이면 공개하지 않는다. 화면에 "AI 요약" 표시 */
+            summary: string;
             /** @description 나에게 얼마(사람이 쓰던 항목). 지금은 null */
             benefit: string | null;
             audience: components["schemas"]["YouthNewsAudience"];

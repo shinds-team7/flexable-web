@@ -226,7 +226,10 @@ public class DartDisclosureSource implements DisclosureSource {
 		return new Page(out, res.get("total_page") instanceof Number n ? n.intValue() : 1);
 	}
 
-	/** 주요사항보고서 주요정보(DS005) 한 번 호출. 값은 글자 그대로 두고(숫자는 "1,234" 꼴), 조회된 데이터가 없으면(013) 빈 목록 */
+	/**
+	 * 주요사항보고서 주요정보(DS005) 한 번 호출. 값은 글자 그대로 두고(숫자는 "1,234" 꼴), 자료 없음은 013만 빈 목록이다.
+	 * 000인데 list가 없거나 비었거나, 행이 객체가 아니거나 접수번호가 14자리 숫자가 아니면 응답 형식 오류로 예외를 던진다(빈 결과로 저장해 재수집을 막지 않게)
+	 */
 	@Override
 	public List<Map<String, String>> majorReport(String api, String corpCode, LocalDate from, LocalDate to) {
 		if (api == null || !api.matches("[A-Za-z]+")) {
@@ -254,19 +257,21 @@ public class DartDisclosureSource implements DisclosureSource {
 		if (!"000".equals(status)) {
 			throw new DartException(status, String.valueOf(res.get("message")));
 		}
+		if (!(res.get("list") instanceof List<?> rows) || rows.isEmpty()) {
+			throw new IllegalStateException("DS005 " + api + " 응답 형식 오류: 정상(000)인데 list가 없어요");
+		}
 		List<Map<String, String>> out = new ArrayList<>();
-		if (res.get("list") instanceof List<?> rows) {
-			for (Object o : rows) {
-				if (o instanceof Map<?, ?> row && row.get("rcept_no") instanceof String) {
-					Map<String, String> m = new HashMap<>();
-					row.forEach((k, v) -> {
-						if (k instanceof String key && v != null) {
-							m.put(key, String.valueOf(v).trim());
-						}
-					});
-					out.add(m);
-				}
+		for (Object o : rows) {
+			if (!(o instanceof Map<?, ?> row) || !(row.get("rcept_no") instanceof String no) || !no.trim().matches("\\d{14}")) {
+				throw new IllegalStateException("DS005 " + api + " 응답 형식 오류: 접수번호가 없거나 잘못된 행이 있어요");
 			}
+			Map<String, String> m = new HashMap<>();
+			row.forEach((k, v) -> {
+				if (k instanceof String key && v != null) {
+					m.put(key, String.valueOf(v).trim());
+				}
+			});
+			out.add(m);
 		}
 		return out;
 	}

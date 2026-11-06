@@ -157,4 +157,24 @@ class DartDisclosureSourceTest {
 			.isInstanceOf(IllegalArgumentException.class);
 		server.verify();
 	}
+
+	@Test
+	void 정상_상태여도_목록이_없거나_접수번호가_잘못되면_형식_오류로_다시_받게_한다() {
+		String url = "https://dart.test/api/piicDecsn.json?crtfc_key=" + KEY + "&corp_code=00126380&bgn_de=20250101&end_de=20250411";
+		for (String body : List.of("{\"status\":\"000\",\"message\":\"정상\"}", "{\"status\":\"000\",\"message\":\"정상\",\"list\":[]}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":{\"rcept_no\":\"20250408000001\"}}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":[{\"corp_name\":\"삼성전자\"}]}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":[{\"rcept_no\":\"2025-04-08\"}]}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":[{\"rcept_no\":\"20250408000001\"},{\"rcept_no\":\"\"}]}")) {
+			server.expect(requestTo(url)).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+		}
+		for (int i = 0; i < 6; i++) {
+			assertThatThrownBy(() -> dart.majorReport("piicDecsn", "00126380", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 4, 11)))
+				.isInstanceOf(IllegalStateException.class)
+				.isNotInstanceOf(DartDisclosureSource.DartException.class)
+				.hasMessageContaining("형식 오류")
+				.hasMessageNotContaining(KEY);
+		}
+		server.verify();
+	}
 }

@@ -68,7 +68,7 @@ class YouthNewsSyncJobTest {
 
 		// 승인된 소식은 원문이 바뀌어도 사람이 쓴 내용을 덮어쓰지 않는다
 		jdbc.update("UPDATE youth_news SET review_status = 'APPROVED', title = '사람이 고친 제목' WHERE external_id = 'fake-1'");
-		jdbc.update("UPDATE youth_news_raw SET content_hash = 'old'");
+		jdbc.update("UPDATE youth_news_raw SET content_hash = 'old', payload = '{}'");
 		YouthNewsSyncJob.Result changed = job.runOnce();
 		assertThat(changed.counts()).containsEntry(SaveOutcome.KEPT, 1).containsEntry(SaveOutcome.UPDATED, 2);
 		assertThat(jdbc.queryForObject("SELECT title FROM youth_news WHERE external_id = 'fake-1'", String.class)).isEqualTo("사람이 고친 제목");
@@ -93,7 +93,7 @@ class YouthNewsSyncJobTest {
 		assertThat(runs.findFirstByJobOrderByIdDesc(YouthNewsSyncJob.SUMMARY_JOB).orElseThrow().getStatus()).isEqualTo("SUCCESS");
 
 		// 새 원문 수집 시 이전 요약을 지운다. 요약 호출이 실패해도 원문은 남고 공개는 보류한다.
-		jdbc.update("UPDATE youth_news_raw SET content_hash = 'old' WHERE external_id = 'fake-2'");
+		jdbc.update("UPDATE youth_news_raw SET content_hash = 'old', payload = '{}' WHERE external_id = 'fake-2'");
 		when(summarizer.summarize(anyList())).thenThrow(new IllegalStateException("Gemini 호출 실패: 429"));
 		assertThat(job.runOnce().counts()).containsEntry(SaveOutcome.UPDATED, 1);
 		YouthNewsSyncJob.SummaryRun failed = job.summarize();

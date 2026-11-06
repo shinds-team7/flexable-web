@@ -223,4 +223,20 @@ class NewsApiTest {
 		news.applySummaries(List.of(new SummaryResult(target.id(), target.contentHash(), "변경된 원문의 요약")));
 		assertThat(news.list(null, null, null).items()).extracting(i -> i.title()).contains("seoul-rent 제목");
 	}
+
+	@Test
+	void JSON_필드_순서와_공백만_바뀌면_기존_요약을_유지한다() {
+		PolicyDraft d = draft("seoul-rent", List.of(NewsCategory.HOUSING), 19, 34, false, List.of("서울"), LocalDate.of(2026, 10, 21));
+		news.saveCollected(withPayload(d, "{\"id\":\"seoul-rent\",\"content\":{\"a\":1,\"b\":2}}"));
+		SummaryTarget target = news.summaryTargets(100).stream().filter(t -> t.title().equals(d.title())).findFirst().orElseThrow();
+		news.applySummaries(List.of(new SummaryResult(target.id(), target.contentHash(), "유지할 요약")));
+		assertThat(news.saveCollected(withPayload(d, " { \"content\": {\"b\":2,\"a\":1}, \"id\": \"seoul-rent\" } "))).isEqualTo(NewsDtos.SaveOutcome.UNCHANGED);
+		assertThat(news.list(null, null, null).items()).filteredOn(i -> i.title().equals(d.title())).extracting(i -> i.summary()).containsExactly("유지할 요약");
+		assertThat(news.summaryTargets(100)).extracting(SummaryTarget::title).doesNotContain(d.title());
+	}
+
+	private static PolicyDraft withPayload(PolicyDraft d, String payload) {
+		return new PolicyDraft(d.source(), d.externalId(), payload, d.title(), d.categories(), d.ageMin(), d.ageMax(), d.incomeLimit(),
+				d.nationwide(), d.regions(), d.applyStart(), d.applyDeadline(), d.alwaysOpen(), d.sourceOrg(), d.sourceUrl(), d.asOf(), d.postedAt(), d.keywords(), d.bizEnd());
+	}
 }

@@ -27,6 +27,9 @@ import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
 import com.flexable.web.news.YouthNews.ReviewStatus;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+
 /**
  * 청년 금융 소식 저장소의 공개 창구. 읽기는 api(화면), 쓰기는 worker(ingest)가 쓴다. 외부 API는 부르지 않는다(04 §8).
  * AI 요약이 완료된 소식만 사람 검수 없이 화면에 나간다(2026-11-06 결정).
@@ -36,6 +39,7 @@ import com.flexable.web.news.YouthNews.ReviewStatus;
 public class NewsService {
 
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 	/** 마감일이 지나고도 목록에 남기는 날수. 이보다 오래 지난 소식은 내보내지 않는다. */
 	static final int CLOSED_KEEP_DAYS = 7;
 
@@ -156,7 +160,7 @@ public class NewsService {
 		Objects.requireNonNull(d.externalId(), "externalId");
 		String hash = sha256(d.payload());
 		YouthNewsRaw raw = raws.findBySourceAndExternalId(d.source(), d.externalId()).orElse(null);
-		if (raw != null && hash.equals(raw.getContentHash())) {
+		if (raw != null && (hash.equals(raw.getContentHash()) || samePayload(raw.getPayload(), d.payload()))) {
 			YouthNews card = news.findBySourceAndExternalId(d.source(), d.externalId()).orElse(null);
 			boolean remapped = card != null && card.getReviewStatus() == ReviewStatus.DRAFT && card.fillDraft(d, raw.getId(), clock.instant());
 			return remapped ? SaveOutcome.UPDATED : SaveOutcome.UNCHANGED;
@@ -182,6 +186,16 @@ public class NewsService {
 		card.clearSummary();
 		card.fillDraft(d, raw.getId(), clock.instant());
 		return SaveOutcome.UPDATED;
+	}
+
+	/** JSON 필드 순서·공백만 달라진 원문은 기존 사본과 해시를 유지해 요약을 불필요하게 무효화하지 않는다. */
+	private static boolean samePayload(String left, String right) {
+		try {
+			return Objects.equals(JSON.readTree(left), JSON.readTree(right));
+		}
+		catch (JacksonException e) {
+			return false;
+		}
 	}
 
 	private static String sha256(String s) {

@@ -69,9 +69,11 @@ public class NewsViewService {
 	@Transactional(readOnly = true)
 	public HotNews hot() {
 		LocalDate since = LocalDate.now(clock.withZone(SEOUL)).minusDays(WINDOW_DAYS - 1L);
-		Set<Long> published = news.findByReviewStatusNotOrderByIdAsc(ReviewStatus.REJECTED).stream()
+		List<Object[]> ranked = views.visitorsSince(since);
+		Set<Long> published = news.findAllById(ranked.stream().map(r -> ((Number) r[0]).longValue()).toList()).stream()
+			.filter(n -> n.getReviewStatus() != ReviewStatus.REJECTED)
 			.filter(NewsService::publishable).map(YouthNews::getId).collect(Collectors.toSet());
-		List<HotItem> items = views.visitorsSince(since).stream()
+		List<HotItem> items = ranked.stream()
 			.filter(r -> published.contains(((Number) r[0]).longValue()))
 			.limit(HOT_LIMIT)
 			.map(r -> new HotItem(String.valueOf(r[0]), ((Number) r[1]).intValue()))

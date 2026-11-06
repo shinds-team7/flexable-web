@@ -339,14 +339,103 @@ paths:
   /virtual-sim/contests/current/placement:
     post:
       tags: [virtual-sim]
-      summary: '이번 시즌 배치고사 시작(회원, 본문 없음). 가상 사건 10개, 정답 없음'
-      description: 'no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시): 지금 룰셋에서 경향이 뚜렷한 유형(UP·DOWN) 6개 + 유형 상관없이 4개. 업종·유형·공시 제목만 보이고 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8'
+      summary: '이번 시즌 배치고사 시작(회원, 요청 본문 없음). 실제 과거 공시 10개, 정답 없음'
+      description: 'no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시): 지금 룰셋에서 경향이 뚜렷한 유형(UP·DOWN) 6개 + 유형 상관없이 4개. 업종·유형·공시 제목과 공시 주요 내용(details, 구조화 자료가 있는 유형만, 비율·규모 구간)만 보이고 회사명·날짜·절대 금액·상대방 이름은 없다. 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계·예시 주요 내용). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8'
       responses:
         '200':
           description: 배치고사 문제
           content:
             application/json:
               schema: { $ref: '#/components/schemas/VirtualContestPlacement' }
+              example:
+                placementId: 3f0c1d2e-7a4b-4c5d-9e8f-0a1b2c3d4e5f
+                expiresAt: '2026-11-06T12:30:00+09:00'
+                questions:
+                  - id: q1
+                    industry: 반도체
+                    category: NEW_SHARES
+                    categoryName: 유상증자
+                    title: '주요사항보고서(유상증자결정)'
+                    body: null
+                    details: 
+                      - { label: '새 주식 수(기존 대비)', value: '12.5%' }
+                      - { label: '조달 규모', value: '100억~500억 원' }
+                      - { label: '자금 용도', value: '운영 60% · 채무상환 40%' }
+                      - { label: '증자 방식', value: '주주배정 후 일반공모' }
+                  - id: q2
+                    industry: 제약
+                    category: EARNINGS
+                    categoryName: 실적 발표
+                    title: '연결재무제표기준영업(잠정)실적(공정공시)'
+                    body: null
+                    details: null
+                  - id: q3
+                    industry: 2차전지
+                    category: BONDS
+                    categoryName: 사채 발행
+                    title: '[기재정정]주요사항보고서(전환사채권발행결정)'
+                    body: null
+                    details: 
+                      - { label: '사채 종류', value: '전환사채' }
+                      - { label: '발행 규모', value: '100억~500억 원' }
+                      - { label: '전환되면 늘어날 주식', value: '6.8%' }
+                      - { label: '이자율', value: '표면 0.0% · 만기 2.0%' }
+                  - id: q4
+                    industry: 자동차 부품
+                    category: SUPPLY_CONTRACT
+                    categoryName: 공급 계약
+                    title: '단일판매ㆍ공급계약체결'
+                    body: null
+                    details: null
+                  - id: q5
+                    industry: 게임
+                    category: BUYBACK_ACQUIRE
+                    categoryName: 자기주식 취득
+                    title: '주요사항보고서(자기주식취득결정)'
+                    body: null
+                    details: 
+                      - { label: '취득 예정 규모', value: '50억~100억 원' }
+                      - { label: '취득 방법', value: '장내 매수' }
+                      - { label: '취득 목적', value: '주가 안정·주주가치 제고' }
+                  - id: q6
+                    industry: 화학
+                    category: FACILITY
+                    categoryName: 시설·지분 투자
+                    title: '주요사항보고서(타법인주식및출자증권양수결정)'
+                    body: null
+                    details: 
+                      - { label: '양수 규모', value: '100억~500억 원' }
+                      - { label: '자기자본 대비', value: '7.5%' }
+                      - { label: '양수 뒤 지분율', value: '51.0%' }
+                      - { label: '대상 회사와의 관계', value: '관계 없음' }
+                  - id: q7
+                    industry: 은행
+                    category: DIVIDEND
+                    categoryName: 배당
+                    title: '현금ㆍ현물배당결정'
+                    body: null
+                    details: null
+                  - id: q8
+                    industry: 건설
+                    category: LEGAL
+                    categoryName: 소송·사고
+                    title: '소송등의제기ㆍ신청(일정금액이상의청구)'
+                    body: null
+                    details: null
+                  - id: q9
+                    industry: 유통
+                    category: OWNERSHIP
+                    categoryName: 최대주주 변경
+                    title: '최대주주변경'
+                    body: null
+                    details: null
+                  - id: q10
+                    industry: 철강
+                    category: FACILITY
+                    categoryName: 시설·지분 투자
+                    title: '신규시설투자등'
+                    body: null
+                    details: null
         '401': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
@@ -1803,7 +1892,7 @@ components:
     VirtualContestPlacement:
       type: object
       additionalProperties: false
-      description: '배치고사 문제(실제 과거 공시, 예시 자료면 예시 글). 회사명·날짜·정답·경향·가격은 없다(결과에서 공개)'
+      description: '배치고사 문제(실제 과거 공시, 예시 자료면 예시 글). 회사명·날짜·정답·경향·가격·절대 금액·상대방 이름은 없다(회사명·날짜·정답·경향은 결과에서 공개). 결과(VirtualContestPlacementResult)에는 주요 내용을 다시 싣지 않으니 화면은 이 응답의 문제와 questionId로 잇는다'
       required: [placementId, expiresAt, questions]
       properties:
         placementId: { type: string }
@@ -1815,14 +1904,26 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, industry, category, categoryName, title, body]
+            required: [id, industry, category, categoryName, title, body, details]
             properties:
               id: { type: string }
               industry: { type: string, description: '그 회사의 업종(회사명은 결과에서 공개)' }
               category: { $ref: '#/components/schemas/VirtualSimCategory' }
               categoryName: { type: string }
-              title: { type: string, maxLength: 300, description: '실제 DART 공시 제목(예시 자료는 유형별 제목 형식)' }
-              body: { type: string, nullable: true, maxLength: 240, description: '실제 공시는 null(본문 없음, 제목만), 예시 자료는 예시 글' }
+              title: { type: string, maxLength: 300, description: '실제 DART 공시 제목(예시 자료는 유형별 제목 형식). [기재정정] 같은 접두어가 붙을 수 있다' }
+              body: { type: string, nullable: true, maxLength: 240, description: '실제 공시는 null(공시 본문은 저장하지 않는다. 주요 내용은 details), 예시 자료는 예시 글' }
+              details:
+                type: array
+                nullable: true
+                maxItems: 4
+                description: '공시 주요 내용(policies §8-8 "공시 주요 내용"). OpenDART 주요사항보고서 주요정보에서 서버가 만든 비율(소수 1자리 내림)·규모 구간·정해 둔 분류 이름만 있고 회사·상대방 이름·날짜·절대 금액은 없다. 방향·과거 경향·상승 비율도 없다. 구조화 자료가 없는 유형(실적·공급 계약·배당·소송·최대주주 변경·신규시설투자 등)이거나 아직 받지 못했으면 null. 예시 자료는 예시 값'
+                items:
+                  type: object
+                  additionalProperties: false
+                  required: [label, value]
+                  properties:
+                    label: { type: string, maxLength: 20, description: '항목 이름(예: 새 주식 수(기존 대비))' }
+                    value: { type: string, maxLength: 40, description: '값(예: 12.5%, 100억~500억 원, 주주배정 후 일반공모)' }
     VirtualContestPlacementResult:
       type: object
       additionalProperties: false

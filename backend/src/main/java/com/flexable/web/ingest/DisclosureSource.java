@@ -35,6 +35,14 @@ public interface DisclosureSource {
 		return page == 1 ? new Page(disclosures(corpCode, from, to), 1) : new Page(List.of(), 1);
 	}
 
+	/**
+	 * 주요사항보고서 주요정보(OpenDART DS005) 한 번 호출: api(예: piicDecsn)의 from~to(최초 접수일 기준, 포함) 행들. 각 행은 칸 이름 → 값 글자(rcept_no 포함).
+	 * 배치고사 공시 주요 내용 수집(DisclosureDetailJob)이 호출 수를 세며 부른다. 조회된 자료가 없으면 빈 목록. 받을 수 없는 소스면 예외
+	 */
+	default List<Map<String, String>> majorReport(String api, String corpCode, LocalDate from, LocalDate to) {
+		throw new IllegalStateException("주요사항보고서 주요정보를 받을 수 없는 공시 소스예요");
+	}
+
 	/** 실제 상장사 이름(종목코드가 있는 회사). 가상 회사 글 검사(REAL_COMPANY)에 쓴다. 받을 수 없으면 예외 */
 	default Set<String> listedNames() {
 		throw new IllegalStateException("상장사 이름 목록을 받을 수 없는 공시 소스예요");

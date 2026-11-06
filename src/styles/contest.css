@@ -78,30 +78,85 @@
 .contest-flow li.final { background:var(--color-brand-subtle); color:var(--color-brand-text); }
 
 .contest-placement { display:grid; gap:var(--density-gap); }
-.contest-placement-head { display:flex; justify-content:space-between; align-items:flex-start; gap:var(--density-gap); flex-wrap:wrap; }
-.contest-placement-head p { margin:0; }
-.contest-timer { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--color-brand-text); }
-.contest-timer.urgent { color:var(--color-warning); }
-.contest-questions { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:calc(var(--density-gap)/2); }
-.contest-questions li { border:1px solid var(--color-border); border-radius:var(--radius-soft); background:var(--color-surface); padding:var(--density-gap); }
-.contest-questions fieldset { border:0; margin:0; padding:0; min-width:0; }
-.contest-questions legend { font-size:12px; color:var(--color-text-tertiary); padding:0; margin-bottom:calc(var(--density-gap)/3); }
-.contest-questions h3 { font-size:15px; margin:0 0 calc(var(--density-gap)/3); color:var(--color-brand-text); }
-.contest-questions p { margin:0 0 calc(var(--density-gap)/2); font-size:14px; line-height:1.7; color:var(--color-text-secondary); }
-.contest-q-no { display:inline-grid; place-items:center; width:22px; height:22px; margin-right:calc(var(--density-gap)/3); border-radius:50%; background:var(--color-bg-subtle); color:var(--color-text-secondary); font-size:12px; font-weight:700; }
-.contest-answer { display:flex; gap:calc(var(--density-gap)/2); }
-.contest-answer button { flex:1; border:1px solid var(--color-border-strong); border-radius:var(--radius-soft-sm); background:var(--color-surface); padding:calc(var(--density-gap)/2); font-size:14px; font-weight:700; cursor:pointer; }
+.contest-placement-head { display:grid; gap:calc(var(--density-gap)/3); }
+.contest-placement-head h2, .contest-placement-head p { margin:0; }
+/* 진행 표시: n/10 답함과 남은 시간 */
+.contest-progress { display:flex; align-items:center; gap:calc(var(--density-gap)/2) calc(var(--density-gap)*2/3); flex-wrap:wrap; padding:calc(var(--density-gap)/2) calc(var(--density-gap)*2/3); border:1px solid var(--color-border); border-radius:var(--radius-soft); background:var(--color-surface); box-shadow:var(--shadow-subtle); }
+.contest-progress-count { display:flex; align-items:center; gap:calc(var(--density-gap)/2); flex:1 1 220px; min-width:0; font-size:14px; color:var(--color-text-secondary); font-variant-numeric:tabular-nums; }
+.contest-progress-count b { font-size:16px; color:var(--color-text-primary); }
+.contest-progress-bar { flex:1; height:8px; border-radius:var(--radius-xs); background:var(--color-bg-subtle); overflow:hidden; }
+.contest-progress-bar i { display:block; height:100%; width:var(--progress); background:var(--color-brand-primary); transition:width 280ms var(--ease); }
+/* 제한 시간 배지(우측 상단). 모서리는 칩과 같은 --radius-soft-sm(02 §7-3: 알약 모양은 쓰지 않는다). 5분 아래는 경고 색 */
+.contest-placement-title { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); }
+.contest-timer { display:inline-flex; align-items:center; gap:calc(var(--density-gap)/4); flex:none; padding:calc(var(--density-gap)/6) calc(var(--density-gap)/2); border:1px solid var(--color-brand-subtle); border-radius:var(--radius-soft-sm); background:var(--color-brand-subtle); color:var(--color-brand-text); font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.4; }
+.contest-timer.urgent { border-color:var(--color-warning); background:var(--color-warning-subtle); color:var(--color-warning); }
+.contest-timer.over { border-color:var(--color-border); background:var(--color-bg-subtle); color:var(--color-text-tertiary); }
+.contest-timer-over { margin:0; font-size:13px; color:var(--color-warning); }
+/* 문제 번호 이동: 지금 문제는 브랜드 테두리, 답한 문제는 브랜드 면 */
+.contest-q-jump { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/3) calc(var(--density-gap)/2); flex-wrap:wrap; }
+.contest-q-jump ol { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:calc(var(--density-gap)/3); }
+.contest-q-jump ol button { width:36px; height:36px; border:1px solid var(--color-border-strong); border-radius:var(--radius-soft-sm); background:var(--color-surface); color:var(--color-text-secondary); font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; cursor:pointer; transition:background-color 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease); }
+.contest-q-jump ol button:hover { border-color:var(--color-brand-primary); color:var(--color-brand-text); }
+.contest-q-jump ol button.answered { background:var(--color-brand-subtle); border-color:var(--color-brand-subtle); color:var(--color-brand-text); }
+.contest-q-jump ol button.current { border:2px solid var(--color-brand-primary); color:var(--color-brand-text); }
+.contest-q-jump ol button:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }
+/* 한 화면 한 문제 카드 */
+.contest-q-card { display:flex; flex-direction:column; gap:calc(var(--density-gap)/2); padding:var(--density-pad); border:1px solid var(--color-border); border-radius:var(--radius-soft); background:var(--color-surface); box-shadow:var(--shadow-subtle); }
+.contest-q-meta { display:flex; align-items:center; flex-wrap:wrap; gap:calc(var(--density-gap)/6) calc(var(--density-gap)/3); margin:0; font-size:12px; color:var(--color-text-tertiary); }
+.contest-q-meta .contest-chip { margin-left:0; }
+.contest-q-meta .contest-q-no { margin-right:0; background:var(--color-brand-primary); color:var(--color-on-brand); }
+.contest-q-of { margin-right:calc(var(--density-gap)/6); font-variant-numeric:tabular-nums; }
+/* 제목이 위계 맨 위. 띄어쓰기 없는 긴 DART 제목도 칸 안에서 줄바꿈한다 */
+.contest-q-title { margin:0; font-size:20px; line-height:1.4; color:var(--color-text-primary); word-break:keep-all; overflow-wrap:anywhere; }
+.contest-q-title:focus { outline:none; }
+.contest-q-title:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }
+.contest-q-kind { margin:0; font-size:12px; color:var(--color-text-tertiary); }
+.contest-q-guide, .contest-q-body { margin:0; font-size:14px; line-height:1.7; color:var(--color-text-secondary); }
+.contest-q-note { margin:0; padding:calc(var(--density-gap)/3) calc(var(--density-gap)/2); border-radius:var(--radius-soft-sm); background:var(--color-notice-bg); color:var(--color-notice-ink); font-size:13px; line-height:1.6; }
+.contest-q-details { padding:calc(var(--density-gap)/2) calc(var(--density-gap)*2/3); border-radius:var(--radius-soft-sm); background:var(--color-bg-subtle); }
+.contest-q-details-title { display:flex; align-items:center; gap:calc(var(--density-gap)/3); margin:0 0 calc(var(--density-gap)/3); font-size:12px; font-weight:700; color:var(--color-text-secondary); }
+.contest-q-details dl { margin:0; display:grid; gap:calc(var(--density-gap)/6); }
+.contest-q-details dl > div { display:grid; grid-template-columns:minmax(96px, 40%) minmax(0,1fr); gap:calc(var(--density-gap)/3); font-size:13px; line-height:1.5; }
+.contest-q-details dt { color:var(--color-text-tertiary); }
+.contest-q-details dd { margin:0; font-weight:600; color:var(--color-text-primary); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.contest-q-no { display:inline-grid; place-items:center; width:24px; height:24px; margin-right:calc(var(--density-gap)/3); border-radius:50%; background:var(--color-bg-subtle); color:var(--color-text-secondary); font-size:12px; font-weight:700; flex:none; }
+/* 답 버튼: 크게 두 칸. hover는 색·면·테두리·그림자만 바꾸고 움직이지 않는다(02 §7-3) */
+.contest-answer { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:calc(var(--density-gap)/2); margin-top:calc(var(--density-gap)/3); }
+.contest-answer button { display:inline-flex; align-items:center; justify-content:center; gap:calc(var(--density-gap)/3); min-height:64px; border:2px solid var(--color-border-strong); border-radius:var(--radius-soft-sm); background:var(--color-surface); padding:calc(var(--density-gap)/2); font-size:17px; font-weight:700; cursor:pointer; transition:background-color 140ms var(--ease), color 140ms var(--ease), border-color 140ms var(--ease), box-shadow 140ms var(--ease), opacity 140ms var(--ease); }
+.contest-answer-mark { font-size:15px; }
 .contest-answer .up { color:var(--color-rise); border-color:var(--color-rise); }
 .contest-answer .down { color:var(--color-fall); border-color:var(--color-fall); }
-.contest-answer .up.selected { background:var(--color-rise); color:var(--color-on-brand); }
-.contest-answer .down.selected { background:var(--color-fall); color:var(--color-on-brand); }
-.contest-placement-foot { display:flex; align-items:center; gap:calc(var(--density-gap)/2); flex-wrap:wrap; }
+.contest-answer .up:hover:not(.selected) { background:var(--color-rise-wash); box-shadow:0 0 0 3px var(--color-rise-wash); }
+.contest-answer .down:hover:not(.selected) { background:var(--color-fall-wash); box-shadow:0 0 0 3px var(--color-fall-wash); }
+.contest-answer .up.selected { background:var(--color-rise); border-color:var(--color-rise); color:var(--color-on-brand); }
+.contest-answer .down.selected { background:var(--color-fall); border-color:var(--color-fall); color:var(--color-on-brand); }
+.contest-answer .up.selected:hover { box-shadow:0 0 0 3px var(--color-rise-wash); }
+.contest-answer .down.selected:hover { box-shadow:0 0 0 3px var(--color-fall-wash); }
+.contest-answer button:active { opacity:.85; }
+.contest-answer button:focus-visible { outline:2px solid var(--color-focus); outline-offset:2px; }
+/* 한쪽을 고르면 다른 쪽은 흐리게 해 고른 답이 한눈에 보이게 한다(hover하면 다시 또렷하게) */
+.contest-answer:has(.selected) button:not(.selected) { opacity:.5; }
+.contest-answer:has(.selected) button:not(.selected):hover { opacity:1; }
+.contest-q-tip { margin:0; font-size:13px; }
+.contest-q-nav { display:flex; justify-content:space-between; gap:calc(var(--density-gap)/3); padding-top:calc(var(--density-gap)/2); border-top:1px solid var(--color-border); }
+.contest-placement-foot { display:flex; align-items:center; gap:calc(var(--density-gap)/3); flex-wrap:wrap; }
 .contest-placement-foot p { margin:0; flex-basis:100%; }
+.contest-early-submit { margin-left:auto; }
+@media (max-width:480px) {
+  .contest-q-card { padding:calc(var(--density-gap)*2/3); }
+  .contest-q-title { font-size:17px; }
+  .contest-q-nav .btn { flex:1; }
+}
+@media (prefers-reduced-motion:reduce) { .contest-progress-bar i, .contest-answer button, .contest-q-jump ol button { transition:none; } }
 
-.contest-graded { list-style:none; margin:calc(var(--density-gap)/2) 0 var(--density-gap); padding:0; display:grid; gap:calc(var(--density-gap)/3); }
-.contest-graded li { display:grid; grid-template-columns:auto minmax(0,1fr); gap:2px calc(var(--density-gap)/3); align-items:center; font-size:13px; padding:calc(var(--density-gap)/3) calc(var(--density-gap)/2); border-radius:var(--radius-soft-sm); background:var(--color-bg-subtle); }
-.contest-graded li small { grid-column:2; color:var(--color-text-tertiary); }
+.contest-graded { list-style:none; margin:calc(var(--density-gap)/3) 0 var(--density-gap); padding:0; display:grid; gap:calc(var(--density-gap)/2); }
+.contest-graded li { display:grid; gap:calc(var(--density-gap)/3); font-size:13px; padding:calc(var(--density-gap)*2/3); border-radius:var(--radius-soft-sm); background:var(--color-bg-subtle); }
+.contest-graded-head { display:flex; align-items:center; margin:0; }
+.contest-graded li > small { color:var(--color-text-tertiary); padding-left:calc(var(--density-gap)*4/3); }
 .contest-graded li.ok .contest-q-no { background:var(--color-brand-primary); color:var(--color-on-brand); }
+.contest-graded-question { display:grid; gap:calc(var(--density-gap)/3); margin-left:calc(var(--density-gap)*4/3); padding:calc(var(--density-gap)/2); border-radius:var(--radius-soft-sm); background:var(--color-surface); }
+.contest-graded-question .contest-q-title { font-size:14px; }
+.contest-graded-question .contest-q-details { background:var(--color-bg-subtle); }
 
 .contest-rules { border:1px solid var(--color-border); border-radius:var(--radius-soft); padding:calc(var(--density-gap)/2) var(--density-gap); background:var(--color-surface); }
 .contest-rules summary { cursor:pointer; font-size:14px; font-weight:600; }
@@ -109,7 +164,7 @@
 
 @media (max-width:900px) {
   .contest-stats { grid-template-columns:repeat(2, minmax(0,1fr)); }
-  .contest-grid, .contest-questions { grid-template-columns:minmax(0,1fr); }
+  .contest-grid { grid-template-columns:minmax(0,1fr); }
 }
 @media (max-width:480px) {
   .contest-stat strong { font-size:18px; }
@@ -174,7 +229,6 @@
 .contest-placement-boards li b { font-size:14px; }
 .contest-placement-boards li small { font-size:12px; color:var(--color-text-tertiary); font-variant-numeric:tabular-nums; }
 @media (max-width:760px) { .contest-join { grid-template-columns:minmax(0,1fr); gap:calc(var(--density-gap)/2); } }
-.contest-questions p.contest-q-hint { font-size:13px; color:var(--color-text-tertiary); }
 
 /* ── #285 대회 화면 UI/UX ── */
 /* 용어 풀이 물음표 */

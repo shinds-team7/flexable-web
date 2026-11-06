@@ -119,7 +119,8 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 	 * source: gemini(키가 없으면 꺼짐) | fake(키 없이 예시 회사·예시 룰셋, isSample) | none(만들지 않음). api도 이 값을 읽어 fake면 예시 자료만 쓴다.
 	 * apiKey·model: 전용 Gemini 키·모델. 비어 있으면 gemini 설정(공용 키·모델)을 쓴다. 호출 간격은 gemini.callDelay를 같이 쓴다.
 	 * 한 번 호출에 회사 batchSize곳, 한 번 실행에 maxCalls번(기본 5곳 × 2번 = 하루 10곳). dailyCap: 하루(KST) 호출 상한(gemini_daily_usage).
-	 * dartMaxCalls: 전체 공시 수집(DisclosureArchiveJob)의 한 번 실행 호출 상한. 사건 근거 수집(dart.maxCalls)과 합쳐 OpenDART 하루 20,000건보다 낮게 둔다.
+	 * dartMaxCalls: 전체 공시 수집(DisclosureArchiveJob)과 그 뒤 배치고사 공시 주요 내용 수집(DisclosureDetailJob, 남은 몫)의 한 번 실행 호출 상한.
+	 * 사건 근거 수집(dart.maxCalls)과 합쳐 OpenDART 하루 20,000건보다 낮게 둔다.
 	 */
 	public record VirtualSim(String source, String apiKey, String model, Integer batchSize, Integer maxCalls, Integer dailyCap, Integer dartMaxCalls) {
 		public VirtualSim {

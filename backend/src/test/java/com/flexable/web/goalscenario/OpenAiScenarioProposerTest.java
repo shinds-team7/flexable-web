@@ -15,10 +15,11 @@ class OpenAiScenarioProposerTest {
 		String content = """
 				{"scenarios":[
 				 {"id":"s1","title":"차근차근","summary":"금리 확정 위주","reason":"기한이 짧아요","roles":"적금과 CMA로 바닥을 받쳐요","comparison":"가장 덜 흔들려요","fit":"안정을 원하는 분께 맞아요","mix":{"SAVINGS":70,"CMA":30,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
-				 {"id":"s2","title":"나눠서","summary":"지수 ETF를 섞어요","reason":"나눠 담아요","roles":"국내와 미국 지수에 나눠요","comparison":"중간이에요","fit":"기다릴 수 있는 분께 맞아요","mix":{"SAVINGS":40,"CMA":10,"KR_INDEX_ETF":20,"US_INDEX_ETF":20,"KOSPI_TOP5":10}}]}
+				 {"id":"s2","title":"나눠서","summary":"지수 ETF를 섞어요","reason":"나눠 담아요","roles":"국내와 미국 지수에 나눠요","comparison":"중간이에요","fit":"기다릴 수 있는 분께 맞아요","mix":{"SAVINGS":40,"CMA":10,"KR_INDEX_ETF":20,"US_INDEX_ETF":20,"KOSPI_TOP5":10}},
+				 {"id":"s3","title":"지수만","summary":"지수 ETF 위주","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":0,"CMA":0,"KR_INDEX_ETF":100,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
 				""";
 		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
-		assertThat(drafts).hasSize(2);
+		assertThat(drafts).hasSize(3);
 		assertThat(drafts.get(0).explanation()).isEqualTo("기한이 짧아요\n\n적금과 CMA로 바닥을 받쳐요\n\n가장 덜 흔들려요\n\n안정을 원하는 분께 맞아요");
 		assertThat(drafts.get(1).mix()).containsEntry("US_INDEX_ETF", 20);
 		assertThat(Proposals.validate(drafts)).isPresent();
@@ -29,7 +30,8 @@ class OpenAiScenarioProposerTest {
 		String content = """
 				{"scenarios":[
 				 {"id":"s1","title":"가","summary":"나","reason":"이유예요","roles":" ","comparison":"","fit":"맞는 사람이에요","mix":{"SAVINGS":100}},
-				 {"id":"s2","title":"가","summary":"나","reason":" ","roles":"","comparison":" ","fit":"","mix":{"CMA":100}}]}
+				 {"id":"s2","title":"가","summary":"나","reason":" ","roles":"","comparison":" ","fit":"","mix":{"CMA":100}},
+				 {"id":"s3","title":"지수만","summary":"지수 ETF 위주","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":0,"CMA":0,"KR_INDEX_ETF":100,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
 				""";
 		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
 		assertThat(drafts.get(0).explanation()).isNull();
@@ -42,7 +44,8 @@ class OpenAiScenarioProposerTest {
 		String content = """
 				{"scenarios":[
 				 {"id":"s1","title":"가","summary":"나","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":"백","CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
-				 {"id":"s2","title":"가","summary":"나","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":100,"CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
+				 {"id":"s2","title":"가","summary":"나","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":100,"CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
+				 {"id":"s3","title":"지수만","summary":"지수 ETF 위주","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":0,"CMA":0,"KR_INDEX_ETF":100,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
 				""";
 		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
 		assertThat(drafts.get(0).mix()).containsEntry("SAVINGS", null);

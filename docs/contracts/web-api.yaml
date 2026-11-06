@@ -851,7 +851,7 @@ paths:
                 years: { type: integer, enum: [1, 2, 3] }
       responses:
         '200':
-          description: 시나리오 2~3개
+          description: 시나리오 3개
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GoalScenarioResult' }
@@ -2155,7 +2155,7 @@ components:
       description: 'SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2'
     GoalScenarioProduct:
       type: object
-      required: [type, items, ratePercent, isSample]
+      required: [type, items, ratePercent, isSample, alternatives]
       additionalProperties: false
       properties:
         type: { $ref: '#/components/schemas/GoalScenarioProductType' }
@@ -2173,6 +2173,19 @@ components:
               company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
         ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
         isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
+        alternatives:
+          type: array
+          maxItems: 2
+          description: '함께 볼 상품(policies §7-2). 금액 계산에 쓰지 않는다. 적금·지수 ETF만 있고 CMA·KOSPI_TOP5와 #309 이전 저장본은 빈 배열'
+          items:
+            type: object
+            required: [code, name, company, ratePercent]
+            additionalProperties: false
+            properties:
+              code: { type: string, description: '종목 코드 또는 적금 상품 id' }
+              name: { type: string }
+              company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
+              ratePercent: { type: string, nullable: true, description: '적금 기본금리(예: "3.20"). 지수 ETF는 null' }
     GoalScenarioResult:
       type: object
       required: [resultId, name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
@@ -2197,7 +2210,7 @@ components:
           items: { $ref: '#/components/schemas/GoalScenarioProduct' }
         scenarios:
           type: array
-          minItems: 2
+          minItems: 3
           maxItems: 3
           items: { $ref: '#/components/schemas/GoalScenario' }
         assumptions: { type: array, items: { type: string }, description: '세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정' }

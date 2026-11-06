@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
+import com.flexable.web.goalscenario.GoalScenarioDtos.Alternative;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Item;
 import com.flexable.web.goalscenario.GoalScenarioDtos.MixItem;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Outcome;
@@ -49,6 +50,8 @@ public class GoalScenarioService {
 	static final int BLOCK = 12;
 	static final int HISTORY = 60;
 	static final int REACH_BP = 8000;
+	/** 유형당 보는 상품 수(계산에 쓰는 1순위 + 함께 볼 상품 최대 2개, 적금·지수 ETF만). */
+	static final int CANDIDATES = 3;
 	static final BigDecimal CMA_RATE = new BigDecimal("2.50");
 	static final String NOTICE = "이 결과는 입력한 조건과 과거 자료·계산 모형을 바탕으로 AI와 계산 서버가 만든 추정 시나리오예요. "
 			+ "실제 수익과 목표 달성 여부를 보장하지 않으며, 투자한 원금의 일부 또는 전부를 잃을 수 있어요. 자료 기준일과 계산 가정을 함께 확인해 주세요.";
@@ -78,8 +81,12 @@ public class GoalScenarioService {
 		this.quota = quota;
 	}
 
-	/** 유형마다 고른 상품(KOSPI_TOP5는 5개, CMA는 이름만)과 투자 상품의 60개월 월 수익률. */
-	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns) {
+	/**
+	 * 유형마다 계산에 쓰는 상품(KOSPI_TOP5는 5개, CMA는 이름만)과 투자 상품의 60개월 월 수익률.
+	 * moreSavings·moreItems는 함께 볼 상품이고 금액 계산에 쓰지 않는다. returns에는 함께 볼 지수 ETF의 수익률도 들어 있다.
+	 */
+	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns,
+			List<FixedCandidate> moreSavings, Map<ProductType, List<Item>> moreItems) {
 	}
 
 	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수, 이전 AI 조합을 다시 썼는지. */
@@ -99,7 +106,9 @@ public class GoalScenarioService {
 		Picked picked = pick(months, last);
 		int[][] draws = draws(years);
 		Map<String, BigDecimal[]> factors = new HashMap<>();
-		picked.returns().forEach((code, r) -> factors.put(code, factors(r, draws)));
+		for (ProductType t : INVEST) {
+			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws)));
+		}
 
 		Chosen chosen = choose(target, years, months, asOf, userId, picked);
 		List<Scenario> scenarios = new ArrayList<>();
@@ -179,24 +188,32 @@ public class GoalScenarioService {
 				userId == null ? null : usage(userId), false);
 	}
 
-	/** AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름·목표 금액·기한·적금·CMA 금리·세율 15.4%·유형별 통계. */
+	/** AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름(함께 볼 상품 포함)·목표 금액·기한·적금·CMA 금리·세율 15.4%·통계. */
 	private static ProposalText.Facts facts(long target, int months, Picked picked) {
 		java.util.Set<String> names = new java.util.HashSet<>();
 		names.add(picked.saving().name());
 		names.add(picked.saving().company());
 		picked.items().values().forEach(items -> items.forEach(i -> names.add(i.name())));
+		picked.moreItems().values().forEach(items -> items.forEach(i -> names.add(i.name())));
+		List<BigDecimal> percents = new ArrayList<>(List.of(picked.saving().baseRate(), CMA_RATE, new BigDecimal("15.4")));
+		for (FixedCandidate more : picked.moreSavings()) {
+			names.add(more.name());
+			names.add(more.company());
+			percents.add(more.baseRate());
+		}
 		names.remove(null);
 		List<ScenarioProposer.TypeStat> sent = stats(picked);
-		return new ProposalText.Facts(target, months, names, List.of(picked.saving().baseRate(), CMA_RATE, new BigDecimal("15.4")),
-				java.util.Map.of(ProposalText.StatKind.MEAN, statPercents(sent, ScenarioProposer.TypeStat::meanMonthlyReturn),
-						ProposalText.StatKind.VOLATILITY, statPercents(sent, ScenarioProposer.TypeStat::monthlyVolatility),
-						ProposalText.StatKind.DRAWDOWN, statPercents(sent, ScenarioProposer.TypeStat::maxDrawdown)));
+		return new ProposalText.Facts(target, months, names, percents,
+				java.util.Map.of(ProposalText.StatKind.MEAN, statPercents(sent, ScenarioProposer.TypeStat::meanMonthlyReturn, ScenarioProposer.AltStat::meanMonthlyReturn),
+						ProposalText.StatKind.VOLATILITY, statPercents(sent, ScenarioProposer.TypeStat::monthlyVolatility, ScenarioProposer.AltStat::monthlyVolatility),
+						ProposalText.StatKind.DRAWDOWN, statPercents(sent, ScenarioProposer.TypeStat::maxDrawdown, ScenarioProposer.AltStat::maxDrawdown)));
 	}
 
 	/** 소수로 보낸 통계(0.05)를 문구와 대조할 %의 절댓값(5.00)으로 바꾼다. */
 	private static List<BigDecimal> statPercents(List<ScenarioProposer.TypeStat> stats,
-			java.util.function.Function<ScenarioProposer.TypeStat, String> field) {
-		return stats.stream().map(field).filter(java.util.Objects::nonNull).map(v -> new BigDecimal(v).movePointRight(2).abs()).toList();
+			java.util.function.Function<ScenarioProposer.TypeStat, String> field, java.util.function.Function<ScenarioProposer.AltStat, String> altField) {
+		return java.util.stream.Stream.concat(stats.stream().map(field), stats.stream().flatMap(t -> t.alternatives().stream()).map(altField))
+			.filter(java.util.Objects::nonNull).map(v -> new BigDecimal(v).movePointRight(2).abs()).toList();
 	}
 
 	private GoalScenarioDtos.AiUsage usage(long userId) {
@@ -208,8 +225,9 @@ public class GoalScenarioService {
 		List<ScenarioProposer.TypeStat> out = new ArrayList<>();
 		FixedCandidate s = picked.saving();
 		out.add(new ScenarioProposer.TypeStat("SAVINGS", "은행 정액적립식 적금(" + s.company() + " " + s.name() + "), 금리 확정, 이자 15.4% 과세",
-				s.baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString(), null, null, null));
-		out.add(new ScenarioProposer.TypeStat("CMA", "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세", CMA_RATE.toPlainString(), null, null, null));
+				rate(s), null, null, null, picked.moreSavings().stream()
+					.map(m -> new ScenarioProposer.AltStat(m.name(), m.company(), rate(m), null, null, null)).toList()));
+		out.add(new ScenarioProposer.TypeStat("CMA", "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세", CMA_RATE.toPlainString(), null, null, null, List.of()));
 		for (ProductType t : INVEST) {
 			List<BigDecimal[]> series = picked.items().get(t).stream().map(i -> picked.returns().get(i.code())).toList();
 			BigDecimal[] avg = averageSeries(series);
@@ -219,9 +237,17 @@ public class GoalScenarioService {
 				case US_INDEX_ETF -> "미국 대표 지수 ETF(" + name + ", 국내 상장, 원화), 이익에 15.4% 과세";
 				default -> "코스피 시가총액 상위 다섯 종목(" + name + ")에 같은 금액, 비과세";
 			};
-			out.add(new ScenarioProposer.TypeStat(t.name(), desc, null, fmt(mean(avg)), fmt(stdev(avg)), fmt(maxDrawdown(avg))));
+			List<ScenarioProposer.AltStat> more = picked.moreItems().getOrDefault(t, List.of()).stream().map(i -> {
+				BigDecimal[] r = picked.returns().get(i.code());
+				return new ScenarioProposer.AltStat(i.name(), null, null, fmt(mean(r)), fmt(stdev(r)), fmt(maxDrawdown(r)));
+			}).toList();
+			out.add(new ScenarioProposer.TypeStat(t.name(), desc, null, fmt(mean(avg)), fmt(stdev(avg)), fmt(maxDrawdown(avg)), more));
 		}
 		return out;
+	}
+
+	private static String rate(FixedCandidate s) {
+		return s.baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString();
 	}
 
 	static BigDecimal[] averageSeries(List<BigDecimal[]> series) {
@@ -274,33 +300,44 @@ public class GoalScenarioService {
 	/**
 	 * 유형마다 시가총액 순으로 조건에 맞는 상품을 보고, 61개 월말 종가가 모두 있는 것만 고른다(policies §7-2).
 	 * 상장한 지 5년이 안 된 종목은 건너뛰고 다음 순위를 쓴다. 다 건너뛰어 모자라면 503(field = 유형 이름).
+	 * 적금·지수 ETF는 다음 순위를 함께 볼 상품으로 최대 2개까지 고른다. 모자라면 있는 만큼만 쓰고 503으로 만들지 않는다.
 	 */
 	private Picked pick(int months, YearMonth last) {
-		FixedCandidate saving = savings.bestOpenFixed(months)
-			.orElseThrow(() -> new ApiException(ErrorCode.MARKET_UNAVAILABLE, "조건에 맞는 적금 공시가 아직 없어요", Map.of("field", "SAVINGS")));
+		List<FixedCandidate> fixed = savings.openFixed(months, CANDIDATES);
+		if (fixed.isEmpty()) {
+			throw new ApiException(ErrorCode.MARKET_UNAVAILABLE, "조건에 맞는 적금 공시가 아직 없어요", Map.of("field", "SAVINGS"));
+		}
+		FixedCandidate saving = fixed.getFirst();
 		Map<String, BigDecimal[]> returns = new HashMap<>();
 		List<InstrumentView> etfs = market.board(Board.ETF).items();
-		InstrumentView kr = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("200")).toList(), 1, last, returns,
-				ProductType.KR_INDEX_ETF).getFirst();
-		InstrumentView us = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("S&P500")).toList(), 1, last, returns,
-				ProductType.US_INDEX_ETF).getFirst();
-		List<InstrumentView> kospi = withHistory(market.board(Board.KOSPI).items().stream().filter(i -> !preferred(i.name())).toList(), 5, last,
+		List<InstrumentView> kr = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("200")).toList(), 1, CANDIDATES, last, returns,
+				ProductType.KR_INDEX_ETF);
+		List<InstrumentView> us = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("S&P500")).toList(), 1, CANDIDATES, last, returns,
+				ProductType.US_INDEX_ETF);
+		List<InstrumentView> kospi = withHistory(market.board(Board.KOSPI).items().stream().filter(i -> !preferred(i.name())).toList(), 5, 5, last,
 				returns, ProductType.KOSPI_TOP5);
 		Map<ProductType, List<Item>> items = new EnumMap<>(ProductType.class);
 		items.put(ProductType.SAVINGS, List.of(new Item(saving.productId(), saving.name(), saving.company())));
 		items.put(ProductType.CMA, List.of(new Item(null, "CMA", null)));
-		items.put(ProductType.KR_INDEX_ETF, List.of(new Item(kr.id(), kr.name(), null)));
-		items.put(ProductType.US_INDEX_ETF, List.of(new Item(us.id(), us.name(), null)));
-		items.put(ProductType.KOSPI_TOP5, kospi.stream().map(i -> new Item(i.id(), i.name(), null)).toList());
-		return new Picked(items, saving, returns);
+		items.put(ProductType.KR_INDEX_ETF, List.of(item(kr.getFirst())));
+		items.put(ProductType.US_INDEX_ETF, List.of(item(us.getFirst())));
+		items.put(ProductType.KOSPI_TOP5, kospi.stream().map(GoalScenarioService::item).toList());
+		Map<ProductType, List<Item>> more = new EnumMap<>(ProductType.class);
+		more.put(ProductType.KR_INDEX_ETF, kr.stream().skip(1).map(GoalScenarioService::item).toList());
+		more.put(ProductType.US_INDEX_ETF, us.stream().skip(1).map(GoalScenarioService::item).toList());
+		return new Picked(items, saving, returns, fixed.subList(1, fixed.size()), more);
 	}
 
-	/** 후보(시가총액 순) 중 수익률 자료가 모두 있는 앞의 count개. 고른 것의 수익률은 returns에 담는다. */
-	private List<InstrumentView> withHistory(List<InstrumentView> candidates, int count, YearMonth last, Map<String, BigDecimal[]> returns,
+	private static Item item(InstrumentView i) {
+		return new Item(i.id(), i.name(), null);
+	}
+
+	/** 후보(시가총액 순) 중 수익률 자료가 모두 있는 앞의 max개. min개보다 적으면 503. 고른 것의 수익률은 returns에 담는다. */
+	private List<InstrumentView> withHistory(List<InstrumentView> candidates, int min, int max, YearMonth last, Map<String, BigDecimal[]> returns,
 			ProductType type) {
 		List<InstrumentView> out = new ArrayList<>();
 		for (InstrumentView i : candidates) {
-			if (out.size() == count) {
+			if (out.size() == max) {
 				break;
 			}
 			Optional<BigDecimal[]> r = monthlyReturns(i.id(), last);
@@ -309,7 +346,7 @@ public class GoalScenarioService {
 				out.add(i);
 			}
 		}
-		if (out.size() < count) {
+		if (out.size() < min) {
 			throw unavailable(type.name());
 		}
 		return out;
@@ -460,11 +497,14 @@ public class GoalScenarioService {
 		List<Product> out = new ArrayList<>();
 		for (ProductType t : ProductType.values()) {
 			String rate = switch (t) {
-				case SAVINGS -> picked.saving().baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString();
+				case SAVINGS -> rate(picked.saving());
 				case CMA -> CMA_RATE.toPlainString();
 				default -> null;
 			};
-			out.add(new Product(t, picked.items().get(t), rate, t == ProductType.CMA));
+			List<Alternative> more = t == ProductType.SAVINGS
+					? picked.moreSavings().stream().map(m -> new Alternative(m.productId(), m.name(), m.company(), rate(m))).toList()
+					: picked.moreItems().getOrDefault(t, List.of()).stream().map(i -> new Alternative(i.code(), i.name(), null, null)).toList();
+			out.add(new Product(t, picked.items().get(t), rate, t == ProductType.CMA, more));
 		}
 		return out;
 	}

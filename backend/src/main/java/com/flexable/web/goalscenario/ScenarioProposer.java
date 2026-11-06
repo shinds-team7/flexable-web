@@ -12,7 +12,7 @@ interface ScenarioProposer {
 	boolean enabled();
 
 	/**
-	 * 목표 금액·기한과 유형별 통계에 맞춘 시나리오 2~3개. 실패하면 Failed를 던진다.
+	 * 목표 금액·기한과 유형별 통계에 맞춘 시나리오 3개. 실패하면 Failed를 던진다.
 	 * 목표 이름·회원 식별자는 넘기지 않는다(외부 전송 항목을 줄인다).
 	 */
 	List<Proposals.Draft> propose(Input input);
@@ -23,9 +23,14 @@ interface ScenarioProposer {
 
 	/**
 	 * 유형별 사실. 금리 확정 유형은 ratePercent만, 투자 유형은 지난 60개월 월 수익률의 평균·표준편차와 최대 하락(소수, 0.05 = 5%)만 채운다.
+	 * alternatives는 계산에 쓰지 않는 같은 유형의 다른 상품이다.
 	 */
 	record TypeStat(String type, String description, String ratePercent, String meanMonthlyReturn, String monthlyVolatility,
-			String maxDrawdown) {
+			String maxDrawdown, List<AltStat> alternatives) {
+	}
+
+	/** 같은 유형의 다른 상품. 적금은 company·ratePercent만, 지수 ETF는 통계만 채운다. */
+	record AltStat(String name, String company, String ratePercent, String meanMonthlyReturn, String monthlyVolatility, String maxDrawdown) {
 	}
 
 	/** message는 서버가 정한 실패 분류(GoalScenarioAiClient.Failed)만 담는다. 응답 본문을 넣지 않는다. */

@@ -1804,7 +1804,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description 시나리오 2~3개 */
+                /** @description 시나리오 3개 */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3970,6 +3970,16 @@ export interface components {
             ratePercent: string | null;
             /** @description CMA 예시 금리면 true */
             isSample: boolean;
+            /** @description 함께 볼 상품(policies §7-2). 금액 계산에 쓰지 않는다. 적금·지수 ETF만 있고 CMA·KOSPI_TOP5와 #309 이전 저장본은 빈 배열 */
+            alternatives: {
+                /** @description 종목 코드 또는 적금 상품 id */
+                code: string;
+                name: string;
+                /** @description 적금 금융회사. 그 밖에는 null */
+                company: string | null;
+                /** @description 적금 기본금리(예: "3.20"). 지수 ETF는 null */
+                ratePercent: string | null;
+            }[];
         };
         GoalScenarioResult: {
             /** @description 이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8) */

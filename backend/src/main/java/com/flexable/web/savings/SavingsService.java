@@ -235,10 +235,10 @@ public class SavingsService {
 
 	/**
 	 * 은행(1금융권)·정액적립식·만기 termMonths·가입 제한 "제한 없음"·가입 대상에 "실명의 개인"이 있는 상품·월 한도 없음 중
-	 * 기본금리가 가장 높은 상품(같으면 상품 id 오름차순). 저축은행·지역 상품과 사업자·법인 전용 상품은 뺀다(policies §7-2). 없으면 빈 값.
+	 * 기본금리가 높은 순서로 limit개(같으면 상품 id 오름차순). 저축은행·지역 상품과 사업자·법인 전용 상품은 뺀다(policies §7-2). 없으면 빈 목록.
 	 */
 	@Transactional(readOnly = true)
-	public Optional<FixedCandidate> bestOpenFixed(int termMonths) {
+	public List<FixedCandidate> openFixed(int termMonths, int limit) {
 		Map<Long, List<SavingsRateOption>> byProduct = new HashMap<>();
 		for (SavingsRateOption o : options.findByRsrvTypeAndSaveTrm("S", termMonths)) {
 			byProduct.computeIfAbsent(o.getProductId(), k -> new ArrayList<>()).add(o);
@@ -248,9 +248,10 @@ public class SavingsService {
 					&& p.getJoinMember() != null && p.getJoinMember().contains(INDIVIDUAL))
 			.flatMap(p -> best(byProduct.get(p.getId())).map(o -> new Pick(p, o)).stream())
 			.sorted(Comparator.comparing(Pick::base).reversed().thenComparing(x -> x.product().getId()))
-			.findFirst()
+			.limit(limit)
 			.map(x -> new FixedCandidate(String.valueOf(x.product().getId()), x.product().getKorCoNm(), x.product().getFinPrdtNm(),
-					x.base(), x.option().getIntrRateType().equals("M")));
+					x.base(), x.option().getIntrRateType().equals("M")))
+			.toList();
 	}
 
 	/** 한도 없이 매달 monthly를 months 동안 넣은 적금 만기(C-12와 같은 계산). */

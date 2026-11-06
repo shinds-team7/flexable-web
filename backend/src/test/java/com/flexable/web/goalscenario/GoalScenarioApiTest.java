@@ -143,7 +143,13 @@ class GoalScenarioApiTest {
 				new ProductData("0010002", "B", "BANK", "202610", "예시은행", "서민 전용 적금", "영업점", null, null, "2", null, null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("4.00"), null))),
 				new ProductData("0010003", "C", "BANK", "202610", "열린은행", "누구나 적금", "인터넷", null, null, "1", "실명의 개인", null, null,
-						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("3.50"), null)))));
+						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("3.50"), null))),
+				openSaving("0010005", "F", "둘째 적금", "3.20"), openSaving("0010006", "G", "셋째 적금", "3.00"), openSaving("0010007", "H", "넷째 적금", "2.80")));
+	}
+
+	private static ProductData openSaving(String company, String code, String name, String rate) {
+		return new ProductData(company, code, "BANK", "202610", "함께은행", name, "인터넷", null, null, "1", "실명의 개인", null, null,
+				"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal(rate), null)));
 	}
 
 	private static List<InstrumentRow> concat(List<InstrumentRow> a, List<InstrumentRow> b) {
@@ -226,6 +232,57 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
+	void 적금과_지수_ETF는_다음_순위를_함께_볼_상품으로_보여_준다() throws Exception {
+		String body = call(BODY.formatted("목돈", 15_000_000, 1), 200);
+		// 데모 조합이어도 서버가 고른 상품은 같다. 적금은 금리 순 최대 2개(넷째는 빠짐)
+		assertThat((List<String>) JsonPath.read(body, "$.products[0].alternatives[*].name")).containsExactly("둘째 적금", "셋째 적금");
+		assertThat((String) JsonPath.read(body, "$.products[0].alternatives[0].company")).isEqualTo("함께은행");
+		assertThat((String) JsonPath.read(body, "$.products[0].alternatives[0].ratePercent")).isEqualTo("3.20");
+		// 후보가 모자라면 있는 만큼만: 국내는 5년치 자료가 있는 TIGER 200 하나, 미국은 없음
+		assertThat((List<String>) JsonPath.read(body, "$.products[2].alternatives[*].code")).containsExactly("102110");
+		assertThat((Object) JsonPath.read(body, "$.products[2].alternatives[0].ratePercent")).isNull();
+		assertThat((List<?>) JsonPath.read(body, "$.products[3].alternatives")).isEmpty();
+		// CMA·코스피는 함께 볼 상품이 없다
+		assertThat((List<?>) JsonPath.read(body, "$.products[1].alternatives")).isEmpty();
+		assertThat((List<?>) JsonPath.read(body, "$.products[4].alternatives")).isEmpty();
+		// 계산에 쓰는 상품은 그대로 1순위 하나
+		assertThat((List<?>) JsonPath.read(body, "$.products[0].items")).hasSize(1);
+		assertThat((List<?>) JsonPath.read(body, "$.products[2].items")).hasSize(1);
+	}
+
+	@Test
+	@ExtendWith(OutputCaptureExtension.class)
+	void 함께_볼_상품의_값은_해설에_쓸_수_있고_보내지_않은_값은_지운다(CapturedOutput output) throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenAnswer(call -> {
+			ScenarioProposer.Input input = call.getArgument(0);
+			ScenarioProposer.AltStat tiger = input.stats().stream().filter(s -> s.type().equals("KR_INDEX_ETF")).findFirst().orElseThrow().alternatives().getFirst();
+			assertThat(tiger.name()).isEqualTo("TIGER 200");
+			String drawdown = new BigDecimal(tiger.maxDrawdown()).movePointRight(2).abs().toPlainString();
+			return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "둘째 적금의 금리는 연 3.2%예요. 넷째 적금의 금리는 연 2.8%예요.", Map.of("SAVINGS", 100)),
+					new Proposals.Draft("b", "반반", "적금과 지수 ETF", "TIGER 200의 지난 60개월 최대 하락은 " + drawdown + "%예요.", Map.of("SAVINGS", 50, "KR_INDEX_ETF", 50)), THIRD);
+		});
+		String body = member(BODY.formatted("목돈", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanation")).isEqualTo("둘째 적금의 금리는 연 3.2%예요.");
+		assertThat((String) JsonPath.read(body, "$.scenarios[1].explanation")).contains("TIGER 200의 지난 60개월 최대 하락은");
+		assertThat(output).contains("goal scenario AI sentence removed: TEXT_NUMBER #1.explanation").doesNotContain("sentence removed: TEXT_NUMBER #2");
+	}
+
+	@Test
+	void 함께_볼_상품이_없는_이전_저장본은_빈_목록으로_읽는다() throws Exception {
+		String token = signup();
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
+		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
+		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
+		String old = snapshot.replaceAll(",\"alternatives\":\\[[^\\]]*\\]", "");
+		assertThat(old).isNotEqualTo(snapshot).doesNotContain("alternatives");
+		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
+		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat((List<?>) JsonPath.read(saved, "$.products[0].alternatives")).isEmpty();
+	}
+
+	@Test
 	void 같은_입력이면_같은_응답이다() throws Exception {
 		String a = call(BODY.formatted("목돈", 20_000_000, 1), 200);
 		String b = call(BODY.formatted("목돈", 20_000_000, 1), 200);
@@ -249,12 +306,14 @@ class GoalScenarioApiTest {
 		assertThat((String) JsonPath.read(body, "$.field")).isEqualTo("SAVINGS");
 	}
 
+	/** 제안은 시나리오 3개여야 한다. 각 테스트가 보는 앞쪽 두 개 뒤에 붙인다. */
+	private static final Proposals.Draft THIRD = new Proposals.Draft("c", "지수만", "지수 ETF 위주", "지수 ETF에 담아요", Map.of("KR_INDEX_ETF", 100));
 	private static final List<Proposals.Draft> GOOD = List.of(
 			new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
-			new Proposals.Draft("b", "반반", "적금과 지수 ETF", "반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)));
+			new Proposals.Draft("b", "반반", "적금과 지수 ETF", "반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD);
 	private static final List<Proposals.Draft> BAD = List.of(
 			new Proposals.Draft("a", "코인", "코인", "코인이에요", Map.of("BITCOIN", 100)),
-			new Proposals.Draft("b", "적금", "적금", "적금이에요", Map.of("SAVINGS", 100)));
+			new Proposals.Draft("b", "적금", "적금", "적금이에요", Map.of("SAVINGS", 100)), THIRD);
 
 	private String member(String body, String token, int expectedStatus) throws Exception {
 		return send(auth(post("/api/v1/goal/scenarios").contentType(MediaType.APPLICATION_JSON).content(body), token), expectedStatus);
@@ -279,7 +338,7 @@ class GoalScenarioApiTest {
 		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), token, 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 		assertThat((Object) JsonPath.read(body, "$.fallbackReason")).isNull();
-		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).containsExactly("a", "b");
+		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).containsExactly("a", "b", "c");
 		// 적금 100%·3.50%·1년·목표 1,500만 원 = 정책 예시(1,231,000원)
 		assertThat((Integer) JsonPath.read(body, "$.scenarios[0].monthly")).isEqualTo(1_231_000);
 		assertThat((Integer) JsonPath.read(body, "$.scenarios[0].outcome.fixedAmount")).isEqualTo(15_008_920);
@@ -343,7 +402,7 @@ class GoalScenarioApiTest {
 				new Proposals.Draft("a", "적금으로 1년", "연 3.5% 적금으로 모아요",
 						"1년 안에 1,500만 원을 모으도록 적금 100%로 정했어요. 수익이 보장되지 않는 상품은 넣지 않았어요.", Map.of("SAVINGS", 100)),
 				new Proposals.Draft("b", "반반", "적금과 S&P 500 지수",
-						"적금 50%와 미국 S&P 500 지수 50%로 나눴어요. 이익에는 15.4% 세금이 붙어요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+						"적금 50%와 미국 S&P 500 지수 50%로 나눴어요. 이익에는 15.4% 세금이 붙어요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD));
 		String body = member(BODY.formatted("목돈", 15_000_000, 1), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 	}
@@ -354,7 +413,7 @@ class GoalScenarioApiTest {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(List.of(
 				new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
-				new Proposals.Draft("b", "반반", "적금과 지수 ETF", "연 7% 수익을 노려 반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+				new Proposals.Draft("b", "반반", "적금과 지수 ETF", "연 7% 수익을 노려 반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD));
 		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation").doesNotContain("연 7%").doesNotContain("비밀 목표");
@@ -368,7 +427,7 @@ class GoalScenarioApiTest {
 			ScenarioProposer.TypeStat us = input.stats().stream().filter(s -> s.type().equals("US_INDEX_ETF")).findFirst().orElseThrow();
 			String drawdown = new java.math.BigDecimal(us.maxDrawdown()).movePointRight(2).abs().toPlainString();
 			return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
-					new Proposals.Draft("b", "반반", "적금과 지수 ETF", "지난 60개월 최대 하락 " + drawdown + "%를 고려했어요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)));
+					new Proposals.Draft("b", "반반", "적금과 지수 ETF", "지난 60개월 최대 하락 " + drawdown + "%를 고려했어요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD);
 		});
 		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
@@ -381,7 +440,7 @@ class GoalScenarioApiTest {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(List.of(
 				new Proposals.Draft("a", "저축만", "적금 위주", "다른 칸의 해설이에요", Map.of("SAVINGS", 100)),
-				new Proposals.Draft("b", "반반", "요약 문구예요", "연 7% 수익을 노려요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+				new Proposals.Draft("b", "반반", "요약 문구예요", "연 7% 수익을 노려요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD));
 		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation \"연 7% 수익을 노려요\"")
@@ -390,7 +449,7 @@ class GoalScenarioApiTest {
 
 	private static List<Proposals.Draft> oneBadSentence() {
 		return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
-				new Proposals.Draft("b", "반반", "요약 문구예요", "적금으로 바닥을 받쳐요. 연 7% 수익을 노려요.\n\n기한이 다가오면 줄여요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)));
+				new Proposals.Draft("b", "반반", "요약 문구예요", "적금으로 바닥을 받쳐요. 연 7% 수익을 노려요.\n\n기한이 다가오면 줄여요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD);
 	}
 
 	@Test

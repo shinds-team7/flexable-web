@@ -122,10 +122,17 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   }, []);
   const revealing = !!reveal && !!snapshot && shown < snapshot.candles.length;
   const visibleEvent = revealing ? null : snapshot?.event ?? null;
+  // 숨겨진 화면(다른 탭·대회 밖)에 열린 모달이 남으면 top layer에서 페이지를 막으니, 보이는 동안만 연다
+  const modalOpen = active && !!visibleEvent && !collapsed;
+  useEffect(() => {
+    const d = dialog.current;
+    if (modalOpen && !d?.open) d?.showModal();
+    else if (!modalOpen && d?.open) d.close();
+  }, [modalOpen]);
   useEffect(() => {
     setAction(null); setQuantity(''); setCollapsed(false);
-    if (visibleEvent) { setPlaying(false); dialog.current?.showModal(); }
-    else { dialog.current?.close(); playButton.current?.focus({ preventScroll: true }); }
+    if (visibleEvent) setPlaying(false);
+    else playButton.current?.focus({ preventScroll: true });
   }, [visibleEvent?.id]);
 
   const send = useCallback(async (request: Pending) => {
@@ -206,8 +213,8 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
     focusSetup.current = false;
     amountInput.current?.focus();
   }, [snapshot]);
-  const collapse = () => { setCollapsed(true); dialog.current?.close(); };
-  const expand = () => { setCollapsed(false); dialog.current?.showModal(); };
+  const collapse = () => setCollapsed(true);
+  const expand = () => setCollapsed(false);
   const start = (event: React.FormEvent) => {
     event.preventDefault();
     if (contest) { void send({ path: 'start', body: { startId: crypto.randomUUID() } }); return; }

@@ -25,7 +25,15 @@ const NAV: NavItem[] = [
       { to: '/invest?board=ETF', label: 'ETF' },
     ],
   },
-  { to: '/simulation', label: '시뮬레이션' },
+  {
+    to: '/simulation',
+    label: '시뮬레이션',
+    sub: [
+      { to: '/simulation?mode=past', label: '과거 시장 연습' },
+      { to: '/simulation?mode=virtual', label: '가상 시뮬레이션' },
+      { to: '/simulation?mode=contest', label: '가상 시뮬레이션 대회' },
+    ],
+  },
   {
     to: '/savings',
     label: '예적금',
@@ -154,6 +162,8 @@ function LayoutBody() {
                 key={n.to}
                 className={'navitem' + (closedSub === n.to ? ' closed' : '')}
                 onMouseLeave={() => setClosedSub((v) => (v === n.to ? null : v))}
+                // 키보드만 쓰는 사용자도 포커스가 돌아오면 하위 메뉴를 다시 열 수 있게 한다
+                onFocus={() => setClosedSub((v) => (v === n.to ? null : v))}
               >
                 <NavLink to={n.to}>{n.label}</NavLink>
                 {n.sub && (

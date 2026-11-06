@@ -706,7 +706,8 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 }
 @media (max-width:1023px){
   .wrap,.page{padding-left:24px;padding-right:24px}
-  .mainnav{display:none;position:absolute;top:var(--nav-h);left:0;right:0;background:var(--card);flex-direction:column;gap:4px;padding:8px 16px 16px;border-bottom:1px solid var(--line);box-shadow:var(--shadow-overlay)}
+  /* 하위 목록이 화면 높이를 넘으면 메뉴 안에서 스크롤한다. 가운데 정렬이면 넘친 윗부분이 잘려 시작으로 맞춘다 */
+  .mainnav{display:none;position:absolute;top:var(--nav-h);left:0;right:0;background:var(--card);flex-direction:column;justify-content:flex-start;gap:4px;padding:8px 16px 16px;border-bottom:1px solid var(--line);box-shadow:var(--shadow-overlay);max-height:calc(100vh - var(--nav-h));max-height:calc(100dvh - var(--nav-h));overflow-y:auto;overscroll-behavior:contain}
   .mainnav a{height:var(--density-control)}
   .navitem{height:auto;flex-direction:column;align-items:stretch}
   .navitem::after{display:none}

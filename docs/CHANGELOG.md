@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-11-06
+
+- [#PR, Closes #285] 02 §7-3 움직임 예외에 가상 시뮬레이션 대회 메인 화면을 더했다([결정](decisions/2026-11-06-contest-motion.md), 사용자 결정): 영역 등장·숫자 차오름·막대 채움·배너 등장·내 판 강조. 값은 서버 값 그대로, 움직임 줄이기면 끔. 대회 판 진행 화면은 그대로 — 영향: 프론트
+
 ## 2026-11-05
 
 - [구현 PR, Closes #253] 가상 시뮬레이션 일반 세션 채점 제거를 구현했다: 서버는 `decisions[].outcome`·`trendOutcome`을 늘 null로 두고 `notice`를 결정 기록 6의 채점 없는 문장으로 바꿨다. 일반 출제는 뚜렷한 유형을 먼저 뽑지 않고 균등(후보 조건 뚜렷한 유형 2개는 그대로, 대회 판 난수 순서는 같아 생성기 버전 유지). `virtual-simulation.json`: `noScore` `IMPLEMENTED`, `trend.scoring`·`window.minClearQuestions`·`tradeAndQuiz.keys`의 `quizCases` 삭제, 생성 성질 문장 수정. 화면은 점수·"과거 경향을 맞혔어요" 문구를 없앴다. 계약 변화 없음 — 영향: 프론트·백엔드

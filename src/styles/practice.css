@@ -43,6 +43,8 @@
 .practice-summary>.practice-muted { font-size:12px; margin:0 0 calc(var(--density-gap)/2); }
 .practice-start { width:100%; justify-content:center; }
 .practice-setup form>.practice-start { margin-top:calc(var(--density-gap)/2); }
+/* 판이 끝난 요약 아래 버튼이 둘(대회 판의 [다음 판 시작]·[대회 화면으로 돌아가기])이면 붙지 않게 띄운다 */
+.practice-summary>.practice-start+.practice-start { margin-top:calc(var(--density-gap)/3); }
 .practice-guide { border-top:1px solid var(--color-border); margin-top:var(--density-gap); padding-top:var(--density-gap); }
 .practice-guide ol { padding-left:calc(var(--density-gap)*.75); font-size:12px; color:var(--color-text-tertiary); line-height:1.9; margin-bottom:0; }
 .practice-market { min-width:0; padding:var(--density-pad) var(--density-gap); }

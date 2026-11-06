@@ -222,7 +222,7 @@ class ContractTest {
 				IndexKey.EURKRW, new String[] { "1501.30", "1498.75" }, IndexKey.CNYKRW, new String[] { "190.21", "190.55" });
 		others.forEach((key, v) -> insight.saveIndex(key, List.of(new IndexValue(dates.get(dates.size() - 2), new java.math.BigDecimal(v[0])),
 				new IndexValue(dates.getLast(), new java.math.BigDecimal(v[1]))), key == IndexKey.KRXBOND || key == IndexKey.GOLD ? "한국거래소" : "한국수출입은행"));
-		// 청년 소식(검수 없이 게시): 요약·계산 연결이 있는 전국 카드, 요약 없이 빈 값이 많은 지역 카드, 반려해서 빠지는 카드
+		// 공개 카드에는 AI 요약이 필수다. 그 밖의 선택 필드는 빈 값도 검사한다.
 		news.saveCollected(new PolicyDraft("FAKE", "c-all", "{}", "전국 청년 저축 지원", List.of(NewsCategory.FINANCE, NewsCategory.CULTURE), 19, 34,
 				Boolean.TRUE, true, null, today.minusDays(1), today.plusDays(30), false, "○○부(예시)", "https://example.com/c-all", today,
 				today.minusDays(3), List.of("저축"), null));
@@ -234,6 +234,8 @@ class ContractTest {
 		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN' WHERE external_id = 'c-all'");
 		SummaryTarget all = news.summaryTargets(10).stream().filter(t -> t.title().equals("전국 청년 저축 지원")).findFirst().orElseThrow();
 		news.applySummaries(List.of(new SummaryResult(all.id(), all.contentHash(), "청년이 매달 저축하면 정부가 돈을 더 얹어 줘요.")));
+		SummaryTarget seoul = news.summaryTargets(10).stream().filter(t -> t.title().equals("서울 청년 월세 지원")).findFirst().orElseThrow();
+		news.applySummaries(List.of(new SummaryResult(seoul.id(), seoul.contentHash(), "서울 청년에게 월세를 지원해요.")));
 		// 적금: 한도·우대가 있는 단리 상품, 한도 없는 복리 상품, 기본금리가 없어 목록에서 빠지는 상품. 정책은 빈 항목이 많은 것과 채운 것
 		savings.replaceAll(List.of(
 				new ProductData("0010001", "A", "BANK", "202610", "예시은행", "예시 적금", "영업점", "만기 후 이율", "우대 원문", "1", "실명의 개인",
@@ -361,11 +363,11 @@ class ContractTest {
 		call(get("/api/v1/market/industries?board=KOSPI&limit=11"), 400);
 		call(get("/api/v1/market/industries"), 400);
 		MvcResult feed = call(get("/api/v1/youth-news"), 200);
-		// 카드 필드까지 검사되도록 두 건이 다 나와야 한다: 요약이 있는 카드와 summary·benefit·action이 모두 null인 카드(반려한 것은 빠짐)
+		// 두 카드 모두 요약이 있고, 사람이 쓰던 benefit·action은 null이다.
 		String feedBody = feed.getResponse().getContentAsString(StandardCharsets.UTF_8);
 		assertThat((List<?>) JsonPath.read(feedBody, "$.items")).hasSize(2);
-		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary != null)]")).hasSize(1);
-		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary == null && @.benefit == null && @.action == null)]")).hasSize(1);
+		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.summary != null)]")).hasSize(2);
+		assertThat((List<?>) JsonPath.read(feedBody, "$.items[?(@.benefit == null && @.action == null)]")).hasSize(2);
 		call(get("/api/v1/youth-news?age=25&region=서울&category=HOUSING"), 200);
 		call(get("/api/v1/youth-news?category=NOPE"), 400);
 		// 열람 집계: 센 뒤 많이 본 목록에 나오고, 잘못된 값은 400·없는 소식은 404

@@ -6,6 +6,8 @@
 
 ## 2026-11-06
 
+- [Refs #302] 청년소식은 검사에 통과한 AI 요약 완료 후 공개·신규 저장한다([결정](decisions/2026-11-06-news-summary-required.md)). 원문 수집과 기존 저장 사본은 보존하며 미요약·실패 소식은 공개 목록·인기 소식·열람 집계에서 제외한다. 계약 `summary`를 비어 있지 않은 문자열로 변경. 구현은 후속 PR — 영향: 프론트·백엔드
+
 - [Refs #113] 청년미래적금 계산 규칙 초안(policies §9, `tests/policy/policy-savings.json` `PROPOSED`, 계약 `GET /savings/policy/{code}`·`POST /savings/policy/{code}/simulate`, 결정 [11-06](decisions/2026-11-06-youth-future-savings-rules.md)). 신한 공식 설명서로 기여금 시점·기여금 이자·금리 구조·중도해지를 대조했고 일수 기준·기여금 입금일은 가정이라 `UNVERIFIED`. 승인 전에는 구현하지 않는다 — 영향: 백엔드, 프론트, 문서
 - [#290] 목표 시나리오 AI 해설 깊이와 문장 단위 처리(policies §7-6, 결정 문서 "11-06 AI 해설 깊이와 문장 단위 처리"): 프롬프트 goal-scenario-v6, 해설을 필수 칸 네 개로 받아 서버가 합침, 합쳤다는 말과 함께 쓴 비중의 합 허용, 해설은 걸린 문장만 지우고 다 지워지면 제안 전체를 버림 — 영향: 백엔드
 - [#300, Closes #289] 배치고사 문제에 유형 설명과 공시 주요 내용을 더했다([결정 기록](decisions/2026-11-05-virtual-sim-contest.md) 2-2·2-6·"변경 기록 11-06", 사용자 결정): OpenDART 주요사항보고서 주요정보(DS005)가 있는 유형만 비율(소수 1자리 내림)·규모 구간·정해 둔 분류 이름을 최대 4개 보이고 절대 금액·회사·상대방 이름·날짜는 보이지 않는다. 내용이 없는 유형은 유형 설명만, 출제 규칙·채점·판 기준 7·9·30분은 그대로. policies §8-8 "공시 주요 내용"·`virtual-contest.json` `placementDetails`, 계약 `VirtualContestPlacement.questions[].details`(nullable, 최대 4개, 응답 예시 추가)·`body` 설명, V29 `dart_disclosure_details`, worker `DisclosureDetailJob`(전체 공시 수집이 쓰고 남은 `VIRTUAL_SIM_DART_MAX_CALLS` 안에서), 종속회사·자회사 주요경영사항은 대상 아님, 나중에 정정된 공시는 정정본 값(규칙 `vsim-details-v2`, 정정 공시를 받으면 원 공시도 다시 평가), DS005 응답 형식 오류는 저장하지 않고 다시 받음(자료 없음은 013만), 실패한 묶음은 V30 `dart_detail_failures`로 다음 실행 맨 뒤로, 채점하면 문제 사본과 함께 삭제. 문제 화면: 한 화면 한 문제(이전·다음·문제 번호로 이동)·제목 정리·진행 표시(n/10)·답 선택 표시와 hover 효과·안 푼 문제로, 결과 화면에 문제마다 유형 설명·주요 내용. 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드(worker 수집, 운영 설정 변화 없음)

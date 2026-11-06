@@ -184,14 +184,25 @@ function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry
         </p>}
       </div>
       <div>
-        <p className="contest-part-period"><span>{dateText(info.startsAt)} 시작</span><span>{dateText(info.endsAt)} 00시 마감</span></p>
+        <p className="contest-part-period"><span>{dateText(info.startsAt)} 시작</span><b>{days}일 중 {dayIndex}일째</b><span>{dateText(info.endsAt)} 00시 마감</span></p>
         <div className="contest-period" role="img" aria-label={`대회 기간 ${days}일 중 ${dayIndex}일째${nowWeek ? `, 지금 ${nowWeek}주` : ''}`}>
           <div className="contest-period-weeks">
             {info.weeks.map(w => <span key={w.week} className={w.week === nowWeek ? 'now' : w.endsOn < today ? 'past' : ''} style={{ flexGrow: dayNo(w.endsOn) - dayNo(w.startsOn) + 1 }}>{w.week}주</span>)}
           </div>
           <div className="contest-period-track"><span style={{ width: `${(mounted ? elapsed : 0) * 100}%` }} /><i style={{ left: `${elapsed * 100}%` }} /></div>
         </div>
-        <p className="practice-muted contest-part-note">{days}일 중 {dayIndex}일째{nowWeek ? ` · 지금 ${nowWeek}주(${dateText(info.weeks[nowWeek - 1].startsOn)}~${dateText(info.weeks[nowWeek - 1].endsOn)})` : ''}. 주가 끝날 때마다 주 점수로 승급·강등을 정해요.</p>
+        <ol className="contest-week-plan" aria-label="주별 일정">
+          {info.weeks.map((w, i) => {
+            const state = w.endsOn < today ? 'past' : w.week === nowWeek ? 'now' : 'next';
+            const last = i === info.weeks.length - 1;
+            return <li key={w.week} className={state} aria-current={state === 'now' ? 'true' : undefined}>
+              <b>{w.week}주</b>
+              <span>{dateText(w.startsOn)} ~ {dateText(w.endsOn)}</span>
+              <small>{last && w.week === 5 ? '판정 없음' : state === 'past' ? '판정 끝' : state === 'now' ? '진행 중' : '남음'}</small>
+            </li>;
+          })}
+        </ol>
+        <p className="practice-muted contest-part-note">주가 끝날 때마다 주 점수로 승급·강등을 정해요.{info.weeks.length === 5 ? ' 29일부터의 짧은 주는 판이 바뀌지 않아요.' : ''}</p>
       </div>
     </div>
   </section>;

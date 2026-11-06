@@ -1,5 +1,5 @@
 // 페이지를 내릴 때 영역이 화면에 처음 들어오면 한 번 나타난다(투명도 + 짧은 이동, 280ms). 다시 숨기지 않는다.
-// 투자 인사이트(/invest)에만 쓴다(02 §7-3 예외, decisions/2026-10-26-invest-insight-redesign ⑧).
+// 투자 인사이트(/invest)와 가상 시뮬레이션 대회 메인 화면에만 쓴다(02 §7-3 예외, decisions/2026-10-26-invest-insight-redesign ⑧·2026-11-06-contest-motion).
 // 움직임 줄이기면 처음부터 보인다. 내용은 숨겨진 동안에도 스크린리더가 읽을 수 있다(투명도만 바꾼다).
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from '@/lib/motion';

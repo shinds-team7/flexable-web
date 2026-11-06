@@ -3644,7 +3644,7 @@ export interface components {
              * @description 다음 달 1일 00:00+09:00(이 시각부터 마감)
              */
             endsAt: string;
-            /** @description 주간 판정 구간. 1~7일, 8~14일, 15~21일, 22~28일, 29일~말일(있으면) */
+            /** @description 주간 판정 구간. 1~7일, 8~14일, 15~21일, 22일~말일. 4주차는 대회 마지막 날 판정하고 판은 바꾸지 않는다(결과는 VirtualContestResult.finalWeek) */
             weeks: {
                 week: number;
                 /** Format: date */
@@ -3791,7 +3791,7 @@ export interface components {
             excessRate: number | null;
             /** @description 지금 판에 들어온 뒤 받은 하루 점수의 합(랭킹 기준) */
             boardPoints: number;
-            /** @description 이번 주 판정 */
+            /** @description 이번 주 판정. 4주차(22일~말일)는 대회 마지막 날 판정만 기록하고 판은 바꾸지 않는다 */
             week: {
                 week: number;
                 /** Format: date */
@@ -3940,6 +3940,16 @@ export interface components {
             participants: number;
             rounds: number;
             liquidated: boolean;
+            /** @description 마지막 주(22일~말일) 판정. 판은 바꾸지 않아 finalBoard·rank·highestBoard에는 반영되지 않는다. 판정 기록이 없으면(이 규칙 전에 정산한 대회) null */
+            finalWeek: {
+                /** @description 마지막 주 하루 점수의 합 */
+                points: number;
+                /**
+                 * @description PROMOTE 승급 기준 도달(+4 이상, 1억 판 제외), DEMOTE 강등 기준 도달(−4 이하, 1천만 판 제외), STAY 그 밖
+                 * @enum {string}
+                 */
+                result: "PROMOTE" | "DEMOTE" | "STAY";
+            } | null;
         };
         /**
          * @description SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2

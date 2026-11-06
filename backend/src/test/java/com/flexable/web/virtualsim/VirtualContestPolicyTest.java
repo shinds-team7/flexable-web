@@ -64,10 +64,10 @@ class VirtualContestPolicyTest {
 	@Test
 	void weeks() throws Exception {
 		JsonNode w = root().get("rules").get("weeks");
-		// 31일 달은 다섯 주, 30일 달은 29~30일, 28일 달(평년 2월)은 네 주
-		for (YearMonth m : List.of(YearMonth.of(2026, 12), YearMonth.of(2026, 11), YearMonth.of(2027, 2))) {
+		// 늘 네 주이고 4주차는 22일~말일(31일 달 10일, 30일 달 9일, 평년 2월 7일, 윤년 2월 8일)
+		for (YearMonth m : List.of(YearMonth.of(2026, 12), YearMonth.of(2026, 11), YearMonth.of(2027, 2), YearMonth.of(2028, 2))) {
 			List<LocalDate[]> weeks = VirtualContestRules.weeks(m);
-			assertThat(weeks).hasSize(m.lengthOfMonth() > 28 ? 5 : 4);
+			assertThat(weeks).hasSize(w.size()).hasSize(VirtualContestRules.WEEKS);
 			for (int i = 0; i < weeks.size(); i++) {
 				assertThat(weeks.get(i)[0].getDayOfMonth()).isEqualTo(w.get(i).get(0).asInt());
 				assertThat(weeks.get(i)[1].getDayOfMonth()).isEqualTo(Math.min(w.get(i).get(1).asInt(), m.lengthOfMonth()));
@@ -235,6 +235,11 @@ class VirtualContestPolicyTest {
 			assertThat(sum).isEqualTo(c.get("sum").asInt());
 			VirtualContestBoard board = VirtualContestBoard.valueOf(c.get("board").asString());
 			VirtualContestBoard next = VirtualContestRules.weekly(board, sum);
+			if (c.has("finalWeek") && c.get("finalWeek").asBoolean()) {
+				// 4주차는 판정 결과만 기록하고 판은 그대로
+				assertThat(VirtualContestRules.outcome(board, next).name()).as(c.toString()).isEqualTo(c.get("judged").asString());
+				next = board;
+			}
 			assertThat(next).as(c.toString()).isEqualTo(VirtualContestBoard.valueOf(c.get("nextBoard").asString()));
 			long balance = next == board ? c.get("balance").asLong() : next.seedMoney();
 			assertThat(balance).as(c.toString()).isEqualTo(c.get("nextBalance").asLong());

@@ -43,7 +43,8 @@ function Rules({ info }: { info: ContestInfo }) {
       <li>배치고사는 실제 과거 공시 10개(경향이 뚜렷한 유형 6개 + 나머지 4개)를 보고 그 뒤 5거래일 동안 오를지 내릴지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜는 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
       <li>한 판은 지금 대회 잔액 전부로 시작하고 120거래일 동안 사건 {r.eventsPerRound}개를 만나요. 판이 끝난 총자산이 다음 판의 잔액이 되고, 대회 판은 채점하지 않아요.</li>
       <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 −1이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 +1, 덜 했으면 0이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
-      <li>주(1~7일, 8~14일, 15~21일, 22~28일, 29일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 승급, {points(r.weeklyDemoteAt)} 이하면 한 단계 강등이에요. 판이 바뀌면 잔액은 새 판의 대회 시드머니로 다시 시작해요.</li>
+      <li>주(1~7일, 8~14일, 15~21일, 22일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 승급, {points(r.weeklyDemoteAt)} 이하면 한 단계 강등이에요. 판이 바뀌면 잔액은 새 판의 대회 시드머니로 다시 시작해요.</li>
+      <li>4주차(22일~말일)는 보너스 주예요. 대회 마지막 날 판정해 결과를 지난 대회 기록에 남기고, 판은 바꾸지 않아요. 최종 순위는 4주차를 보낸 판에서 매겨요.</li>
       <li>판이 끝난 뒤 잔액이 {money(r.liquidationBelow)} 미만이면 이번 시즌은 청산되어 더 할 수 없어요.</li>
       <li>순위는 판 점수 → 매매 성과 평균 → 그 값에 먼저 도달한 순서로 정하고, 판별 상위 {r.rankingTop}위와 내 순위를 회원만 봐요. 이름 대신 서버가 붙인 별명이 보여요.</li>
       <li>판을 그만두거나 창을 닫으면 남은 사건은 유지로 보고 끝까지 계산해 잔액에 반영해요.</li>
@@ -219,11 +220,11 @@ function Participation({ info, entry, prevRank }: { info: ContestInfo; entry: Co
             return <li key={w.week} className={state} aria-current={state === 'now' ? 'true' : undefined}>
               <b>{w.week}주</b>
               <span>{dateText(w.startsOn)} ~ {dateText(w.endsOn)}</span>
-              <small>{last && w.week === 5 ? '판정 없음' : state === 'past' ? '판정 끝' : state === 'now' ? '진행 중' : '남음'}</small>
+              <small>{state === 'past' ? '판정 끝' : state === 'now' ? (last ? '진행 중 · 보너스' : '진행 중') : last ? '보너스 주' : '남음'}</small>
             </li>;
           })}
         </ol>
-        <p className="practice-muted contest-part-note">주가 끝날 때마다 주 점수로 승급·강등을 정해요.{info.weeks.length === 5 ? ' 29일부터의 짧은 주는 판이 바뀌지 않아요.' : ''}</p>
+        <p className="practice-muted contest-part-note">주가 끝날 때마다 주 점수로 승급·강등을 정해요. 4주차는 보너스 주라 결과만 기록에 남고 판은 그대로예요.</p>
       </div>
     </div>
   </section>;
@@ -431,12 +432,11 @@ function ScoredDaysBars({ days }: { days: ContestEntry['scoredDays'] }) {
 }
 
 /** 이번 주 승급·강등까지 남은 점수(서버 주 점수와 규칙 값의 차이를 보여 주기만 한다) */
-function weekGap(entry: ContestEntry, rules: ContestInfo['rules']) {
+function weekGap(entry: ContestEntry, rules: ContestInfo['rules'], finalWeek: boolean) {
   const w = entry.week;
-  if (w.week === 5) return '29일부터의 짧은 주는 판이 바뀌지 않아요.';
   const promote = entry.board === 'B100M' ? '1억 판은 승급 없음' : w.points >= rules.weeklyPromoteAt ? '승급 기준 도달' : `승급까지 ${rules.weeklyPromoteAt - w.points}점`;
   const demote = entry.board === 'B10M' ? '1천만 판은 강등 없음' : w.points <= rules.weeklyDemoteAt ? '강등 기준 도달' : `강등까지 ${w.points - rules.weeklyDemoteAt}점`;
-  return `${promote} · ${demote}`;
+  return finalWeek ? `보너스 주(판은 그대로) · ${promote} · ${demote}` : `${promote} · ${demote}`;
 }
 
 function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean; prevRank?: number | null }) {
@@ -477,7 +477,7 @@ function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo;
       </section>
       <section className="contest-card" aria-labelledby="contestWeekTitle">
         <h2 id="contestWeekTitle">이번 주 점수 <small>{w.week}주 · {dateText(w.endsOn)}까지</small></h2>
-        <p className="contest-big"><b>{points(w.points)}</b> <span className="contest-week-gap">{weekGap(entry, rules)}</span></p>
+        <p className="contest-big"><b>{points(w.points)}</b> <span className="contest-week-gap">{weekGap(entry, rules, w.week === info.weeks.length)}</span></p>
         <div className="contest-week" role="img" aria-label={`이번 주 ${points(w.points)}, ${points(rules.weeklyDemoteAt)}부터 ${points(rules.weeklyPromoteAt)}까지`}>
           {cells.map(n => {
             const filled = mounted && (w.points > 0 ? n > 0 && n <= nowCell : w.points < 0 ? n < 0 && n >= nowCell : false);
@@ -593,6 +593,7 @@ function HistoryCards({ history }: { history: ContestResult[] }) {
       <li className="final"><small>최종</small>{BOARD_LABEL[h.finalBoard]}</li>
     </ol>
     <p><b>{fmt.format(h.participants)}명 중 {fmt.format(h.rank)}위</b> · 판 점수 {points(h.boardPoints)}</p>
+    {h.finalWeek && <p>보너스 주 {points(h.finalWeek.points)}{h.finalWeek.result === 'PROMOTE' ? <span className="practice-rise"> ▲ 승급 기준 도달</span> : h.finalWeek.result === 'DEMOTE' ? <span className="practice-fall"> ▼ 강등 기준 도달</span> : null}</p>}
     <small>매매 성과 평균 {h.excessRate == null ? '—' : <span className={tone(h.excessRate)}>{pp(h.excessRate)}</span>} · {money(h.balance)} · {fmt.format(h.rounds)}판</small>
   </li>)}</ul>;
 }

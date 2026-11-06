@@ -29,7 +29,7 @@ import com.flexable.web.news.YouthNews.ReviewStatus;
 
 /**
  * 청년 금융 소식 저장소의 공개 창구. 읽기는 api(화면), 쓰기는 worker(ingest)가 쓴다. 외부 API는 부르지 않는다(04 §8).
- * 수집한 소식은 사람 검수 없이 화면에 나간다(2026-10-26 결정). 반려(REJECTED)한 것과 카드 필수 항목(제목·출처·지역)이 빠진 것만 뺀다.
+ * AI 요약이 완료된 소식만 사람 검수 없이 화면에 나간다(2026-11-06 결정).
  * 요약(summary)은 worker가 Gemini로 만들어 applySummaries로 넣는다.
  */
 @Service
@@ -72,7 +72,11 @@ public class NewsService {
 		return new NewsFeed(items);
 	}
 
-	private static boolean publishable(YouthNews n) {
+	static boolean publishable(YouthNews n) {
+		return completeCard(n) && notBlank(n.getSummary());
+	}
+
+	private static boolean completeCard(YouthNews n) {
 		return notBlank(n.getTitle()) && notBlank(n.getSourceOrg()) && notBlank(n.getSourceUrl()) && n.regionsValue() != null;
 	}
 
@@ -97,14 +101,14 @@ public class NewsService {
 	// ───────── 요약(worker) ─────────
 
 	/**
-	 * 요약할 카드: 화면에 나가는 카드 중 아직 요약하지 않았거나 원문이 바뀐 것. 마감 지난 것은 빼고 마감이 가까운 순서
+	 * 요약할 카드: 필수 원문 항목이 있는 카드 중 아직 요약하지 않았거나 원문이 바뀐 것. 마감 지난 것은 빼고 마감이 가까운 순서
 	 * (마감일 없는 것·상시는 뒤)로 최대 limit건. 하루 호출 한도가 있어 남은 것은 다음 실행에 이어서 한다.
 	 */
 	@Transactional(readOnly = true)
 	public List<SummaryTarget> summaryTargets(int limit) {
 		LocalDate today = LocalDate.now(clock.withZone(SEOUL));
 		List<YouthNews> cards = news.findByReviewStatusNotOrderByIdAsc(ReviewStatus.REJECTED).stream()
-			.filter(NewsService::publishable)
+			.filter(NewsService::completeCard)
 			.filter(n -> n.getRawId() != null)
 			.filter(n -> !n.endedWithoutApplyDates(today))
 			.filter(n -> n.getApplyDeadline() == null || !n.getApplyDeadline().isBefore(today))
@@ -171,9 +175,11 @@ public class NewsService {
 			return SaveOutcome.CREATED;
 		}
 		if (card.getReviewStatus() != ReviewStatus.DRAFT) {
+			card.clearSummary();
 			card.linkRaw(raw.getId());
 			return SaveOutcome.KEPT;
 		}
+		card.clearSummary();
 		card.fillDraft(d, raw.getId(), clock.instant());
 		return SaveOutcome.UPDATED;
 	}

@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,13 +43,13 @@ public class NewsViewService {
 		this.clock = clock;
 	}
 
-	/** 열람 한 건을 센다. 없는·반려한 소식은 404, 방문자 값이 UUID가 아니면 400. 이미 센 것·하루 한도를 넘은 것은 조용히 넘어간다. */
+	/** 열람 한 건을 센다. 없는·반려·미요약 소식은 404, 방문자 값이 UUID가 아니면 400. 이미 센 것·하루 한도를 넘은 것은 조용히 넘어간다. */
 	@Transactional
 	public void record(long newsId, String viewerId) {
 		if (viewerId == null || !UUID_FORMAT.matcher(viewerId).matches()) {
 			throw new ApiException(ErrorCode.VALIDATION_FAILED);
 		}
-		if (news.findById(newsId).filter(n -> n.getReviewStatus() != ReviewStatus.REJECTED).isEmpty()) {
+		if (news.findById(newsId).filter(n -> n.getReviewStatus() != ReviewStatus.REJECTED).filter(NewsService::publishable).isEmpty()) {
 			throw new ApiException(ErrorCode.NOT_FOUND);
 		}
 		String viewer = viewerId.toLowerCase();
@@ -67,7 +69,10 @@ public class NewsViewService {
 	@Transactional(readOnly = true)
 	public HotNews hot() {
 		LocalDate since = LocalDate.now(clock.withZone(SEOUL)).minusDays(WINDOW_DAYS - 1L);
+		Set<Long> published = news.findByReviewStatusNotOrderByIdAsc(ReviewStatus.REJECTED).stream()
+			.filter(NewsService::publishable).map(YouthNews::getId).collect(Collectors.toSet());
 		List<HotItem> items = views.visitorsSince(since).stream()
+			.filter(r -> published.contains(((Number) r[0]).longValue()))
 			.limit(HOT_LIMIT)
 			.map(r -> new HotItem(String.valueOf(r[0]), ((Number) r[1]).intValue()))
 			.toList();

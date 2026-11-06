@@ -2,6 +2,7 @@
 // TODO(BE): 저장은 로그인 사용자 서버 저장으로 옮긴다(01-product.md F4 [챙기기]). 정렬은 계속 브라우저에만 둔다.
 import { useCallback, useSyncExternalStore } from 'react';
 import type { YouthNews } from './news';
+import { hasNewsSummary } from './news';
 import { DEFAULT_FILTER, type NewsFilter } from '@/lib/newsList';
 
 const SAVED_KEY = 'fx.news.saved';
@@ -70,10 +71,11 @@ const snapshot = (n: YouthNews): SavedNews => ({
 export function useSavedNews() {
   const saved = useSyncExternalStore(subscribe, readSaved);
   const isSaved = useCallback((id: string) => saved.some((s) => s.id === id), [saved]);
-  /** 저장했으면 true, 뺐으면 false */
+  /** 저장 true, 삭제 false, AI 요약이 없어 신규 저장을 막았으면 null. 기존 저장 사본은 보존한다. */
   const toggle = useCallback((n: YouthNews) => {
     const cur = readSaved();
     const on = !cur.some((s) => s.id === n.id);
+    if (on && !hasNewsSummary(n)) return null;
     writeSaved(on ? [snapshot(n), ...cur] : cur.filter((s) => s.id !== n.id));
     return on;
   }, []);

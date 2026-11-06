@@ -18,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.flexable.web.news.NewsDtos.SaveOutcome;
 import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
+import com.flexable.web.news.NewsService;
 
 /** worker 프로필 + 가짜 정책으로 수집을 돌린다(외부 호출 없음). 요약기(Gemini)는 바꿔 끼운다. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = "spring.datasource.url=jdbc:h2:mem:youth;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
@@ -32,6 +33,9 @@ class YouthNewsSyncJobTest {
 
 	@Autowired
 	JdbcTemplate jdbc;
+
+	@Autowired
+	NewsService news;
 
 	@MockitoBean
 	NewsSummarizer summarizer;
@@ -88,14 +92,16 @@ class YouthNewsSyncJobTest {
 			.isEqualTo("구직 청년 면접 정장 대여(예시) 요약이에요.");
 		assertThat(runs.findFirstByJobOrderByIdDesc(YouthNewsSyncJob.SUMMARY_JOB).orElseThrow().getStatus()).isEqualTo("SUCCESS");
 
-		// 원문이 바뀐 카드만 다시 요약한다. 호출이 실패하면 멈추고 기존 요약은 그대로 둔다
-		jdbc.update("UPDATE youth_news SET summary_hash = 'old' WHERE external_id = 'fake-2'");
+		// 새 원문 수집 시 이전 요약을 지운다. 요약 호출이 실패해도 원문은 남고 공개는 보류한다.
+		jdbc.update("UPDATE youth_news_raw SET content_hash = 'old' WHERE external_id = 'fake-2'");
 		when(summarizer.summarize(anyList())).thenThrow(new IllegalStateException("Gemini 호출 실패: 429"));
+		assertThat(job.runOnce().counts()).containsEntry(SaveOutcome.UPDATED, 1);
 		YouthNewsSyncJob.SummaryRun failed = job.summarize();
 		assertThat(failed.targets()).isEqualTo(1);
 		assertThat(failed.status()).isEqualTo("FAILED");
 		assertThat(jdbc.queryForObject("SELECT summary FROM youth_news WHERE external_id = 'fake-2'", String.class))
-			.isEqualTo("구직 청년 면접 정장 대여(예시) 요약이에요.");
+			.isNull();
+		assertThat(news.list(null, null, null).items()).extracting(i -> i.title()).doesNotContain("구직 청년 면접 정장 대여(예시)");
 	}
 
 	@Test
@@ -104,5 +110,6 @@ class YouthNewsSyncJobTest {
 		assertThat(job.runOnce().status()).isEqualTo("SUCCESS");
 		assertThat(job.summarize().status()).isEqualTo("SKIPPED");
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news WHERE summary IS NOT NULL", Integer.class)).isZero();
+		assertThat(news.list(null, null, null).items()).isEmpty();
 	}
 }

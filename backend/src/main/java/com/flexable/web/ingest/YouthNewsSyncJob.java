@@ -25,7 +25,7 @@ import com.flexable.web.news.NewsService;
 /**
  * 청년 정책 수집(worker, 03 §5-7 youth-collect). 정책 목록을 받아 원문과 카드(DRAFT)로 저장하고, 이어서 요약 단계(youth-summary)를 돈다.
  * 카드는 사람 검수 없이 화면에 나간다(2026-10-26 결정). 키가 없으면 호출하지 않고 실행 기록에 남긴다(서버는 계속 돈다).
- * 요약은 Gemini로 아직 요약하지 않았거나 원문이 바뀐 카드만 묶어서 한다. 요약이 실패해도 수집 결과는 그대로다.
+ * 요약은 Gemini로 아직 요약하지 않았거나 원문이 바뀐 카드만 묶어서 한다. 요약이 실패해도 원문 수집은 보존하고 공개를 보류한다.
  * 한 건이 실패해도 나머지는 계속하고, 실행 결과는 ingest_runs에 남긴다.
  */
 @Component
@@ -114,7 +114,7 @@ public class YouthNewsSyncJob implements ApplicationRunner {
 	public synchronized SummaryRun summarize() {
 		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
 		if (!summarizer.enabled()) {
-			log.info("청년 소식 요약 건너뜀: GEMINI_API_KEY가 비어 있어요(소식은 요약 없이 나가요)");
+			log.info("청년 소식 요약 건너뜀: GEMINI_API_KEY가 비어 있어요(미요약 소식은 공개 보류)");
 			return new SummaryRun("SKIPPED", 0, 0, 0, null);
 		}
 		IngestProperties.Gemini g = props.gemini();

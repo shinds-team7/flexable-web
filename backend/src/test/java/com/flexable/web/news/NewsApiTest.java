@@ -29,7 +29,7 @@ import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
 
 /**
- * api는 수집한 소식을 검수 없이 내보낸다(2026-10-26 결정). 반려(REJECTED)한 것과 지역을 확인 못 한 것만 뺀다.
+ * api는 AI 요약을 마친 소식을 검수 없이 내보낸다(2026-11-06 결정). 반려·필수 항목 누락·미요약은 제외한다.
  * 여기서는 worker 대신 NewsService로 카드를 넣고, 요약도 worker처럼 summaryTargets → applySummaries로 넣는다.
  */
 @SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:newsapi;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
@@ -45,14 +45,11 @@ class NewsApiTest {
 	@Autowired
 	JdbcTemplate jdbc;
 
-	private static boolean seeded;
-
 	@BeforeEach
 	void seed() {
-		if (seeded) {
-			return;
-		}
-		seeded = true;
+		jdbc.update("DELETE FROM youth_news_view");
+		jdbc.update("DELETE FROM youth_news");
+		jdbc.update("DELETE FROM youth_news_raw");
 		LocalDate asOf = LocalDate.of(2026, 10, 21);
 		news.saveCollected(draft("seoul-rent", List.of(NewsCategory.HOUSING), 19, 34, false, List.of("서울"), asOf));
 		news.saveCollected(draft("all-savings", List.of(NewsCategory.FINANCE, NewsCategory.CULTURE), 19, 34, true, null, asOf));
@@ -64,12 +61,19 @@ class NewsApiTest {
 		news.saveCollected(draft("no-region", List.of(NewsCategory.JOB), 19, 34, false, null, asOf));
 		jdbc.update("UPDATE youth_news SET review_status = 'REJECTED' WHERE external_id = 'rejected'");
 		jdbc.update("UPDATE youth_news SET calc_target = 'POLICY_SAVINGS', slot = 'MAIN' WHERE external_id = 'all-savings'");
-		// 요약: 서울 월세만 요약이 붙고, 부산 일자리는 검사에서 버린 결과(null)가 들어간다
+		// 필수 요약이 있는 네 카드만 공개한다. 미요약·검사 탈락·공백은 별도 초안으로 보존한다.
 		List<SummaryTarget> targets = news.summaryTargets(100);
 		SummaryTarget rent = targets.stream().filter(t -> t.title().equals("seoul-rent 제목")).findFirst().orElseThrow();
-		SummaryTarget job = targets.stream().filter(t -> t.title().equals("busan-job 제목")).findFirst().orElseThrow();
-		news.applySummaries(List.of(new SummaryResult(rent.id(), rent.contentHash(), "서울에 사는 청년에게 월세를 월 최대 20만 원 지원해요."),
-				new SummaryResult(job.id(), job.contentHash(), null)));
+		news.applySummaries(targets.stream().map(t -> new SummaryResult(t.id(), t.contentHash(),
+				t.id() == rent.id() ? "서울에 사는 청년에게 월세를 월 최대 20만 원 지원해요." : t.title() + " 요약")).toList());
+		for (String id : List.of("pending", "failed", "blank")) {
+			news.saveCollected(draft(id, List.of(NewsCategory.JOB), null, null, true, null, asOf));
+		}
+		for (SummaryTarget t : news.summaryTargets(100)) {
+			if (t.title().equals("failed 제목")) news.applySummaries(List.of(new SummaryResult(t.id(), t.contentHash(), null)));
+			if (t.title().equals("blank 제목")) news.applySummaries(List.of(new SummaryResult(t.id(), t.contentHash(), " \n\t ")));
+		}
+		jdbc.update("UPDATE youth_news SET summary = '마감된 소식 요약' WHERE external_id = 'closed-old'");
 	}
 
 	private static PolicyDraft draft(String id, List<NewsCategory> c, Integer min, Integer max, boolean nationwide, List<String> regions, LocalDate asOf) {
@@ -91,6 +95,8 @@ class NewsApiTest {
 	@Test
 	void 열람은_방문자_소식_날짜당_한_번만_세고_많이_본_순으로_내려준다() throws Exception {
 		jdbc.update("DELETE FROM youth_news_view");
+		// 변경 전 누적된 미요약 소식의 열람도 인기 목록에서 제외한다.
+		jdbc.update("INSERT INTO youth_news_view (news_id, viewer_id, viewed_on) SELECT id, 'old-viewer', CURRENT_DATE FROM youth_news WHERE external_id IN ('pending', 'failed', 'blank')");
 		String a = "11111111-1111-4111-8111-111111111111";
 		String b = "22222222-2222-4222-8222-222222222222";
 		mvc.perform(get("/api/v1/youth-news/hot")).andExpect(status().isOk()).andExpect(jsonPath("$.items", hasSize(0))).andExpect(jsonPath("$.basis", is("SITE")));
@@ -105,7 +111,7 @@ class NewsApiTest {
 			.andExpect(jsonPath("$.items", hasSize(2)))
 			.andExpect(jsonPath("$.items[0].visitors", is(2)))
 			.andExpect(jsonPath("$.items[1].visitors", is(1)));
-		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news_view", Long.class)).isEqualTo(3);
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news_view WHERE viewer_id <> 'old-viewer'", Long.class)).isEqualTo(3);
 	}
 
 	@Test
@@ -114,6 +120,9 @@ class NewsApiTest {
 		mvc.perform(post("/api/v1/youth-news/999999/views").contentType(MediaType.APPLICATION_JSON).content("{\"viewerId\":\"11111111-1111-4111-8111-111111111111\"}"))
 			.andExpect(status().isNotFound());
 		view("rejected", "11111111-1111-4111-8111-111111111111", 404);
+		view("pending", "11111111-1111-4111-8111-111111111111", 404);
+		view("failed", "11111111-1111-4111-8111-111111111111", 404);
+		view("blank", "11111111-1111-4111-8111-111111111111", 404);
 	}
 
 	@Test
@@ -156,9 +165,8 @@ class NewsApiTest {
 			.andExpect(jsonPath("$.items[1].regions", is("NATIONWIDE")))
 			.andExpect(jsonPath("$.items[1].slot", is("MAIN")))
 			.andExpect(jsonPath("$.items[1].calcLink.to", is("/savings?policy=1")))
-			.andExpect(jsonPath("$.items[1].summary", nullValue()))
-			// 검사에서 버린 요약은 null로 나간다
-			.andExpect(jsonPath("$.items[2].summary", nullValue()))
+			.andExpect(jsonPath("$.items[1].summary", is("all-savings 제목 요약")))
+			.andExpect(jsonPath("$.items[2].summary", is("busan-job 제목 요약")))
 			.andExpect(jsonPath("$.items[2].categories", contains("ETC")))
 			.andExpect(jsonPath("$.items[2].audience.ageMin", nullValue()));
 	}
@@ -183,8 +191,8 @@ class NewsApiTest {
 
 	@Test
 	void 요약은_안_한_것과_원문이_바뀐_것만_다시_한다() {
-		// 서울 월세(요약함)·부산 일자리(검사 탈락도 한 번 본 것)는 대상이 아니다. 반려·지역 없음도 빠진다
-		assertThat(news.summaryTargets(100)).extracting(SummaryTarget::title).containsExactly("all-savings 제목", "culture-pass 제목");
+		// 공개되지 않은 미요약 카드도 요약 대상이다. 검사 탈락·공백도 같은 원문이면 다시 부르지 않는다.
+		assertThat(news.summaryTargets(100)).extracting(SummaryTarget::title).containsExactly("pending 제목");
 		assertThat(news.summaryTargets(1)).hasSize(1);
 		// 원문이 바뀌면 다시 대상이 되고, 그사이 원문이 또 바뀌면 옛 요약은 넣지 않는다
 		jdbc.update("UPDATE youth_news_raw SET content_hash = 'changed' WHERE external_id = 'seoul-rent'");
@@ -192,5 +200,27 @@ class NewsApiTest {
 		assertThat(rent.contentHash()).isEqualTo("changed");
 		assertThat(news.applySummaries(List.of(new SummaryResult(rent.id(), "older", "옛 원문 요약")))).isZero();
 		jdbc.update("UPDATE youth_news_raw SET content_hash = (SELECT summary_hash FROM youth_news WHERE external_id = 'seoul-rent') WHERE external_id = 'seoul-rent'");
+	}
+
+	@Test
+	void 미요약_초안은_보존하고_요약이_완료되면_공개한다() throws Exception {
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news WHERE external_id IN ('pending', 'failed', 'blank')", Integer.class)).isEqualTo(3);
+		SummaryTarget pending = news.summaryTargets(100).getFirst();
+		assertThat(pending.title()).isEqualTo("pending 제목");
+		news.applySummaries(List.of(new SummaryResult(pending.id(), pending.contentHash(), "완료된 AI 요약")));
+		mvc.perform(get("/api/v1/youth-news")).andExpect(jsonPath("$.items", hasSize(5)));
+		view("pending", "11111111-1111-4111-8111-111111111111", 204);
+	}
+
+	@Test
+	void 원문이_바뀌면_이전_요약을_비우고_재요약_완료_후_공개한다() {
+		PolicyDraft d = draft("seoul-rent", List.of(NewsCategory.HOUSING), 19, 34, false, List.of("서울"), LocalDate.of(2026, 10, 21));
+		news.saveCollected(new PolicyDraft(d.source(), d.externalId(), "{\"changed\":true}", d.title(), d.categories(), d.ageMin(), d.ageMax(),
+				d.incomeLimit(), d.nationwide(), d.regions(), d.applyStart(), d.applyDeadline(), d.alwaysOpen(), d.sourceOrg(), d.sourceUrl(), d.asOf(), d.postedAt(), d.keywords(), d.bizEnd()));
+		assertThat(news.list(null, null, null).items()).extracting(i -> i.title()).doesNotContain("seoul-rent 제목");
+		SummaryTarget target = news.summaryTargets(100).stream().filter(t -> t.title().equals("seoul-rent 제목")).findFirst().orElseThrow();
+		assertThat(news.applySummaries(List.of(new SummaryResult(target.id(), "old-hash", "이전 요약")))).isZero();
+		news.applySummaries(List.of(new SummaryResult(target.id(), target.contentHash(), "변경된 원문의 요약")));
+		assertThat(news.list(null, null, null).items()).extracting(i -> i.title()).contains("seoul-rent 제목");
 	}
 }

@@ -9,7 +9,7 @@ import { NewsCard, NewsCardSkeleton } from '@/components/news/NewsCard';
 import { NewsHero } from '@/components/news/NewsHero';
 import { NewsSearch } from '@/components/news/NewsSearch';
 import { FindMine, HotNewsCard } from '@/components/news/NewsQuick';
-import { useNews, type YouthNews } from '@/data/news';
+import { hasNewsSummary, useNews, type YouthNews } from '@/data/news';
 import { useHotNews } from '@/data/newsHot';
 import { readNewsFilter, useSavedNews, writeNewsFilter } from '@/data/newsSaved';
 import { todayKst } from '@/lib/deadline';
@@ -49,7 +49,7 @@ export default function News() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  const items = useMemo(() => news.data?.items ?? [], [news.data]);
+  const items = useMemo(() => news.data?.items.filter(hasNewsSummary) ?? [], [news.data]);
   const isSample = news.data?.isSample ?? false;
   const list = useMemo(() => selectNews(items, filter, today, applied), [items, filter, today, applied]);
   const insight = useMemo(() => monthInsight(items, today), [items, today]);
@@ -94,7 +94,10 @@ export default function News() {
   };
   const filtered = conditionCount(applied) > 0 || filter.query.trim() !== '';
 
-  const onToggleSave = (n: YouthNews) => setToast(toggle(n) ? '저장했어요. 마이페이지에서 볼 수 있어요' : '저장을 뺐어요');
+  const onToggleSave = (n: YouthNews) => {
+    const saved = toggle(n);
+    setToast(saved === null ? 'AI 요약이 완료된 소식만 저장할 수 있어요' : saved ? '저장했어요. 마이페이지에서 볼 수 있어요' : '저장을 뺐어요');
+  };
 
   return (
     <section className="news-screen">

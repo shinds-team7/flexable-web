@@ -3,7 +3,7 @@
 // 카드는 3줄(위 · 본문 · 아래)이고, 같은 줄의 카드끼리 아래 구분선 높이를 맞춘다(subgrid).
 // 나에게 얼마·오늘 할 일은 사람이 쓰던 항목이라 지금은 카드에서 뺀다(2026-10-26 결정).
 import { Link } from 'react-router-dom';
-import { categoryLabel, newsCategories, type YouthNews } from '@/data/news';
+import { categoryLabel, hasNewsSummary, newsCategories, type YouthNews } from '@/data/news';
 import { recordNewsView } from '@/data/newsHot';
 import { fmtMonthDay } from '@/lib/format';
 import { cardTags, periodText } from '@/lib/newsList';
@@ -18,7 +18,7 @@ export function NewsCard({ n, today, isSample, saved, onToggleSave, onToast }: P
         <DeadlineBadge period={n} today={today} />
         <span className="news-card-acts">
           <ShareButton n={n} onDone={onToast} />
-          <SaveButton title={n.title} saved={saved} onToggle={onToggleSave} />
+          <SaveButton title={n.title} saved={saved} onToggle={onToggleSave} disabled={!saved && !hasNewsSummary(n)} />
         </span>
       </div>
       <div className="news-card-body">

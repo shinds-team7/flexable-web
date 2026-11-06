@@ -2558,6 +2558,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/savings/policy/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 정책 적금(청년미래적금) 규칙과 확인 상태. 승인 전 초안(policies §9)이라 verificationStatus는 UNVERIFIED */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: "YOUTH_FUTURE";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 규칙 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PolicySavingsRules"];
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/savings/policy/{code}/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 정책 적금 만기 계산(서버 계산, 납입일별 예치일수 이자, 비과세). 중도해지는 계산하지 않는다 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: "YOUTH_FUTURE";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date
+                         * @description 가입일(1회차 납입일)
+                         */
+                        joinDate: string;
+                        /**
+                         * Format: int64
+                         * @description 월 납입(원). 규칙의 maxMonthly 이하
+                         */
+                        monthly: number;
+                        /**
+                         * @description 생략하면 36
+                         * @enum {integer}
+                         */
+                        termMonths?: 36;
+                        type: components["schemas"]["PolicyType"];
+                        /** @description 연 %. 기여금 이자에도 쓴다 */
+                        baseRate: number;
+                        /** @description 연 %. 우대금리 합. 본인 납입 이자에만 쓴다 */
+                        bonusRate: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PolicySavingsSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/deposit/products": {
         parameters: {
             query?: never;
@@ -4668,6 +4772,98 @@ export interface components {
                 /** Format: int64 */
                 interestPreTax: number;
             }[];
+            assumptions: string[];
+            notice: string;
+            isSample: boolean;
+        };
+        /**
+         * @description GENERAL 일반형(기여율 6%), PREFERRED 우대형(12%)
+         * @enum {string}
+         */
+        PolicyType: "GENERAL" | "PREFERRED";
+        /**
+         * @description 공식 확인 전에는 UNVERIFIED. 임의로 VERIFIED로 바꾸지 않는다
+         * @enum {string}
+         */
+        VerificationStatus: "UNVERIFIED" | "VERIFIED";
+        PolicySavingsRules: {
+            code: string;
+            name: string;
+            termMonths: number;
+            /** Format: int64 */
+            maxMonthly: number;
+            contributionRates: {
+                /** @description 정부기여율 % */
+                GENERAL: number;
+                PREFERRED: number;
+            };
+            /** @description 정부기여금에 기본금리 이자를 주는지(신한 설명서는 true, 은행별로 다를 수 있음) */
+            contributionEarnsInterest: boolean;
+            taxFree: boolean;
+            rulesVersion: string;
+            verificationStatus: components["schemas"]["VerificationStatus"];
+            /** @description 공식 안내 링크. 없으면 화면에 확인 중 */
+            sourceUrl: string | null;
+            /**
+             * Format: date
+             * @description 근거 문서 기준일
+             */
+            asOf: string;
+            /** @description 자격 확인 질문(판정하지 않음) */
+            checklist: string[];
+            assumptions: string[];
+            notice: string;
+            isSample: boolean;
+        };
+        PolicySavingsSimulation: {
+            /** Format: date */
+            maturityDate: string;
+            /**
+             * Format: int64
+             * @description 납입 합계
+             */
+            principal: number;
+            /**
+             * Format: int64
+             * @description 정부기여금 합계(만기 지급)
+             */
+            govContribution: number;
+            /**
+             * Format: int64
+             * @description 본인 납입 이자
+             */
+            ownInterest: number;
+            /**
+             * Format: int64
+             * @description 기여금 이자(없으면 0)
+             */
+            contributionInterest: number;
+            /**
+             * Format: int64
+             * @description ownInterest + contributionInterest
+             */
+            interestPreTax: number;
+            /**
+             * Format: int64
+             * @description 비과세라 0
+             */
+            tax: number;
+            /**
+             * Format: int64
+             * @description principal + govContribution + interestPreTax
+             */
+            total: number;
+            /** @description 은행 평균 적금과의 비교. 평균 금리 출처가 없으면 null */
+            averageSavingsComparison: {
+                name: string;
+                rate: number;
+                /** Format: int64 */
+                interestAfterTax: number;
+                /** Format: int64 */
+                total: number;
+            } | null;
+            rulesVersion: string;
+            verificationStatus: components["schemas"]["VerificationStatus"];
             assumptions: string[];
             notice: string;
             isSample: boolean;

@@ -6,6 +6,7 @@
 
 ## 2026-11-06
 
+- [Refs #113] 청년미래적금 계산 규칙 초안(policies §9, `tests/policy/policy-savings.json` `PROPOSED`, 계약 `GET /savings/policy/{code}`·`POST /savings/policy/{code}/simulate`, 결정 [11-06](decisions/2026-11-06-youth-future-savings-rules.md)). 신한 공식 설명서로 기여금 시점·기여금 이자·금리 구조·중도해지를 대조했고 일수 기준·기여금 입금일은 가정이라 `UNVERIFIED`. 승인 전에는 구현하지 않는다 — 영향: 백엔드, 프론트, 문서
 - [#288, Closes #285] 02 §7-3 움직임 예외에 가상 시뮬레이션 대회 메인 화면을 더했다([결정](decisions/2026-11-06-contest-motion.md), 사용자 결정): 영역 등장·숫자 차오름·막대 채움·배너 등장·내 판 강조. 값은 서버 값 그대로, 움직임 줄이기면 끔. 대회 판 진행 화면은 그대로 — 영향: 프론트
 - [#291, Closes #114] F3 조합·프리셋·공유(섞어보기)를 범위에서 뺐다([결정](decisions/2026-10-30-drop-f3-mix.md)). PRD에서 F3 Must·공유 링크 Should를 지우고 F8 이벤트를 3종으로 줄였다(`preset_save` 삭제). `/mix`·`/p/:id`·`/lab/mix` 경로, 섞어보기 스타일, 플러스 요금표의 프리셋·비교·종목 수 한도와 "섞어보기·공유" 문구를 삭제했다. README·product README·02 문서의 `/mix`·`/p/:id` 서술을 "삭제됨"으로 고쳤다. 계약·정책·서버는 바뀌지 않는다 — 영향: 프론트, 문서
 

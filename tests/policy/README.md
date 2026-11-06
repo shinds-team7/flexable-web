@@ -11,6 +11,7 @@
 | `virtual-simulation.json` | §8 가상 시뮬레이션(날짜·사건 위치·룰셋 추출·봉 만들기·자동 검사, 매매·평가는 `practice.json` 재사용, 채점 없음 `noScore`(#253)). `IMPLEMENTED` | 구현 PR의 `backend/src/test/.../virtualsim/VirtualSimPolicyTest` |
 | `virtual-contest.json` | §8-8 가상 시뮬레이션 대회(배치고사·잔액 이어 가기·청산·하루 판 수·하루 점수·주간 승급/강등·판별 후보·순위, 매매·평가는 `practice.json`·`virtual-simulation.json` 재사용). `IMPLEMENTED` | `backend/src/test/.../virtualsim/VirtualContestPolicyTest` |
 | `goal-scenarios.json` | §7 목표 달성 시나리오(F7 v2: 적금·CMA·투자 계산, 배분, 필요 월 금액, 분위, 입력·제안 검증) | `backend/src/test/.../goalscenario/GoalScenarioPolicyTest` |
+| `policy-savings.json` | §9 청년미래적금 만기 계산(납입일별 이자·정부기여금·기여금 이자·입력 오류). `PROPOSED`(승인 전 초안, UNVERIFIED) | 구현 PR의 `backend/src/test/.../policysavings/PolicySavingsPolicyTest` |
 
 - 정책을 바꾸면 `policies.md` 표와 이 JSON을 같은 PR에서 고치고 `spec-change` 라벨과 CHANGELOG 한 줄을 붙인다(CODEOWNERS 리뷰).
 - 실행: `cd backend && ./gradlew test --tests "*PolicyTest"`(CI의 `./gradlew build`에 포함). 테스트는 `backend/` 기준 `../tests/policy/`를 읽는다.

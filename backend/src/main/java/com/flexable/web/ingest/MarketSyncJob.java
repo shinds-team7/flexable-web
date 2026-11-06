@@ -51,6 +51,8 @@ public class MarketSyncJob implements ApplicationRunner {
 	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	private DisclosureArchiveJob disclosureArchive;
 	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private DisclosureDetailJob disclosureDetails;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	private VirtualSimRulesetJob virtualSimRules;
 
 	public MarketSyncJob(InstrumentSource instruments, PriceSource prices, MarketService market, MarketProperties marketProps,
@@ -79,7 +81,7 @@ public class MarketSyncJob implements ApplicationRunner {
 		runAll();
 	}
 
-	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료 → 가상 시뮬레이션 전체 공시·룰셋. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
+	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료 → 가상 시뮬레이션 전체 공시·배치고사 공시 주요 내용·룰셋. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
 	void runAll() {
 		try {
 			indexJob.runOnce();
@@ -93,8 +95,13 @@ public class MarketSyncJob implements ApplicationRunner {
 		if (practice != null) {
 			step("업종·시뮬레이션 자료", practice::runOnce);
 		}
+		// 공시 주요 내용은 전체 공시 수집이 쓰고 남은 호출 상한(VIRTUAL_SIM_DART_MAX_CALLS) 안에서 받는다
+		int[] archiveCalls = { 0 };
 		if (disclosureArchive != null) {
-			step("가상 시뮬레이션 전체 공시 수집", disclosureArchive::runOnce);
+			step("가상 시뮬레이션 전체 공시 수집", () -> archiveCalls[0] = disclosureArchive.runOnce().calls());
+		}
+		if (disclosureDetails != null) {
+			step("배치고사 공시 주요 내용", () -> disclosureDetails.runOnce(props.virtualSim().dartMaxCalls() - archiveCalls[0]));
 		}
 		if (virtualSimRules != null) {
 			step("가상 시뮬레이션 룰셋", virtualSimRules::runOnce);

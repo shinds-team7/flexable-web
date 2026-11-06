@@ -29,7 +29,8 @@ import com.flexable.web.ingest.Disclosure;
 import com.flexable.web.ingest.DisclosureSource;
 
 /**
- * OpenDART(금융감독원 전자공시) Open API. 고유번호는 corpCode.xml(ZIP 안 XML), 공시 목록은 list.json(공시검색)으로 받는다.
+ * OpenDART(금융감독원 전자공시) Open API. 고유번호는 corpCode.xml(ZIP 안 XML), 공시 목록은 list.json(공시검색),
+ * 배치고사 공시 주요 내용은 주요사항보고서 주요정보(DS005, piicDecsn.json 등)로 받는다.
  * 인증키는 쿼리 파라미터(crtfc_key)라 오류 메시지에서 지우고 다시 던진다(로그·ingest_runs에 키가 남지 않게).
  * 한도는 하루 20,000건이고 분당 1,000회를 넘으면 막힐 수 있어 호출마다 callDelay만큼 쉰다.
  */
@@ -223,6 +224,51 @@ public class DartDisclosureSource implements DisclosureSource {
 			}
 		}
 		return new Page(out, res.get("total_page") instanceof Number n ? n.intValue() : 1);
+	}
+
+	/** 주요사항보고서 주요정보(DS005) 한 번 호출. 값은 글자 그대로 두고(숫자는 "1,234" 꼴), 조회된 데이터가 없으면(013) 빈 목록 */
+	@Override
+	public List<Map<String, String>> majorReport(String api, String corpCode, LocalDate from, LocalDate to) {
+		if (api == null || !api.matches("[A-Za-z]+")) {
+			throw new IllegalArgumentException("DS005 API 이름이 아니에요: " + api);
+		}
+		pause();
+		Map<String, Object> res;
+		try {
+			res = http.get()
+				.uri(baseUrl + "/api/" + api + ".json?crtfc_key={key}&corp_code={corp}&bgn_de={from}&end_de={to}", apiKey, corpCode, from.format(YMD),
+						to.format(YMD))
+				.retrieve()
+				.body(MAP);
+		}
+		catch (RestClientException e) {
+			throw hideKey(e);
+		}
+		if (res == null) {
+			throw new DartException(null, "빈 응답");
+		}
+		String status = String.valueOf(res.get("status"));
+		if (NO_DATA.equals(status)) {
+			return List.of();
+		}
+		if (!"000".equals(status)) {
+			throw new DartException(status, String.valueOf(res.get("message")));
+		}
+		List<Map<String, String>> out = new ArrayList<>();
+		if (res.get("list") instanceof List<?> rows) {
+			for (Object o : rows) {
+				if (o instanceof Map<?, ?> row && row.get("rcept_no") instanceof String) {
+					Map<String, String> m = new HashMap<>();
+					row.forEach((k, v) -> {
+						if (k instanceof String key && v != null) {
+							m.put(key, String.valueOf(v).trim());
+						}
+					});
+					out.add(m);
+				}
+			}
+		}
+		return out;
 	}
 
 	/** HTTP 429(요청 한도 초과)는 JSON 020과 같이 실행을 멈추는 DartException으로, 그 밖은 키를 가린 IllegalStateException으로 바꾼다 */

@@ -25,26 +25,28 @@ class OpenAiScenarioProposerTest {
 	}
 
 	@Test
-	void 빈_해설_칸은_건너뛰고_다_비면_검사에서_걸린다() {
+	void 해설_칸이_하나라도_비면_검사에서_걸린다() {
 		String content = """
 				{"scenarios":[
 				 {"id":"s1","title":"가","summary":"나","reason":"이유예요","roles":" ","comparison":"","fit":"맞는 사람이에요","mix":{"SAVINGS":100}},
 				 {"id":"s2","title":"가","summary":"나","reason":" ","roles":"","comparison":" ","fit":"","mix":{"CMA":100}}]}
 				""";
 		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
-		assertThat(drafts.get(0).explanation()).isEqualTo("이유예요\n\n맞는 사람이에요");
+		assertThat(drafts.get(0).explanation()).isNull();
 		assertThat(drafts.get(1).explanation()).isNull();
-		assertThat(Proposals.validate(drafts)).isEmpty();
+		assertThat(Proposals.check(drafts, ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_EMPTY #1.explanation");
 	}
 
 	@Test
 	void 비중이_정수가_아니면_검사에서_걸린다() {
 		String content = """
 				{"scenarios":[
-				 {"id":"s1","title":"가","summary":"나","reason":"다","mix":{"SAVINGS":"백","CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
-				 {"id":"s2","title":"가","summary":"나","reason":"다","mix":{"SAVINGS":100,"CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
+				 {"id":"s1","title":"가","summary":"나","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":"백","CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
+				 {"id":"s2","title":"가","summary":"나","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":100,"CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
 				""";
-		assertThat(Proposals.validate(OpenAiScenarioProposer.parse(content))).isEmpty();
+		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
+		assertThat(drafts.get(0).mix()).containsEntry("SAVINGS", null);
+		assertThat(Proposals.check(drafts, ProposalText.Facts.NONE).problem()).isEqualTo("MIX_RANGE #1");
 	}
 
 	@Test

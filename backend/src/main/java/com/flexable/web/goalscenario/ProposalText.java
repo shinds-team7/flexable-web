@@ -47,8 +47,8 @@ final class ProposalText {
 	/** 비중을 합쳤다는 뜻의 말과 그 말을 찾는 범위. */
 	private static final List<String> SUM_WORDS = List.of("나머지", "합쳐", "합해", "합계", "합친", "더해", "더한", "모두", "전체");
 	private static final int SUM_WORD_RANGE = 12;
-	/** 합계 근처에 있으면 비중이 아니라 수익·확률로 쓴 것으로 본다. */
-	private static final List<String> NOT_MIX_WORDS = List.of("수익", "이익", "확률", "가능성", "달성률", "상승", "성장");
+	/** 합계와 함께 있으면 비중이 아니라 수익·확률·예상으로 쓴 것으로 본다. */
+	private static final List<String> NOT_MIX_WORDS = List.of("수익", "이익", "확률", "가능성", "달성률", "상승", "성장", "예상", "기대", "전망");
 
 	/** 통계의 자료 기간. 기한 밖이어도 지난 기간이면 허용한다("60개월 뒤"처럼 앞으로의 기간은 막는다). */
 	private static final Pattern STAT_PERIOD = Pattern.compile("(?:지난|최근|과거)\\s*(?:60\\s*개월|5\\s*년)");
@@ -214,19 +214,20 @@ final class ProposalText {
 	}
 
 	/**
-	 * 그 시나리오의 비중을 두 개 이상 더한 값. 합쳤다는 말이 숫자 바로 앞(SUM_WORD_RANGE자 안)에 있어야 하고,
-	 * 그 말부터 숫자 바로 뒤까지 수익·확률을 뜻하는 말이 없어야 한다("나머지 70%"는 통과, "수익 70%"는 막힘).
+	 * 그 시나리오의 비중을 두 개 이상 더한 값. 합쳤다는 말이 숫자 바로 앞(SUM_WORD_RANGE자 안)에 있어야 한다. 문장 처음부터 숫자 바로 뒤까지
+	 * 수익·확률·예상을 뜻하는 말이 없어야 하고, 숫자 바로 앞이 "연"이면 안 된다("나머지 70%"는 통과, "예상 수익은 모두 합쳐 연 80%"는 막힘).
+	 * 숫자에서 먼 뒤쪽은 보지 않는다("나머지 70%는 지수 ETF에 나눠 성장 가능성을 노려요"는 비중을 말한 문장이다).
 	 */
 	private static boolean allowedMixSum(BigDecimal n, Collection<Integer> mix, String t, int start, int end) {
 		if (n.scale() != 0 || !isMixSum(n.intValue(), mix)) {
 			return false;
 		}
-		String before = t.substring(Math.max(sentenceStart(t, start), start - SUM_WORD_RANGE), start);
-		int word = SUM_WORDS.stream().mapToInt(before::lastIndexOf).max().orElse(-1);
-		if (word < 0) {
+		int from = sentenceStart(t, start);
+		String near = t.substring(Math.max(from, start - SUM_WORD_RANGE), start);
+		if (SUM_WORDS.stream().noneMatch(near::contains) || near.stripTrailing().endsWith("연")) {
 			return false;
 		}
-		String around = before.substring(word) + t.substring(end, Math.min(sentenceEnd(t, end), end + SUM_WORD_RANGE));
+		String around = t.substring(from, start) + t.substring(end, Math.min(sentenceEnd(t, end), end + SUM_WORD_RANGE));
 		return NOT_MIX_WORDS.stream().noneMatch(around::contains);
 	}
 

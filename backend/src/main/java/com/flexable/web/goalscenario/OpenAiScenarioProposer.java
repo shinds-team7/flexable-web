@@ -58,16 +58,17 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 		return out;
 	}
 
-	/** 해설 네 칸을 문단으로 합친다. 비어 있는 칸은 건너뛰고, 다 비면 null이라 검증에서 걸린다(TEXT_EMPTY). */
+	/** 해설 네 칸을 문단으로 합친다. 한 칸이라도 비면 null이라 검증에서 걸린다(TEXT_EMPTY). */
 	private static String explanation(JsonNode scenario) {
 		List<String> parts = new ArrayList<>();
 		for (String field : GoalScenarioAiClient.EXPLANATION_FIELDS) {
 			String part = text(scenario, field);
-			if (part != null && !part.isBlank()) {
-				parts.add(part.strip());
+			if (part == null || part.isBlank()) {
+				return null;
 			}
+			parts.add(part.strip());
 		}
-		return parts.isEmpty() ? null : String.join("\n\n", parts);
+		return String.join("\n\n", parts);
 	}
 
 	private static String text(JsonNode node, String field) {

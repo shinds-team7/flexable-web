@@ -58,7 +58,7 @@
 | 투자 계산 | 시작일은 그 달 1일로 맞추고 10년 전~오늘만 허용(그 밖·시세 부족은 400 안내, 자동 보정 없음). 매달 첫 거래일 종가로 매수. `LUMP_SUM` 첫 달 `totalAmount`, `SPLIT`·`PACE` 매달 같은 `monthlyAmount`. 종목 배분 나머지는 첫 종목. 시계열은 기간과 관계없이 **주별**. 종목 1~3개 | `SPLIT` = 총액 ÷ 횟수(나머지 첫 회), 납입일 = 수입일 다음 영업일, 일별 시계열, 나머지는 현금 다리, `worst`·`drawdown`·`wobble`·비교선·연환산(§6) |
 | 시드머니 | `GET /me/seed-money`는 앱이 확정한 `total`·`base`·`monthlyGoal`·`startedOn`·주기별 기록(`entries`)을 그대로 준다. 연동이 없으면 `source: "none"`. 직접 수정은 `PUT·DELETE /me/seed-money/manual`(`seed_money_manual`)로 저장하고 응답 `manual`이 앱 값보다 우선한다 | 웹이 주기별 수입−지출·`current`·`todaySaved`·직접 수정 저장(§3-4, C-1) |
 | 목표·AI | `GET·PUT·DELETE /me/goal`, `POST /me/goal/coach`(OpenAI, 무료 하루 3회). [goal-ai.md](goal-ai.md)가 계약 정본 | `{amount, dueDate}`만, 실시간 AI 없음 |
-| 적금·소식·프리셋·공유·결제·지표 | 서버 코드·테이블 없음. 적금·소식 화면은 프론트 예시, 소식 저장은 브라우저 `localStorage`, 모의 결제는 저장 없는 화면 흐름, 요금·한도는 프론트 고정값(`src/data/plans.ts`) | 각 API·테이블(§7·§8·§10) |
+| 적금·소식·결제·지표 | 서버 코드·테이블 없음(프리셋·공유는 F3 삭제로 만들지 않는다, [결정](../decisions/2026-10-30-drop-f3-mix.md)). 적금·소식 화면은 프론트 예시, 소식 저장은 브라우저 `localStorage`, 모의 결제는 저장 없는 화면 흐름, 요금·한도는 프론트 고정값(`src/data/plans.ts`) | 각 API·테이블(§7·§8·§10) |
 | 캐시 | 서버 HTTP 캐시·ETag·Caffeine 없음. 프론트 TanStack Query 캐시와 nginx 정적 파일 캐시(`/assets/` 1년, 그 밖 `no-cache`)만 | 공개 GET 5분 캐시·ETag, 시뮬레이션 Caffeine 10분(ADR-3) |
 | 차트·상태 | 자체 차트 코드(`src/charts/`: `drawTimeChart`·`TimeChart`·`MultiLineChart`·`SeedLineChart`), React 상태 + TanStack Query. 의존성은 React·React Router·TanStack Query뿐 | visx·Recharts·Zustand·Zod(ADR-2·4) |
 | 보안 설정 | CSP 헤더·관리자 ID 검사·`demo-login`은 없다 | CSP, `APP_ADMIN_USER_IDS`, 오프라인 `demo-login`(ADR-7, §3-8, §5-5) |

@@ -25,12 +25,12 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Component
 public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
-	static final String PROMPT_VERSION = "goal-scenario-v5";
+	static final String PROMPT_VERSION = "goal-scenario-v6";
 	/** 시나리오 전부를 합친 응답 상한. 해설은 글자 수 검사가 없어 이 값이 비용과 응답 시간을 막는다. 넘으면 TRUNCATED. */
 	static final int MAX_COMPLETION_TOKENS = 4000;
 	static final List<String> TYPES = List.of("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
 	static final String PROMPT = """
-			goal-scenario-v5. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 두 개나 세 개 만들어요.
+			goal-scenario-v6. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 두 개나 세 개 만들어요.
 			상품 유형: SAVINGS(은행 적금, 금리 확정), CMA(수시 입출금, 예시 금리라 바뀔 수 있음), KR_INDEX_ETF(국내 대표 지수 ETF),
 			US_INDEX_ETF(미국 대표 지수 ETF, 국내 상장), KOSPI_TOP5(코스피 시가총액 상위 다섯 종목에 같은 금액).
 			입력의 stats는 서버가 지난 육십 개월 월 수익률로 계산한 유형별 평균·변동폭·최대 하락이에요. 이 값을 근거로 비중을 정해요.
@@ -40,12 +40,15 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 			- 기한이 짧을수록 변동이 큰 유형의 비중을 낮춰요. 한 유형에 지나치게 몰지 않아요.
 			- id는 s1, s2, s3 순서예요. 한국어 '~해요'체로 쓰고, 글자 수(띄어쓰기 포함)를 꼭 지켜요:
 			  title은 열다섯 자 안팎(최대 스무 자), summary는 서른 자 안팎(최대 마흔 자).
-			- explanation은 사용자가 왜 이 조합을 받았는지 알 수 있게 구체적으로 분석해요. 시나리오마다 칠백 자에서 천 자 안팎으로 쓰고, 문단 사이는 빈 줄로 나눠요. 마크다운과 번호 목록은 쓰지 않아요.
-			  다음을 모두 담아요: 목표 금액과 기한에 비춰 왜 이렇게 나눴는지, 비중이 0보다 큰 상품마다 비율·맡는 역할·그 비율의 근거(금리나 통계), 다른 시나리오와 무엇이 다른지, 기한이 다가올 때 주의할 점, 어떤 사람에게 맞는지.
+			- 사용자가 왜 이 조합을 받았는지 알 수 있게 아래 네 칸에 나눠 구체적으로 분석해요. 네 칸을 합쳐 칠백 자에서 천 자 안팎이 되게 쓰고, 칸을 짧게 끝내지 않아요. 마크다운과 번호 목록은 쓰지 않아요.
+			  reason: 목표 금액과 기한에 비춰 왜 이렇게 나눴는지. 두세 문장.
+			  roles: 비중이 0보다 큰 상품을 하나씩 모두 짚어 비율, 맡는 역할, 그 비율의 근거(금리나 통계). 상품마다 한두 문장.
+			  comparison: 다른 시나리오와 위험과 비중이 무엇이 다른지. 두 문장.
+			  fit: 기한이 다가올 때 주의할 점과 어떤 사람에게 맞는지. 두세 문장.
 			- 숫자는 입력에 있는 값을 그대로 옮겨 쓸 때만 써요: 상품·지수 이름, 기한, 목표 금액, 적금·CMA 금리, 세율, 이 시나리오의 비중(예: mix의 SAVINGS가 70이면 '적금 70%'), stats의 평균·변동폭·최대 하락.
 			  stats의 값은 소수예요(0.05는 5%). '지난 60개월 최대 하락 23.45%'처럼 %로 바꿔 소수 둘째 자리까지 쓰고(23%처럼 정수로 줄이지 않아요), 지난 60개월 자료임을 밝혀요. 수치 바로 앞에 '월 평균', '월 변동폭', '최대 하락' 중 맞는 말을 함께 써요.
 			  과거 값이라 앞으로의 수익을 예상하는 말처럼 쓰지 않아요. '기대', '예상', '전망', '노려요', '목표 수익'은 통계 수치와 같은 문장에 쓰지 않아요.
-			  다른 시나리오의 비중은 숫자로 쓰지 말고 '적금 비중이 더 높아요'처럼 써요. 값을 더하거나 연 단위로 바꾸는 등 새로 계산한 숫자도 쓰지 않아요.
+			  다른 시나리오의 비중은 숫자로 쓰지 말고 '적금 비중이 더 높아요'처럼 써요. 이 시나리오의 비중을 합친 숫자는 '나머지 70%', '둘을 합쳐 30%'처럼 합쳤다는 말 바로 뒤에만 써요. 값을 연 단위로 바꾸는 등 그 밖에 새로 계산한 숫자는 쓰지 않아요.
 			  입력에 없는 금액·수익률·확률·배수(예상 수익, 매달 넣을 돈, 달성 가능성 등)는 쓰지 않아요. 서버가 따로 계산해서 보여 줘요.
 			  SAVINGS·KOSPI_TOP5 같은 유형 코드는 쓰지 말고 '적금', '코스피 대형주'처럼 우리말로 써요.
 			- '원금 보장', '확실히 오른다', '무조건' 같은 단정과 가입·매수 권유를 하지 않아요. 위험을 말할 때는 '수익이 보장되지 않아요', '줄어들 수 있어요'처럼 써요.
@@ -140,9 +143,12 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 		Map<String, Object> mixProps = new LinkedHashMap<>();
 		TYPES.forEach(t -> mixProps.put(t, integer));
 		Map<String, Object> mix = Map.of("type", "object", "additionalProperties", false, "required", TYPES, "properties", mixProps);
-		Map<String, Object> scenario = Map.of("type", "object", "additionalProperties", false,
-				"required", List.of("id", "title", "summary", "explanation", "mix"),
-				"properties", Map.of("id", string, "title", string, "summary", string, "explanation", string, "mix", mix));
+		List<String> required = new java.util.ArrayList<>(List.of("id", "title", "summary"));
+		required.addAll(EXPLANATION_FIELDS);
+		required.add("mix");
+		Map<String, Object> scenarioProps = new LinkedHashMap<>(Map.of("id", string, "title", string, "summary", string, "mix", mix));
+		EXPLANATION_FIELDS.forEach(f -> scenarioProps.put(f, string));
+		Map<String, Object> scenario = Map.of("type", "object", "additionalProperties", false, "required", required, "properties", scenarioProps);
 		return Map.of("type", "object", "additionalProperties", false, "required", List.of("scenarios"),
 				"properties", Map.of("scenarios", Map.of("type", "array", "items", scenario)));
 	}

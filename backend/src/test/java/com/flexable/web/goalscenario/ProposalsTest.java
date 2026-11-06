@@ -25,6 +25,29 @@ class ProposalsTest {
 	}
 
 	@Test
+	void 해설의_걸린_문장만_지우고_위치를_기록한다() {
+		Proposals.Checked checked = Proposals.check(drafts("조합", "설명", "남는 문장이에요. 연 7% 수익이에요."), ProposalText.Facts.NONE);
+		assertThat(checked.problem()).isNull();
+		assertThat(checked.plans().getFirst().explanation()).isEqualTo("남는 문장이에요.");
+		assertThat(checked.removed()).containsExactly(new Proposals.Note("TEXT_NUMBER #1.explanation", "연 7% 수익이에요."));
+		assertThat(checked.removed().getFirst().logLine(false)).isEqualTo("TEXT_NUMBER #1.explanation");
+		assertThat(checked.removed().getFirst().logLine(true)).isEqualTo("TEXT_NUMBER #1.explanation \"연 7% 수익이에요.\"");
+	}
+
+	@Test
+	void 해설이_다_지워지면_제안_전체를_버린다() {
+		Proposals.Checked checked = Proposals.check(drafts("조합", "설명", "연 7%예요. 무조건 올라요."), ProposalText.Facts.NONE);
+		assertThat(checked.plans()).isNull();
+		assertThat(checked.problem()).isEqualTo("TEXT_NUMBER #1.explanation");
+	}
+
+	@Test
+	void 제목과_요약의_규칙_위반은_제안_전체를_버린다() {
+		assertThat(Proposals.check(drafts("연 7% 수익", "설명", "해설"), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_NUMBER #1.title");
+		assertThat(Proposals.check(drafts("조합", "무조건 올라요", "해설"), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_ASSERTION #1.summary");
+	}
+
+	@Test
 	void 빈_해설은_여전히_걸린다() {
 		assertThat(Proposals.check(drafts("조합", "설명", "  "), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_EMPTY #1.explanation");
 	}

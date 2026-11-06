@@ -34,8 +34,6 @@ final class Proposals {
 
 	/** 로그에 남기는 걸린 칸 문구의 최대 길이. 해설은 길이 제한이 없어 뒤쪽에서 걸린 문장도 보이게 넉넉히 둔다. */
 	static final int LOG_TEXT_MAX = 2000;
-	/** 글자 수를 검사하지 않는 칸(해설). 실제 길이는 응답 토큰 상한이 막는다(§7-6). */
-	private static final String NO_LENGTH_LIMIT = String.valueOf(Integer.MAX_VALUE);
 
 	private Proposals() {
 	}
@@ -54,26 +52,37 @@ final class Proposals {
 	}
 
 	/**
-	 * 검사 결과. 통과하면 plans, 걸리면 problem(어긴 규칙·몇 번째 시나리오·칸, 예: "TEXT_NUMBER #2.explanation").
+	 * 검사 결과. 통과하면 plans와 해설에서 지운 문장(removed), 걸리면 problem(어긴 규칙·몇 번째 시나리오·칸, 예: "TEXT_NUMBER #2.explanation").
 	 * problem에는 AI가 쓴 문구를 넣지 않는다(로그용).
 	 */
-	record Checked(List<Plan> plans, String problem, String rejectedText) {
+	record Checked(List<Plan> plans, String problem, String rejectedText, List<Note> removed) {
 		static Checked fail(String problem) {
-			return new Checked(null, problem, null);
+			return new Checked(null, problem, null, List.of());
 		}
 
 		static Checked fail(String problem, String rejectedText) {
-			return new Checked(null, problem, rejectedText);
+			return new Checked(null, problem, rejectedText, List.of());
 		}
 
 		/** 로그 한 줄. includeText면 걸린 칸의 문구도 붙인다(제어 문자는 공백으로, 최대 LOG_TEXT_MAX자). */
 		String logLine(boolean includeText) {
-			if (!includeText || rejectedText == null || rejectedText.isBlank()) {
-				return problem;
-			}
-			String clean = rejectedText.replaceAll("\\p{Cntrl}", " ").strip();
-			return problem + " \"" + (clean.length() > LOG_TEXT_MAX ? clean.substring(0, LOG_TEXT_MAX) : clean) + "\"";
+			return line(problem, rejectedText, includeText);
 		}
+	}
+
+	/** 통과한 제안의 해설에서 지운 문장. problem은 규칙과 위치(예: "TEXT_NUMBER #2.explanation"). */
+	record Note(String problem, String sentence) {
+		String logLine(boolean includeText) {
+			return line(problem, sentence, includeText);
+		}
+	}
+
+	private static String line(String problem, String text, boolean includeText) {
+		if (!includeText || text == null || text.isBlank()) {
+			return problem;
+		}
+		String clean = text.replaceAll("\\p{Cntrl}", " ").strip();
+		return problem + " \"" + (clean.length() > LOG_TEXT_MAX ? clean.substring(0, LOG_TEXT_MAX) : clean) + "\"";
 	}
 
 	/** facts는 AI에게 보낸 사실(목표 금액·기한·상품 이름·금리·세율). 문구 속 숫자를 이 값과 대조한다(ProposalText). */
@@ -82,6 +91,7 @@ final class Proposals {
 			return Checked.fail("COUNT");
 		}
 		List<Plan> out = new ArrayList<>();
+		List<Note> removed = new ArrayList<>();
 		Set<String> ids = new HashSet<>();
 		for (int i = 0; i < drafts.size(); i++) {
 			Draft d = drafts.get(i);
@@ -110,16 +120,26 @@ final class Proposals {
 			if (sum != 100 || mix.isEmpty()) {
 				return Checked.fail("MIX_SUM " + at);
 			}
-			String[][] fields = { { "title", d.title(), "20" }, { "summary", d.summary(), "40" }, { "explanation", d.explanation(), NO_LENGTH_LIMIT } };
+			String[][] fields = { { "title", d.title(), "20" }, { "summary", d.summary(), "40" } };
 			for (String[] f : fields) {
 				String problem = text(f[1], Integer.parseInt(f[2]), facts, mix.values());
 				if (problem != null) {
 					return Checked.fail(problem + " " + at + "." + f[0], f[1]);
 				}
 			}
-			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), d.explanation().strip(), mix));
+			String field = at + ".explanation";
+			if (d.explanation() == null || d.explanation().isBlank()) {
+				return Checked.fail("TEXT_EMPTY " + field, d.explanation());
+			}
+			// 해설은 걸린 문장만 지운다. 다 지워지면 근거 없는 조합이 되므로 제안 전체를 버린다.
+			ProposalText.Cleaned cleaned = ProposalText.clean(d.explanation(), facts, mix.values());
+			if (cleaned.text().isEmpty()) {
+				return Checked.fail(cleaned.removed().getFirst().problem() + " " + field, d.explanation());
+			}
+			cleaned.removed().forEach(r -> removed.add(new Note(r.problem() + " " + field, r.sentence())));
+			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), cleaned.text(), mix));
 		}
-		return new Checked(out, null, null);
+		return new Checked(out, null, null, removed);
 	}
 
 	/** 문구 규칙을 어기면 이유 코드, 지키면 null. */

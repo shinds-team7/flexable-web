@@ -1,5 +1,14 @@
 # 웹 개발 인수인계
 
+## 2026-11-06 SXXNHU 후속
+
+- 병합: [#291](https://github.com/shinds-team7/flexable-web/pull/291) F3 조합·프리셋·공유(섞어보기) 범위 제외로 #114 종료, [#294](https://github.com/shinds-team7/flexable-web/pull/294) 청년정보 검색창을 전체 소식 목록 위로 이동으로 #276 종료. #288 시뮬레이션 대회 UI는 SXXNHU 승인(병합은 작성자).
+- #143 종료: 범위·CMA 금리 표시·출처는 11-04 결정으로 처리돼 있어 닫았다. 남은 상품 유형·우대조건 필터·로고는 [#297](https://github.com/shinds-team7/flexable-web/issues/297)로 분리했다.
+- #113: 정책·계약·fixture 초안을 spec-change [#298](https://github.com/shinds-team7/flexable-web/pull/298)로 올렸다(**리드 승인 대기, 병합 전 구현 금지**). 신한 공식 설명서 p.4~10으로 기여금 시점·기여금 이자·금리 구조·중도해지를 대조했고 정부기여금에도 기본금리를 적용한다. 일수 기준(÷365)과 기여금 입금일(납입한 달 말일)은 원문에 없는 가정이라 `UNVERIFIED`. 승인되면 서버 계산·화면 연결·검산을 별도 PR로 한다.
+- #247 **미착수**: 방향만 정했다(파킹 구간별 계산 + RP 약정형까지). 정책 초안·fixture·계약은 아직 없다. 첫 단계는 파킹 잔액 구간·우대·일수/윤년·세금의 공식 근거 확인과 RP·발행어음 약정/재투자 구분.
+- #245 **미착수**: 방향만 정했다(KDB·부산 개인 입출금부터, 공개 경로만, robots 우회 없음). 시작점은 이슈 본문의 KDB `BMDEWP01R12.jct` `IRT_LIST`와 부산 입출금 29건 대조.
+- 사람이 할 일: #113 가정 2건 확인과 PR 승인, #246·#198 운영 서버 확인, 11-18 AWS 이전 구성과 11-11 방침 고지, #287 5주차 규칙(정해지면 #288의 `week === 5` 하드코딩도 같이 수정).
+
 ## 2026-11-05 SXXNHU 작성 이슈 후속
 
 기준 main `acbb4c6`(#251 병합) 위의 후속 작업이다. 관련 #245·#143·#113·#247·#114·#198·#246을 다뤘다. 구현·실측 범위는 [수집 후속 기록](../decisions/2026-11-05-cash-source-followup.md), 계산 선행 자료는 [미승인 검토 초안](financial-policy-readiness.md)을 따른다.
@@ -185,7 +194,7 @@
 - [x] Gemini 키 적용과 실제 저장 확인: 재배포한 worker에서 설정 존재를 확인했고 요약 1,774건 저장을 조회했다. 키 값은 읽거나 변경하지 않았다. 재시작 전 06시 로그의 키 없음과 구분한다.
 - [x] 최신 youth-summary는 10-28 10:26:55 KST에 SUCCESS, 이번 실행 633건 저장(검사 탈락 포함), DB의 summary가 있는 카드는 1,774건이다. 직전 worker 종료로 남은 예전 RUNNING 기록과 구분한다.
 - [ ] AI Studio 무료 한도·결제 연결 여부와 검사에서 요약이 빠진 카드의 처리 상태를 확인한다.
-- [ ] F2 공식 계산 규칙 [#113](https://github.com/shinds-team7/flexable-web/issues/113), F3 Must 범위·담당 [#114](https://github.com/shinds-team7/flexable-web/issues/114)를 먼저 결정한다. F7 [#115](https://github.com/shinds-team7/flexable-web/issues/115)는 #126으로 개편 방향·고정 예시 시연까지 반영됐고 계산 모형·계약·MVP·담당·일정은 남았다. 현재 예시·자리 화면을 실제 구현 완료로 처리하지 않는다.
+- [ ] F2 공식 계산 규칙 [#113](https://github.com/shinds-team7/flexable-web/issues/113)은 초안 PR [#298](https://github.com/shinds-team7/flexable-web/pull/298) 승인을 기다린다. F3는 10-30 결정과 [#291](https://github.com/shinds-team7/flexable-web/pull/291)로 범위에서 제외됐다(#114 종료). F7 [#115](https://github.com/shinds-team7/flexable-web/issues/115)는 #126으로 개편 방향·고정 예시 시연까지 반영됐고 계산 모형·계약·MVP·담당·일정은 남았다. 현재 예시·자리 화면을 실제 구현 완료로 처리하지 않는다.
 - #89는 #120으로, #121은 #122로 닫혔다. rhkrqkq의 시장 띠 Issue #94는 #131로 닫혔다. 투자 인사이트 기준은 #90 + #102를 반영한 [결정 기록](../decisions/2026-10-26-invest-insight-redesign.md)과 #122 사건 뉴스 결정이다.
 
 기존 검증 기록(#119·#124): 52d1e0c에서 `npm run check:api`·`npm run typecheck`·`npm run build`·시연 lint·backend build 통과(227개 실패 0), `main` 18d9ab1의 backend 테스트 235개 실패 0(Goal/Simulation/Practice 정책 테스트 포함). 최초 공유 데몬 중지와 브랜치 전환 중 계약/클래스 혼합으로 중단·실패한 실행은 이후 코드 고정 후 전체 재실행으로 확인했다. 웹 500kB 초과 번들 경고는 남아 있다. 이번 보완분의 로컬 검증 결과는 아래에 별도로 남긴다.

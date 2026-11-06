@@ -101,7 +101,7 @@ export default function News() {
 
   return (
     <section className="news-screen">
-      <NewsHero onGoConditions={() => openFinder('MATCH')} />
+      <h1 className="sr-only">청년 금융 소식</h1>
       <div className="news-band">
         <div className="page news-page">
           <div className="news-quick">
@@ -119,6 +119,10 @@ export default function News() {
             </div>
           </section>
 
+          <NewsHero onGoConditions={() => openFinder('MATCH')}>
+            <NewsSearch query={filter.query} onSearch={search} />
+          </NewsHero>
+
           <NewsFinder
             tab={finderTab}
             onTab={setFinderTab}
@@ -132,7 +136,6 @@ export default function News() {
             <h2 id="news-all-title" className="news-sec-title" ref={resultsTop}>
               {conditionCount(applied) > 0 ? '조건에 맞는 소식' : '전체 소식'}
             </h2>
-            <NewsSearch query={filter.query} onSearch={search} />
             <div className="news-count">
               <div className="news-count-l" aria-live="polite">
                 {news.isSuccess && (

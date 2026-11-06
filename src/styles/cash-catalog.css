@@ -42,6 +42,7 @@
 .cash-limit{display:flex;justify-content:space-between;flex-wrap:wrap;gap:calc(var(--density-gap)/3);padding:calc(var(--density-gap)/2);margin-top:calc(var(--density-gap)*2/3);background:var(--color-bg-subtle);border-radius:var(--radius-soft-sm);font-size:13px;color:var(--color-text-secondary)}
 .cash-limit b{color:var(--color-text-primary);font-weight:600}
 .cash-product summary{cursor:pointer;padding-top:calc(var(--density-gap)*2/3);font-size:13px;font-weight:600;color:var(--color-text-secondary)}
+.cash-product details{border:0;padding:0}
 .cash-product details[open] summary{color:var(--color-brand-text);padding-bottom:calc(var(--density-gap)/2)}
 .cash-product dl>div{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:calc(var(--density-gap)/2);padding-block:calc(var(--density-gap)/2);border-bottom:1px solid var(--color-border);font-size:13px}
 .cash-product dt{color:var(--color-text-tertiary)}

@@ -1,5 +1,5 @@
 // 청년 금융 소식(/news) 데이터. 필드 이름은 01-product.md F4 "카드 필수 항목 = API 필드"를 따른다.
-// 웹 백엔드가 수집한 소식을 받는다(검수 없이 게시, 2026-10-26 결정). 소식이 없으면 예시 소식을 돌려주고, isSample=true면 화면이 "예시" 표시를 붙인다.
+// AI 요약을 마친 소식만 공개한다(2026-11-06 결정). 소식이 없으면 예시를 돌려주고 isSample=true면 화면이 "예시" 표시를 붙인다.
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { addDays, todayKst } from '@/lib/deadline';
@@ -29,7 +29,7 @@ export type YouthNews = {
   category: NewsCategory; // 대표 분야(배지)
   categories?: NewsCategory[]; // 이 소식이 드는 분야 전부(탭은 이것으로 거른다). 없으면 [category]
   title: string; // 쉬운 말 2줄 이내
-  summary: string | null; // AI 요약(Gemini, 1~3문장). 원문에 없는 숫자가 있으면 서버가 버려 null. 화면에 "AI 요약" 표시
+  summary: string | null; // 공개 API는 요약 필수. 이전 서버·캐시의 null도 안전하게 처리한다.
   benefit?: string | null; // 나에게 얼마(사람이 쓰던 항목). 지금은 비어 있고 화면에 쓰지 않는다
   audience: {
     summary: string | null; // 나이 외 조건 요약(거주·소득·재직 등). 지금은 비어 있다. 나이는 ageMin/ageMax로 따로 표시
@@ -195,10 +195,12 @@ function sampleNews(): YouthNews[] {
 
 // 소식(GET /youth-news, docs/contracts/web-api.yaml). 서버도 ?age=&region=&category= 필터를 받지만 화면은 전부 받아 브라우저에서 거른다.
 // 아직 소식이 없거나 서버에 닿지 못하면 예시 소식을 "예시" 표시와 함께 보여 준다.
+export const hasNewsSummary = (n: Pick<YouthNews, 'summary'>): boolean => typeof n.summary === 'string' && n.summary.trim().length > 0;
+
 async function fetchNews(): Promise<NewsFeed> {
   try {
     const { items } = await api<{ items: YouthNews[] }>('/youth-news');
-    if (items.length > 0) return { items, isSample: false };
+    if (items.length > 0) return { items: items.filter(hasNewsSummary), isSample: false };
   } catch {
     /* 아래 예시로 대신한다 */
   }

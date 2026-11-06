@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ProductTabs } from '@/components/ProductTabs';
+import { BankBadge, shortBankName } from '@/components/BankBadge';
+import { SelectedBar } from '@/components/CompareFilters';
+import { Icon } from '@/components/Icons';
 import { api, errorText } from '@/lib/api';
 import type { components } from '@/lib/api-schema';
 import '@/styles/cash-catalog.css';
@@ -34,48 +37,92 @@ export function CashCatalog({ kind }: { kind: Kind }) {
   const [category, setCategory] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
   const [message, setMessage] = useState('');
+  const [sort, setSort] = useState('NAME');
   const query = useQuery({ queryKey: ['cash-catalog', kind], queryFn: () => api<Catalog>(`/${kind}/products`), staleTime: 300_000 });
   const all = query.data?.items ?? [];
   const companies = [...new Set(all.map(p => p.company))];
+  const matches = (text: string, word: string) => text.toLocaleLowerCase('ko-KR').includes(word.trim().toLocaleLowerCase('ko-KR'));
   const visible = all.filter(p => (!company || p.company === company) && (!sector || p.sector === sector)
-    && (!category || p.category === category) && `${p.company} ${p.name}`.includes(search.trim())
-    && [p.conditions, p.interestPayment, p.reinvestment].filter(Boolean).join(' ').includes(condition.trim()));
+    && (!category || p.category === category) && matches(`${p.company} ${p.name}`, search)
+    && matches([p.conditions, p.interestPayment, p.reinvestment].filter(Boolean).join(' '), condition))
+    .sort((a, b) => {
+      const field = sort === 'BASE' ? 'baseRate' : 'maxRate';
+      return (sort === 'NAME' ? 0 : (b[field] ?? -Infinity) - (a[field] ?? -Infinity))
+        || a.company.localeCompare(b.company, 'ko-KR') || a.name.localeCompare(b.name, 'ko-KR');
+    });
   const selected = all.filter(p => picked.includes(p.id));
   const toggle = (id: string) => {
     if (picked.includes(id)) { setPicked(picked.filter(p => p !== id)); setMessage(''); }
     else if (selected.length < 3) { setPicked([...selected.map(p => p.id), id]); setMessage(''); }
     else setMessage('상품은 최대 3개까지 비교할 수 있어요. 선택한 상품을 먼저 해제해 주세요.');
   };
-  return <div className="col cash-catalog">
-    <div className="card"><ProductTabs kind={kind} autoGuide={false} /></div>
-    <section className="card">
-      <h1>{kind === 'parking' ? '파킹통장 금리·조건 비교' : 'CMA 약정수익률·조건 비교'}</h1>
-      <p className="sub">{kind === 'cma' ? 'RP형·발행어음형의 공시 약정수익률을 비교해요. 원금 손실 가능성이 있고 수익률은 변경될 수 있어요.' : '공시 금리와 적용 금액·우대조건을 함께 확인해요. 금리는 변경될 수 있어요.'}</p>
-      <p className="sub">금액·기간별 조건을 확인해 주세요. 이 화면은 예상 이자를 계산하지 않아요.</p>
-      {query.isPending && <p role="status">공시 자료를 불러오는 중이에요.</p>}
-      {query.isError && <div role="alert"><p>{errorText(query.error)}</p><button className="btn" onClick={() => void query.refetch()}>다시 불러오기</button></div>}
-      {query.data && <>
-        <p role="status">{query.data.notice}</p>
-        {all.length > 0 && <div className="cash-filters">
-          <label>상품·회사 검색<input value={search} onChange={e => setSearch(e.target.value)} type="search" /></label>
-          <label>금액·우대조건 검색<input value={condition} onChange={e => setCondition(e.target.value)} type="search" placeholder="공시 원문의 문구로 검색" /></label>
-          <label>금융회사<select value={company} onChange={e => setCompany(e.target.value)}><option value="">전체</option>{companies.map(c => <option key={c}>{c}</option>)}</select></label>
-          {kind === 'parking' ? <label>금융권<select value={sector} onChange={e => setSector(e.target.value)}><option value="">전체</option><option value="BANK">은행</option><option value="SAVINGS_BANK">저축은행</option></select></label>
-            : <label>상품 종류<select value={category} onChange={e => setCategory(e.target.value)}><option value="">전체</option><option value="RP">RP형</option><option value="PROMISSORY_NOTE">발행어음형</option></select></label>}
-        </div>}
-        <p aria-live="polite">조회 {visible.length}개 · 비교 선택 {selected.length}/3</p>
-        <p role="status">{message}</p>
-        {all.length > 0 && visible.length === 0 && <p>조건에 맞는 상품이 없어요.</p>}
-        {visible.map(p => <article className="cash-product" key={p.id}>
-          <h2>{p.name}</h2><p>{p.company} · {categoryName(p.category)}</p>
-          <p className="cash-rate">{p.rateType === 'AGREED' ? '약정수익률' : '기본금리'} {rate(p.baseRate)} <span className="sub">세전 연 기준 · 최고 {rate(p.maxRate)}</span></p>
-          <button className="btn" aria-pressed={selected.some(s => s.id === p.id)} onClick={() => toggle(p.id)}>{selected.some(s => s.id === p.id) ? '비교 해제' : '비교 선택'}<span className="cash-sr"> {p.company} {p.name}</span></button>
-          <details><summary>조건·출처 자세히 보기</summary><dl>{rows.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value(p)}</dd></div>)}</dl><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">공식 출처: {p.sourceName} (새 창)</a></details>
-        </article>)}
-      </>}
+  const noun = kind === 'parking' ? '파킹통장' : 'CMA';
+  const reset = () => { setSearch(''); setCondition(''); setCompany(''); setSector(''); setCategory(''); };
+  const filters = [
+    ...(search ? [{ key: 'search', label: search, onRemove: () => setSearch('') }] : []),
+    ...(condition ? [{ key: 'condition', label: condition, onRemove: () => setCondition('') }] : []),
+    ...(company ? [{ key: 'company', label: company, onRemove: () => setCompany('') }] : []),
+    ...(sector ? [{ key: 'sector', label: sector === 'BANK' ? '은행' : '저축은행', onRemove: () => setSector('') }] : []),
+    ...(category ? [{ key: 'category', label: category === 'RP' ? 'RP형' : '발행어음형', onRemove: () => setCategory('') }] : []),
+  ];
+  return <section className="cash-catalog"><div className="page col">
+    <div className="card cmp-top cash-top">
+      <ProductTabs kind={kind} autoGuide={false} />
+      <header className="cash-heading">
+        <div><p className="cash-eyebrow">잠시 머무는 돈도, 조건부터 꼼꼼하게</p><h1>{noun} 비교</h1>
+          <p className="sub">{kind === 'cma' ? 'RP형·발행어음형의 공시 약정수익률과 조건을 한눈에 살펴보세요.' : '공시 금리부터 적용 한도까지, 내게 맞는 조건을 살펴보세요.'}</p></div>
+        <span className="cash-heading-icon" aria-hidden="true"><Icon id="i-sliders" size={28} /></span>
+      </header>
+      {companies.length > 0 && <div className="cash-companies" role="group" aria-label="금융회사 빠른 선택">
+        <button className="bank-card" aria-pressed={!company} onClick={() => setCompany('')}><span className="cash-all-icon"><Icon id="i-sliders" size={24} /></span><span>전체 회사</span></button>
+        {companies.map(c => <button className="bank-card" key={c} aria-pressed={company === c} onClick={() => setCompany(company === c ? '' : c)}><BankBadge name={c} size={32} /><span>{shortBankName(c)}</span></button>)}
+      </div>}
+    </div>
+    <section className="card cash-filter-card" aria-label="상품 검색 조건">
+      <div className="cash-filters">
+        <label>상품·회사 검색<div className="cash-search"><Icon id="i-search" size={18} /><input value={search} onChange={e => setSearch(e.target.value)} type="search" placeholder="상품명이나 금융회사" /></div></label>
+        <label>금액·우대조건 검색<input value={condition} onChange={e => setCondition(e.target.value)} type="search" placeholder="공시 원문의 문구로 검색" /></label>
+        <label>금융회사<select value={company} onChange={e => setCompany(e.target.value)}><option value="">전체 회사</option>{companies.map(c => <option key={c}>{c}</option>)}</select></label>
+        {kind === 'parking' ? <label>금융권<select value={sector} onChange={e => setSector(e.target.value)}><option value="">전체 금융권</option><option value="BANK">은행</option><option value="SAVINGS_BANK">저축은행</option></select></label>
+          : <label>상품 종류<select value={category} onChange={e => setCategory(e.target.value)}><option value="">전체 종류</option><option value="RP">RP형</option><option value="PROMISSORY_NOTE">발행어음형</option></select></label>}
+      </div>
+      <SelectedBar items={filters.length ? filters : [{ key: 'all', label: '전체 상품' }]} onReset={reset} />
     </section>
-    {selected.length > 0 && <section className="card"><h2>선택한 상품 조건 비교</h2><p>같은 금리여도 적용 금액·보유 기간·조건이 다를 수 있어요.</p>
+    <div className="cash-notice"><Icon id="i-info" size={20} /><p>{kind === 'cma' ? 'CMA는 원금 손실 가능성이 있고 약정수익률은 변경될 수 있어요. 예금자보호 여부를 상품별로 확인하세요.' : '파킹통장 금리는 변경될 수 있어요. 높은 금리가 적용되는 금액 구간과 우대조건을 함께 확인하세요.'}</p></div>
+    <div className="sv-main cash-main">
+      <section className="card cash-results" aria-label={`${noun} 상품 목록`}>
+        <div className="cash-results-head"><h2>공시 상품 <span className="cash-count num">{visible.length}</span></h2>
+          <label className="cash-sort"><span className="cash-sr">상품 정렬</span><select value={sort} onChange={e => setSort(e.target.value)}><option value="NAME">금융회사·상품명순</option><option value="BASE">기본금리·약정수익률 높은 순</option><option value="MAX">최고금리·수익률 높은 순</option></select></label>
+        </div>
+        <p className="meta">세전 연 기준 · 적용 금액과 조건에 따라 달라져요</p>
+        {query.isPending && <div className="cash-empty" role="status"><span className="dots-spinner" aria-hidden="true" /><p>공시 자료를 불러오는 중이에요.</p></div>}
+        {query.isError && <div className="cash-empty" role="alert"><h3>공시 자료를 불러오지 못했어요</h3><p className="sub">{errorText(query.error)}</p><button className="btn" onClick={() => void query.refetch()}>다시 불러오기</button></div>}
+        {query.data && visible.length === 0 && <div className="cash-empty"><Icon id="i-search" size={28} /><h3>{all.length ? '조건에 맞는 상품이 없어요' : '공시 자료를 준비하고 있어요'}</h3><p className="sub">{all.length ? '검색어나 금융회사, 상품 종류를 바꿔 보세요.' : '확인된 상품이 등록되면 이곳에서 볼 수 있어요.'}</p>{all.length > 0 && <button className="btn" onClick={reset}>조건 초기화</button>}</div>}
+        <div className="cash-products">{visible.map(p => {
+          const checked = selected.some(s => s.id === p.id);
+          return <article className={'cash-product' + (checked ? ' cash-picked' : '')} key={p.id}>
+            <div className="cash-product-main"><BankBadge name={p.company} size={40} />
+              <div className="cash-product-info"><h3>{p.name}</h3><p className="meta">{p.company}</p><div className="cash-tags"><span className="tag">{categoryName(p.category)}</span><span className="tag">{p.depositProtected == null ? '예금자보호 미확인' : p.depositProtected ? '예금자보호 대상' : '예금자보호 대상 아님'}</span></div></div>
+              <div className="cash-rate"><span>{p.rateType === 'AGREED' ? '약정수익률' : '기본금리'}</span><strong className="num">{rate(p.baseRate)}</strong><small>최고 {rate(p.maxRate)}</small></div>
+              <label className="cash-check"><input type="checkbox" checked={checked} onChange={() => toggle(p.id)} aria-label={`${p.company} ${p.name} 비교`} /><span>비교</span></label>
+            </div>
+            <p className="cash-limit"><span>최고금리 적용 금액</span><b>{limit(p.rateLimit)}</b></p>
+            <details><summary>조건·출처 자세히 보기</summary><dl>{rows.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value(p)}</dd></div>)}</dl><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">공식 출처: {p.sourceName} ↗<span className="cash-sr"> (새 창)</span></a></details>
+          </article>;
+        })}</div>
+        {query.data && <p className="cash-source-note">{query.data.notice}</p>}
+      </section>
+      <aside className="sv-rail cash-rail" aria-labelledby="cash-compare-title"><section className="card">
+        <div className="cash-results-head"><h2 id="cash-compare-title">고른 상품 비교</h2><span className="cash-pick-count" aria-live="polite">{selected.length}/3</span></div>
+        <p className="sub">최대 3개를 골라 금리와 조건을 나란히 확인하세요.</p>
+        <p className="cash-message" role="status">{message}</p>
+        {selected.length === 0 ? <div className="cash-compare-empty"><Icon id="i-check" size={24} /><p>궁금한 상품의<br /><b>비교 칸을 체크해 주세요</b></p></div> : <ul className="cash-picks">{selected.map(p => <li key={p.id}><BankBadge name={p.company} size={32} /><div><p className="meta">{p.company}</p><b>{p.name}</b></div><button type="button" className="cash-remove" onClick={() => toggle(p.id)} aria-label={`${p.company} ${p.name} 비교 해제`}><Icon id="i-close" size={16} /></button></li>)}</ul>}
+        {selected.length > 0 && <><a className="btn cash-compare-link" href="#cash-comparison">조건 비교표 보기 <span aria-hidden="true">↓</span></a><button className="cash-clear" onClick={() => { setPicked([]); setMessage(''); }}>선택 모두 해제</button></>}
+        <div className="cash-rail-note"><b>금리만큼 조건도 중요해요</b><p>적용 한도 · 이자 지급 · 예금자보호</p><p>예상 이자를 계산하지 않는 공시 비교예요.</p></div>
+      </section></aside>
+    </div>
+    {selected.length > 0 && <section className="card cash-comparison" id="cash-comparison"><div className="cash-results-head"><h2>선택한 상품 조건 비교</h2><span className="cash-pick-count">{selected.length}개 선택</span></div><p className="sub">같은 금리여도 적용 금액·보유 기간·조건이 다를 수 있어요.</p>
       <div className="cash-table-wrap" tabIndex={0} role="region" aria-label="선택 상품 조건 비교, 가로 스크롤 가능"><table><caption>최대 3개 상품의 공시 조건 비교</caption><thead><tr><th scope="col">조건</th>{selected.map(p => <th key={p.id} scope="col">{p.company}<br />{p.name}<br /><button className="btn" onClick={() => toggle(p.id)}>비교 해제<span className="cash-sr"> {p.company} {p.name}</span></button></th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.label}><th scope="row">{row.label}</th>{selected.map(p => <td key={p.id}>{row.value(p)}</td>)}</tr>)}<tr><th scope="row">공식 출처</th>{selected.map(p => <td key={p.id}><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">{p.sourceName} (새 창)</a></td>)}</tr></tbody></table></div>
     </section>}
-  </div>;
+  </div></section>;
 }

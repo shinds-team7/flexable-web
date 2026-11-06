@@ -1,4 +1,4 @@
-// 전체 소식 목록 바로 위: 검색창 · 추천 검색어. 검색은 제목·요약·기관·키워드·지역에서 한다.
+// 조건으로 찾기 바로 위 중앙: 검색창 · 추천 검색어. 검색은 제목·요약·기관·키워드·지역에서 한다.
 import { useEffect, useState, type FormEvent } from 'react';
 import { Icon } from '../Icons';
 

@@ -35,9 +35,9 @@ export function DeadlineBadge({ period, today }: { period: ApplyPeriod; today: s
   }
 }
 
-export function SaveButton({ title, saved, onToggle }: { title: string; saved: boolean; onToggle: () => void }) {
+export function SaveButton({ title, saved, onToggle, disabled = false }: { title: string; saved: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
-    <button type="button" className="bookmark" aria-pressed={saved} aria-label={`${title} 저장`} title={saved ? '저장 빼기' : '저장'} onClick={onToggle}>
+    <button type="button" className="bookmark" disabled={disabled} aria-pressed={saved} aria-label={`${title} 저장`} title={disabled ? 'AI 요약 완료 후 저장할 수 있어요' : saved ? '저장 빼기' : '저장'} onClick={onToggle}>
       <Icon id={saved ? 'i-mark-on' : 'i-mark'} size={18} />
     </button>
   );

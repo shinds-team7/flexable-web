@@ -209,6 +209,13 @@ class YouthNews {
 		this.summarizedAt = now;
 	}
 
+	/** 원문 갱신 뒤 이전 원문 요약을 공개하지 않는다. 새 원문으로 요약을 마친 뒤 다시 공개한다. */
+	void clearSummary() {
+		this.summary = null;
+		this.summaryHash = null;
+		this.summarizedAt = null;
+	}
+
 	Long getRawId() {
 		return rawId;
 	}

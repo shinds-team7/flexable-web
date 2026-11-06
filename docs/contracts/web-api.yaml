@@ -1259,6 +1259,48 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
 
+  /savings/policy/{code}:
+    get:
+      tags: [savings]
+      summary: 정책 적금(청년미래적금) 규칙과 확인 상태. 승인 전 초안(policies §9)이라 verificationStatus는 UNVERIFIED
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, enum: [YOUTH_FUTURE] } }
+      responses:
+        '200':
+          description: 규칙
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicySavingsRules' }
+        '404': { $ref: '#/components/responses/Error' }
+  /savings/policy/{code}/simulate:
+    post:
+      tags: [savings]
+      summary: 정책 적금 만기 계산(서버 계산, 납입일별 예치일수 이자, 비과세). 중도해지는 계산하지 않는다
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, enum: [YOUTH_FUTURE] } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [joinDate, monthly, type, baseRate, bonusRate]
+              additionalProperties: false
+              properties:
+                joinDate: { type: string, format: date, description: '가입일(1회차 납입일)' }
+                monthly: { type: integer, format: int64, minimum: 1, description: '월 납입(원). 규칙의 maxMonthly 이하' }
+                termMonths: { type: integer, enum: [36], description: '생략하면 36' }
+                type: { $ref: '#/components/schemas/PolicyType' }
+                baseRate: { type: number, minimum: 0, maximum: 20, description: '연 %. 기여금 이자에도 쓴다' }
+                bonusRate: { type: number, minimum: 0, maximum: 20, description: '연 %. 우대금리 합. 본인 납입 이자에만 쓴다' }
+      responses:
+        '200':
+          description: 계산 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicySavingsSimulation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /deposit/products:
     get:
       tags: [deposit]
@@ -3035,6 +3077,63 @@ components:
               month: { type: integer }
               principal: { type: integer, format: int64 }
               interestPreTax: { type: integer, format: int64 }
+        assumptions: { type: array, items: { type: string } }
+        notice: { type: string }
+        isSample: { type: boolean }
+    PolicyType: { type: string, enum: [GENERAL, PREFERRED], description: 'GENERAL 일반형(기여율 6%), PREFERRED 우대형(12%)' }
+    VerificationStatus: { type: string, enum: [UNVERIFIED, VERIFIED], description: '공식 확인 전에는 UNVERIFIED. 임의로 VERIFIED로 바꾸지 않는다' }
+    PolicySavingsRules:
+      type: object
+      required: [code, name, termMonths, maxMonthly, contributionRates, contributionEarnsInterest, taxFree, rulesVersion, verificationStatus, sourceUrl, asOf, checklist, assumptions, notice, isSample]
+      additionalProperties: false
+      properties:
+        code: { type: string }
+        name: { type: string }
+        termMonths: { type: integer }
+        maxMonthly: { type: integer, format: int64 }
+        contributionRates:
+          type: object
+          required: [GENERAL, PREFERRED]
+          additionalProperties: false
+          properties:
+            GENERAL: { type: number, description: '정부기여율 %' }
+            PREFERRED: { type: number }
+        contributionEarnsInterest: { type: boolean, description: '정부기여금에 기본금리 이자를 주는지(신한 설명서는 true, 은행별로 다를 수 있음)' }
+        taxFree: { type: boolean }
+        rulesVersion: { type: string }
+        verificationStatus: { $ref: '#/components/schemas/VerificationStatus' }
+        sourceUrl: { type: string, nullable: true, description: '공식 안내 링크. 없으면 화면에 확인 중' }
+        asOf: { type: string, format: date, description: '근거 문서 기준일' }
+        checklist: { type: array, items: { type: string }, description: '자격 확인 질문(판정하지 않음)' }
+        assumptions: { type: array, items: { type: string } }
+        notice: { type: string }
+        isSample: { type: boolean }
+    PolicySavingsSimulation:
+      type: object
+      required: [maturityDate, principal, govContribution, ownInterest, contributionInterest, interestPreTax, tax, total, averageSavingsComparison, rulesVersion, verificationStatus, assumptions, notice, isSample]
+      additionalProperties: false
+      properties:
+        maturityDate: { type: string, format: date }
+        principal: { type: integer, format: int64, description: '납입 합계' }
+        govContribution: { type: integer, format: int64, description: '정부기여금 합계(만기 지급)' }
+        ownInterest: { type: integer, format: int64, description: '본인 납입 이자' }
+        contributionInterest: { type: integer, format: int64, description: '기여금 이자(없으면 0)' }
+        interestPreTax: { type: integer, format: int64, description: 'ownInterest + contributionInterest' }
+        tax: { type: integer, format: int64, description: '비과세라 0' }
+        total: { type: integer, format: int64, description: 'principal + govContribution + interestPreTax' }
+        averageSavingsComparison:
+          type: object
+          nullable: true
+          description: '은행 평균 적금과의 비교. 평균 금리 출처가 없으면 null'
+          required: [name, rate, interestAfterTax, total]
+          additionalProperties: false
+          properties:
+            name: { type: string }
+            rate: { type: number }
+            interestAfterTax: { type: integer, format: int64 }
+            total: { type: integer, format: int64 }
+        rulesVersion: { type: string }
+        verificationStatus: { $ref: '#/components/schemas/VerificationStatus' }
         assumptions: { type: array, items: { type: string } }
         notice: { type: string }
         isSample: { type: boolean }

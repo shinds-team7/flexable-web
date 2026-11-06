@@ -1,0 +1,26 @@
+{
+  "status": "PROPOSED",
+  "note": "승인 전 초안. 구현 PR이 IMPLEMENTED로 바꾸고 PolicySavingsPolicyTest가 읽는다. 기여금 입금일(납입한 달 말일)·일수 기준(÷365)은 원문에 없는 가정이라 UNVERIFIED다(policies §9).",
+  "rulesVersion": "youth-future-2026-06-22",
+  "verificationStatus": "UNVERIFIED",
+  "cases": [
+    { "name": "우대형 월 50만원·기본 5.0%+우대 3.0%", "joinDate": "2026-08-20", "monthly": 500000, "type": "PREFERRED", "baseRate": 5.0, "bonusRate": 3.0,
+      "expected": {"maturityDate": "2029-08-20", "principal": 18000000, "govContribution": 2160000, "ownInterest": 2221571, "contributionInterest": 163512, "interestPreTax": 2385083, "tax": 0, "total": 22545083} },
+    { "name": "일반형 월 50만원·기본 5.0%+우대 3.0%", "joinDate": "2026-08-20", "monthly": 500000, "type": "GENERAL", "baseRate": 5.0, "bonusRate": 3.0,
+      "expected": {"maturityDate": "2029-08-20", "principal": 18000000, "govContribution": 1080000, "ownInterest": 2221571, "contributionInterest": 81745, "interestPreTax": 2303316, "tax": 0, "total": 21383316} },
+    { "name": "우대형 월 78,000원·기본 5.0%", "joinDate": "2026-08-20", "monthly": 78000, "type": "PREFERRED", "baseRate": 5.0, "bonusRate": 0.0,
+      "expected": {"maturityDate": "2029-08-20", "principal": 2808000, "govContribution": 336960, "ownInterest": 216585, "contributionInterest": 25491, "interestPreTax": 242076, "tax": 0, "total": 3387036} },
+    { "name": "일반형 월 78,000원·연 2.9%(기존 고정 예시와 같은 금리)", "joinDate": "2026-08-20", "monthly": 78000, "type": "GENERAL", "baseRate": 2.9, "bonusRate": 0.0,
+      "expected": {"maturityDate": "2029-08-20", "principal": 2808000, "govContribution": 168480, "ownInterest": 125620, "contributionInterest": 7379, "interestPreTax": 132999, "tax": 0, "total": 3109479} },
+    { "name": "가입일이 31일이면 짧은 달은 말일에 납입", "joinDate": "2026-08-31", "monthly": 500000, "type": "PREFERRED", "baseRate": 5.0, "bonusRate": 3.0,
+      "expected": {"maturityDate": "2029-08-31", "principal": 18000000, "govContribution": 2160000, "ownInterest": 2223763, "contributionInterest": 166766, "interestPreTax": 2390529, "tax": 0, "total": 22550529} },
+    { "name": "월 1원은 기여금이 0원(내림)", "joinDate": "2026-08-20", "monthly": 1, "type": "GENERAL", "baseRate": 5.0, "bonusRate": 0.0,
+      "expected": {"maturityDate": "2029-08-20", "principal": 36, "govContribution": 0, "ownInterest": 0, "contributionInterest": 0, "interestPreTax": 0, "tax": 0, "total": 36} }
+  ],
+  "rejects": [
+    {"name": "월 납입 한도(500,000원) 초과", "monthly": 500001, "error": "MONTHLY_OVER_LIMIT"},
+    {"name": "월 납입 0원", "monthly": 0, "error": "MONTHLY_INVALID"},
+    {"name": "기간은 36개월만", "termMonths": 24, "error": "TERM_UNSUPPORTED"},
+    {"name": "금리는 0 이상 연 20% 이하", "baseRate": -1, "error": "RATE_INVALID"}
+  ]
+}

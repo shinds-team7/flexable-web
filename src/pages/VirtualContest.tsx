@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { useLoginModal } from '@/components/LoginModal';
@@ -9,6 +9,7 @@ import {
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
 import { CountUp } from '@/components/CountUp';
+import { Reveal } from '@/components/Reveal';
 import { ApiError, errorText } from '@/lib/api';
 import { prefersReducedMotion } from '@/lib/motion';
 import { VirtualSimulation } from '@/pages/VirtualSimulation';
@@ -115,6 +116,19 @@ function useMounted() {
   return on;
 }
 
+/** 영역이 처음 화면에 들어오면 true(한 번만). 아래쪽 카드의 막대가 보기 전에 다 차 버리지 않게 쓴다 */
+function useSeen<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (seen || !ref.current) return;
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setSeen(true); io.disconnect(); } }, { rootMargin: '0px 0px -10% 0px' });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [seen]);
+  return [ref, seen] as const;
+}
+
 /** 지금 시각. ms 간격으로 다시 그린다 */
 function useNow(ms: number) {
   const [now, setNow] = useState(() => Date.now());
@@ -143,9 +157,15 @@ function Countdown({ endsAt }: { endsAt: string }) {
   </p>;
 }
 
+/** 내 순위. 판을 끝내고 돌아왔을 때(from이 있을 때)만 이전 순위에서 새 순위로 움직인다. 처음 볼 때는 바로 보인다 */
+function RankCount({ rank, from }: { rank: number; from?: number | null }) {
+  if (from == null || from === rank) return <>{fmt.format(rank)}위</>;
+  return <CountUp key={from} value={rank} from={from} format={n => `${fmt.format(n)}위`} duration={1100} />;
+}
+
 /** 대회 참여 현황(누구나): 전체·판별 참가자, 기간 진행, 남은 시간. 참가했으면 내 판·순위를 강조한다. 합계·비율은 서버 참가자 수를 더하고 나눠 보여 주기만 한다(내림) */
-function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry | null }) {
-  const mounted = useMounted();
+function Participation({ info, entry, prevRank }: { info: ContestInfo; entry: ContestEntry | null; prevRank?: number | null }) {
+  const [box, mounted] = useSeen<HTMLElement>();
   const now = useNow(60000);
   const total = info.boards.reduce((s, b) => s + b.participants, 0);
   const first = info.weeks[0].startsOn, last = info.weeks[info.weeks.length - 1].endsOn;
@@ -156,7 +176,7 @@ function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry
   const dayIndex = Math.max(1, Math.min(days, dayNo(today) - dayNo(first) + 1));
   const nowWeek = info.weeks.find(w => w.startsOn <= today && today <= w.endsOn)?.week ?? null;
   const topShare = entry ? Math.floor(entry.rank / entry.participants * 1000) / 10 : null;
-  return <section className="contest-card contest-participation" aria-labelledby="contestJoinStatusTitle">
+  return <section ref={box} className="contest-card contest-participation" aria-labelledby="contestJoinStatusTitle">
     <div className="contest-card-head">
       <h2 id="contestJoinStatusTitle">대회 참여 현황</h2>
       <Countdown endsAt={info.endsAt} />
@@ -165,7 +185,7 @@ function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry
       <div>
         <p className="contest-part-total"><span>전체 참가자</span><strong>{fmt.format(total)}명</strong></p>
         <ul className="contest-part-boards" aria-label="판별 참가자">
-          {info.boards.map(b => {
+          {info.boards.map((b, i) => {
             const pct = total ? Math.floor(b.participants / total * 100) : 0;
             const mine = entry?.board === b.board;
             return <li key={b.board} className={mine ? 'mine' : ''} aria-current={mine ? 'true' : undefined}>
@@ -175,12 +195,12 @@ function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry
                 <small>{money(b.seedMoney)}로 시작</small>
                 <span className="contest-part-count">{fmt.format(b.participants)}명 · {pct}%</span>
               </div>
-              <div className="contest-bar" aria-hidden="true"><span style={{ width: `${mounted ? pct : 0}%` }} /></div>
+              <div className="contest-bar" aria-hidden="true"><span style={{ width: `${mounted ? pct : 0}%`, transitionDelay: `${i * 160}ms` }} /></div>
             </li>;
           })}
         </ul>
         {entry && topShare != null && <p className="contest-part-me">
-          {BOARD_LABEL[entry.board]} <b>{fmt.format(entry.participants)}명 중 {fmt.format(entry.rank)}위</b> · {topShare >= 0.1 ? `상위 ${topShare.toFixed(1)}%` : '상위 0.1% 안'}
+          {BOARD_LABEL[entry.board]} <b>{fmt.format(entry.participants)}명 중 <RankCount rank={entry.rank} from={prevRank} /></b> · {topShare >= 0.1 ? `상위 ${topShare.toFixed(1)}%` : '상위 0.1% 안'}
         </p>}
       </div>
       <div>
@@ -189,7 +209,7 @@ function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry
           <div className="contest-period-weeks">
             {info.weeks.map(w => <span key={w.week} className={w.week === nowWeek ? 'now' : w.endsOn < today ? 'past' : ''} style={{ flexGrow: dayNo(w.endsOn) - dayNo(w.startsOn) + 1 }}>{w.week}주</span>)}
           </div>
-          <div className="contest-period-track"><span style={{ width: `${(mounted ? elapsed : 0) * 100}%` }} /><i style={{ left: `${elapsed * 100}%` }} /></div>
+          <div className="contest-period-track"><span style={{ width: `${(mounted ? elapsed : 0) * 100}%` }} /><i className={mounted ? 'on' : ''} style={{ left: `${elapsed * 100}%` }} /></div>
         </div>
         <ol className="contest-week-plan" aria-label="주별 일정">
           {info.weeks.map((w, i) => {
@@ -335,7 +355,7 @@ function ScoredDaysBars({ days }: { days: ContestEntry['scoredDays'] }) {
   return <div className="contest-days">
     <span className="contest-days-label">최근 {recent.length}일 하루 점수</span>
     <ol aria-label={`최근 ${recent.length}일 하루 점수`}>
-      {recent.map((d, i) => <li key={d.date} className={d.points > 0 ? 'up' : d.points < 0 ? 'down' : 'zero'} style={{ animationDelay: `${i * 60}ms` }}>
+      {recent.map((d, i) => <li key={d.date} className={d.points > 0 ? 'up' : d.points < 0 ? 'down' : 'zero'} style={{ '--d': `${i * 90}ms` } as CSSProperties}>
         <span className="contest-days-bar" aria-hidden="true" />
         <small aria-hidden="true">{Number(d.date.slice(8))}</small>
         <span className="sr-only">{dateText(d.date)} {points(d.points)}{d.rounds ? ` · ${d.rounds}판` : ' · 판 없음'}</span>
@@ -353,7 +373,7 @@ function weekGap(entry: ContestEntry, rules: ContestInfo['rules']) {
   return `${promote} · ${demote}`;
 }
 
-function Dashboard({ info, entry, onPlay, busy }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean }) {
+function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean; prevRank?: number | null }) {
   const mounted = useMounted();
   const t = entry.today, w = entry.week, change = entry.lastBoardChange, rules = info.rules;
   const up = change ? BOARDS.indexOf(change.to) > BOARDS.indexOf(change.from) : false;
@@ -406,7 +426,7 @@ function Dashboard({ info, entry, onPlay, busy }: { info: ContestInfo; entry: Co
       <div className="contest-stat"><span><StatIcon kind="board" />지금 판</span><strong>{BOARD_LABEL[entry.board]}</strong><small>대회 시드머니 {money(entry.seedMoney)}</small></div>
       <div className="contest-stat"><span><StatIcon kind="balance" />현재 잔액</span><strong><CountUp value={entry.balance} format={money} /></strong><small className={tone(entry.profit)}>불린 금액 {signed(entry.profit)}</small></div>
       <div className="contest-stat"><span><StatIcon kind="excess" /><Term k="excess" label="매매 성과 평균" /></span><strong className={tone(entry.excessRate ?? 0)}>{entry.excessRate == null ? '—' : <CountUp value={entry.excessRate} format={pp} decimals={4} />}</strong><small>판 수익률 {percent(entry.returnRate)} · 끝낸 판 {fmt.format(entry.rounds)}판</small></div>
-      <div className="contest-stat"><span><StatIcon kind="points" /><Term k="boardPoints" /> · 순위</span><strong><CountUp value={entry.boardPoints} format={points} /></strong><small>{fmt.format(entry.participants)}명 중 {fmt.format(entry.rank)}위</small></div>
+      <div className="contest-stat"><span><StatIcon kind="points" /><Term k="boardPoints" /> · 순위</span><strong><CountUp value={entry.boardPoints} format={points} /></strong><small>{fmt.format(entry.participants)}명 중 <RankCount rank={entry.rank} from={prevRank} /></small></div>
     </section>
   </>;
 }
@@ -542,6 +562,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
   const [expanded, setExpanded] = useState(false);
   const [jumpToMe, setJumpToMe] = useState(false);
   const [toast, setToast] = useState('');
+  const [prevRank, setPrevRank] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const generation = useRef(0);
@@ -591,7 +612,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
     const before = beforePlay.current, after = mine?.current;
     if (view !== 'home' || !before || !after) return;
     const text = roundFeedback(before, after);
-    if (text) { setToast(text); beforePlay.current = null; }
+    if (text) { setToast(text); setPrevRank(after.board === before.board && after.rank !== before.rank ? before.rank : null); beforePlay.current = null; }
   }, [mine, view]);
   useEffect(() => {
     if (!toast) return;
@@ -623,7 +644,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
   if (view === 'play' && entry) {
     return <VirtualSimulation active={active} onGoPast={exit} contest={{ board: entry.board, today: entry.today, onSettled: settled, onExit: exit }} />;
   }
-  const play = () => { beforePlay.current = entry; setToast(''); setView('play'); };
+  const play = () => { beforePlay.current = entry; setToast(''); setPrevRank(null); setView('play'); };
   const tabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (!board) return;
     const i = BOARDS.indexOf(board);
@@ -652,7 +673,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
       {rankingState === 'error' ? <StateBox kind="error" text="랭킹을 불러오지 못했어요." onRetry={() => setRankingTry(n => n + 1)} />
         : rankingState === 'loading' || !ranking ? <><span className="sr-only">랭킹을 불러오는 중</span><RankingSkeleton /></>
         : !ranking.items.length ? <StateBox kind="empty" text="아직 이 판에 참가자가 없어요." />
-        : <><Podium rows={ranking.items} /><RankingTable ranking={ranking} expanded={expanded} onExpand={setExpanded} meRef={meRow} /></>}
+        : <div key={ranking.board} className="contest-rank-swap"><Podium rows={ranking.items} /><RankingTable ranking={ranking} expanded={expanded} onExpand={setExpanded} meRef={meRow} /></div>}
     </div>
     <p className="practice-muted">판 점수가 같으면 지금 판에서 끝낸 판들의 매매 성과 평균이 높은 순이에요. 별명 외의 회원 정보는 보이지 않아요.</p>
   </section>;
@@ -676,29 +697,29 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
     {view === 'placement' && placement ? <PlacementForm placement={placement} busy={busy} error={error} onSubmit={answers => void submit(answers)} onBack={() => setView('home')} />
       : view === 'result' && result ? <PlacementDone result={result} onStart={() => setView('home')} />
       : !member ? <>
-        <ContestGuide info={info} joined={false} />
-        <Participation info={info} entry={null} />
-        <JoinCard info={info} title="회원만 참가할 수 있어요" text="로그인하면 배치고사로 시작 판을 정하고 판별 순위로 겨뤄요. 랭킹도 회원만 볼 수 있어요." /></>
+        <Reveal><ContestGuide info={info} joined={false} /></Reveal>
+        <Reveal order={1}><Participation info={info} entry={null} /></Reveal>
+        <Reveal order={2}><JoinCard info={info} title="회원만 참가할 수 있어요" text="로그인하면 배치고사로 시작 판을 정하고 판별 순위로 겨뤄요. 랭킹도 회원만 볼 수 있어요." /></Reveal></>
       : !entry ? <>
         <JoinCard info={info} title="배치고사로 시작해요" text="실제 과거 공시를 보고 그 뒤 5거래일 동안 주가가 오를지 내릴지 골라요. 맞힌 수로 시작 판이 정해져요."
           action={<button className="btn btn-primary" type="button" onClick={() => void beginPlacement()} disabled={busy}>{busy ? '문제 준비 중…' : '배치고사 보기'}</button>} />
-        <Participation info={info} entry={null} />
-        <ContestGuide info={info} joined={false} />
-        {rankingCard}</>
-      : <><Dashboard info={info} entry={entry} busy={busy} onPlay={play} />
-        <Participation info={info} entry={entry} />
-        {rankingCard}
-        <details className="contest-card contest-fold">
+        <Reveal><Participation info={info} entry={null} /></Reveal>
+        <Reveal order={1}><ContestGuide info={info} joined={false} /></Reveal>
+        <Reveal order={2}>{rankingCard}</Reveal></>
+      : <><Dashboard info={info} entry={entry} busy={busy} onPlay={play} prevRank={prevRank} />
+        <Reveal><Participation info={info} entry={entry} prevRank={prevRank} /></Reveal>
+        <Reveal>{rankingCard}</Reveal>
+        <Reveal><details className="contest-card contest-fold">
           <summary><h2>내 판 기록</h2><span>{entry.recentRounds.length ? `최근 ${entry.recentRounds.length}판 · 펼쳐 보기` : '아직 판이 없어요'}</span></summary>
           <RoundHistory entry={entry} />
-        </details>
-        <ContestGuide info={info} joined /></>}
+        </details></Reveal>
+        <Reveal><ContestGuide info={info} joined /></Reveal></>}
 
-    {member && home && !!mine?.history.length && <section className="contest-card" aria-labelledby="contestHistoryTitle">
+    {member && home && !!mine?.history.length && <Reveal><section className="contest-card" aria-labelledby="contestHistoryTitle">
       <h2 id="contestHistoryTitle">지난 대회</h2>
       <HistoryCards history={mine.history} />
       <p className="practice-muted">지난 대회 기록은 대회가 끝나고 12개월 동안 보관해요.</p>
-    </section>}
+    </section></Reveal>}
 
     <RulesSummary info={info} />
     <Rules info={info} />

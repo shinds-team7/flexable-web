@@ -98,20 +98,31 @@ class RestGoalScenarioAiClientTest {
 	}
 
 	@Test
-	void 프롬프트_v5는_근거를_담은_해설과_허용_숫자를_안내한다() {
-		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v5");
-		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v5.")
+	void 프롬프트_v6은_해설_네_칸과_허용_숫자를_안내한다() {
+		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v6");
+		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v6.")
 			.contains("금리가 정해져 있어요")
 			.contains("'원금이 보장돼요', '보장된 금리', '확실한 수익'이라고 쓰지 않아요")
-			.contains("칠백 자에서 천 자 안팎")
-			.contains("문단 사이는 빈 줄로 나눠요")
-			.contains("다른 시나리오와 무엇이 다른지")
+			.contains("네 칸을 합쳐 칠백 자에서 천 자 안팎")
+			.contains("reason: ").contains("roles: ").contains("comparison: ").contains("fit: ")
+			.contains("상품을 하나씩 모두 짚어")
+			.contains("'나머지 70%', '둘을 합쳐 30%'처럼 합쳤다는 말 바로 뒤에만 써요")
 			.contains("'지난 60개월 최대 하락 23.45%'")
 			.contains("앞으로의 수익을 예상하는 말처럼 쓰지 않아요")
 			.contains("수치 바로 앞에 '월 평균', '월 변동폭', '최대 하락' 중 맞는 말을 함께 써요")
 			.contains("'목표 수익'은 통계 수치와 같은 문장에 쓰지 않아요")
 			.contains("다른 시나리오의 비중은 숫자로 쓰지 말고")
 			.doesNotContain("최대 삼백 자");
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void 스키마는_해설_네_칸을_필수로_받는다() {
+		var scenarios = (java.util.Map<String, Object>) ((java.util.Map<String, Object>) RestGoalScenarioAiClient.schema().get("properties")).get("scenarios");
+		var scenario = (java.util.Map<String, Object>) scenarios.get("items");
+		var required = (java.util.List<String>) scenario.get("required");
+		assertThat(required).containsExactlyInAnyOrder("id", "title", "summary", "reason", "roles", "comparison", "fit", "mix");
+		assertThat((java.util.Map<String, Object>) scenario.get("properties")).containsOnlyKeys(required);
 	}
 
 	@Test

@@ -157,6 +157,7 @@ public class GoalScenarioService {
 					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, years, months, stats(picked)));
 					Proposals.Checked checked = Proposals.check(drafts, facts);
 					if (checked.plans() != null) {
+						checked.removed().forEach(n -> log.warn("goal scenario AI sentence removed: {}", n.logLine(aiProps.logRejected())));
 						quota.cache(userId, target, years, asOf, drafts, "openai");
 						return new Chosen(checked.plans(), null, usage(userId), false);
 					}

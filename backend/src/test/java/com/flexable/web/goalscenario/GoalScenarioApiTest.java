@@ -381,11 +381,38 @@ class GoalScenarioApiTest {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(List.of(
 				new Proposals.Draft("a", "저축만", "적금 위주", "다른 칸의 해설이에요", Map.of("SAVINGS", 100)),
-				new Proposals.Draft("b", "반반", "요약 문구예요", "연 7% 수익을\n노려요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
+				new Proposals.Draft("b", "반반", "요약 문구예요", "연 7% 수익을 노려요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50))));
 		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation \"연 7% 수익을 노려요\"")
 			.doesNotContain("다른 칸의 해설이에요").doesNotContain("요약 문구예요").doesNotContain("비밀 목표");
+	}
+
+	private static List<Proposals.Draft> oneBadSentence() {
+		return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
+				new Proposals.Draft("b", "반반", "요약 문구예요", "적금으로 바닥을 받쳐요. 연 7% 수익을 노려요.\n\n기한이 다가오면 줄여요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)));
+	}
+
+	@Test
+	@ExtendWith(OutputCaptureExtension.class)
+	void 해설의_걸린_문장만_지우고_AI_조합을_유지한다(CapturedOutput output) throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(oneBadSentence());
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+		assertThat((String) JsonPath.read(body, "$.scenarios[1].explanation")).isEqualTo("적금으로 바닥을 받쳐요.\n\n기한이 다가오면 줄여요.");
+		assertThat(output).contains("goal scenario AI sentence removed: TEXT_NUMBER #2.explanation").doesNotContain("연 7%");
+	}
+
+	@Test
+	@ExtendWith(OutputCaptureExtension.class)
+	void 옵션을_켜면_지운_문장만_로그에_남긴다(CapturedOutput output) throws Exception {
+		when(aiProps.logRejected()).thenReturn(true);
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(oneBadSentence());
+		member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		assertThat(output).contains("goal scenario AI sentence removed: TEXT_NUMBER #2.explanation \"연 7% 수익을 노려요.\"")
+			.doesNotContain("적금으로 바닥을 받쳐요").doesNotContain("비밀 목표");
 	}
 
 	@Test

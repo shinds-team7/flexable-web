@@ -1,6 +1,6 @@
 # 가상 시뮬레이션 대회 마지막 주: 4주차를 22일~말일로 묶고, 대회 마지막 날 판정해 결과만 기록한다(보너스 주)
 
-- 날짜: 2026-11-06 · 결정한 사람: 사용자 · 관련: Issue "29일~말일 주 판정"
+- 날짜: 2026-11-06 · 결정한 사람: 사용자 · 관련: PR #306(Issue "29일~말일 주 판정")
 - 영향: 웹 백엔드(`VirtualContestRules.weeks`·`weekOf`, `VirtualContestService` 하루·주간 판정과 지난 대회 결과), API 계약(`VirtualContest.weeks` 4개, `VirtualContestEntry.week.week` 최대 4, `VirtualContestResult.finalWeek` 추가), 웹 프론트(`/simulation` 월간 대회 규칙·주별 일정·이번 주 점수·지난 대회 카드). DB 스키마·개인정보 처리(이미 저장하던 `virtual_contest_weeks`를 그대로 씀)·앱·시연은 바뀌지 않는다.
 - 기준: [policies](../policies.md) §8-8 "주간 판정"·"월말 정산", [대회 결정](2026-11-05-virtual-sim-contest.md) 4-4·4-5·6-2·7·8, `tests/policy/virtual-contest.json` `rules.weeks`·`weekly`
 

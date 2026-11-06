@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -61,6 +62,60 @@ class ProposalTextTest {
 	@ValueSource(strings = { "원금 보장 상품이에요.", "수익이 보장돼요.", "확실히 오를 거예요.", "무조건 모여요.", "목표 달성을 보장해요." })
 	void 보장_단정은_막힘(String text) {
 		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_ASSERTION");
+	}
+
+	/** FACTS에 통계를 더한 것. 월 평균 1.23%, 월 변동폭 4.56%, 최대 하락 23.45%(절댓값). */
+	static final ProposalText.Facts STAT_FACTS = new ProposalText.Facts(FACTS.targetAmount(), FACTS.months(), FACTS.names(), FACTS.percents(),
+			Map.of(ProposalText.StatKind.MEAN, List.of(new BigDecimal("1.23")), ProposalText.StatKind.VOLATILITY, List.of(new BigDecimal("4.56")),
+					ProposalText.StatKind.DRAWDOWN, List.of(new BigDecimal("23.45"))));
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"지난 60개월 최대 하락 23.45%를 고려했어요.",
+			"최근 5년 자료에서 월 변동폭은 4.56%예요.",
+			"월 평균 수익률은 1.23%였어요.",
+			"최대 하락은 약 23.5%예요.",
+			"월 변동폭 4.56%, 최대 하락 23.45%예요.",
+			"23.45% 하락한 적이 있어요.",
+			"지난 60개월 최대 하락은 23.45%였어요. 기대 수익은 화면에서 확인해요.",
+			"적금 금리 연 3.5%를 기대할 수 있어요.",
+			"과거 60 개월 자료예요." })
+	void 보낸_통계와_자료_기간은_통과(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"최대 하락은 30%였어요.",
+			"연 23% 수익을 노려요.",
+			"최대 하락은 23.451%였어요.",
+			"최대 하락은 23.4%였어요.",
+			"연 평균 14.76%가 기대돼요.",
+			"60개월 뒤에는 달라져요.",
+			"5년 뒤에도 기다릴 수 있어요.",
+			"지난 36개월 자료예요.",
+			"지난 10년 자료예요." })
+	void 보내지_않은_통계와_앞으로의_기간은_막힘(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"기대 수익 4.56%를 노려요.",
+			"월 평균 1.23%를 기대해요.",
+			"최대 하락 23.45%라는 전망이에요.",
+			"목표 수익은 월 평균 1.23%예요.",
+			"최대 하락 4.56%였어요.",
+			"최대 하락 4.56%, 변동폭 23.45%예요.",
+			"수익률 4.56%가 나왔어요.",
+			"비슷한 수준이에요. 4.56%였어요. 변동이 있었어요." })
+	void 통계를_다른_뜻으로_쓰면_막힘(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	@Test
+	void 통계가_없으면_자료_기간도_막힘() {
+		assertThat(ProposalText.problem("지난 60개월 자료예요.", FACTS, MIX)).isEqualTo("TEXT_NUMBER");
 	}
 
 	@Test

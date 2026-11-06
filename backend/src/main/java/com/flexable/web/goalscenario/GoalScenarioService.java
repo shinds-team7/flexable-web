@@ -178,15 +178,24 @@ public class GoalScenarioService {
 				userId == null ? null : usage(userId), false);
 	}
 
-	/** AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름·목표 금액·기한·적금·CMA 금리·세율 15.4%. */
+	/** AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름·목표 금액·기한·적금·CMA 금리·세율 15.4%·유형별 통계. */
 	private static ProposalText.Facts facts(long target, int months, Picked picked) {
 		java.util.Set<String> names = new java.util.HashSet<>();
 		names.add(picked.saving().name());
 		names.add(picked.saving().company());
 		picked.items().values().forEach(items -> items.forEach(i -> names.add(i.name())));
 		names.remove(null);
-		return new ProposalText.Facts(target, months, names,
-				List.of(picked.saving().baseRate(), CMA_RATE, new BigDecimal("15.4")));
+		List<ScenarioProposer.TypeStat> sent = stats(picked);
+		return new ProposalText.Facts(target, months, names, List.of(picked.saving().baseRate(), CMA_RATE, new BigDecimal("15.4")),
+				java.util.Map.of(ProposalText.StatKind.MEAN, statPercents(sent, ScenarioProposer.TypeStat::meanMonthlyReturn),
+						ProposalText.StatKind.VOLATILITY, statPercents(sent, ScenarioProposer.TypeStat::monthlyVolatility),
+						ProposalText.StatKind.DRAWDOWN, statPercents(sent, ScenarioProposer.TypeStat::maxDrawdown)));
+	}
+
+	/** 소수로 보낸 통계(0.05)를 문구와 대조할 %의 절댓값(5.00)으로 바꾼다. */
+	private static List<BigDecimal> statPercents(List<ScenarioProposer.TypeStat> stats,
+			java.util.function.Function<ScenarioProposer.TypeStat, String> field) {
+		return stats.stream().map(field).filter(java.util.Objects::nonNull).map(v -> new BigDecimal(v).movePointRight(2).abs()).toList();
 	}
 
 	private GoalScenarioDtos.AiUsage usage(long userId) {

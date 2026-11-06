@@ -2,11 +2,39 @@ package com.flexable.web.goalscenario;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
-/** 제안 검사 결과의 로그 한 줄(policies §7-6). 걸린 칸의 문구는 옵션을 켰을 때만, 최대 300자까지 남긴다. */
+/** 제안 검사의 글자 수와 로그 한 줄(policies §7-6). 걸린 칸의 문구는 옵션을 켰을 때만, 최대 2000자까지 남긴다. */
 class ProposalsTest {
 	private static final String PROBLEM = "TEXT_NUMBER #1.explanation";
+
+	private static List<Proposals.Draft> drafts(String title, String summary, String explanation) {
+		return List.of(new Proposals.Draft("s1", title, summary, explanation, Map.of("SAVINGS", 100)),
+				new Proposals.Draft("s2", "조합", "설명", "해설이에요", Map.of("CMA", 100)));
+	}
+
+	@Test
+	void 해설은_길이_제한이_없고_문단_줄바꿈을_유지한다() {
+		String longText = "가".repeat(1500) + "\n\n" + "나".repeat(1500);
+		Proposals.Checked checked = Proposals.check(drafts("조합", "설명", longText), ProposalText.Facts.NONE);
+		assertThat(checked.problem()).isNull();
+		assertThat(checked.plans().getFirst().explanation()).isEqualTo(longText);
+	}
+
+	@Test
+	void 빈_해설은_여전히_걸린다() {
+		assertThat(Proposals.check(drafts("조합", "설명", "  "), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_EMPTY #1.explanation");
+	}
+
+	@Test
+	void 제목은_20자_요약은_40자까지다() {
+		assertThat(Proposals.check(drafts("가".repeat(20), "나".repeat(40), "해설"), ProposalText.Facts.NONE).problem()).isNull();
+		assertThat(Proposals.check(drafts("가".repeat(21), "설명", "해설"), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_LENGTH #1.title");
+		assertThat(Proposals.check(drafts("조합", "나".repeat(41), "해설"), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_LENGTH #1.summary");
+	}
 
 	@Test
 	void 옵션을_끄면_문구를_남기지_않는다() {
@@ -14,8 +42,8 @@ class ProposalsTest {
 	}
 
 	@Test
-	void 문구는_300자까지만_남긴다() {
-		String exact = "가".repeat(300);
+	void 문구는_2000자까지만_남긴다() {
+		String exact = "가".repeat(2000);
 		assertThat(Proposals.Checked.fail(PROBLEM, exact).logLine(true)).isEqualTo(PROBLEM + " \"" + exact + "\"");
 		assertThat(Proposals.Checked.fail(PROBLEM, exact + "나").logLine(true)).isEqualTo(PROBLEM + " \"" + exact + "\"");
 	}

@@ -225,7 +225,15 @@ class GoalScenarioPolicyTest {
 					f.get("names").forEach(n -> names.add(n.asString()));
 					List<java.math.BigDecimal> percents = new ArrayList<>();
 					f.get("percents").forEach(n -> percents.add(new java.math.BigDecimal(n.asString())));
-					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.get("months").asInt(), names, percents);
+					Map<ProposalText.StatKind, List<java.math.BigDecimal>> stats = new java.util.EnumMap<>(ProposalText.StatKind.class);
+					if (f.has("stats")) {
+						f.get("stats").properties().forEach(e -> {
+							List<java.math.BigDecimal> values = new ArrayList<>();
+							e.getValue().forEach(n -> values.add(new java.math.BigDecimal(n.asString())));
+							stats.put(ProposalText.StatKind.valueOf(e.getKey()), values);
+						});
+					}
+					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.get("months").asInt(), names, percents, stats);
 				}
 				Proposals.Checked checked = Proposals.check(drafts, facts);
 				if ("AI".equals(c.get("expected").get("proposer").asString())) {

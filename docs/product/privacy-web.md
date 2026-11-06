@@ -59,7 +59,7 @@
 
 ## 0-7. 2026-11-05 목표 달성 시나리오 AI 조합 실패 원인 기록(#263)
 
-AI 조합이 검사에 걸리거나(`AI_REJECTED`) 호출에 실패하면(`AI_FAILED`) 서버 오류 기록에 어긴 규칙·위치 또는 실패 분류만 남긴다. 운영자가 `GOAL_SCENARIO_AI_LOG_REJECTED=true`(기본 꺼짐)로 켠 동안에는 **걸린 칸의 AI 문구**(최대 300자)도 남긴다. 이 문구에는 목표 금액·기한이 들어 있을 수 있고 같은 시각의 접속 기록과 맞춰 보면 회원을 추정할 수 있어, 개인정보가 될 수 있는 기록으로 보고 제2조에 적었다. 다른 칸의 문구, 성공한 응답, 목표 이름·이메일·회원 번호, 응답 본문, API 키는 남기지 않는다. 보유 기간은 서버 오류 기록과 같다(최대 7일, 매주 삭제). 원인을 찾으면 끈다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
+AI 조합이 검사에 걸리거나(`AI_REJECTED`) 호출에 실패하면(`AI_FAILED`) 서버 오류 기록에 어긴 규칙·위치 또는 실패 분류만 남긴다. 운영자가 `GOAL_SCENARIO_AI_LOG_REJECTED=true`(기본 꺼짐)로 켠 동안에는 **걸린 칸의 AI 문구**(최대 2000자, #278에서 300자에서 늘림)도 남긴다. 이 문구에는 목표 금액·기한이 들어 있을 수 있고 같은 시각의 접속 기록과 맞춰 보면 회원을 추정할 수 있어, 개인정보가 될 수 있는 기록으로 보고 제2조에 적었다. 다른 칸의 문구, 성공한 응답, 목표 이름·이메일·회원 번호, 응답 본문, API 키는 남기지 않는다. 보유 기간은 서버 오류 기록과 같다(최대 7일, 매주 삭제). 원인을 찾으면 끈다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
 
 ## 0-6. 2026-11-04 목표 달성 시나리오 AI 조합(#215)
 
@@ -124,7 +124,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. 수탁·이전받는 자는 OpenAI OpCo, LLC([서비스 계약](https://openai.com/policies/services-agreement/), 비EEA·스위스 고객), 요청 창구 privacy.openai.com([개인정보 안내](https://openai.com/policies/kr-privacy-policy/)). OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
 | 목표 달성 시나리오(11-03) | 계산 결과 30분 메모리(`goalscenario.ScenarioResultCache`), 회원 저장 `goal_scenarios`(V22, 최대 5개). 탈퇴 시 `SavedScenarioService.onWithdraw`와 `ON DELETE CASCADE`. 방침 제2조·제3조·제4조 |
 | 목표 시나리오 AI 조합(11-04) | 회원만 OpenAI 전송(목표 금액·기한·유형별 통계, 이름 제외). `goal_scenario_ai_usage`(회원·날짜별, 7일 뒤 삭제·탈퇴 시 삭제), `goal_scenario_ai_daily`(회원 정보 없음), `goal_scenario_ai_cache`(회원별, 7일 뒤 삭제·탈퇴 시 삭제)(V25). 방침 제2조·제4조·제6조 |
-| 목표 시나리오 AI 실패 기록(11-05) | `GoalScenarioService` 경고 로그: 어긴 규칙·위치(`Proposals.Checked.logLine`) 또는 실패 분류(`GoalScenarioAiClient.Failed.reason`). `GOAL_SCENARIO_AI_LOG_REJECTED=true`(기본 꺼짐, `GoalScenarioAiProperties.logRejected`)인 동안에만 걸린 칸의 AI 문구 최대 300자를 함께 남김. `deploy/vm/purge-logs.sh`로 최대 7일 뒤 삭제. 방침 제2조 |
+| 목표 시나리오 AI 실패 기록(11-05) | `GoalScenarioService` 경고 로그: 어긴 규칙·위치(`Proposals.Checked.logLine`) 또는 실패 분류(`GoalScenarioAiClient.Failed.reason`). `GOAL_SCENARIO_AI_LOG_REJECTED=true`(기본 꺼짐, `GoalScenarioAiProperties.logRejected`)인 동안에만 걸린 칸의 AI 문구 최대 2000자를 함께 남김. `deploy/vm/purge-logs.sh`로 최대 7일 뒤 삭제. 방침 제2조 |
 | 가상 시뮬레이션 대회(11-05) | `virtual_contests`·`virtual_contest_aliases`·`virtual_contest_placements`·`virtual_contest_entries`·`virtual_contest_days`·`virtual_contest_weeks`·`virtual_contest_rounds`(virtualsim, V27). 판 결과(시작·끝·유지 기준 잔액 `hold_balance`(V28)·끝난 방식)는 `/me/virtual-sim/contests`의 `recentRounds`로 본인에게만 보인다. 진행 중인 판의 시드·룰셋·가상 종목·매매(`seed`~`orders`)와 배치고사 문제(`questions`)는 정산·채점 때 NULL(`VirtualContestService.settle`·`grade`). 1분 정리 `VirtualContestJob`(api만): 세션 없는·만료 판 정산, 마감 지난 배치고사 채점, 월 정산, 끝난 지 12개월 지난 대회 삭제(대회 행 삭제로 함께 지움). 탈퇴 시 `users` 외래 키 `ON DELETE CASCADE`, 메모리 세션은 다음 정리 때 삭제. 랭킹 응답은 `VirtualContestRankingRow`(별명·점수·평균 초과 수익률·잔액·손익·수익률·순위·판 수·청산). 로그는 회원 번호·판 번호·결과 구분만. 방침 제2·3·4조 |
 | 비회원 체험은 서버 저장 없음 | 홈 시드머니·지수·소식·적금은 예시 데이터(`isSample`). 투자 시뮬레이션은 공개 API(`GET /market/**`, `POST /simulations/run`)로 고른 조건(시작 시점·금액·종목·비율)을 보내 서버가 계산하지만 저장하지 않는다(`SimulationService`, DB 쓰기 없음). 요청 본문은 접속 기록에 남지 않는다(`nginx.conf`는 메서드·경로만) |
 

@@ -49,11 +49,9 @@ export const router = createBrowserRouter([
       { path: '/deposit', element: <Deposit /> },
       { path: '/parking', element: <Parking /> },
       { path: '/cma', element: <Cma /> },
-      { path: '/mix', element: <Placeholder title="섞어보기" desc="배분 · 비교 · 프리셋 저장 · 공유" wireframe="섞어보기" /> },
       // 예전 경로(하위 탭 시절) 호환
       { path: '/lab/stocks', element: <Navigate to="/invest" replace /> },
       { path: '/lab/savings', element: <Navigate to="/savings" replace /> },
-      { path: '/lab/mix', element: <Navigate to="/mix" replace /> },
       { path: '/news', element: <News /> },
       { path: '/news/guide', element: <NewsGuide /> },
       // 금융 가이드(처음 쓰는 사람에게 예적금·주식·ETF 등 개념 안내). 금융정보(/finance)와 다른 화면
@@ -63,7 +61,6 @@ export const router = createBrowserRouter([
       { path: '/news/:id', element: <Placeholder title="소식 상세" desc="소식 한 건의 자세한 내용" wireframe="청년 돈 소식" /> },
       { path: '/plus', element: <Plus /> },
       { path: '/billing/result', element: <BillingResult /> },
-      { path: '/p/:id', element: <Placeholder title="공유된 결과" desc="기준일 고정 결과 · 고지 · 내 돈으로 체험 진입" wireframe="공유 결과" /> },
       { path: '/mypage', element: <Home /> },
       { path: '/goal', element: <GoalScenarios /> },
       { path: '/goal/demo', element: <Navigate to="/goal" replace /> },

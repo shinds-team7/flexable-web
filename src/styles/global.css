@@ -667,18 +667,6 @@ details p{margin-top:8px;color:var(--text-sub);font-size:14px}
 .settings-plan-compare th[scope="row"]{font-weight:500}
 .settings-plan-more{display:flex;justify-content:flex-end}
 
-/* ───────── 섞어보기 ───────── */
-.mix-row{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px;display:flex;flex-direction:column;gap:8px}
-.mix-row .head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.mix-row .name{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;min-width:0}
-.kind{font-size:11px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--sunken);color:var(--text-sub);flex:none}
-.mix-row .ctl{display:flex;align-items:center;gap:10px}
-.mix-row input[type=range]{flex:1;accent-color:var(--brand)}
-.mix-row input[type=number]{width:64px;height:var(--density-control-sm);border-radius:var(--radius-soft-sm);border:1px solid var(--color-border-strong);background:var(--card);padding:0 8px;text-align:right}
-.alloc{display:flex;height:14px;border-radius:var(--radius-xs);overflow:hidden;gap:2px;background:var(--card)}
-.alloc span{display:block;height:100%}
-.sum-ok{font-size:13px;font-weight:700;color:var(--positive)}
-.sum-off{font-size:13px;font-weight:700;color:var(--warn)}
 .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:var(--text);color:var(--card);border-radius:var(--radius-soft-sm);padding:12px 18px;font-weight:600;z-index:90;box-shadow:var(--shadow-float)}
 
 .g-ph{width:18px;height:18px;border-radius:50%;border:1.5px dashed var(--g-line);font:700 11px/15px var(--font-sys);text-align:center;color:var(--g-ink)}

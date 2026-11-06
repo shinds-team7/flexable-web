@@ -261,10 +261,12 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   const finished = !revealing && snapshot?.status === 'FINISHED';
   const bands: EventBand[] = decisions.map((r, i) => ({ n: i + 1, from: r.date, to: r.outcomeDate }));
   const restartLabel = contest ? (finished ? '대회 화면으로 돌아가기' : '판 그만하기') : finished ? '다른 가상 종목으로 다시 하기' : '시뮬레이션 종료하고 다시 설정';
-  const endBalance = snapshot?.contest?.endBalance ?? null;
-  const holdBalance = snapshot?.contest?.holdBalance ?? null;
-  const excessRate = snapshot?.contest?.excessRate ?? null;
-  const holdReturnRate = snapshot?.contest?.holdReturnRate ?? null;
+  // 대회 판의 정산 값(끝 잔액·유지 비교·매매 성과)은 서버가 마지막 진행 응답에 함께 주지만, 남은 봉을 다 그린 뒤에만 보인다
+  const settledContest = finished ? snapshot?.contest : null;
+  const endBalance = settledContest?.endBalance ?? null;
+  const holdBalance = settledContest?.holdBalance ?? null;
+  const excessRate = settledContest?.excessRate ?? null;
+  const holdReturnRate = settledContest?.holdReturnRate ?? null;
   // 수량 입력 미리보기: 서버가 준 기준 가격·상한으로 수량 × 기준 가격만 곱한다(추정, 실제 체결은 다음 거래일 시가, policies §8-7)
   const limits = visibleEvent?.orderLimits;
   const orderQty = Number(quantity || 0);

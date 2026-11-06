@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CandleChart, type EventBand } from '@/charts/CandleChart';
+import { PlaybackSpeed, segmentMs, segmentSeconds, type Speed } from '@/components/PlaybackSpeed';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
 import { ApiError, errorText } from '@/lib/api';
+import { prefersReducedMotion } from '@/lib/motion';
 import { getContest, type ContestInfo } from '@/data/virtualContest';
 import { VirtualContest } from '@/pages/VirtualContest';
 import { VirtualSimulation } from '@/pages/VirtualSimulation';
@@ -12,8 +14,6 @@ const fmt = new Intl.NumberFormat('ko-KR');
 const money = (n: number) => `${fmt.format(n)}원`;
 const percent = (n: number) => `${n > 0 ? '▲ ' : n < 0 ? '▼ ' : ''}${Math.abs(n * 100).toFixed(2)}%`;
 const tone = (n: number) => n > 0 ? 'practice-rise' : n < 0 ? 'practice-fall' : '';
-// 시작·사건 사이 한 구간을 거래일 수와 관계없이 이 시간에 재생한다
-const SEGMENT_MS = 3000;
 type Reveal = { from: number; prev: PracticeSnapshot };
 type Pending = { path: 'start' | 'step' | 'decision'; body: unknown };
 
@@ -44,6 +44,12 @@ function PastMarketPractice({ active }: { active: boolean }) {
   const focusSetup = useRef(false);
   // 선택 기록과 차트 사건 기간 띠를 같은 번호로 함께 강조한다
   const [activeBand, setActiveBand] = useState<number | null>(null);
+  // 기록에서 누른 사건: 차트로 올라가 그 사건 기간 띠를 계속 강조한다(마우스를 떼도 남는다)
+  const [pinnedBand, setPinnedBand] = useState<number | null>(null);
+  const chartBox = useRef<HTMLDivElement>(null);
+  const articles = useRef<Record<number, HTMLElement | null>>({});
+  // 재생 속도(저장하지 않는다). 바꾸면 남은 봉부터 새 간격으로 그린다
+  const [speed, setSpeed] = useState<Speed>(1);
 
   const loadCategories = useCallback(async () => {
     const current = generation.current;
@@ -117,8 +123,9 @@ function PastMarketPractice({ active }: { active: boolean }) {
   }, [active, playing, busy, snapshot, revealing, error, send]);
   useEffect(() => {
     if (!playing || !revealing || error) return;
-    // 렌더링이 늦어도 구간 전체가 3초에 끝나도록 타이머 횟수가 아니라 경과 시간으로 그릴 봉 수를 정한다(일시정지하면 그 자리에서 이어서)
-    const end = snapshot!.candles.length, gap = SEGMENT_MS / snapshot!.frames.length, from = shown, started = performance.now();
+    // 렌더링이 늦어도 구간 전체가 고른 속도의 시간(1배 3초)에 끝나도록 타이머 횟수가 아니라 경과 시간으로 그릴 봉 수를 정한다
+    // (일시정지하거나 속도를 바꾸면 그 자리에서 이어서)
+    const end = snapshot!.candles.length, gap = segmentMs(speed) / snapshot!.frames.length, from = shown, started = performance.now();
     let timer = 0;
     const tick = () => {
       const next = Math.min(end, from + Math.floor((performance.now() - started) / gap));
@@ -128,11 +135,11 @@ function PastMarketPractice({ active }: { active: boolean }) {
     timer = window.setTimeout(tick, Math.min(gap, 16));
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 시작 위치만 필요하고 매 봉마다 다시 시작하지 않는다
-  }, [playing, revealing, error, snapshot]);
+  }, [playing, revealing, error, snapshot, speed]);
 
   const reset = () => {
     generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
-    setActiveBand(null); focusSetup.current = true;
+    setActiveBand(null); setPinnedBand(null); focusSetup.current = true;
     const old = token.current; token.current = null;
     if (old) void practice('end', { sessionToken: old }).catch(() => {});
   };
@@ -152,6 +159,12 @@ function PastMarketPractice({ active }: { active: boolean }) {
     if (!prediction || !action || !snapshot?.event || revealing) return;
     void send({ path: 'decision', body: { sessionToken: token.current, commandId: crypto.randomUUID(), expectedVersion: snapshot.version,
       eventId: snapshot.event.id, prediction, action, allocationPercent: action === 'HOLD' ? 0 : allocation } });
+  };
+  const scrollTo = (el: HTMLElement | null | undefined) => el?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  /** 기록의 사건을 누르면 차트로 올라가 그 기간을 강조한다. 같은 사건을 다시 누르면 강조를 끈다 */
+  const showOnChart = (n: number) => {
+    if (pinnedBand === n) { setPinnedBand(null); return; }
+    setPinnedBand(n); scrollTo(chartBox.current);
   };
   const isSample = snapshot?.isSample ?? catalog?.isSample;
   // 구간을 그리는 동안에는 그날까지의 봉·자산만 보이고, 구간 안에서 확정된 판정은 다 그린 뒤 보인다
@@ -189,16 +202,22 @@ function PastMarketPractice({ active }: { active: boolean }) {
           <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
           <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
         </section>}
-        <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 재생해요.</li><li>사건과 사건 사이 시세가 3초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol></div>
+        <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 재생해요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol></div>
       </aside>
       <main className="practice-market">
         <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.instrument.categoryName : '나의 투자 연습'}</span><h2>{snapshot?.instrument.name ?? '다음 장면은 아직 몰라요'}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '연습 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
         <div className="practice-quote">{snapshot ? <><strong>{money(candles.at(-1)!.close)}</strong><span>{candles.at(-1)!.date} 종가</span></> : <p>미래 가격은 한 번에 공개되지 않아요.<br />나의 판단을 먼저 남겨보세요.</p>}</div>
-        <CandleChart candles={candles} full={finished} bands={bands} activeBand={activeBand} onActiveBand={setActiveBand} />
-        <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : '120거래일 이상의 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : '사건 사이 구간을 3초에 재생 · 사건이 나오면 자동으로 멈춰요'}</span></div><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div>
+        <div ref={chartBox} className="practice-chart-box">
+          {pinnedBand != null && decisions[pinnedBand - 1] && <div className="practice-pinned" role="status"><p><b>사건 {pinnedBand}</b> {decisions[pinnedBand - 1].title} · {decisions[pinnedBand - 1].baselineDate}{decisions[pinnedBand - 1].outcomeDate ? ` ~ ${decisions[pinnedBand - 1].outcomeDate}` : ''} 기간을 강조했어요.</p><span><button type="button" className="btn btn-sm" onClick={() => { const n = pinnedBand; scrollTo(articles.current[n]); articles.current[n]?.focus({ preventScroll: true }); }}>기록으로 돌아가기</button><button type="button" className="btn btn-sm" onClick={() => setPinnedBand(null)}>강조 끄기</button></span></div>}
+          <CandleChart candles={candles} full={finished} bands={bands} activeBand={activeBand ?? pinnedBand} onActiveBand={setActiveBand} />
+        </div>
+        <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : '120거래일 이상의 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : `사건 사이 구간을 ${segmentSeconds(speed)}초에 재생 · 사건이 나오면 자동으로 멈춰요`}</span></div><div className="practice-playback-controls"><PlaybackSpeed speed={speed} onChange={setSpeed} /><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div></div>
         <progress className="practice-progress" max={snapshot?.totalDays ?? 120} value={candles.length} aria-label="시뮬레이션 진행" />
         {snapshot && <section className="practice-journal"><div className="practice-section-title"><h2>{finished ? '이번 연습 돌아보기' : '나의 선택 기록'}</h2><span>{decisions.length}개의 선택</span></div>
-          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map((r, i) => <article className={`practice-decision ${activeBand === i + 1 ? 'active' : ''}`} key={r.eventId} tabIndex={0}
+          {decisions.length > 0 && <p id="practiceJournalHint" className="practice-journal-hint">사건을 누르면 차트에서 그 기간을 다시 볼 수 있어요.</p>}
+          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map((r, i) => <article className={`practice-decision ${(activeBand ?? pinnedBand) === i + 1 ? 'active' : ''} practice-clickable`} key={r.eventId} tabIndex={0} ref={el => { articles.current[i + 1] = el; }}
+            aria-describedby="practiceJournalHint" aria-current={pinnedBand === i + 1 ? 'true' : undefined} onClick={() => showOnChart(i + 1)}
+            onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showOnChart(i + 1); } }}
             onMouseEnter={() => setActiveBand(i + 1)} onMouseLeave={() => setActiveBand(null)} onFocus={() => setActiveBand(i + 1)} onBlur={() => setActiveBand(null)}>
             <div className="practice-decision-meta"><span className="practice-decision-no"><span className="sr-only">사건 </span>{i + 1}</span><time>{r.publishedDate}</time></div><div><h3>{r.title}</h3><p>{r.prediction === 'POSITIVE' ? '긍정적 영향 예상' : '부정적 영향 예상'} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${r.allocationPercent}%`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome">{r.outcome ? <><b>{r.outcome === 'CORRECT' ? '예상과 같았어요' : r.outcome === 'NEUTRAL' ? '가격이 같았어요' : '예상과 달랐어요'}</b><span className={tone(r.subsequentReturnRate!)}>{percent(r.subsequentReturnRate!)}</span><small>이후 5거래일 실제 등락</small></> : <small>5거래일 뒤 확인해요</small>}</div></article>)}
           {finished && <p className="practice-result-note">같은 사건에도 시장은 예상과 다르게 움직일 수 있어요. 이번 결과는 사건의 원인이나 매수·매도의 정답을 뜻하지 않아요.</p>}

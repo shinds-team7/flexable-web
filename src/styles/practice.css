@@ -88,6 +88,12 @@
 .practice-playback { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); margin-top:var(--density-gap); }
 .practice-playback b { display:block; font-size:13px; }
 .practice-playback span { display:block; margin-top:calc(var(--density-gap)/4); font-size:11px; color:var(--color-text-tertiary); }
+/* 재생 속도(0.5·1·2배)와 재생 버튼. 좁은 화면에서는 아래로 내려간다 */
+.practice-playback { flex-wrap:wrap; }
+.practice-playback-controls { display:flex; align-items:center; gap:calc(var(--density-gap)/2); }
+.practice-speed { display:inline-flex; gap:calc(var(--density-gap)/4); }
+.practice-speed button { border:1px solid var(--color-border); border-radius:var(--radius-xs); padding:calc(var(--density-gap)/4) calc(var(--density-gap)/3); background:var(--color-surface); color:var(--color-text-secondary); font-size:12px; cursor:pointer; }
+.practice-speed button.selected { border-color:var(--color-brand-primary); color:var(--color-brand-text); background:var(--color-brand-subtle); }
 .practice-progress { width:100%; height:5px; display:block; margin-top:calc(var(--density-gap)/2); border:0; border-radius:var(--radius-xs); overflow:hidden; accent-color:var(--color-brand-primary); }
 .practice-progress::-webkit-progress-bar { background:var(--color-bg-subtle); }
 .practice-progress::-webkit-progress-value { background:var(--color-brand-primary); transition:width .25s; }
@@ -205,12 +211,12 @@
 .vsim-journal .practice-decision { border-bottom:0; padding:calc(var(--density-gap)*.75) calc(var(--density-gap)/2); }
 .vsim-journal .practice-decision + .practice-decision { margin-top:calc(var(--density-gap)/2); }
 .vsim-journal .practice-decision:not(.vsim-moved-up):not(.vsim-moved-down) { box-shadow:inset 0 0 0 1px var(--color-border); }
-/* 기록의 사건을 누르면 차트로 올라가 그 기간을 강조한다. 상단 메뉴에 가리지 않게 띄워 멈춘다 */
-.vsim-chart-box { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
-.vsim-journal .practice-decision { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
-.vsim-clickable { cursor:pointer; }
-.vsim-journal-hint { font-size:12px; color:var(--color-text-tertiary); }
-.vsim-pinned { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); margin-bottom:calc(var(--density-gap)/2); background:var(--color-brand-subtle); border-radius:var(--radius-soft-sm); font-size:13px; }
-.vsim-pinned p { margin:0; color:var(--color-text-secondary); }
-.vsim-pinned b { color:var(--color-brand-text); margin-right:calc(var(--density-gap)/4); }
-.vsim-pinned span { display:flex; gap:calc(var(--density-gap)/3); }
+/* 기록의 사건을 누르면 차트로 올라가 그 기간을 강조한다(과거 시장 연습·가상 시뮬레이션 공용). 상단 메뉴에 가리지 않게 띄워 멈춘다 */
+.practice-chart-box { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
+.practice-journal .practice-decision { scroll-margin-top:calc(var(--nav-h) + var(--density-gap)); }
+.practice-clickable { cursor:pointer; }
+.practice-journal-hint { font-size:12px; color:var(--color-text-tertiary); }
+.practice-pinned { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); margin-bottom:calc(var(--density-gap)/2); background:var(--color-brand-subtle); border-radius:var(--radius-soft-sm); font-size:13px; }
+.practice-pinned p { margin:0; color:var(--color-text-secondary); }
+.practice-pinned b { color:var(--color-brand-text); margin-right:calc(var(--density-gap)/4); }
+.practice-pinned span { display:flex; gap:calc(var(--density-gap)/3); }

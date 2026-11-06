@@ -110,7 +110,7 @@
 .gp-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--density-gap);align-items:start}
 .gp-main{min-width:0}
 .gp-saved{position:sticky;top:var(--density-gap)}
-.gp-saved .gp-sub{font-size:13px}
+.gp-saved-foot{color:var(--color-text-tertiary);font-size:13px;margin:calc(var(--density-gap)/2) 0 0}
 .gp-saved-name{font-size:17px;font-weight:750;line-height:1.35;color:var(--color-text-primary);overflow-wrap:anywhere}
 .gp-saved-item-side{flex-direction:column;align-items:stretch;padding:calc(var(--density-gap)*2/3)}
 .gp-saved-item-side .gp-saved-actions{justify-content:flex-end}

@@ -401,7 +401,7 @@ export default function GoalScenarios() {
       {member && <aside className="gp-saved" aria-labelledby="gp-saved-title">
         <h2 id="gp-saved-title" className="gp-h2">저장한 시나리오
           {savedList && <span className="gp-badge gp-badge-muted">{savedList.items.length}/{savedList.limit}</span>}</h2>
-        <p className="gp-sub">저장할 때의 결과를 그대로 보여 줘요. 지금 시세로 보려면 [다시 계산하기]를 눌러 주세요.</p>
+        <p className="gp-sub">저장할 때의 결과를 그대로 보여 줘요.</p>
         {listError && <p className="gp-error" role="alert">{listError}</p>}
         {savedList && savedList.items.length === 0 && <div className="gp-card gp-saved-empty">아직 저장한 시나리오가 없어요.</div>}
         {savedList && savedList.items.length > 0 && <ul className="gp-saved-list">
@@ -417,6 +417,7 @@ export default function GoalScenarios() {
             </div>
           </li>)}
         </ul>}
+        {savedList && savedList.items.length > 0 && <p className="gp-saved-foot">지금 시세로 보려면 [다시 계산하기]를 눌러 주세요.</p>}
       </aside>}
       </div>
 

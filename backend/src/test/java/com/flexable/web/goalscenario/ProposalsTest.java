@@ -13,7 +13,18 @@ class ProposalsTest {
 
 	private static List<Proposals.Draft> drafts(String title, String summary, String explanation) {
 		return List.of(new Proposals.Draft("s1", title, summary, explanation, Map.of("SAVINGS", 100)),
-				new Proposals.Draft("s2", "조합", "설명", "해설이에요", Map.of("CMA", 100)));
+				new Proposals.Draft("s2", "조합", "설명", "해설이에요", Map.of("CMA", 100)),
+				new Proposals.Draft("s3", "조합", "설명", "해설이에요", Map.of("KR_INDEX_ETF", 100)));
+	}
+
+	@Test
+	void 시나리오는_정확히_세_개여야_한다() {
+		List<Proposals.Draft> three = drafts("조합", "설명", "해설");
+		assertThat(Proposals.check(three, ProposalText.Facts.NONE).problem()).isNull();
+		assertThat(Proposals.check(three.subList(0, 2), ProposalText.Facts.NONE).problem()).isEqualTo("COUNT");
+		List<Proposals.Draft> four = new java.util.ArrayList<>(three);
+		four.add(new Proposals.Draft("s4", "조합", "설명", "해설", Map.of("US_INDEX_ETF", 100)));
+		assertThat(Proposals.check(four, ProposalText.Facts.NONE).problem()).isEqualTo("COUNT");
 	}
 
 	@Test

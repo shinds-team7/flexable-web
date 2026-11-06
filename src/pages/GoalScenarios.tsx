@@ -39,6 +39,13 @@ function productName(p: ScenarioProduct | undefined, type: ScenarioProductType) 
   return { name: p.items[0].name, kind: TYPE_LABEL[type] };
 }
 
+/** 함께 볼 상품 한 줄. 없으면 null. 금액은 대표 상품으로 계산한다(policies §7-2). */
+function alternativesText(p: ScenarioProduct | undefined) {
+  if (!p || p.alternatives.length === 0) return null;
+  const names = p.alternatives.map((a) => a.ratePercent ? `${a.name}(${a.company ?? ''} 연 ${a.ratePercent}%)` : a.name);
+  return `함께 볼 상품: ${names.join(' · ')} · 금액은 위 상품으로 계산했어요`;
+}
+
 function RangeBar({ low, median, high, target }: { low: number; median: number; high: number; target: number }) {
   const min = Math.min(low, target) * 0.92;
   const max = Math.max(high, target) * 1.04;
@@ -66,9 +73,10 @@ function PlanDetail({ plan, products, targetAmount, years, demo }: {
         <ul className="gp-products">
           {plan.mix.map((m) => {
             const p = productName(productOf(m.type), m.type);
+            const more = alternativesText(productOf(m.type));
             return <li key={m.type}>
               <span className="gp-dot" style={{ background: COLORS[m.type] }} />
-              <span className="gp-product-name">{p.name}<small>{p.kind}</small></span>
+              <span className="gp-product-name">{p.name}<small>{p.kind}</small>{more && <small>{more}</small>}</span>
               <span className="gp-product-amt num">{m.monthly !== null ? `월 ${won(m.monthly)}원` : '-'}</span>
               <span className="gp-product-pct num">{m.ratioPercent}%</span>
             </li>;

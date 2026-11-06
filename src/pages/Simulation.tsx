@@ -70,10 +70,17 @@ function PastMarketPractice({ active }: { active: boolean }) {
   }, []);
   const revealing = !!reveal && !!snapshot && shown < snapshot.candles.length;
   const visibleEvent = revealing ? null : snapshot?.event ?? null;
+  // 숨겨진 탭에 열린 모달이 남으면 top layer에서 페이지를 막으니, 보이는 동안만 연다
+  const modalOpen = active && !!visibleEvent;
+  useEffect(() => {
+    const d = dialog.current;
+    if (modalOpen && !d?.open) d?.showModal();
+    else if (!modalOpen && d?.open) d.close();
+  }, [modalOpen]);
   useEffect(() => {
     setPrediction(null); setAction(null); setAllocation(50);
-    if (visibleEvent) { setPlaying(false); dialog.current?.showModal(); }
-    else { dialog.current?.close(); playButton.current?.focus({ preventScroll: true }); }
+    if (visibleEvent) setPlaying(false);
+    else playButton.current?.focus({ preventScroll: true });
   }, [visibleEvent?.id]);
 
   const send = useCallback(async (request: Pending) => {

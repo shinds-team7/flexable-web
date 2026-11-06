@@ -12,11 +12,11 @@ export function prefersReducedMotion() {
 const easeOutCubic = (t: number) => 1 - (1 - t) ** 3;
 
 /**
- * target까지 숫자를 올린다(처음엔 0부터, 값이 바뀌면 이전 표시값부터). 정수 금액은 decimals 0으로 쓴다.
+ * target까지 숫자를 올린다(처음엔 start(기본 0)부터, 값이 바뀌면 이전 표시값부터). 정수 금액은 decimals 0으로 쓴다.
  * 돌려주는 값은 화면 표시용이다. 스크린 리더에는 최종값을 따로 읽히게 한다.
  */
-export function useCountUp(target: number, { duration = 900, decimals = 0, delay = 0 }: { duration?: number; decimals?: number; delay?: number } = {}) {
-  const [shown, setShown] = useState(() => (prefersReducedMotion() ? target : 0));
+export function useCountUp(target: number, { duration = 900, decimals = 0, delay = 0, start = 0 }: { duration?: number; decimals?: number; delay?: number; start?: number } = {}) {
+  const [shown, setShown] = useState(() => (prefersReducedMotion() ? target : start));
   const from = useRef(shown);
 
   useEffect(() => {

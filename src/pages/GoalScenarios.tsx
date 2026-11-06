@@ -121,7 +121,12 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
-    if (viewing && !d.open) d.showModal();
+    if (viewing && !d.open) {
+      // 열려 있는 동안 페이지 스크롤을 잠그면 스크롤바가 사라지므로, 그 폭만큼 body 여백을 줘 뒤 화면이 밀리지 않게 한다(goal-plan.css).
+      const root = document.documentElement;
+      root.style.setProperty('--gp-scrollbar-width', `${window.innerWidth - root.clientWidth}px`);
+      d.showModal();
+    }
     if (!viewing && d.open) d.close();
   }, [viewing]);
 
@@ -401,7 +406,7 @@ export default function GoalScenarios() {
       {member && <aside className="gp-saved" aria-labelledby="gp-saved-title">
         <h2 id="gp-saved-title" className="gp-h2">저장한 시나리오
           {savedList && <span className="gp-badge gp-badge-muted">{savedList.items.length}/{savedList.limit}</span>}</h2>
-        <p className="gp-sub">저장할 때의 결과를 그대로 보여 줘요. 지금 시세로 보려면 [다시 계산하기]를 눌러 주세요.</p>
+        <p className="gp-sub">저장할 때의 결과를 그대로 보여 줘요.</p>
         {listError && <p className="gp-error" role="alert">{listError}</p>}
         {savedList && savedList.items.length === 0 && <div className="gp-card gp-saved-empty">아직 저장한 시나리오가 없어요.</div>}
         {savedList && savedList.items.length > 0 && <ul className="gp-saved-list">
@@ -417,6 +422,7 @@ export default function GoalScenarios() {
             </div>
           </li>)}
         </ul>}
+        {savedList && savedList.items.length > 0 && <p className="gp-saved-foot">지금 시세로 보려면 [다시 계산하기]를 눌러 주세요.</p>}
       </aside>}
       </div>
 

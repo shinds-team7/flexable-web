@@ -130,4 +130,27 @@ public final class VirtualSimSample {
 		char c = word.charAt(word.length() - 1);
 		return c >= '가' && c <= '힣' && (c - '가') % 28 != 0 ? withFinal : without;
 	}
+
+	/**
+	 * 배치고사 예시 문제의 공시 주요 내용(실제 공시가 아니다). 실제 문제와 같은 규칙(PlacementDetails)으로 유형마다 고정한 예시 DS005 행에서 만든다.
+	 * 실제 공시처럼 구조화 자료가 없는 유형(실적·공급 계약·배당·소송·최대주주 변경)은 null(유형 설명만 보인다)
+	 */
+	public static List<PlacementDetails.Detail> details(VirtualSimCategory category) {
+		List<PlacementDetails.Detail> items = switch (category) {
+			case NEW_SHARES -> PlacementDetails.items("piicDecsn", Map.of("nstk_ostk_cnt", "2,500,000", "bfic_tisstk_ostk", "20,000,000", "fdpp_op", "12,000,000,000",
+					"fdpp_dtrp", "8,000,000,000", "ic_mthn", "주주배정후 실권주 일반공모"));
+			case BONUS_SHARES -> PlacementDetails.items("fricDecsn", Map.of("nstk_ostk_cnt", "10,000,000", "bfic_tisstk_ostk", "10,000,000"));
+			case BONDS -> PlacementDetails.items("cvbdIsDecsn", Map.of("bd_fta", "30,000,000,000", "cvisstk_tisstk_vs", "6.85", "bd_intr_ex", "0.0", "bd_intr_sf",
+					"2.0"));
+			case BUYBACK_ACQUIRE -> PlacementDetails.items("tsstkAqDecsn", Map.of("aqpln_prc_ostk", "5,000,000,000", "aq_mth", "유가증권시장을 통한 장내 직접 취득", "aq_pp",
+					"주주가치 제고 및 주가안정"));
+			case BUYBACK_DISPOSE -> PlacementDetails.items("tsstkDpDecsn", Map.of("dppln_prc_ostk", "2,000,000,000", "dp_m_ovtm", "300,000", "dp_m_etc", "100,000",
+					"dp_pp", "임직원 성과보상"));
+			case RESTRUCTURE -> PlacementDetails.items("cmpDvDecsn", Map.of("dv_mth", "물적분할", "ffdtl_tast", "300,000,000,000", "atdvfdtl_tast", "900,000,000,000"));
+			case FACILITY -> PlacementDetails.items("otcprStkInvscrInhDecsn", Map.of("inhdtl_inhprc", "45,000,000,000", "inhdtl_ecpt", "600,000,000,000", "atinh_eqrt",
+					"51.0", "iscmp_rl_cmpn", "-"));
+			default -> List.of();
+		};
+		return items.isEmpty() ? null : items;
+	}
 }

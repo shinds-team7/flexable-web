@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,11 +22,12 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 가상 시뮬레이션 저장소의 공개 창구(V26). 쓰기는 worker(ingest), 읽기는 api(세션)가 쓴다. 외부 API는 부르지 않는다.
- * 저장하는 것은 공시 목록·룰셋(시장 통계)과 가상 회사·사건 글뿐이고 회원 정보는 없다.
+ * 저장하는 것은 공시 목록·공시 주요 내용·룰셋(시장 통계)과 가상 회사·사건 글뿐이고 회원 정보는 없다.
  */
 @Service
 public class VirtualSimStore {
@@ -106,6 +108,74 @@ public class VirtualSimStore {
 	public List<String> archivedStocks() {
 		return jdbc.queryForList("SELECT stock_code FROM dart_disclosure_archive WHERE covered_to IS NOT NULL AND pending_from IS NULL ORDER BY stock_code",
 				String.class);
+	}
+
+	// ───────── 배치고사 공시 주요 내용(worker가 쓰고 api가 읽는다, V29) ─────────
+
+	/** 공시 한 건의 화면용 항목. items가 비었으면 받아 봤지만 보일 항목이 없다(다시 받지 않는다) */
+	public record DetailRow(String receiptNo, VirtualSimCategory category, List<PlacementDetails.Detail> items) {
+	}
+
+	/** 접수번호마다 지금 규칙 버전으로 덮어쓴다(다시 돌려도 같은 행). 넣거나 바꾼 수를 돌려준다 */
+	@Transactional
+	public int saveDetails(List<DetailRow> rows) {
+		Timestamp now = Timestamp.from(clock.instant());
+		int n = 0;
+		for (DetailRow r : rows) {
+			String items = json.writeValueAsString(r.items());
+			int updated = jdbc.update("UPDATE dart_disclosure_details SET category = ?, items = ?, version = ?, collected_at = ? WHERE receipt_no = ?",
+					r.category().name(), items, PlacementDetails.VERSION, now, r.receiptNo());
+			if (updated == 0) {
+				jdbc.update("INSERT INTO dart_disclosure_details (receipt_no, category, items, version, collected_at) VALUES (?, ?, ?, ?, ?)", r.receiptNo(),
+						r.category().name(), items, PlacementDetails.VERSION, now);
+			}
+			n++;
+		}
+		return n;
+	}
+
+	/** 한 종목에서 지금 규칙 버전으로 이미 받은 공시의 접수번호 */
+	public Set<String> detailedReceipts(String stockCode) {
+		return new HashSet<>(jdbc.queryForList(
+				"SELECT d.receipt_no FROM dart_disclosure_details d JOIN dart_disclosures x ON x.receipt_no = d.receipt_no WHERE x.stock_code = ? AND d.version = ?",
+				String.class, stockCode, PlacementDetails.VERSION));
+	}
+
+	/** 한 종목의 공시별 화면용 항목(지금 규칙 버전, 항목이 있는 것만) */
+	public Map<String, List<PlacementDetails.Detail>> details(String stockCode) {
+		Map<String, List<PlacementDetails.Detail>> out = new LinkedHashMap<>();
+		jdbc.query("SELECT d.receipt_no, d.items FROM dart_disclosure_details d JOIN dart_disclosures x ON x.receipt_no = d.receipt_no WHERE x.stock_code = ? AND d.version = ?",
+				rs -> {
+					List<PlacementDetails.Detail> items = json.readValue(rs.getString(2), new TypeReference<List<PlacementDetails.Detail>>() {
+					});
+					if (!items.isEmpty()) {
+						out.put(rs.getString(1), List.copyOf(items));
+					}
+				}, stockCode, PlacementDetails.VERSION);
+		return out;
+	}
+
+	/** 실패한 공시 주요 내용 묶음(종목·API) → 마지막 실패 시각. 다음 실행에서 맨 뒤로 미룬다(V30) */
+	public Map<String, Instant> detailFailures() {
+		Map<String, Instant> out = new HashMap<>();
+		jdbc.query("SELECT stock_code, api, failed_at FROM dart_detail_failures", rs -> {
+			out.put(rs.getString(1) + " " + rs.getString(2), rs.getTimestamp(3).toInstant());
+		});
+		return out;
+	}
+
+	@Transactional
+	public void recordDetailFailure(String stockCode, String api, String error) {
+		Timestamp now = Timestamp.from(clock.instant());
+		int n = jdbc.update("UPDATE dart_detail_failures SET attempts = attempts + 1, error = ?, failed_at = ? WHERE stock_code = ? AND api = ?", cut(error, 300),
+				now, stockCode, api);
+		if (n == 0) {
+			jdbc.update("INSERT INTO dart_detail_failures (stock_code, api, attempts, error, failed_at) VALUES (?, ?, 1, ?, ?)", stockCode, api, cut(error, 300), now);
+		}
+	}
+
+	public void clearDetailFailure(String stockCode, String api) {
+		jdbc.update("DELETE FROM dart_detail_failures WHERE stock_code = ? AND api = ?", stockCode, api);
 	}
 
 	// ───────── 룰셋 ─────────

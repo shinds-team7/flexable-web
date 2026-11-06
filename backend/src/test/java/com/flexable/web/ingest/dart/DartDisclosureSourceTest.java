@@ -135,4 +135,46 @@ class DartDisclosureSourceTest {
 	void 키가_없으면_꺼진다() {
 		assertThat(new DartDisclosureSource(RestClient.create(), "https://dart.test", " ", Duration.ZERO).enabled()).isFalse();
 	}
+
+	@Test
+	void 주요사항보고서_주요정보를_글자_그대로_읽고_자료가_없으면_빈_목록이다() {
+		String url = "https://dart.test/api/piicDecsn.json?crtfc_key=" + KEY + "&corp_code=00126380&bgn_de=20250101&end_de=20250411";
+		server.expect(requestTo(url)).andRespond(withSuccess("""
+				{"status":"000","message":"정상","list":[
+				 {"rcept_no":"20250408000001","corp_name":"삼성전자","nstk_ostk_cnt":"1,000,000","bfic_tisstk_ostk":"10,000,000","ic_mthn":"제3자배정증자"}]}
+				""", MediaType.APPLICATION_JSON));
+		server.expect(requestTo(url)).andRespond(withSuccess("{\"status\":\"013\",\"message\":\"조회된 데이타가 없습니다.\"}", MediaType.APPLICATION_JSON));
+		server.expect(requestTo(url)).andRespond(withSuccess("{\"status\":\"020\",\"message\":\"요청 제한을 초과하였습니다.\"}", MediaType.APPLICATION_JSON));
+
+		var rows = dart.majorReport("piicDecsn", "00126380", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 4, 11));
+		assertThat(rows).hasSize(1);
+		assertThat(rows.getFirst()).containsEntry("rcept_no", "20250408000001").containsEntry("nstk_ostk_cnt", "1,000,000");
+		assertThat(dart.majorReport("piicDecsn", "00126380", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 4, 11))).isEmpty();
+		assertThatThrownBy(() -> dart.majorReport("piicDecsn", "00126380", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 4, 11)))
+			.isInstanceOfSatisfying(DartDisclosureSource.DartException.class, e -> assertThat(e.stopsRun()).isTrue())
+			.hasMessageNotContaining(KEY);
+		assertThatThrownBy(() -> dart.majorReport("../list", "00126380", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 4, 11)))
+			.isInstanceOf(IllegalArgumentException.class);
+		server.verify();
+	}
+
+	@Test
+	void 정상_상태여도_목록이_없거나_접수번호가_잘못되면_형식_오류로_다시_받게_한다() {
+		String url = "https://dart.test/api/piicDecsn.json?crtfc_key=" + KEY + "&corp_code=00126380&bgn_de=20250101&end_de=20250411";
+		for (String body : List.of("{\"status\":\"000\",\"message\":\"정상\"}", "{\"status\":\"000\",\"message\":\"정상\",\"list\":[]}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":{\"rcept_no\":\"20250408000001\"}}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":[{\"corp_name\":\"삼성전자\"}]}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":[{\"rcept_no\":\"2025-04-08\"}]}",
+				"{\"status\":\"000\",\"message\":\"정상\",\"list\":[{\"rcept_no\":\"20250408000001\"},{\"rcept_no\":\"\"}]}")) {
+			server.expect(requestTo(url)).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+		}
+		for (int i = 0; i < 6; i++) {
+			assertThatThrownBy(() -> dart.majorReport("piicDecsn", "00126380", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 4, 11)))
+				.isInstanceOf(IllegalStateException.class)
+				.isNotInstanceOf(DartDisclosureSource.DartException.class)
+				.hasMessageContaining("형식 오류")
+				.hasMessageNotContaining(KEY);
+		}
+		server.verify();
+	}
 }

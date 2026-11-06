@@ -55,12 +55,12 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 | `/simulation` | 투자 시뮬레이션: **과거 시장 연습** 탭(업종 선택 · 투자금 · 무작위 종목 · 종목마다 공시 문제를 3개 이상 만나는 120~250거래일 캔들 재생(구간당 3초) · 공시 사건 예상 · 정수 주 가상 매매 · 결과)과 **가상 시뮬레이션** 탭(준비 중 안내만) | 구현(#88, [결정](docs/decisions/2026-10-26-investment-practice.md)·[재생 구간 결정](docs/decisions/2026-11-03-practice-event-window.md)·[정책 §5](docs/policies.md#5-사건-퀴즈-투자-시뮬레이션)). 로그인 없이 서버 메모리 세션 30분. 로컬은 예시 자료, 운영은 worker가 키움·DART 자료를 준비한 뒤 업종이 보인다 |
 | `/savings` | 적금 비교 · 정책 적금 · 기간 동안 내 돈 차트 | 화면 완료, 결과는 프론트 고정 예시(서버 계산·실제 공시 연동은 미머지, [HANDOFF](docs/product/HANDOFF.md) 10-23) |
 | `/news` | 청년 금융 소식(필터·오늘의 한 장·챙기기) | 화면 완료, 데이터는 예시. 챙기기·필터는 브라우저 `localStorage`에만 저장(서버 없음). 실제 수집·API는 #34 |
-| `/news/:id`, `/mix`, `/p/:id` | 소식 상세 · 섞어보기 · 공유 | 자리만. 섞어보기는 10-23 상단 메뉴에서 뺐고 주소만 남았다(범위 검토 중) |
+| `/news/:id` | 소식 상세 | 자리만. 섞어보기(`/mix`)·공유(`/p/:id`)는 10-30에 없앴다([결정](docs/decisions/2026-10-30-drop-f3-mix.md)) |
 | `/goal` | AI 목표 달성(메뉴 이름 'AI 계획 수립') | 구현(#50, [goal-ai.md](docs/product/goal-ai.md)): 목표 1개 저장·서버 계산·OpenAI 안내 하루 3회. 로그인 필요. 기획 의도와 차이가 있어 10-26 재정리 예정([HANDOFF](docs/product/HANDOFF.md)) |
 | `/plus` | 플러스 요금표(메뉴에는 없고 내 정보에서 진입) | UI 구현. 요금·한도는 프론트 고정값(`src/data/plans.ts`), 구독은 늘 무료 |
 | `/billing/result` | 모의 결제 확인 · 완료 · 실패 · 취소 · 해지 확인 | 화면 완료. 요금제를 저장하지 않는 시연(실결제는 [billing README](backend/src/main/java/com/flexable/web/billing/README.md)) |
 | `/privacy` | 웹 개인정보처리방침 | 2026-10-21 시행. 웹 백엔드 배포만 이 방침을 쓰고, Vercel은 앱 방침으로 연결 |
-| `/lab/*` | 예전 주소 → 새 경로로 이동 | 호환 |
+| `/lab/stocks`, `/lab/savings` | 예전 주소 → 새 경로로 이동 | 호환 |
 | `/m/*` | 앱 시연(온보딩·홈·지출계획·분석·마이) | 완료(project2에서 옮김) |
 
 상단 메뉴는 금융정보 · 투자성향 · 인사이트 · 시뮬레이션 · 예적금 · AI 계획 · 청년소식(`src/components/Layout.tsx`). 플러스는 메뉴에서 빼고 내 정보(`/mypage/settings`)에서 들어간다. 새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).

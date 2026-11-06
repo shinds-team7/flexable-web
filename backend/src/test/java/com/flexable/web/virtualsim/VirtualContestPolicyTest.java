@@ -254,4 +254,46 @@ class VirtualContestPolicyTest {
 		List<String> order = standings.stream().sorted(VirtualContestRules.ORDER).map(s -> names.get(s.userId())).toList();
 		assertThat(order).containsExactlyElementsOf(r.get("expectedOrder").valueStream().map(JsonNode::asString).toList());
 	}
+
+	private static Long longOrNull(JsonNode n) {
+		return n == null || n.isNull() ? null : n.asLong();
+	}
+
+	private static String textOrNull(JsonNode n) {
+		return n == null || n.isNull() ? null : n.asString();
+	}
+
+	private static Map<String, String> row(JsonNode n) {
+		Map<String, String> m = new HashMap<>();
+		n.properties().forEach(e -> m.put(e.getKey(), e.getValue().asString()));
+		return m;
+	}
+
+	@Test
+	void placement_details() throws Exception {
+		JsonNode p = root().get("placementDetails");
+		assertThat(PlacementDetails.VERSION).isEqualTo(p.get("version").asString());
+		assertThat(PlacementDetails.MAX_ITEMS).isEqualTo(p.get("maxItems").asInt());
+		for (JsonNode c : p.get("ratio")) {
+			assertThat(PlacementDetails.percent(PlacementDetails.ratio(longOrNull(c.get("a")), longOrNull(c.get("b"))))).as(c.toString())
+				.isEqualTo(textOrNull(c.get("expected")));
+		}
+		for (JsonNode c : p.get("reported")) {
+			assertThat(PlacementDetails.percent(PlacementDetails.reported(c.get("text").asString()))).as(c.toString()).isEqualTo(textOrNull(c.get("expected")));
+		}
+		for (JsonNode c : p.get("bucket")) {
+			assertThat(PlacementDetails.bucket(longOrNull(c.get("won")))).as(c.toString()).isEqualTo(textOrNull(c.get("expected")));
+		}
+		for (JsonNode c : p.get("shares")) {
+			assertThat(PlacementDetails.shares(row(c.get("row")), PlacementDetails.FUNDS)).as(c.toString()).isEqualTo(textOrNull(c.get("expected")));
+		}
+		for (JsonNode c : p.get("items")) {
+			List<List<String>> expected = c.get("expected").valueStream().map(x -> x.valueStream().map(JsonNode::asString).toList()).toList();
+			assertThat(PlacementDetails.items(c.get("api").asString(), row(c.get("row"))).stream().map(d -> List.of(d.label(), d.value())).toList()).as(c.toString())
+				.isEqualTo(expected);
+		}
+		for (JsonNode c : p.get("titles")) {
+			assertThat(PlacementDetails.api(c.get("title").asString())).as(c.toString()).isEqualTo(textOrNull(c.get("api")));
+		}
+	}
 }

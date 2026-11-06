@@ -23,19 +23,24 @@ public final class VirtualContestQuestions {
 	public static final int ANY = 4;
 
 	/**
-	 * 문제 하나의 재료. company·date는 풀 때 숨기고 결과에서 공개한다(예시 자료는 date가 null). body는 실제 공시면 null(제목만), 예시면 예시 글.
+	 * 문제 하나의 재료. company·date는 풀 때 숨기고 결과에서 공개한다(예시 자료는 date가 null). body는 실제 공시면 null(본문을 저장하지 않음), 예시면 예시 글.
+	 * details: 공시 주요 내용(PlacementDetails, 비율·규모 구간). 구조화 자료가 없는 유형이거나 아직 받지 않았으면 null. 예시 자료는 예시 값.
 	 * baseClose·afterClose: 기준 봉 종가와 5번째 후속 거래일 종가
 	 */
-	public record Past(String key, String company, String industry, VirtualSimCategory category, String title, String body, LocalDate date, long baseClose,
-			long afterClose) {
+	public record Past(String key, String company, String industry, VirtualSimCategory category, String title, String body, List<PlacementDetails.Detail> details,
+			LocalDate date, long baseClose, long afterClose) {
 
 		public boolean up() {
 			return afterClose > baseClose;
 		}
 	}
 
-	/** 공시 한 건 */
-	public record Filing(String receiptNo, String title, LocalDate date) {
+	/** 공시 한 건. details: 그 공시의 주요 내용(없으면 null) */
+	public record Filing(String receiptNo, String title, LocalDate date, List<PlacementDetails.Detail> details) {
+
+		public Filing(String receiptNo, String title, LocalDate date) {
+			this(receiptNo, title, date, null);
+		}
 	}
 
 	/** 한 종목의 실제 공시와 일봉으로 문제 재료를 만든다. 분류되지 않거나 기준 봉·후속 5거래일이 없거나 보합이면 뺀다 */
@@ -52,7 +57,8 @@ public final class VirtualContestQuestions {
 			}
 			long b = closes.get(base), a = closes.get(base + VirtualSimRules.FOLLOW_DAYS);
 			if (a != b) {
-				out.add(new Past(f.receiptNo(), company, industry, category, f.title(), null, f.date(), b, a));
+				out.add(new Past(f.receiptNo(), company, industry, category, f.title(), null, f.details() == null || f.details().isEmpty() ? null : f.details(), f.date(),
+						b, a));
 			}
 		}
 		return out;
@@ -96,7 +102,7 @@ public final class VirtualContestQuestions {
 
 	/**
 	 * 예시 자료(VIRTUAL_SIM_SOURCE=fake)의 문제 재료: 예시 회사의 사건마다 예시 룰셋에서 경로 몇 개를 골라 5거래일 누적 방향을 정답으로 쓴다(실제 공시가 아니다).
-	 * bodies: 회사 → 유형별 사건 글
+	 * bodies: 회사 → 유형별 사건 글. 주요 내용은 유형마다 고정한 예시 값(VirtualSimSample.details, 실제 공시처럼 구조화 자료가 없는 유형은 null)
 	 */
 	public static List<Past> sample(Map<String, Map<VirtualSimCategory, String>> bodies, Map<String, String> industries, VirtualSimRuleset rules,
 			RandomGenerator random) {
@@ -110,7 +116,7 @@ public final class VirtualContestQuestions {
 				}
 				if (close != 10_000) {
 					out.add(new Past(company + ":" + category + ":" + k, company, industries.get(company), category,
-							category.titles().get(random.nextInt(category.titles().size())), body, null, 10_000, close));
+							category.titles().get(random.nextInt(category.titles().size())), body, VirtualSimSample.details(category), null, 10_000, close));
 				}
 			}
 		})));

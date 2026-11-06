@@ -667,18 +667,6 @@ details p{margin-top:8px;color:var(--text-sub);font-size:14px}
 .settings-plan-compare th[scope="row"]{font-weight:500}
 .settings-plan-more{display:flex;justify-content:flex-end}
 
-/* ───────── 섞어보기 ───────── */
-.mix-row{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:12px;display:flex;flex-direction:column;gap:8px}
-.mix-row .head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.mix-row .name{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;min-width:0}
-.kind{font-size:11px;font-weight:800;padding:2px 6px;border-radius:6px;background:var(--sunken);color:var(--text-sub);flex:none}
-.mix-row .ctl{display:flex;align-items:center;gap:10px}
-.mix-row input[type=range]{flex:1;accent-color:var(--brand)}
-.mix-row input[type=number]{width:64px;height:var(--density-control-sm);border-radius:var(--radius-soft-sm);border:1px solid var(--color-border-strong);background:var(--card);padding:0 8px;text-align:right}
-.alloc{display:flex;height:14px;border-radius:var(--radius-xs);overflow:hidden;gap:2px;background:var(--card)}
-.alloc span{display:block;height:100%}
-.sum-ok{font-size:13px;font-weight:700;color:var(--positive)}
-.sum-off{font-size:13px;font-weight:700;color:var(--warn)}
 .toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:var(--text);color:var(--card);border-radius:var(--radius-soft-sm);padding:12px 18px;font-weight:600;z-index:90;box-shadow:var(--shadow-float)}
 
 .g-ph{width:18px;height:18px;border-radius:50%;border:1.5px dashed var(--g-line);font:700 11px/15px var(--font-sys);text-align:center;color:var(--g-ink)}
@@ -1363,13 +1351,14 @@ a.stat:hover,a.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-flo
 @media (max-width:767px){.ii-strip-cell{padding:6px 14px}}
 
 /* ───────── 청년 금융 소식(/news) 리디자인: 검색 히어로 · 빠른 카드 · 분석 · 조건으로 찾기 · 글 ───────── */
-.news-hero{display:flex;flex-direction:column;align-items:center;gap:16px;padding:40px 24px 36px;background:var(--bg);border-bottom:1px solid var(--line)}
+.news-hero{display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px 24px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
 .news-hero-search{display:flex;align-items:center;gap:10px;width:min(672px,100%);height:56px;padding:0 8px 0 18px;background:var(--card);border:2px solid var(--brand);border-radius:var(--radius-soft);color:var(--text-muted)}
 .news-hero-search:focus-within{box-shadow:0 0 0 3px var(--brand-soft)}
 .news-hero-search input{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;font:inherit;font-size:16px;color:var(--text)}
 .news-hero-search input::placeholder{color:var(--text-faint)}
 .news-hero-search .btn{height:40px;padding:0 20px}
-.news-hero-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.news-search{display:flex;flex-direction:column;gap:12px}
+.news-search-chips{display:flex;flex-wrap:wrap;gap:8px}
 .news-pill{height:34px;padding:0 14px;border:0;border-radius:999px;background:var(--sunken);color:var(--text-sub);font-size:14px;font-weight:600;cursor:pointer}
 .news-pill:hover{background:var(--brand-soft);color:var(--brand-text)}
 .news-hero-link{display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;border:0;background:none;padding:6px 10px;border-radius:var(--radius-soft);font-size:15px;font-weight:600;color:var(--brand-text);cursor:pointer}
@@ -1485,7 +1474,7 @@ a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-un
   .news-guide-art{min-height:160px}
 }
 @media (max-width:767px){
-  .news-hero{padding:28px 16px 24px}
+  .news-hero{padding:24px 16px 8px}
   .news-cond{padding:20px 16px}
   .news-cond-group{grid-template-columns:minmax(0,1fr);gap:6px}
   .news-cond-k{line-height:22px}

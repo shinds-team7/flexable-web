@@ -42,6 +42,8 @@ public final class VirtualContestRules {
 	public static final int RANKING_TOP = 100;
 	public static final int RETENTION_MONTHS = 12;
 	public static final int WEEK_DAYS = 7;
+	/** 시즌의 주 수. 마지막 주는 22일~말일 */
+	public static final int WEEKS = 4;
 
 	/** 맞힌 수 → 시작 판(0~6 B10M, 7~8 B50M, 9~10 B100M) */
 	public static VirtualContestBoard placementBoard(int correct) {
@@ -109,26 +111,30 @@ public final class VirtualContestRules {
 		return weekPoints >= PROMOTE_AT ? board.up() : weekPoints <= DEMOTE_AT ? board.down() : board;
 	}
 
+	/** 주간 판정 결과 이름(판이 오르면 PROMOTE, 내리면 DEMOTE). 4주차는 판을 바꾸지 않고 이 결과만 기록으로 보인다 */
+	public static VirtualContestDtos.FinalWeek.Outcome outcome(VirtualContestBoard from, VirtualContestBoard to) {
+		int diff = Integer.compare(to.ordinal(), from.ordinal());
+		return diff > 0 ? VirtualContestDtos.FinalWeek.Outcome.PROMOTE : diff < 0 ? VirtualContestDtos.FinalWeek.Outcome.DEMOTE : VirtualContestDtos.FinalWeek.Outcome.STAY;
+	}
+
 	/** 대회 이름 YYYY-MM */
 	public static String contestId(YearMonth month) {
 		return month.toString();
 	}
 
-	/** 주 구간 [시작일, 끝일]: 1~7일, 8~14일, 15~21일, 22~28일, 29일~말일(있으면) */
+	/** 주 구간 [시작일, 끝일]: 1~7일, 8~14일, 15~21일, 22일~말일(7~10일). 4주차는 대회 마지막 날 판정하고 판은 바꾸지 않는다 */
 	public static List<LocalDate[]> weeks(YearMonth month) {
 		List<LocalDate[]> out = new ArrayList<>();
-		for (int w = 0; w < 4; w++) {
+		for (int w = 0; w < WEEKS - 1; w++) {
 			out.add(new LocalDate[] { month.atDay(WEEK_DAYS * w + 1), month.atDay(WEEK_DAYS * w + WEEK_DAYS) });
 		}
-		if (month.lengthOfMonth() > WEEK_DAYS * 4) {
-			out.add(new LocalDate[] { month.atDay(WEEK_DAYS * 4 + 1), month.atEndOfMonth() });
-		}
+		out.add(new LocalDate[] { month.atDay(WEEK_DAYS * (WEEKS - 1) + 1), month.atEndOfMonth() });
 		return out;
 	}
 
 	/** 날짜가 든 주(1부터) */
 	public static int weekOf(LocalDate day) {
-		return Math.min((day.getDayOfMonth() - 1) / WEEK_DAYS, 4) + 1;
+		return Math.min((day.getDayOfMonth() - 1) / WEEK_DAYS, WEEKS - 1) + 1;
 	}
 
 	/** 그 주의 마지막 날 */

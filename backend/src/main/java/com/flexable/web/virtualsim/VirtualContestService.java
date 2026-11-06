@@ -513,7 +513,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 
 	/**
 	 * 끝난 날(오늘 이전, 대회 마지막 날까지)의 하루 점수를 차례로 한 번씩 정한다. 그날 시작한 판이 진행 중이면 기다린다.
-	 * 주의 마지막 날 점수를 정하면 그 주를 판정한다(대회 마지막 날로 끝나는 주는 판정하지 않음).
+	 * 주의 마지막 날 점수를 정하면 그 주를 판정한다. 대회 마지막 날로 끝나는 4주차는 판정만 기록하고 판은 바꾸지 않는다(최종 순위는 그 주를 보낸 판).
 	 */
 	private void catchUp(EntryRow start) {
 		EntryRow e = start;
@@ -540,11 +540,11 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 					return;
 				}
 				db.insertDay(before.id(), d, before.board(), startBalance, endBalance, rate, points, at);
-				if (d.equals(VirtualContestRules.weekEnd(d)) && !d.equals(last)) {
+				if (d.equals(VirtualContestRules.weekEnd(d))) {
 					LocalDate from = VirtualContestRules.weeks(m).get(VirtualContestRules.weekOf(d) - 1)[0];
 					int week = db.sumPoints(before.id(), from, d);
 					VirtualContestBoard next = VirtualContestRules.weekly(before.board(), week);
-					if (db.insertWeek(before.id(), VirtualContestRules.weekOf(d), week, before.board(), next, at) && next != before.board()) {
+					if (db.insertWeek(before.id(), VirtualContestRules.weekOf(d), week, before.board(), next, at) && next != before.board() && !d.equals(last)) {
 						VirtualContestBoard highest = next.ordinal() > before.highestBoard().ordinal() ? next : before.highestBoard();
 						db.changeBoard(before.id(), before.board(), next, highest, week, at);
 						log.info("대회 주간 판정 user={} from={} to={}", before.userId(), before.board(), next);
@@ -602,7 +602,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 	}
 
 	/**
-	 * 월 정산(결정 기록 6-2·6-3): 진행 중 판을 모두 마감으로 정산하고, 마지막 날까지 하루 점수를 정한 뒤(마지막 주는 판정하지 않음)
+	 * 월 정산(결정 기록 6-2·6-3): 진행 중 판을 모두 마감으로 정산하고, 마지막 날까지 하루 점수를 정한 뒤(마지막 주는 판정만 기록하고 판은 그대로)
 	 * 참가자를 마지막 판별로 나눠 순위를 확정·저장하고 SETTLED로 바꾼다. 이미 정산했으면 아무것도 바꾸지 않는다(다시 돌려도 같다).
 	 */
 	void settleContest(String contestId) {
@@ -737,6 +737,11 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				db.days(e.id()).stream().map(d -> new DayRecord(d.day().toString(), d.board(), db.countRounds(e.id(), d.day()), d.rate(), d.points())).toList());
 	}
 
+	/** 마지막 주 판정 결과. 이 규칙 전에 정산한 대회처럼 기록이 없으면 null */
+	private FinalWeek finalWeek(long entryId) {
+		return db.week(entryId, VirtualContestRules.WEEKS).map(w -> new FinalWeek(w.points(), VirtualContestRules.outcome(w.from(), w.to()))).orElse(null);
+	}
+
 	private static RoundRecord record(RoundRow r) {
 		Long end = r.endBalance(), hold = r.holdBalance();
 		return new RoundRecord(r.roundNumber(), r.board(), r.day().toString(), r.status(), r.endReason(), r.startBalance(), end, hold,
@@ -757,7 +762,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 					long seed = e.board().seedMoney();
 					return new VirtualContestDtos.Result(e.contestId(), e.placementBoard(), e.board(), e.highestBoard(), e.boardPoints(), e.balance(),
 							e.balance() - seed, VirtualContestRules.rate(e.balance(), seed), excessRates(e.contestId(), List.of(e)).get(e.id()), e.finalRank(),
-							e.finalParticipants(), e.rounds(), e.liquidated());
+							e.finalParticipants(), e.rounds(), e.liquidated(), finalWeek(e.id()));
 				})
 				.toList();
 			return new Mine(db.alias(userId).orElse(null), current, history);

@@ -256,6 +256,15 @@ class VirtualContestStore {
 		}
 	}
 
+	/** 그 주의 판정(없으면 빈 값) */
+	Optional<WeekRow> week(long entryId, int week) {
+		return jdbc.query("SELECT points, from_board, to_board FROM virtual_contest_weeks WHERE entry_id = ? AND week = ?",
+				(rs, i) -> new WeekRow(rs.getInt("points"), board(rs.getString("from_board")), board(rs.getString("to_board"))), entryId, week).stream().findFirst();
+	}
+
+	record WeekRow(int points, VirtualContestBoard from, VirtualContestBoard to) {
+	}
+
 	int countWeeks(long entryId) {
 		Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_weeks WHERE entry_id = ?", Integer.class, entryId);
 		return n == null ? 0 : n;

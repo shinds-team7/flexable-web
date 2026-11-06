@@ -255,7 +255,9 @@ class VirtualContestApiTest {
 		String info = body(call(get("/api/v1/virtual-sim/contests/current"), 200));
 		assertThat((String) JsonPath.read(info, "$.contestId")).isEqualTo("2026-11");
 		assertThat((String) JsonPath.read(info, "$.startsAt")).isEqualTo("2026-11-01T00:00:00+09:00");
-		assertThat((List<?>) JsonPath.read(info, "$.weeks")).hasSize(5);
+		assertThat((List<?>) JsonPath.read(info, "$.weeks")).hasSize(4);
+		assertThat((String) JsonPath.read(info, "$.weeks[3].startsOn")).isEqualTo("2026-11-22");
+		assertThat((String) JsonPath.read(info, "$.weeks[3].endsOn")).isEqualTo("2026-11-30");
 		assertThat((List<Boolean>) JsonPath.read(info, "$.boards[*].available")).containsOnly(true);
 		// 비회원은 401
 		call(post("/api/v1/virtual-sim/contests/current/placement"), 401);
@@ -571,16 +573,30 @@ class VirtualContestApiTest {
 				+ answers + "]}"), e), 409))).contains("CONTEST_CLOSED");
 		assertThat(round(a, UUID.randomUUID().toString(), 409)).contains("CONTEST_NOT_JOINED");
 
+		// 4주차(22~29일) 하루 점수를 판정 기준에 닿게 바꿔 둔다: 1억 판이면 강등 쪽, 아니면 승급 쪽
+		long entryA = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, userId(a));
+		String boardA = jdbc.queryForObject("SELECT board FROM virtual_contest_entries WHERE id = ?", String.class, entryA);
+		String highestA = jdbc.queryForObject("SELECT highest_board FROM virtual_contest_entries WHERE id = ?", String.class, entryA);
+		int push = "B100M".equals(boardA) ? -1 : 1;
+		assertThat(jdbc.update("UPDATE virtual_contest_days SET points = ? WHERE entry_id = ? AND on_date BETWEEN ? AND ?", push, entryA, LocalDate.of(2026, 11, 22),
+				LocalDate.of(2026, 11, 29))).isEqualTo(8);
+
 		contest.tick();
 		assertThat(jdbc.queryForObject("SELECT status FROM virtual_contests WHERE id = '2026-11'", String.class)).isEqualTo("SETTLED");
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_rounds WHERE status = 'ACTIVE'", Integer.class)).isZero();
 		assertThat(jdbc.queryForObject("SELECT end_reason FROM virtual_contest_rounds WHERE id = ?", String.class, lastRoundId())).isEqualTo("CLOSED");
 		assertThat(jdbc.queryForObject("SELECT questions FROM virtual_contest_placements WHERE id = ?", String.class, placementId)).isNull();
 		long entry = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, userId(a));
-		// 마지막 날까지 하루 점수를 한 번씩 정하고, 마지막 날로 끝나는 주(29~30일)는 판정하지 않는다
+		// 마지막 날까지 하루 점수를 한 번씩 정하고, 마지막 날로 끝나는 4주차(22~30일)도 판정을 기록한다
 		assertThat(jdbc.queryForObject("SELECT MAX(on_date) FROM virtual_contest_days WHERE entry_id = ?", LocalDate.class, entry)).isEqualTo(LocalDate.of(2026, 11, 30));
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_days WHERE entry_id = ?", Integer.class, entry)).isEqualTo(21);
 		assertThat(jdbc.queryForList("SELECT week FROM virtual_contest_weeks WHERE entry_id = ? ORDER BY week", Integer.class, entry)).containsExactly(2, 3, 4);
+		// 4주차가 기준에 닿아도 판·잔액·최고 판은 그대로이고, 순위는 그 판에서 매긴다
+		Map<String, Object> last = jdbc.queryForMap("SELECT points, from_board, to_board FROM virtual_contest_weeks WHERE entry_id = ? AND week = 4", entry);
+		assertThat(last.get("from_board")).isEqualTo(boardA);
+		assertThat(last.get("to_board")).isNotEqualTo(boardA);
+		assertThat(jdbc.queryForObject("SELECT board FROM virtual_contest_entries WHERE id = ?", String.class, entry)).isEqualTo(boardA);
+		assertThat(jdbc.queryForObject("SELECT highest_board FROM virtual_contest_entries WHERE id = ?", String.class, entry)).isEqualTo(highestA);
 
 		List<Map<String, Object>> settled = jdbc.queryForList("SELECT id, board, balance, board_points, final_rank, final_participants FROM virtual_contest_entries ORDER BY id");
 		assertThat(settled).allSatisfy(r -> assertThat(r.get("final_rank")).isNotNull());
@@ -597,6 +613,9 @@ class VirtualContestApiTest {
 		String me = mine(a);
 		assertThat((Object) JsonPath.read(me, "$.current")).isNull();
 		assertThat((String) JsonPath.read(me, "$.history[0].contestId")).isEqualTo("2026-11");
+		assertThat((String) JsonPath.read(me, "$.history[0].finalBoard")).isEqualTo(boardA);
+		assertThat((String) JsonPath.read(me, "$.history[0].finalWeek.result")).isEqualTo(push > 0 ? "PROMOTE" : "DEMOTE");
+		assertThat((Integer) JsonPath.read(me, "$.history[0].finalWeek.points")).isEqualTo(((Number) last.get("points")).intValue());
 		assertThat((String) JsonPath.read(body(call(get("/api/v1/virtual-sim/contests/current"), 200)), "$.contestId")).isEqualTo("2026-12");
 
 		// 탈퇴하면 대회 기록·별명을 모두 지운다

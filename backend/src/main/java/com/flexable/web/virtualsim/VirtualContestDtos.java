@@ -103,7 +103,16 @@ public final class VirtualContestDtos {
 	}
 
 	public record Result(String contestId, VirtualContestBoard placementBoard, VirtualContestBoard finalBoard, VirtualContestBoard highestBoard,
-			int boardPoints, long balance, long profit, BigDecimal returnRate, BigDecimal excessRate, int rank, int participants, int rounds, boolean liquidated) {
+			int boardPoints, long balance, long profit, BigDecimal returnRate, BigDecimal excessRate, int rank, int participants, int rounds, boolean liquidated,
+			FinalWeek finalWeek) {
+	}
+
+	/** 마지막 주(22일~말일) 판정. 판은 바꾸지 않고 기록만 한다 */
+	public record FinalWeek(int points, Outcome result) {
+
+		public enum Outcome {
+			PROMOTE, DEMOTE, STAY
+		}
 	}
 
 	public record Mine(String alias, Entry current, List<Result> history) {

@@ -1886,14 +1886,14 @@ components:
         weeks:
           type: array
           minItems: 4
-          maxItems: 5
-          description: '주간 판정 구간. 1~7일, 8~14일, 15~21일, 22~28일, 29일~말일(있으면)'
+          maxItems: 4
+          description: '주간 판정 구간. 1~7일, 8~14일, 15~21일, 22일~말일. 4주차는 대회 마지막 날 판정하고 판은 바꾸지 않는다(결과는 VirtualContestResult.finalWeek)'
           items:
             type: object
             additionalProperties: false
             required: [week, startsOn, endsOn]
             properties:
-              week: { type: integer, minimum: 1, maximum: 5 }
+              week: { type: integer, minimum: 1, maximum: 4 }
               startsOn: { type: string, format: date }
               endsOn: { type: string, format: date }
         boards:
@@ -2022,10 +2022,10 @@ components:
         week:
           type: object
           additionalProperties: false
-          description: '이번 주 판정'
+          description: '이번 주 판정. 4주차(22일~말일)는 대회 마지막 날 판정만 기록하고 판은 바꾸지 않는다'
           required: [week, endsOn, points]
           properties:
-            week: { type: integer, minimum: 1, maximum: 5 }
+            week: { type: integer, minimum: 1, maximum: 4 }
             endsOn: { type: string, format: date }
             points: { type: integer, description: '이번 주에 정해진 하루 점수의 합(+4 이상 승급, −4 이하 강등)' }
         today:
@@ -2125,7 +2125,7 @@ components:
       type: object
       additionalProperties: false
       description: '정산한 지난 대회의 내 결과(마지막 판 기준). 판별 상위 비율 보상은 별도 Issue(결정 기록 8)'
-      required: [contestId, placementBoard, finalBoard, highestBoard, boardPoints, balance, profit, returnRate, excessRate, rank, participants, rounds, liquidated]
+      required: [contestId, placementBoard, finalBoard, highestBoard, boardPoints, balance, profit, returnRate, excessRate, rank, participants, rounds, liquidated, finalWeek]
       properties:
         contestId: { type: string, pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$' }
         placementBoard: { allOf: [{ $ref: '#/components/schemas/VirtualContestBoard' }], description: '배치고사로 시작한 판' }
@@ -2140,6 +2140,15 @@ components:
         participants: { type: integer, minimum: 1, description: 'finalBoard의 확정 참가자 수' }
         rounds: { type: integer, minimum: 0 }
         liquidated: { type: boolean }
+        finalWeek:
+          type: object
+          nullable: true
+          additionalProperties: false
+          description: '마지막 주(22일~말일) 판정. 판은 바꾸지 않아 finalBoard·rank·highestBoard에는 반영되지 않는다. 판정 기록이 없으면(이 규칙 전에 정산한 대회) null'
+          required: [points, result]
+          properties:
+            points: { type: integer, description: '마지막 주 하루 점수의 합' }
+            result: { type: string, enum: [PROMOTE, DEMOTE, STAY], description: 'PROMOTE 승급 기준 도달(+4 이상, 1억 판 제외), DEMOTE 강등 기준 도달(−4 이하, 1천만 판 제외), STAY 그 밖' }
     GoalScenarioProductType:
       type: string
       enum: [SAVINGS, CMA, KR_INDEX_ETF, US_INDEX_ETF, KOSPI_TOP5]

@@ -44,7 +44,7 @@ class DisclosureDetailJobTest {
 	JdbcTemplate jdbc;
 
 	/** 가짜 DART DS005. 부른 (API, 고유번호)를 남기고, failing에 든 API는 실패한다 */
-	static final class Ds005 implements DisclosureSource {
+	static class Ds005 implements DisclosureSource {
 		final List<String> calls = new ArrayList<>();
 		final Set<String> failing = new HashSet<>();
 		final Map<String, List<Map<String, String>>> rows;
@@ -86,6 +86,14 @@ class DisclosureDetailJobTest {
 	private IngestProperties props(String source) {
 		return new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(), props.backfillYears(), props.recheckDays(),
 				false, props.kiwoom(), props.krx(), source, props.dart(), props.youth(), props.gemini(), props.eventOverview(), props.virtualSim());
+	}
+
+	/** 테스트끼리 같은 메모리 DB를 쓰므로 순서와 상관없게 비운다 */
+	@org.junit.jupiter.api.BeforeEach
+	void clean() {
+		for (String t : List.of("dart_disclosure_details", "dart_detail_failures", "dart_disclosure_archive", "dart_disclosures")) {
+			jdbc.update("DELETE FROM " + t);
+		}
 	}
 
 	private List<Map<String, Object>> detailRows() {
@@ -180,5 +188,74 @@ class DisclosureDetailJobTest {
 		assertThat(got.values()).allSatisfy(items -> assertThat(items).extracting(d -> d.value()).containsExactly("10.0%"));
 		// 종속회사 공시는 대상이 아니라 행도 없다
 		assertThat(store.detailedReceipts("444444")).contains("20250201000004").doesNotContain("20250201000005");
+	}
+
+	@Test
+	void 나중에_정정되면_이미_받은_원_공시도_정정된_값으로_다시_평가한다() {
+		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
+		store.saveDisclosures(List.of(new DisclosureRow("20250301000001", "555555", "00000005", "주요사항보고서(전환사채권발행결정)", today.minusDays(20)),
+				new DisclosureRow("20250301000011", "555555", "00000005", "주요사항보고서(자기주식처분결정)", today.minusDays(20))));
+		store.saveArchive(new Archive("555555", "00000005", today.minusYears(5), today, null, null, null));
+		Map<String, List<Map<String, String>>> rows = new java.util.HashMap<>();
+		rows.put("cvbdIsDecsn 00000005", List.of(Map.of("rcept_no", "20250301000001", "bd_fta", "3,000,000,000")));
+		rows.put("tsstkDpDecsn 00000005", List.of(Map.of("rcept_no", "20250301000011", "dppln_prc_ostk", "3,000,000,000")));
+		Ds005 dart = new Ds005(rows);
+		new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(10);
+		assertThat(store.details("555555").get("20250301000001")).extracting(d -> d.value()).contains("10억~50억 원");
+
+		// 정정 공시가 들어오고 DS005는 정정본만 돌려준다 → 원 공시도 정정된 규모로 바뀐다
+		store.saveDisclosures(List.of(new DisclosureRow("20250301000002", "555555", "00000005", "[기재정정]주요사항보고서(전환사채권발행결정)", today.minusDays(15)),
+				new DisclosureRow("20250301000012", "555555", "00000005", "[기재정정]주요사항보고서(자기주식처분결정)", today.minusDays(15))));
+		rows.put("cvbdIsDecsn 00000005", List.of(Map.of("rcept_no", "20250301000002", "bd_fta", "30,000,000,000")));
+		// 처분은 원본 행도 함께 돌려준다 → 원 공시는 자기 행 값을 그대로 쓴다
+		rows.put("tsstkDpDecsn 00000005", List.of(Map.of("rcept_no", "20250301000011", "dppln_prc_ostk", "3,000,000,000"),
+				Map.of("rcept_no", "20250301000012", "dppln_prc_ostk", "60,000,000,000")));
+		new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(10);
+
+		var got = store.details("555555");
+		assertThat(got.get("20250301000001")).extracting(d -> d.value()).contains("100억~500억 원").doesNotContain("10억~50억 원");
+		assertThat(got.get("20250301000002")).extracting(d -> d.value()).contains("100억~500억 원");
+		assertThat(got.get("20250301000011")).extracting(d -> d.value()).contains("10억~50억 원");
+		assertThat(got.get("20250301000012")).extracting(d -> d.value()).contains("500억~1천억 원");
+	}
+
+	@Test
+	void 계속_실패하는_묶음이_상한을_다_써도_다음_실행은_다음_묶음부터_받는다() {
+		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
+		store.saveDisclosures(List.of(new DisclosureRow("20250401000001", "666661", "00000061", "주요사항보고서(유상증자결정)", today.minusDays(9)),
+				new DisclosureRow("20250401000002", "666662", "00000062", "주요사항보고서(유상증자결정)", today.minusDays(9)),
+				new DisclosureRow("20250401000003", "666663", "00000063", "주요사항보고서(유상증자결정)", today.minusDays(9))));
+		for (String n : List.of("1", "2", "3")) {
+			store.saveArchive(new Archive("66666" + n, "0000006" + n, today.minusYears(5), today, null, null, null));
+		}
+		// 첫 종목은 늘 형식 오류(정상 상태인데 list 없음 같은)로 실패한다
+		Ds005 dart = new Ds005(Map.of("piicDecsn 00000062", List.of(Map.of("rcept_no", "20250401000002", "bfic_tisstk_ostk", "100", "nstk_ostk_cnt", "10")),
+				"piicDecsn 00000063", List.of(Map.of("rcept_no", "20250401000003", "bfic_tisstk_ostk", "100", "nstk_ostk_cnt", "20")))) {
+			@Override
+			public List<Map<String, String>> majorReport(String api, String corpCode, LocalDate from, LocalDate to) {
+				if (corpCode.equals("00000061")) {
+					calls.add(api + " " + corpCode);
+					throw new IllegalStateException("DS005 piicDecsn 응답 형식 오류: 정상(000)인데 list가 없어요");
+				}
+				return super.majorReport(api, corpCode, from, to);
+			}
+		};
+
+		var r1 = new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(1);
+		assertThat(dart.calls).containsExactly("piicDecsn 00000061");
+		assertThat(r1.status()).isEqualTo("FAILED");
+		// 형식 오류는 빈 결과로 저장하지 않는다(다시 받는다)
+		assertThat(store.detailedReceipts("666661")).isEmpty();
+
+		new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(1);
+		new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(1);
+		assertThat(dart.calls).containsExactly("piicDecsn 00000061", "piicDecsn 00000062", "piicDecsn 00000063");
+		assertThat(store.detailedReceipts("666662")).containsExactly("20250401000002");
+		assertThat(store.detailedReceipts("666663")).containsExactly("20250401000003");
+
+		// 다른 묶음을 다 받은 뒤 실패한 묶음을 다시 시도한다
+		new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(1);
+		assertThat(dart.calls).containsExactly("piicDecsn 00000061", "piicDecsn 00000062", "piicDecsn 00000063", "piicDecsn 00000061");
+		assertThat(jdbc.queryForObject("SELECT attempts FROM dart_detail_failures WHERE stock_code = '666661'", Integer.class)).isEqualTo(2);
 	}
 }

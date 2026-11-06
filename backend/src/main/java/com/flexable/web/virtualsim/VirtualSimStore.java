@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -152,6 +153,29 @@ public class VirtualSimStore {
 					}
 				}, stockCode, PlacementDetails.VERSION);
 		return out;
+	}
+
+	/** 실패한 공시 주요 내용 묶음(종목·API) → 마지막 실패 시각. 다음 실행에서 맨 뒤로 미룬다(V30) */
+	public Map<String, Instant> detailFailures() {
+		Map<String, Instant> out = new HashMap<>();
+		jdbc.query("SELECT stock_code, api, failed_at FROM dart_detail_failures", rs -> {
+			out.put(rs.getString(1) + " " + rs.getString(2), rs.getTimestamp(3).toInstant());
+		});
+		return out;
+	}
+
+	@Transactional
+	public void recordDetailFailure(String stockCode, String api, String error) {
+		Timestamp now = Timestamp.from(clock.instant());
+		int n = jdbc.update("UPDATE dart_detail_failures SET attempts = attempts + 1, error = ?, failed_at = ? WHERE stock_code = ? AND api = ?", cut(error, 300),
+				now, stockCode, api);
+		if (n == 0) {
+			jdbc.update("INSERT INTO dart_detail_failures (stock_code, api, attempts, error, failed_at) VALUES (?, ?, 1, ?, ?)", stockCode, api, cut(error, 300), now);
+		}
+	}
+
+	public void clearDetailFailure(String stockCode, String api) {
+		jdbc.update("DELETE FROM dart_detail_failures WHERE stock_code = ? AND api = ?", stockCode, api);
 	}
 
 	// ───────── 룰셋 ─────────

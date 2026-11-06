@@ -1,6 +1,7 @@
 package com.flexable.web.ingest;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,7 +28,8 @@ import com.flexable.web.virtualsim.VirtualSimStore.DisclosureRow;
  * 공시 목록을 다 받은 종목의 최근 5년 공시 중 구조화 자료가 있는 유형(PlacementDetails.api)이고 아직 지금 규칙 버전으로 받지 않은 것만,
  * 종목·API마다 그 공시들의 접수일 구간으로 OpenDART 주요사항보고서 주요정보(DS005)를 한 번 부른다. 화면용 항목을 만들어 접수번호마다 저장하고,
  * 응답에 없는 공시는 같은 공시의 나중 정정본 행을 쓰고(corrected), 그것도 없으면 빈 항목으로 저장해 다시 부르지 않는다. 호출 상한(전체 공시 수집이 쓰고 남은 VIRTUAL_SIM_DART_MAX_CALLS)에 닿으면 멈추고 다음 실행이 이어 받는다.
- * 실패한 종목·API는 저장하지 않아 다음 실행에 다시 받고, 공시 목록(dart_disclosures)은 건드리지 않는다.
+ * 정정 공시를 받을 때는 그 원 공시도 같은 응답으로 다시 평가한다(withOriginals). 응답 형식 오류(DartDisclosureSource)를 포함해 실패한 묶음은 저장하지 않고
+ * dart_detail_failures에 남겨 다음 실행에 맨 뒤로 미뤄 다시 받는다(그 사이 다른 묶음이 먼저 진행된다). 공시 목록(dart_disclosures)은 건드리지 않는다.
  */
 @Component
 @Profile("worker")
@@ -71,9 +73,10 @@ public class DisclosureDetailJob {
 		List<String> errors = new ArrayList<>();
 		String status;
 		try {
-			stocks: for (String stock : store.archivedStocks()) {
+			// 1) 종목·API 묶음을 모은다. 정정 공시가 새로 들어온 묶음에는 그 원 공시(이미 받았어도)를 다시 넣어 정정된 값으로 다시 평가한다
+			List<Group> groups = new ArrayList<>();
+			for (String stock : store.archivedStocks()) {
 				Set<String> done = store.detailedReceipts(stock);
-				// API → 아직 받지 않은 공시(접수일 순)
 				Map<String, List<DisclosureRow>> todo = new LinkedHashMap<>();
 				// API → 그 종목의 같은 API 공시 전체(이미 받은 것 포함). 정정 공시를 찾을 때 쓴다
 				Map<String, List<DisclosureRow>> sameApi = new HashMap<>();
@@ -83,41 +86,47 @@ public class DisclosureDetailJob {
 						continue;
 					}
 					sameApi.computeIfAbsent(api, k -> new ArrayList<>()).add(d);
-					if (!d.date().isBefore(since) && !d.date().isBefore(DATA_FROM) && !done.contains(d.receiptNo())) {
+					if (inRange(d, since) && !done.contains(d.receiptNo())) {
 						todo.computeIfAbsent(api, k -> new ArrayList<>()).add(d);
 					}
 				}
-				for (var e : todo.entrySet()) {
-					if (calls >= cap) {
-						capped = true;
-						break stocks;
+				todo.forEach((api, rows) -> groups.add(new Group(stock, api, withOriginals(rows, sameApi.get(api), since), sameApi.get(api))));
+			}
+			// 2) 실패한 적 없는 묶음을 먼저, 실패한 묶음은 오래 전에 실패한 순으로 맨 뒤에. 같은 묶음이 계속 실패해도 상한을 다 써서 뒤 종목이 막히지 않는다
+			Map<String, Instant> failed = store.detailFailures();
+			groups.sort(Comparator.comparing((Group g) -> failed.containsKey(g.key())).thenComparing(g -> failed.getOrDefault(g.key(), Instant.EPOCH)));
+			for (Group g : groups) {
+				if (calls >= cap) {
+					capped = true;
+					break;
+				}
+				LocalDate from = g.rows().stream().map(DisclosureRow::date).min(Comparator.naturalOrder()).orElseThrow().minusDays(LOOKBACK_DAYS);
+				LocalDate to = g.rows().stream().map(DisclosureRow::date).max(Comparator.naturalOrder()).orElseThrow();
+				try {
+					calls++;
+					List<Map<String, String>> got = disclosures.majorReport(g.api(), g.rows().getFirst().corpCode(), from.isBefore(DATA_FROM) ? DATA_FROM : from, to);
+					Map<String, Map<String, String>> byReceipt = new HashMap<>();
+					got.forEach(r -> byReceipt.put(r.get("rcept_no"), r));
+					saved += store.saveDetails(g.rows().stream().map(d -> {
+						Map<String, String> r = byReceipt.containsKey(d.receiptNo()) ? byReceipt.get(d.receiptNo()) : corrected(d, g.filings(), byReceipt);
+						return new DetailRow(d.receiptNo(), VirtualSimCategory.classify(d.title()), r == null ? List.of() : PlacementDetails.items(g.api(), r));
+					}).toList());
+					store.clearDetailFailure(g.stock(), g.api());
+				}
+				catch (DartException ex) {
+					errors.add(g.key() + ": " + ex.getMessage());
+					log.warn("공시 주요 내용 수집 실패 {}: {}", g.key(), ex.getMessage());
+					if (ex.stopsRun()) {
+						// 키·한도 문제는 그 묶음 탓이 아니라 실패로 남기지 않는다
+						log.warn("공시 주요 내용 수집을 멈춰요(남은 묶음은 다음 실행에)");
+						break;
 					}
-					List<DisclosureRow> rows = e.getValue();
-					LocalDate from = rows.stream().map(DisclosureRow::date).min(Comparator.naturalOrder()).orElseThrow().minusDays(LOOKBACK_DAYS);
-					LocalDate to = rows.stream().map(DisclosureRow::date).max(Comparator.naturalOrder()).orElseThrow();
-					try {
-						calls++;
-						List<Map<String, String>> got = disclosures.majorReport(e.getKey(), rows.getFirst().corpCode(), from.isBefore(DATA_FROM) ? DATA_FROM : from, to);
-						Map<String, Map<String, String>> byReceipt = new HashMap<>();
-						got.forEach(r -> byReceipt.put(r.get("rcept_no"), r));
-						List<DisclosureRow> filings = sameApi.get(e.getKey());
-						saved += store.saveDetails(rows.stream().map(d -> {
-							Map<String, String> r = byReceipt.containsKey(d.receiptNo()) ? byReceipt.get(d.receiptNo()) : corrected(d, filings, byReceipt);
-							return new DetailRow(d.receiptNo(), VirtualSimCategory.classify(d.title()), r == null ? List.of() : PlacementDetails.items(e.getKey(), r));
-						}).toList());
-					}
-					catch (DartException ex) {
-						errors.add(stock + " " + e.getKey() + ": " + ex.getMessage());
-						log.warn("공시 주요 내용 수집 실패 {} {}: {}", stock, e.getKey(), ex.getMessage());
-						if (ex.stopsRun()) {
-							log.warn("공시 주요 내용 수집을 멈춰요(남은 종목은 다음 실행에)");
-							break stocks;
-						}
-					}
-					catch (RuntimeException ex) {
-						errors.add(stock + " " + e.getKey() + ": " + ex.getMessage());
-						log.warn("공시 주요 내용 수집 실패 {} {}: {}", stock, e.getKey(), ex.getMessage());
-					}
+					store.recordDetailFailure(g.stock(), g.api(), ex.getMessage());
+				}
+				catch (RuntimeException ex) {
+					errors.add(g.key() + ": " + ex.getMessage());
+					log.warn("공시 주요 내용 수집 실패 {}: {}", g.key(), ex.getMessage());
+					store.recordDetailFailure(g.stock(), g.api(), ex.getMessage());
 				}
 			}
 		}
@@ -130,6 +139,47 @@ public class DisclosureDetailJob {
 		}
 		log.info("공시 주요 내용 수집 끝 {} (호출 {}번, 저장 {}건, 실패 {}건{})", status, calls, saved, errors.size(), capped ? ", 상한 도달" : "");
 		return new Run(status, calls, saved, List.copyOf(errors), capped);
+	}
+
+	/** 종목·API 묶음. rows: 이번에 저장할 공시(받을 공시 + 다시 평가할 원 공시), filings: 그 종목의 같은 API 공시 전체 */
+	record Group(String stock, String api, List<DisclosureRow> rows, List<DisclosureRow> filings) {
+
+		String key() {
+			return stock + " " + api;
+		}
+	}
+
+	private static boolean inRange(DisclosureRow d, LocalDate since) {
+		return !d.date().isBefore(since) && !d.date().isBefore(DATA_FROM);
+	}
+
+	/**
+	 * 받을 공시에 정정 공시가 있으면, 그 앞의 같은 공시(같은 제목, CORRECTION_DAYS 안)를 정정 표시 없는 원 공시까지 거슬러 함께 넣는다(이미 받은 것도).
+	 * 원 공시를 먼저 받아 둔 뒤 정정으로 비율·규모가 바뀌면 새 문제에도 이전 값이 남지 않게, 원 공시를 같은 응답으로 다시 평가한다
+	 */
+	static List<DisclosureRow> withOriginals(List<DisclosureRow> rows, List<DisclosureRow> filings, LocalDate since) {
+		Map<String, DisclosureRow> out = new java.util.TreeMap<>();
+		rows.forEach(d -> out.put(d.receiptNo(), d));
+		for (DisclosureRow d : rows) {
+			if (!d.title().trim().startsWith("[")) {
+				continue;
+			}
+			String key = PlacementDetails.sameFilingKey(d.title());
+			List<DisclosureRow> earlier = filings.stream()
+				.filter(c -> key.equals(PlacementDetails.sameFilingKey(c.title())) && c.receiptNo().compareTo(d.receiptNo()) < 0
+						&& !c.date().isBefore(d.date().minusDays(CORRECTION_DAYS)))
+				.sorted(Comparator.comparing(DisclosureRow::receiptNo).reversed())
+				.toList();
+			for (DisclosureRow c : earlier) {
+				if (inRange(c, since)) {
+					out.putIfAbsent(c.receiptNo(), c);
+				}
+				if (!c.title().trim().startsWith("[")) {
+					break;
+				}
+			}
+		}
+		return List.copyOf(out.values());
 	}
 
 	/**

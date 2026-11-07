@@ -5,7 +5,7 @@
 열린 PR은 없고 열린 이슈는 9건이다. 11-06 오후에 병합된 작업과 아래 이슈를 최신 main 기준으로 정리했다. 정책·계약·개인정보 동작은 바꾸지 않는다.
 
 - 병합·종료(11-06 오후): [#300](https://github.com/shinds-team7/flexable-web/pull/300) 배치고사 공시 설명·한 문제씩 카드(#289), [#303](https://github.com/shinds-team7/flexable-web/pull/303) 재생 속도·사건 → 차트 이동(#284), [#305](https://github.com/shinds-team7/flexable-web/pull/305) 청년소식 AI 요약 완료 후 공개(#302, 결정 [11-06](../decisions/2026-11-06-news-summary-required.md))와 파킹·CMA 비교 화면 개편, [#306](https://github.com/shinds-team7/flexable-web/pull/306) 대회 4주차를 22일~말일 보너스 주로(#287, 결정 [11-06](../decisions/2026-11-06-contest-final-week.md)), [#310](https://github.com/shinds-team7/flexable-web/pull/310) 목표 시나리오 3개 고정·유형별 해설·함께 볼 상품(#309, 프롬프트 v7, nginx 100초). #290(AI 해설 네 칸·문장 단위 처리, #286)·#288(대회 UI, #285)도 병합됐다.
-- #113: 계약·정책 초안 [#298](https://github.com/shinds-team7/flexable-web/pull/298)이 `PROPOSED`로 병합됐다. 일수 기준(÷365)과 기여금 입금일은 여전히 `UNVERIFIED` 가정이라 **서버 계산·화면 연결은 아직 착수하지 않는다.** 사람이 두 가정을 확인하면 구현 PR로 간다.
+- #113: 리드가 11-07에 정책 §9와 가정 2건(일수 ÷365, 기여금 입금일 = 납입한 달 말일)을 그대로 승인했고, 서버 계산(`policysavings`)·화면 연결 구현 PR로 이어졌다. 응답은 공식 확인 전이라 계속 `UNVERIFIED`다. 가정을 은행·서민금융진흥원에 확인해 `VERIFIED`로 바꾸는 일은 남는다.
 - 새 후속 이슈(미착수): [#301](https://github.com/shinds-team7/flexable-web/issues/301) AI 계획 기한 5년·초기 자금(정책 §7·계약·방침 확인 필요), [#307](https://github.com/shinds-team7/flexable-web/issues/307) 플랜 3개 저장·필요 월 금액 강조(#310의 3개 고정과 겹치므로 저장 계약부터 확인), [#308](https://github.com/shinds-team7/flexable-web/issues/308) 대회 점수 100점 단위·배치고사 풀이/결과 화면(§8-8·계약 `points` 범위가 바뀌는 spec-change).
 - 그대로 남은 것: #297 필터·로고(분류 기준 결정 먼저), #247·#245 방향만 정함(11-06 기록 참고), #246·#198 운영 확인(사용자).
 - 운영 반영 확인 필요: #310은 nginx 설정(AI 호출 100초)과 `goal-scenario-v7`을 VM에 반영해야 한다. #305의 요약 필수는 worker 재기동 뒤 소식 목록이 줄어 보일 수 있다.

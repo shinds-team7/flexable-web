@@ -42,7 +42,8 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
 | `virtualsim` | 가상 시뮬레이션(`/virtual-sim/*`, policies §8): 전체 공시·룰셋·가상 회사 글 저장소, 시드 가상 시세, 30분 메모리 세션, 회원 월간 대회(`VirtualContest*`, policies §8-8: 배치고사·판 기록·하루/주 판정·랭킹, 1분 정리 `VirtualContestJob`). 매매·평가는 `practice.PracticeEngine` | `market`, `practice` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
-| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 없음 | `common` |
+| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 `policysavings` | `common` |
+| `policysavings` | 청년미래적금 규칙과 만기 계산(`/savings/policy/{code}`, policies §9, #113). 규칙은 코드에 두고 응답은 `UNVERIFIED` | `common` |
 | `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |
 | `cashcatalog` | 파킹·CMA 공시 조건 조회·출처별 스냅샷. 공식 페이지 수집은 `ingest.CashCatalogJob`이 맡으며 계산·공개 입력 API는 없음(#218) | `common` |
 | `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |

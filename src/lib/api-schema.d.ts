@@ -2727,7 +2727,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 정책 적금(청년미래적금) 규칙과 확인 상태. 승인 전 초안(policies §9)이라 verificationStatus는 UNVERIFIED */
+        /** 정책 적금(청년미래적금) 규칙과 확인 상태. 구현됨(policies §9). 일수 기준·기여금 입금일 가정이 공식 확인 전이라 verificationStatus는 UNVERIFIED */
         get: {
             parameters: {
                 query?: never;

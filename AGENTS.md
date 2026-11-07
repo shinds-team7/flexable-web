@@ -45,7 +45,7 @@
 - PR 템플릿을 채운다: Issue(`Closes #번호`), 참고한 문서, 영향받는 파트, 새로 내린 결정, 검증 결과.
 - 기준 문서·계약·정책·지침(`AGENTS.md`)을 바꾼 PR에는 `spec-change` 라벨을 붙이고 `docs/CHANGELOG.md`에 한 줄을 더한다. CI(`pr-rules`)가 검사한다.
 - CI는 **필수 체크만** 본다: `gh pr checks <번호> --required`(기다려야 하면 `--required --watch`). CodeRabbit 같은 외부 리뷰 봇은 필수 체크가 아니라서 pending이어도 기다리지 않는다. 옵션 없는 `gh pr checks --watch`는 모든 체크가 끝날 때까지 멈추지 않으니 쓰지 않는다.
-- 브랜치는 `<종류>-<내용>`, 커밋은 `feat(web): 한국어 요약`·`fix(m): …` 형식이다. `main`에는 PR로 머지한다.
+- 브랜치는 `<종류>-<내용>`, 커밋은 `feat(web): 한국어 요약`·`fix(m): …` 형식이다. `main`에는 PR로 머지한다. 단 끝난 항목 지우기, 진행·배포·확인 결과 적기처럼 `docs/product/HANDOFF.md` 한 파일만 고치는 변경은 PR 없이 `main`에 바로 커밋·push한다("main 보호" ruleset을 우회할 권한이 있는 계정만 가능, push 때 나오는 "Bypassed rule violations" 경고는 정상이며 ruleset은 바꾸지 않는다). 커밋에 `HANDOFF.md` 말고 다른 파일이 하나라도 섞이면 바로 올리지 않고 PR로 한다.
 
 ## `spec-change` PR이 병합되면
 

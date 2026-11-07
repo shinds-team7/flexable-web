@@ -6,6 +6,7 @@
 
 ## 2026-11-06
 
+- [HANDOFF] 11-07 최신 상태(#300~#310 병합, #298 `PROPOSED` 병합, 신규 이슈 #301·#307·#308)를 기록했다 — 영향: 문서
 - [#310, Closes #309] 목표 시나리오 3개 고정·유형별 해설·함께 볼 상품(policies §7-2·§7-6, 결정 문서 "11-06 시나리오 3개·유형별 해설·함께 볼 상품"): 프롬프트 goal-scenario-v7, 계약 `GoalScenarioProduct.alternatives` 추가·`scenarios` 3개, 적금·지수 ETF의 다음 순위 최대 2개를 표시·AI 근거로만 사용(계산은 1순위 그대로), 토큰 상한 6000·호출 제한 90초·nginx 100초, §7-6의 이전 시간 표기 정정. 테마 추천과 미래 예측은 넣지 않음 — 영향: 프론트(`npm run gen:api`)·백엔드·운영(nginx 설정 반영)
 - [#306] 가상 시뮬레이션 대회 주를 1~7일, 8~14일, 15~21일, **22일~말일** 네 개로 바꾸고, 4주차는 대회 마지막 날 판정해 결과만 기록한다(보너스 주, 판·잔액·판 점수·최고 판·최종 순위는 그대로, [결정](decisions/2026-11-06-contest-final-week.md), 사용자 결정). policies §8-8 "주간 판정"·"월말 정산"·예시, `virtual-contest.json` `rules.weeks`·`weekly`(`finalWeek`·`judged`), 계약 `VirtualContest.weeks` 4개·`VirtualContestEntry.week.week` 최대 4·`VirtualContestResult.finalWeek` 추가. 화면 규칙·주별 일정·이번 주 점수·지난 대회 카드 문구. DB·개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Refs #302] 청년소식은 검사에 통과한 AI 요약 완료 후 공개·신규 저장한다([결정](decisions/2026-11-06-news-summary-required.md)). 원문 수집과 기존 저장 사본은 보존하며 미요약·실패 소식은 공개 목록·인기 소식·열람 집계에서 제외한다. 계약 `summary`를 비어 있지 않은 문자열로 변경. 구현은 후속 PR — 영향: 프론트·백엔드

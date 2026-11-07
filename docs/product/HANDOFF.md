@@ -1,5 +1,7 @@
 # 웹 개발 인수인계
 
+이 파일만 고치는 변경은 PR 없이 `main`에 바로 커밋·push한다([AGENTS.md](../../AGENTS.md) "작업 완료 시"). 다른 파일이 섞이면 PR로 한다.
+
 ## 2026-11-07 운영 서버 읽기 전용 확인(웹 서버 `solpa.shinhanacademy.co.kr`)
 
 **정정**: 이전 기록의 "운영 파킹/CMA 조회 401"은 웹 서버가 아니라 앱 서버(`.env.example`의 `VITE_API_URL`, `flex-able-sh.duckdns.org`)에 요청한 결과였다. 웹 API는 README의 웹 서버 주소로 확인한다. 앱 서버는 웹 API를 로그인 필수로 막는다.

@@ -6,6 +6,7 @@
 
 ## 2026-11-08
 
+- [Issue 없음] `docs/product/HANDOFF.md`만 고치는 변경(끝난 항목 삭제, 진행·배포·확인 결과 적기)은 PR 없이 `main`에 바로 커밋·push. 다른 파일이 섞이면 PR. `AGENTS.md` "작업 완료 시", 앱 저장소 PR #296과 같은 방식 — 영향: 작업 방식
 - [Refs #247] CMA 예상 이자 계산을 정했다·구현했다([정책 §12](policies.md) `cma-calc-v1`, [결정](decisions/2026-11-08-cma-calc-proposal.md)). 계약: `POST /cma/simulate`와 `CmaSimulation` 추가, `CashCatalogProduct`에 `periods` 필수 필드 추가, `calcMode`에 `AGREED_RATE`·`PERIOD_RATE` 추가(CMA도 이제 계산 가능 상품이 있음). 약정수익률이 하나인 상품과 원문에 보유 기간별 표가 있는 상품만 계산하고 재투자는 반영하지 않는다. 신한·한화·우리WON은 계산하지 않고 이유를 보인다 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Refs #247] CMA 예상 이자 계산 범위를 결정했다([결정](decisions/2026-11-08-cma-calc-proposal.md), 리드 승인): 단일 약정수익률 11개를 1단계로, 유진 자산관리형 보유 기간별 금리를 2단계로, 한화·우리WON·신한(원문 확인 전)은 제외, 재투자는 반영하지 않고 세금 15.4%. 정책·계약은 구현 PR에서 추가한다 — 영향: 문서
 - [HANDOFF] 키움·카카오페이증권·토스증권·케이프 탐색 결과와 CMA 계산 제안(#330, 미승인) 위치를 기록했다 — 영향: 문서

@@ -15,7 +15,6 @@ final class CashTags {
 	static final Map<String, List<String>> KEYWORDS = new LinkedHashMap<>();
 
 	static {
-		KEYWORDS.put("SPECIAL_OFFER", List.of("특판", "한정판매", "특별판매"));
 		KEYWORDS.put("YOUTH", List.of("청년", "사회초년생"));
 		KEYWORDS.put("MILITARY", List.of("군인", "장병"));
 		KEYWORDS.put("NON_FACE_TO_FACE", List.of("비대면", "방문없이"));

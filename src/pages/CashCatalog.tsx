@@ -14,7 +14,7 @@ type Kind = 'parking' | 'cma';
 type Tag = Product['tags'][number];
 // 상품명·공시 조건 원문에 이 문구가 있다는 뜻이다(policies §10). 가입 자격이나 우대 적용을 판정하지 않는다
 const TAG_GROUPS: { title: string; tags: { id: Tag; label: string }[] }[] = [
-  { title: '상품 유형', tags: [{ id: 'SPECIAL_OFFER', label: '특판' }, { id: 'YOUTH', label: '청년' }, { id: 'MILITARY', label: '군인' }] },
+  { title: '상품 유형', tags: [{ id: 'YOUTH', label: '청년' }, { id: 'MILITARY', label: '군인' }] },
   { title: '우대조건·가입 방식', tags: [{ id: 'NON_FACE_TO_FACE', label: '비대면 가입' }, { id: 'SALARY_LINK', label: '급여 연동' }, { id: 'AUTO_TRANSFER', label: '자동이체' }, { id: 'CARD_USE', label: '카드 사용' }] },
 ];
 const TAG_LABEL = new Map(TAG_GROUPS.flatMap(g => g.tags.map(t => [t.id, t.label] as const)));

@@ -29,6 +29,7 @@ public class OfficialCashClient {
         MERITZ("meritz-cma-rp", "cma", "https://www.imeritz.com/meritzcma/CmaRp.do"),
         HANWHA("hanwha-cma-rp", "cma", "https://www.hanwhawm.com/static/finance/cma/FI211_1p.htm"),
         HMC("hmc-cma-salary", "cma", "https://www.hmsec.com/mobile/notice_info/guide/salary_account_guide_01.to"),
+        KYOBO("kyobo-plusalpha-cma-rp", "cma", "https://www.iprovest.com/cyber/cma/pluscmaintro.htm"),
         SK("sk-magic-cma-rp", "cma", "https://www.sks.co.kr/main/product/cma/mCMA/html/PD_04001_T01.htm");
         public final String key, kind, url;
         Source(String key, String kind, String url) { this.key = key; this.kind = kind; this.url = url; }
@@ -121,6 +122,7 @@ public class OfficialCashClient {
             case MIRAE_RP -> OfficialCashParser.miraeRp(html, verifiedAt);
             case HANWHA -> OfficialCashJsonParser.hanwha(html, verifiedAt);
             case HMC -> OfficialCashJsonParser.hmc(html, verifiedAt);
+            case KYOBO -> OfficialCashParser.kyobo(html, verifiedAt);
             default -> throw new IllegalStateException("미지원 공식 출처");
         };
     }

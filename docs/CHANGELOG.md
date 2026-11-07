@@ -6,6 +6,7 @@
 
 ## 2026-11-08
 
+- [Refs #247] 파킹통장 이자 계산 2단계를 정했다·구현했다([정책 §11](policies.md) `parking-calc-v2`). 원문에 "초과분" 낱말이나 "예시 … 적용" 문장이 있고 구간이 빈틈없이 이어지는 상품만 구간 안의 금액에 구간 금리를 적용해 계산한다(실제 17개 추가, 계산 가능 119개). 계약: `CashCatalogProduct`에 `calcMode`·`tiers` 필수 필드, `ParkingSimulation`에 `mode`·`parts` 필수 필드 추가, `baseRate`는 nullable — 영향: 프론트(`npm run gen:api`)·백엔드
 - [HANDOFF] 파킹 계산 1단계(#324)·제주 보완(#325) 병합과 화면 확인 범위, 제주 남은 항목을 기록했다 — 영향: 문서
 - [Refs #245, #247] 제주은행 상세에서 "이벤트 우대금리"(기간·금액 구간·금리)와 "이자지급시기"를 읽어 조건·지급 정보에 넣었다([커버리지 결정](decisions/2026-11-04-cash-coverage.md) 제주 행). 달리자의 이벤트 3.30%·종료일과 탐나는전의 지급일이 빠져 `maxRate`와 조건이 맞지 않던 문제를 줄인다. 공개 API·계약 변경 없음 — 영향: 백엔드 수집·문서
 - [Closes-part #247] 파킹통장 기본금리 이자 계산 1단계를 정했다·구현했다([정책 §11](policies.md), [결정](decisions/2026-11-07-parking-calc-scope-proposal.md)). 계약: `POST /parking/simulate`와 `ParkingSimulation` 추가, `CashCatalogProduct`에 `calculable`·`calcReason` 필수 필드 추가(CMA는 항상 false). 일 단위 ÷365·세금 15.4% 내림, 금액 구간·최고금리 제한 문구가 있는 상품은 계산하지 않고 이유를 보인다(실제 217개 중 102개 계산 가능). 우대·이벤트·구간 금리는 넣지 않는다 — 영향: 프론트(`npm run gen:api`)·백엔드

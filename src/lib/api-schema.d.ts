@@ -93,7 +93,7 @@ export interface paths {
         put?: never;
         /**
          * 파킹통장 기본금리 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림)
-         * @description policies §11(규칙 parking-calc-v1). 공시 기본금리만 쓴다. 우대·이벤트·금액 구간 금리는 넣지 않는다.
+         * @description policies §11(규칙 parking-calc-v2). 공시 기본금리 하나(BASE_RATE) 또는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리(TIERED)로 계산한다. 우대·이벤트는 넣지 않는다.
          *     목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유)이다. 없는 상품은 404.
          */
         post: {
@@ -4862,6 +4862,21 @@ export interface components {
             calculable: boolean;
             /** @description calculable이 false일 때 이유(사용자에게 그대로 보여 준다). true면 null */
             calcReason: string | null;
+            /**
+             * @description BASE_RATE는 공시 기본금리 하나로, TIERED는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리로 계산(policies §11 parking-calc-v2). 계산 불가면 null
+             * @enum {string|null}
+             */
+            calcMode: "BASE_RATE" | "TIERED" | null;
+            /** @description calcMode가 TIERED일 때 원문에서 읽은 구간(위로 올라가는 순서). 아니면 빈 배열 */
+            tiers: {
+                /**
+                 * Format: int64
+                 * @description 이 구간의 끝 금액(원). null이면 그 위 전부
+                 */
+                upTo: number | null;
+                /** @description 그 구간 안의 금액에 적용하는 공시 연 %, 세전 */
+                rate: number;
+            }[];
             interestPayment: string | null;
             reinvestment: string | null;
             depositProtected: boolean | null;
@@ -4890,11 +4905,21 @@ export interface components {
             /** Format: int64 */
             amount: number;
             days: number;
-            /** @description 계산에 쓴 공시 기본금리(연 %, 세전) */
-            baseRate: number;
+            /** @enum {string} */
+            mode: "BASE_RATE" | "TIERED";
+            /** @description BASE_RATE일 때 계산에 쓴 공시 기본금리(연 %, 세전). TIERED면 null */
+            baseRate: number | null;
+            /** @description TIERED일 때 구간별로 들어간 금액. 합이 amount와 같다. BASE_RATE면 빈 배열 */
+            parts: {
+                /** Format: int64 */
+                upTo: number | null;
+                rate: number;
+                /** Format: int64 */
+                amount: number;
+            }[];
             /**
              * Format: int64
-             * @description floor(amount × baseRate × days ÷ 36500)
+             * @description floor(amount × baseRate × days ÷ 36500). TIERED는 floor(Σ 구간 금액 × 구간 금리 × days ÷ 36500)
              */
             interestPreTax: number;
             /**
@@ -4904,7 +4929,7 @@ export interface components {
             tax: number;
             /** Format: int64 */
             interestAfterTax: number;
-            /** @example parking-calc-v1 */
+            /** @example parking-calc-v2 */
             rulesVersion: string;
             notice: string;
         };

@@ -13,7 +13,7 @@
 | `goal-scenarios.json` | §7 목표 달성 시나리오(F7 v2: 적금·CMA·투자 계산, 배분, 필요 월 금액, 분위, 입력·제안 검증) | `backend/src/test/.../goalscenario/GoalScenarioPolicyTest` |
 | `policy-savings.json` | §9 청년미래적금 만기 계산(납입일별 이자·정부기여금·기여금 이자·입력 오류). `IMPLEMENTED`(가정 2건은 UNVERIFIED) | `backend/src/test/.../policysavings/PolicySavingsPolicyTest` |
 | `cash-tags.json` | §10 파킹·CMA 분류 태그(낱말 표·예시). `IMPLEMENTED` | `backend/src/test/.../cashcatalog/CashTagsPolicyTest` |
-| `parking-calc.json` | §11 파킹통장 기본금리 이자 계산(일 단위 ÷365)·계산 가능 판정. `IMPLEMENTED` | `backend/src/test/.../cashcatalog/ParkingPolicyTest` |
+| `parking-calc.json` | §11 파킹통장 이자 계산(일 단위 ÷365)·계산 가능 판정·원문 구간표 읽기·구간별 계산. `IMPLEMENTED` | `backend/src/test/.../cashcatalog/ParkingPolicyTest` |
 
 - 정책을 바꾸면 `policies.md` 표와 이 JSON을 같은 PR에서 고치고 `spec-change` 라벨과 CHANGELOG 한 줄을 붙인다(CODEOWNERS 리뷰).
 - 실행: `cd backend && ./gradlew test --tests "*PolicyTest"`(CI의 `./gradlew build`에 포함). 테스트는 `backend/` 기준 `../tests/policy/`를 읽는다.

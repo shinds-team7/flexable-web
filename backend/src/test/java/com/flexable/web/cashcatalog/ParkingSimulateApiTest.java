@@ -37,7 +37,8 @@ class ParkingSimulateApiTest {
 	void clean() {
 		snapshots.deleteAll();
 		catalog.publish("parking", "sim-test", "synthetic", List.of(parking("flat", "3.00", "기본이율 3.00%"),
-				parking("tier", "3.00", "3억원 이하 3.2%, 초과 1.5%"), parking("nobase", null, "기본금리 미확인")));
+				parking("tier", "3.00", "3억원 이하 3.2%, 초과 1.5%"), parking("nobase", null, "기본금리 미확인"),
+				parking("marginal", "1.20", "기타사항: - 1억원 이하분 연 2.7%\n- 1억원 초과분 연 1.2%")));
 	}
 
 	private String id(String name) {
@@ -64,7 +65,18 @@ class ParkingSimulateApiTest {
 		simulate(id("상품 flat"), 10_000_000, 31).andExpect(status().isOk())
 				.andExpect(jsonPath("$.interestPreTax").value(25479)).andExpect(jsonPath("$.tax").value(3923))
 				.andExpect(jsonPath("$.interestAfterTax").value(21556))
-				.andExpect(jsonPath("$.rulesVersion").value("parking-calc-v1"));
+				.andExpect(jsonPath("$.rulesVersion").value("parking-calc-v2"));
+	}
+
+	@Test
+	void 원문에_구간별_적용이_적힌_상품은_구간_금리로_계산한다() throws Exception {
+		mvc.perform(get("/api/v1/parking/products")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[?(@.name=='상품 marginal')].calcMode").value("TIERED"))
+				.andExpect(jsonPath("$.items[?(@.name=='상품 flat')].calcMode").value("BASE_RATE"));
+		// 1억원 이하분 2.7% + 5천만원(초과분) 1.2%, 365일: 2,700,000 + 600,000
+		simulate(id("상품 marginal"), 150_000_000, 365).andExpect(status().isOk())
+				.andExpect(jsonPath("$.mode").value("TIERED")).andExpect(jsonPath("$.interestPreTax").value(3300000))
+				.andExpect(jsonPath("$.parts.length()").value(2)).andExpect(jsonPath("$.parts[1].amount").value(50000000));
 	}
 
 	@Test

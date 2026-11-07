@@ -52,7 +52,7 @@ paths:
       tags: [deposit]
       summary: '파킹통장 기본금리 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림)'
       description: |
-        policies §11(규칙 parking-calc-v1). 공시 기본금리만 쓴다. 우대·이벤트·금액 구간 금리는 넣지 않는다.
+        policies §11(규칙 parking-calc-v2). 공시 기본금리 하나(BASE_RATE) 또는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리(TIERED)로 계산한다. 우대·이벤트는 넣지 않는다.
         목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유)이다. 없는 상품은 404.
       security: []
       requestBody:
@@ -2982,7 +2982,7 @@ components:
     CashCatalogProduct:
       type: object
       additionalProperties: false
-      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, tags, calculable, calcReason, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
+      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, tags, calculable, calcReason, calcMode, tiers, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
       properties:
         id: { type: string, minLength: 1 }
         company: { type: string, minLength: 1 }
@@ -2999,6 +2999,21 @@ components:
           items: { type: string, enum: [YOUTH, MILITARY, NON_FACE_TO_FACE, SALARY_LINK, AUTO_TRANSFER, CARD_USE] }
         calculable: { type: boolean, description: '파킹통장 기본금리 이자 계산을 제공하는 상품인지(policies §11 parking-calc-v1). CMA는 항상 false' }
         calcReason: { type: string, nullable: true, description: 'calculable이 false일 때 이유(사용자에게 그대로 보여 준다). true면 null' }
+        calcMode:
+          type: string
+          nullable: true
+          enum: [BASE_RATE, TIERED, null]
+          description: 'BASE_RATE는 공시 기본금리 하나로, TIERED는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리로 계산(policies §11 parking-calc-v2). 계산 불가면 null'
+        tiers:
+          type: array
+          description: 'calcMode가 TIERED일 때 원문에서 읽은 구간(위로 올라가는 순서). 아니면 빈 배열'
+          items:
+            type: object
+            additionalProperties: false
+            required: [upTo, rate]
+            properties:
+              upTo: { type: integer, format: int64, nullable: true, description: '이 구간의 끝 금액(원). null이면 그 위 전부' }
+              rate: { type: number, description: '그 구간 안의 금액에 적용하는 공시 연 %, 세전' }
         interestPayment: { type: string, nullable: true }
         reinvestment: { type: string, nullable: true }
         depositProtected: { type: boolean, nullable: true }
@@ -3012,16 +3027,28 @@ components:
     ParkingSimulation:
       type: object
       additionalProperties: false
-      required: [productId, amount, days, baseRate, interestPreTax, tax, interestAfterTax, rulesVersion, notice]
+      required: [productId, amount, days, mode, baseRate, parts, interestPreTax, tax, interestAfterTax, rulesVersion, notice]
       properties:
         productId: { type: string }
         amount: { type: integer, format: int64 }
         days: { type: integer }
-        baseRate: { type: number, description: '계산에 쓴 공시 기본금리(연 %, 세전)' }
-        interestPreTax: { type: integer, format: int64, description: 'floor(amount × baseRate × days ÷ 36500)' }
+        mode: { type: string, enum: [BASE_RATE, TIERED] }
+        baseRate: { type: number, nullable: true, description: 'BASE_RATE일 때 계산에 쓴 공시 기본금리(연 %, 세전). TIERED면 null' }
+        parts:
+          type: array
+          description: 'TIERED일 때 구간별로 들어간 금액. 합이 amount와 같다. BASE_RATE면 빈 배열'
+          items:
+            type: object
+            additionalProperties: false
+            required: [upTo, rate, amount]
+            properties:
+              upTo: { type: integer, format: int64, nullable: true }
+              rate: { type: number }
+              amount: { type: integer, format: int64 }
+        interestPreTax: { type: integer, format: int64, description: 'floor(amount × baseRate × days ÷ 36500). TIERED는 floor(Σ 구간 금액 × 구간 금리 × days ÷ 36500)' }
         tax: { type: integer, format: int64, description: 'floor(interestPreTax × 0.154)' }
         interestAfterTax: { type: integer, format: int64 }
-        rulesVersion: { type: string, example: parking-calc-v1 }
+        rulesVersion: { type: string, example: parking-calc-v2 }
         notice: { type: string }
     SavingsSector: { type: string, enum: [BANK, SAVINGS_BANK] }
     SavingsResult:

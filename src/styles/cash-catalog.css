@@ -96,3 +96,8 @@
 .cash-calc-result dd{margin:0;color:var(--color-text-primary)}
 .cash-calc-note,.cash-calc-error{margin:calc(var(--density-gap)/3) 0 0;font-size:12px;color:var(--color-text-tertiary)}
 .cash-calc-error{color:var(--color-text-secondary)}
+.cash-calc-parts{margin-top:calc(var(--density-gap)/2);border-collapse:collapse;font-size:12px;width:100%;max-width:420px}
+.cash-calc-parts caption{text-align:left;color:var(--color-text-tertiary);padding-bottom:calc(var(--density-gap)/6)}
+.cash-calc-parts th,.cash-calc-parts td{padding:calc(var(--density-gap)/4) calc(var(--density-gap)/3);border-top:1px solid var(--color-border);text-align:right;font-weight:400}
+.cash-calc-parts th:first-child{text-align:left}
+.cash-calc-parts thead th{color:var(--color-text-tertiary);font-weight:700}

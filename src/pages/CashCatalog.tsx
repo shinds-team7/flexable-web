@@ -38,6 +38,10 @@ const rows: { label: string; value: (p: Product) => string }[] = [
   { label: '자료 검증 시각 (한국시간)', value: p => new Date(p.verifiedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) },
 ];
 
+const partLabel = (parts: Sim['parts'], i: number) => {
+  const from = i === 0 ? 0 : parts[i - 1].upTo ?? 0, to = parts[i].upTo;
+  return to == null ? `${won(from)}원 초과` : `${i === 0 ? '' : `${won(from)}원 초과 `}${won(to)}원 이하`.trim();
+};
 // 서버가 계산한다(policies §11). 공시 기본금리만 쓰고 우대·이벤트·금액 구간은 넣지 않는다
 function ParkingCalc({ product }: { product: Product }) {
   const [amount, setAmount] = useState('10000000');
@@ -47,7 +51,7 @@ function ParkingCalc({ product }: { product: Product }) {
   });
   const valid = /^\d+$/.test(amount) && Number(amount) >= 1 && /^\d+$/.test(days) && Number(days) >= 1;
   if (!product.calculable) return <p className="cash-calc-off">이자 계산 안내: {product.calcReason}</p>;
-  return <details className="cash-calc"><summary>예상 이자 계산해 보기 (기본금리 기준)</summary>
+  return <details className="cash-calc"><summary>{product.calcMode === 'TIERED' ? '예상 이자 계산해 보기 (구간별 금리 기준)' : '예상 이자 계산해 보기 (기본금리 기준)'}</summary>
     <form onSubmit={e => { e.preventDefault(); if (valid) calc.mutate(); }}>
       <label>맡길 돈 (원)<input inputMode="numeric" value={amount ? Number(amount).toLocaleString('ko-KR') : ''} onChange={e => { setAmount(e.target.value.replace(/[^\d]/g, '').slice(0, 11)); calc.reset(); }} /></label>
       <label>맡기는 기간 (일)<input inputMode="numeric" value={days} onChange={e => { setDays(e.target.value.replace(/[^\d]/g, '')); calc.reset(); }} /></label>
@@ -60,6 +64,9 @@ function ParkingCalc({ product }: { product: Product }) {
         <div><dt>세금 (15.4%)</dt><dd className="num">{won(calc.data.tax)}원</dd></div>
         <div><dt>세후 이자</dt><dd className="num"><b>{won(calc.data.interestAfterTax)}원</b></dd></div>
       </dl>}
+      {calc.data && calc.data.parts.length > 0 && <table className="cash-calc-parts"><caption>구간별로 들어간 금액</caption>
+        <thead><tr><th scope="col">구간</th><th scope="col">연 금리</th><th scope="col">들어간 금액</th></tr></thead>
+        <tbody>{calc.data.parts.map((part, i) => <tr key={i}><th scope="row">{partLabel(calc.data.parts, i)}</th><td className="num">{part.rate.toFixed(2)}%</td><td className="num">{won(part.amount)}원</td></tr>)}</tbody></table>}
       {calc.data && <p className="cash-calc-note">{calc.data.notice}</p>}
     </div>
   </details>;

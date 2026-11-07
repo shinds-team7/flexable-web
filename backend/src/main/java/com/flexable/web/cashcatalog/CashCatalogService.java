@@ -36,7 +36,8 @@ public class CashCatalogService {
         List<Product> items = snapshots.findByKind(kind).stream()
                 .flatMap(s -> Arrays.stream(JSON.readValue(s.payload, Product[].class)))
                 .map(p -> p.withTags(CashTags.of(p.name(), p.conditions())))
-                .map(p -> p.withCalc(kind.equals("parking") ? ParkingCalculator.reason(p) : ParkingCalculator.NO_CMA))
+                .map(p -> p.withCalc(kind.equals("parking") ? ParkingCalculator.assess(p)
+                        : new ParkingCalculator.Assessment(null, ParkingCalculator.NO_CMA, List.of())))
                 .sorted(Comparator.comparing(Product::company).thenComparing(Product::name).thenComparing(Product::id))
                 .toList();
         String notice = items.isEmpty() ? "확인된 공시 자료를 준비 중이에요. 실제 상품 데이터는 아직 등록되지 않았어요."
@@ -55,10 +56,14 @@ public class CashCatalogService {
         Product p = list("parking").items().stream().filter(x -> x.id().equals(r.productId())).findFirst()
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "파킹통장 상품을 찾지 못했어요"));
         if (!p.calculable()) throw ApiException.invalid("productId", p.calcReason());
-        var c = ParkingCalculator.calculate(r.amount(), r.days(), p.baseRate());
-        return new ParkingSimulation(p.id(), r.amount(), r.days(), p.baseRate(), c.interestPreTax(), c.tax(),
-                c.interestAfterTax(), ParkingCalculator.RULES_VERSION,
-                "공시 기본금리만 쓴 예상 세전 이자예요. 우대·이벤트와 금액 구간은 반영하지 않았고 금리가 바뀌면 달라져요. 세금은 15.4%로 계산했어요.");
+        boolean tiered = "TIERED".equals(p.calcMode());
+        var c = tiered ? ParkingCalculator.calculateTiered(r.amount(), r.days(), p.tiers())
+                : ParkingCalculator.calculate(r.amount(), r.days(), p.baseRate());
+        return new ParkingSimulation(p.id(), r.amount(), r.days(), p.calcMode(), tiered ? null : p.baseRate(),
+                tiered ? ParkingCalculator.parts(r.amount(), p.tiers()) : List.of(), c.interestPreTax(), c.tax(),
+                c.interestAfterTax(), ParkingCalculator.RULES_VERSION, tiered
+                ? "공시 원문의 구간별 금리를 구간 안의 금액에만 적용한 예상 세전 이자예요. 우대·이벤트는 반영하지 않았고 금리가 바뀌면 달라져요. 세금은 15.4%로 계산했어요."
+                : "공시 기본금리만 쓴 예상 세전 이자예요. 우대·이벤트와 금액 구간은 반영하지 않았고 금리가 바뀌면 달라져요. 세금은 15.4%로 계산했어요.");
     }
 
     /** 내부 수집 경계. reference는 수집 판단 근거이며 기관 허가를 뜻하지 않는다(11-04 후속 결정). */

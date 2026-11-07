@@ -1,5 +1,16 @@
 # 웹 개발 인수인계
 
+## 2026-11-07 최신 상태(main 4d46049)
+
+열린 PR은 없고 열린 이슈는 9건이다. 11-06 오후에 병합된 작업과 아래 이슈를 최신 main 기준으로 정리했다. 정책·계약·개인정보 동작은 바꾸지 않는다.
+
+- 병합·종료(11-06 오후): [#300](https://github.com/shinds-team7/flexable-web/pull/300) 배치고사 공시 설명·한 문제씩 카드(#289), [#303](https://github.com/shinds-team7/flexable-web/pull/303) 재생 속도·사건 → 차트 이동(#284), [#305](https://github.com/shinds-team7/flexable-web/pull/305) 청년소식 AI 요약 완료 후 공개(#302, 결정 [11-06](../decisions/2026-11-06-news-summary-required.md))와 파킹·CMA 비교 화면 개편, [#306](https://github.com/shinds-team7/flexable-web/pull/306) 대회 4주차를 22일~말일 보너스 주로(#287, 결정 [11-06](../decisions/2026-11-06-contest-final-week.md)), [#310](https://github.com/shinds-team7/flexable-web/pull/310) 목표 시나리오 3개 고정·유형별 해설·함께 볼 상품(#309, 프롬프트 v7, nginx 100초). #290(AI 해설 네 칸·문장 단위 처리, #286)·#288(대회 UI, #285)도 병합됐다.
+- #113: 계약·정책 초안 [#298](https://github.com/shinds-team7/flexable-web/pull/298)이 `PROPOSED`로 병합됐다. 일수 기준(÷365)과 기여금 입금일은 여전히 `UNVERIFIED` 가정이라 **서버 계산·화면 연결은 아직 착수하지 않는다.** 사람이 두 가정을 확인하면 구현 PR로 간다.
+- 새 후속 이슈(미착수): [#301](https://github.com/shinds-team7/flexable-web/issues/301) AI 계획 기한 5년·초기 자금(정책 §7·계약·방침 확인 필요), [#307](https://github.com/shinds-team7/flexable-web/issues/307) 플랜 3개 저장·필요 월 금액 강조(#310의 3개 고정과 겹치므로 저장 계약부터 확인), [#308](https://github.com/shinds-team7/flexable-web/issues/308) 대회 점수 100점 단위·배치고사 풀이/결과 화면(§8-8·계약 `points` 범위가 바뀌는 spec-change).
+- 그대로 남은 것: #297 필터·로고(분류 기준 결정 먼저), #247·#245 방향만 정함(11-06 기록 참고), #246·#198 운영 확인(사용자).
+- 운영 반영 확인 필요: #310은 nginx 설정(AI 호출 100초)과 `goal-scenario-v7`을 VM에 반영해야 한다. #305의 요약 필수는 worker 재기동 뒤 소식 목록이 줄어 보일 수 있다.
+- 사람이 할 일: #113 가정 확인, #246·#198 운영 확인, 11-18 AWS 이전 구성과 11-11 방침 고지, #301·#307·#308 착수 순서 결정.
+
 ## 2026-11-06 SXXNHU 후속
 
 - 병합: [#291](https://github.com/shinds-team7/flexable-web/pull/291) F3 조합·프리셋·공유(섞어보기) 범위 제외로 #114 종료, [#294](https://github.com/shinds-team7/flexable-web/pull/294) 청년정보 검색창을 전체 소식 목록 위로 이동으로 #276 종료. #288 시뮬레이션 대회 UI는 SXXNHU 승인(병합은 작성자).

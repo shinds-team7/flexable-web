@@ -66,6 +66,13 @@ class OfficialCashJsonParserTest {
         assertThatThrownBy(() -> OfficialCashJsonParser.kbankOther(kbankOther().replace("SALE", "STOP"), at)).isInstanceOf(IllegalStateException.class);
     }
     @Test void skChecksThePersonalRowAgainstTheDisplayedRateAndCount() {
+        var daol = OfficialCashJsonParser.daol(daol(), at).getFirst();
+        assertThat(daol.baseRate()).isEqualByComparingTo("1.23");
+        assertThat(daol.sourceAsOf()).hasToString("2026-10-30");
+        assertThatThrownBy(() -> OfficialCashJsonParser.daol(daol().replace("1.23", "abc"), at)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> OfficialCashJsonParser.daol(daol().replace("2026.10.30", "미정"), at)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> OfficialCashJsonParser.daol("{}", at)).isInstanceOf(RuntimeException.class);
+        assertThat(CashRobots.allowed("User-agent: *\nAllow:/\n", "/kr/FP/rpInterest.jspx?cmd=getRPInfo")).isTrue();
         assertThat(OfficialCashJsonParser.sk(sk(), at).getFirst().baseRate()).isEqualByComparingTo("1.23");
         assertThatThrownBy(() -> OfficialCashJsonParser.sk(sk().replace("1.23%", "2.34%"), at)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> OfficialCashJsonParser.sk(sk().replace("\"QueryCnt\":\"2\"", "\"QueryCnt\":\"3\""), at)).isInstanceOf(IllegalStateException.class);
@@ -129,6 +136,9 @@ class OfficialCashJsonParserTest {
         {"_msg_":{"_common_":{"resCode":"00","error.code":"F0000"},"_body_":{"inqryType":"SALE","inqryBaseDt":"20261030","pdInfoList10":[
         {"pdCd":"a","pdNm":"생활통장","typeList1":[{"rate":"0.10","amtStcn":"전체구간"}],"typeList4":[],"typeList5":[{"rate":"2.34","amtStcn":"3백만원+이하"}]},
         {"pdCd":"b","pdNm":"플러스박스"},{"pdCd":"c","pdNm":"사장님통장"}]}}}
+        """; }
+    static String daol() { return """
+        {"start_date":"2026.10.30","rp_rate":"1.23"}
         """; }
     static String sk() { return """
         {"output":{"h_errcode":"","QueryCnt":"2","OutBlock_2":[{"rp_dcd":"10","inv_cnt":"30일","rp_int_rt":"99"},{"rp_dcd":"30","inv_cnt":"1일","rp_int_rt":"1.23"}],"o_rp_int_rt":"1.23%","bs_dt_format":"2026.10.30"}}

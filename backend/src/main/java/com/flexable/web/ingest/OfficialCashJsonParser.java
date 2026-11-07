@@ -227,6 +227,17 @@ final class OfficialCashJsonParser {
             null, date, OfficialCashClient.Source.SK, at));
     }
 
+    /** 다올 CMA/RP 안내 화면이 직접 부르는 공개 조회: {"start_date":"yyyy.MM.dd","rp_rate":"N.NN"}. */
+    static List<Product> daol(String json, OffsetDateTime at) {
+        var data = JSON.readTree(json);
+        if (!data.isObject()) throw changed("다올 응답 형식");
+        BigDecimal rate = decimal(required(data, "rp_rate"));
+        LocalDate date = LocalDate.parse(required(data, "start_date"), DateTimeFormatter.ofPattern("yyyy.MM.dd"));
+        return List.of(cma("daol-cma-rp", "다올투자증권", "다올 CMA (RP형)", "RP", rate, rate,
+            "예탁금을 RP에 자동 운용하는 CMA의 공시 수익률이에요. 은행제휴계좌는 가입할 수 없다고 안내해요. 금액 구간·우대는 이 조회에 없어 미확인이에요.",
+            null, date, OfficialCashClient.Source.DAOL, at));
+    }
+
     static List<Product> hanwha(String html, OffsetDateTime at) {
         var doc = Jsoup.parse(html);
         var points = doc.select(".FI211_1p_numList > ol > li > p").stream().filter(p -> p.text().contains("금액 구간별 세전")).toList();

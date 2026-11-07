@@ -54,6 +54,58 @@ final class OfficialCashParser {
             null, null, null, null, null, "미래에셋증권 RP 상품 안내", OfficialCashClient.Source.MIRAE_RP.url, null, null, at));
     }
 
+    /** 교보 PLUS α CMA(RP형) 안내의 "CMA용 수시 입출금식 RP 수익률 : 연 N% (기준일 기준, 세전)" 한 줄을 읽는다. */
+    static List<Product> kyobo(String html, OffsetDateTime at) {
+        Document doc = Jsoup.parse(html);
+        if (!doc.title().contains("교보 PLUS")) throw changed();
+        var lines = doc.select("dt").stream().filter(d -> d.text().startsWith("CMA용 수시 입출금식 RP 수익률")).toList();
+        if (lines.size() != 1) throw changed();
+        var m = Pattern.compile("CMA용 수시 입출금식 RP 수익률\\s*:\\s*(연\\s*\\d+(?:\\.\\d+)?\\s*%)\\s*\\((20\\d{2}\\s*\\.\\s*\\d{1,2}\\s*\\.\\s*\\d{1,2})\\s*기준,\\s*세전\\)")
+            .matcher(lines.getFirst().text());
+        if (!m.matches()) throw changed();
+        String all = doc.text();
+        if (!all.contains("예금자보호법에 따라 보호되지 않습니다") || !all.contains("90일")) throw changed();
+        BigDecimal r = rate(m.group(1));
+        return List.of(new Product("plus-alpha-cma-rp", "교보증권", "교보 PLUS α CMA(RP형)", "SECURITIES", "RP", r, r, "AGREED",
+            "CMA용 수시 입출금식 RP 약정수익률(세전). 입금 시점의 약정수익률을 90일간 적용하고, 90일이 지나면 그 시점의 공시수익률로 바뀌어요. 시장금리에 따라 변동될 수 있어요.",
+            null, "원금과 이자를 재투자하거나 원천징수하려면 매도 후 재매수해야 해요.", Boolean.FALSE, null, null,
+            "교보증권 PLUS α CMA 안내", OfficialCashClient.Source.KYOBO.url, date(m.group(2)), null, at));
+    }
+
+    /**
+     * 우리WON CMA Note(발행어음형) 안내. 화면 상단의 "최고 연 N%" 문구는 쓰지 않고, 기준일이 붙은 "예금 잔액별 이자율 표"만 읽는다.
+     * 구간 금리를 전체 잔액에 붙이는지 구간 안의 금액에만 붙이는지는 원문이 말하지 않으므로 그대로 적는다.
+     */
+    static List<Product> woori(String html, OffsetDateTime at) {
+        Document doc = Jsoup.parse(html);
+        if (!doc.text().contains("우리WON CMA Note")) throw changed();
+        var tables = doc.select("table").stream().filter(t -> t.select("caption").text().contains("예금 잔액별 이자율 표")
+            || t.select("th").stream().anyMatch(th -> th.text().equals("예금 잔액"))).toList();
+        if (tables.size() != 1) throw changed();
+        var rows = tables.getFirst().select("tbody tr").stream().filter(r -> !r.select("td").isEmpty()).toList();
+        if (rows.size() != 2) throw changed();
+        List<BigDecimal> rates = new ArrayList<>();
+        List<String> tiers = new ArrayList<>();
+        for (Element row : rows) {
+            var c = row.select("th,td");
+            if (c.size() != 2 || !c.getFirst().text().contains("만 원") && !c.getFirst().text().contains("만원")) throw changed();
+            BigDecimal r = new BigDecimal(c.get(1).text().strip());
+            rates.add(r);
+            tiers.add(c.getFirst().text() + " : " + r.toPlainString() + "%");
+        }
+        if (!rows.getFirst().text().contains("이하") || !rows.getLast().text().contains("초과")) throw changed();
+        var date = Pattern.compile("연이율\\s*,\\s*기준일\\s*:\\s*(20\\d{2}\\s*\\.\\s*\\d{1,2}\\s*\\.\\s*\\d{1,2})").matcher(doc.text());
+        if (!date.find() || !doc.text().contains("매월 이자 결산")) throw changed();
+        String conditions = String.join("\n", tiers)
+            + "\n매일의 예금 최종 잔액 구간별로 이자율이 달라지며, 구간 금리를 전체 잔액에 붙이는지 구간 안의 금액에만 붙이는지는 원문이 말하지 않아요."
+            + "\n가입대상: 19세 이상 대한민국 국적의 개인 · 가입방법: 우리WON MTS · 가입기간: 1일~365일(만기 시 같은 계좌에 자동 재예치) · 가입금액 제한 없음"
+            + "\n안내 화면 상단의 최고금리 문구는 쓰지 않고 기준일이 있는 이자율 표를 따랐어요.";
+        return List.of(new Product("woori-won-cma-note", "우리투자증권", "우리WON CMA Note", "SECURITIES", "PROMISSORY_NOTE",
+            rates.getFirst(), rates.stream().max(BigDecimal::compareTo).orElseThrow(), "VARIABLE_DEPOSIT", conditions,
+            "매월 말일 결산, 다음 달 5일 또는 해지 시 지급", "만기 시 같은 계좌에 자동 재예치(최장 365일, 만기에 고시금리 재적용)", protectedDeposit(doc), null, null,
+            "우리투자증권 우리WON CMA Note 안내", OfficialCashClient.Source.WOORI.url, date(date.group(1)), null, at));
+    }
+
     static List<Product> kbank(String html, OffsetDateTime at) {
         Document doc = Jsoup.parse(html);
         if (!doc.title().contains("플러스박스")) throw changed();

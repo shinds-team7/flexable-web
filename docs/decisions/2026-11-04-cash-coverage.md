@@ -18,13 +18,16 @@
 | [미래에셋증권](https://securities.miraeasset.com/hks/hks4033/n01.do) | RP 1 | 개인 CMA 행만. 일반 RP·법인 제외 |
 | [삼성증권](https://www.samsungpop.com/mbw/finance/cma.do?cmd=guide) | RP 1·발행어음 1 | 초기 HTML의 과거 금리를 버리고 실제 공개 조회 사용. 개인 자동투자 CMA 코드만. 특판·법인·일반 약정 제외. 두 조회 중 하나라도 실패 시 출처 전체 유지 |
 | [KB증권](https://m.kbsec.com/go.able?linkcd=s010300010005) | RP 1·발행어음 1 | 개인 자동투자 금리·재투자 주기. 법인·직접매매 RP 제외 |
+| [다올투자증권](https://m.daolsecurities.com/kr/FP/FP6T1.jsp) | RP 1 | 11-08 추가. `m.daolsecurities.com/robots.txt`는 `User-agent: *`·`Allow:/`(공백 없는 표기). 같은 안내 화면이 부르는 공개 조회 `POST /kr/FP/rpInterest.jspx?cmd=getRPInfo`의 `rp_rate`·`start_date`만 읽는다. 별도 헤더 없이 응답했다. 11-08 확인 시 기준일은 2026-08-28로 오래됐지만 그대로 보인다. 구간·우대는 이 조회에 없다 |
+| [우리투자증권](https://securities.wooriib.com/HPKOFngoAction.do?BOARD_ID=38&method=hpwoncmanoteinf) | 발행어음형 1 | 11-08 추가. 우리WON CMA Note. robots는 `/CUIMCommonAction.do*`·`/ADSECommonAction.do*`·`/index*`만 제한하고 이 경로는 허용(HTTP 200). 기준일이 붙은 "예금 잔액별 이자율 표"(1천만 원 이하 3.00%, 초과 2.80%)만 읽고, 같은 화면 상단의 "최고 연 3.75%" 문구는 표와 달라서 쓰지 않는다. 구간 금리를 전체 잔액에 붙이는지는 원문이 말하지 않아 그대로 적는다 |
+| [교보증권](https://www.iprovest.com/cyber/cma/pluscmaintro.htm) | RP 1 | 11-08 추가. 교보 PLUS α CMA(RP형)의 "CMA용 수시 입출금식 RP 수익률 : 연 N% (기준일 기준, 세전)" 한 줄만 읽는다. 11-07 robots `User-agent: *`·`Allow: /`, 안내 페이지 HTTP 200. 11-04에 나온 "비정상 요청 제한" 화면은 11-08 이 페이지에서 나오지 않았다. 안내 페이지의 기준일(11-08 확인 시 2026-08-28)을 그대로 `sourceAsOf`로 보인다 |
 | [신한투자증권](https://m.shinhansec.com/mweb/fnin/fcma/ffcma0001) | RP 1 | 공개 조회의 2000 개인 CMA만. 오래된 정적 HTML·법인·ISA·일반 RP 제외 |
 | [메리츠증권](https://www.imeritz.com/meritzcma/CmaRp.do) | RP 1 | 개인 CMA-RP 코드·약정일수·적용일. 연속조회/다른 코드 거부 |
 | [한화투자증권](https://www.hanwhawm.com/static/finance/cma/FI211_1p.htm) | RP 1 | 금액별 수익률 범위 보존. 개별 구간·기본금리·재투자 미확인 |
 | [현대차증권](https://www.hmsec.com/mobile/notice_info/guide/salary_account_guide_01.to) | RP 1 | 급여계좌 CMA라는 적용 범위 명시. 다른 계좌까지 확대하지 않음 |
 | [SK증권](https://www.sks.co.kr/main/product/cma/mCMA/html/PD_04001_T01.htm) | RP 1 | 개인 1일 투자 코드와 화면 표시 금리 일치 대조. 법인·직접매매·MMF/MMW 제외 |
 
-기대 합계는 **파킹 211개, CMA 12개(RP 10·발행어음 2)**다. 운영 코드에 고정하지 않는다. 각 출처의 수집 범위이며 국내 전체 시장 모집단은 아니다. 예금의 기존 운영 API는 6/12/24/36개월을 끝까지 읽어 합집합 432개를 확인했다. 원천 finlife 키가 로컬에 없어 원천 재수집 완전성은 별도 확인이다.
+기대 합계는 **파킹 211개, CMA 15개(RP 12·발행어음 3)**다. 운영 코드에 고정하지 않는다. 각 출처의 수집 범위이며 국내 전체 시장 모집단은 아니다. 예금의 기존 운영 API는 6/12/24/36개월을 끝까지 읽어 합집합 432개를 확인했다. 원천 finlife 키가 로컬에 없어 원천 재수집 완전성은 별도 확인이다.
 
 미연결 출처: 은행연합회·카카오뱅크·한국투자·NH·하나·신영은 일반 봇 robots 제한, 토스는 화면 호스트와 달리 실제 데이터 호스트 api.tossbank.com의 일반 봇 robots 제한으로 자동 수집하지 않는다. 교보는 비정상 요청 제한 화면, 대신·유안타는 robots 오류로 확인 실패다. KDB·부산·그 외 시중은행은 공개 조회와 상품 상세 대조를 추가 검증해야 한다. 미래에셋 발행어음도 미연결이다. 전체 시장 완료로 표시하지 않는다.
 

@@ -48,6 +48,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/v1/savings/products", "/api/v1/savings/products/*",
 						"/api/v1/savings/companies", "/api/v1/savings/policies").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/savings/simulate").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/savings/policy/*").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/savings/policy/*/simulate").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/v1/deposit/products", "/api/v1/deposit/products/*",
 						"/api/v1/deposit/companies").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/deposit/simulate").permitAll()

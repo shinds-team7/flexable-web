@@ -1,6 +1,6 @@
 {
-  "status": "PROPOSED",
-  "note": "승인 전 초안. 구현 PR이 IMPLEMENTED로 바꾸고 PolicySavingsPolicyTest가 읽는다. 기여금 입금일(납입한 달 말일)·일수 기준(÷365)은 원문에 없는 가정이라 UNVERIFIED다(policies §9).",
+  "status": "IMPLEMENTED",
+  "note": "리드 승인(11-07)·구현됨. PolicySavingsPolicyTest가 읽는다. 기여금 입금일(납입한 달 말일)·일수 기준(÷365)은 원문에 없는 가정이라 UNVERIFIED다(policies §9).",
   "rulesVersion": "youth-future-2026-06-22",
   "verificationStatus": "UNVERIFIED",
   "cases": [

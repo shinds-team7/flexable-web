@@ -44,6 +44,7 @@ class PackageDependencyTest {
 			Map.entry("insight", Set.of("market")),
 			Map.entry("savings", Set.of("common")),
 			Map.entry("deposit", Set.of("common")),
+			Map.entry("policysavings", Set.of("common")),
             Map.entry("cashcatalog", Set.of("common")),
 			Map.entry("simulation", Set.of("market", "savings", "seedmoney")),
 			Map.entry("news", Set.of("common")),

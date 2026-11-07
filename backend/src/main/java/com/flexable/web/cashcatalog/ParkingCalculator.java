@@ -38,15 +38,17 @@ final class ParkingCalculator {
 	record Result(long interestPreTax, long tax, long interestAfterTax) {}
 
 	/** mode가 null이면 계산 불가(reason). BASE_RATE는 기본금리 하나, TIERED는 원문에 적힌 구간별 금리(tiers). */
-	record Assessment(String mode, String reason, java.util.List<CashCatalogDtos.Tier> tiers) {}
+	record Assessment(String mode, String reason, java.util.List<CashCatalogDtos.Tier> tiers,
+			java.util.List<CashCatalogDtos.Period> periods) {}
 
 	static Assessment assess(Product p) {
 		var tiers = ParkingTiers.parse(p.conditions());
 		if (tiers != null) {
-			return new Assessment("TIERED", null, tiers.stream().map(t -> new CashCatalogDtos.Tier(t.upTo(), t.rate())).toList());
+			return new Assessment("TIERED", null, tiers.stream().map(t -> new CashCatalogDtos.Tier(t.upTo(), t.rate())).toList(),
+					java.util.List.of());
 		}
 		String reason = reason(p);
-		return new Assessment(reason == null ? "BASE_RATE" : null, reason, java.util.List.of());
+		return new Assessment(reason == null ? "BASE_RATE" : null, reason, java.util.List.of(), java.util.List.of());
 	}
 
 	/** 계산할 수 없는 이유. 계산할 수 있으면 null. */
@@ -77,6 +79,7 @@ final class ParkingCalculator {
 		return null;
 	}
 
+	/** CMA도 같은 식을 쓴다(약정수익률 하나). */
 	static Result calculate(long amount, int days, BigDecimal ratePercent) {
 		return finish(BigDecimal.valueOf(amount).multiply(ratePercent), days);
 	}

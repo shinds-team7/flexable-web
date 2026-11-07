@@ -82,6 +82,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cma/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * CMA 예상 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림, 재투자 미반영)
+         * @description policies §12(규칙 cma-calc-v1). 공시 약정수익률이 하나인 상품(AGREED_RATE)과 원문에 보유 기간별 수익률이 적힌 상품(PERIOD_RATE)만 계산한다. 수익률이 유지된다고 가정한 예상이며 재투자(복리)는 반영하지 않는다. 원금 손실 가능성과 예금자보호 여부는 `notice`와 목록의 `depositProtected`로 보인다.
+         *     목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유). PERIOD_RATE에서 일수가 마지막 구간을 넘으면 400(`fields.days`). 없는 상품은 404.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description `/cma/products`의 상품 id */
+                        productId: string;
+                        /**
+                         * Format: int64
+                         * @description 맡긴 돈(원)
+                         */
+                        amount: number;
+                        /** @description 맡기는 일수 */
+                        days: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CmaSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/parking/simulate": {
         parameters: {
             query?: never;
@@ -4863,10 +4919,10 @@ export interface components {
             /** @description calculable이 false일 때 이유(사용자에게 그대로 보여 준다). true면 null */
             calcReason: string | null;
             /**
-             * @description BASE_RATE는 공시 기본금리 하나로, TIERED는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리로 계산(policies §11 parking-calc-v2). 계산 불가면 null
+             * @description 파킹: BASE_RATE는 공시 기본금리 하나로, TIERED는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리로 계산(policies §11 parking-calc-v2). CMA: AGREED_RATE는 약정수익률 하나, PERIOD_RATE는 보유 기간별 수익률(policies §12 cma-calc-v1). 계산 불가면 null
              * @enum {string|null}
              */
-            calcMode: "BASE_RATE" | "TIERED" | null;
+            calcMode: "BASE_RATE" | "TIERED" | "AGREED_RATE" | "PERIOD_RATE" | null;
             /** @description calcMode가 TIERED일 때 원문에서 읽은 구간(위로 올라가는 순서). 아니면 빈 배열 */
             tiers: {
                 /**
@@ -4875,6 +4931,13 @@ export interface components {
                  */
                 upTo: number | null;
                 /** @description 그 구간 안의 금액에 적용하는 공시 연 %, 세전 */
+                rate: number;
+            }[];
+            /** @description calcMode가 PERIOD_RATE일 때 원문에서 읽은 보유 기간별 수익률(1일부터 이어짐). 아니면 빈 배열 */
+            periods: {
+                fromDay: number;
+                toDay: number;
+                /** @description 그 기간 동안 보유할 때의 약정수익률(연 %, 세전) */
                 rate: number;
             }[];
             interestPayment: string | null;
@@ -4899,6 +4962,31 @@ export interface components {
              * @description 출처·형식·조건 검증 시각(+09:00)
              */
             verifiedAt: string;
+        };
+        CmaSimulation: {
+            productId: string;
+            /** Format: int64 */
+            amount: number;
+            days: number;
+            /** @enum {string} */
+            mode: "AGREED_RATE" | "PERIOD_RATE";
+            /** @description 계산에 쓴 약정수익률(연 %, 세전). PERIOD_RATE는 days가 속한 기간의 값 */
+            rate: number;
+            /**
+             * Format: int64
+             * @description floor(amount × rate × days ÷ 36500)
+             */
+            interestPreTax: number;
+            /**
+             * Format: int64
+             * @description floor(interestPreTax × 0.154)
+             */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** @example cma-calc-v1 */
+            rulesVersion: string;
+            notice: string;
         };
         ParkingSimulation: {
             productId: string;

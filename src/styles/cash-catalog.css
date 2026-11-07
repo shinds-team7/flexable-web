@@ -101,3 +101,4 @@
 .cash-calc-parts th,.cash-calc-parts td{padding:calc(var(--density-gap)/4) calc(var(--density-gap)/3);border-top:1px solid var(--color-border);text-align:right;font-weight:400}
 .cash-calc-parts th:first-child{text-align:left}
 .cash-calc-parts thead th{color:var(--color-text-tertiary);font-weight:700}
+.cash-calc label small{font-weight:400;color:var(--color-text-tertiary)}

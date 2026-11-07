@@ -38,6 +38,17 @@ class OfficialCashParserTest {
         assertThatThrownBy(() -> OfficialCashParser.miraeRp(mirae() + mirae(), at))
             .isInstanceOf(IllegalStateException.class);
     }
+    @Test void kyoboReadsOnlyTheRpYieldLineWithItsDate() {
+        var product = OfficialCashParser.kyobo(kyobo(), at).getFirst();
+        assertThat(product.baseRate()).isEqualByComparingTo("2.70");
+        assertThat(product.category()).isEqualTo("RP");
+        assertThat(product.sourceAsOf()).hasToString("2026-08-28");
+        assertThat(product.depositProtected()).isFalse();
+        assertThatThrownBy(() -> OfficialCashParser.kyobo(kyobo().replace("연 2.70%", "연 미정"), at)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> OfficialCashParser.kyobo(kyobo().replace("(2026.08.28 기준, 세전)", "(세전)"), at)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> OfficialCashParser.kyobo(kyobo().replace("CMA용 수시 입출금식 RP 수익률", "일반 RP 수익률"), at)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> OfficialCashParser.kyobo(kyobo().replace("<dl>", "<dl><dt>CMA용 수시 입출금식 RP 수익률 : 연 9.99% (2026.08.28 기준, 세전)</dt>"), at)).isInstanceOf(IllegalStateException.class);
+    }
     @Test void kbankScopesRatesToTheTierTableAndPreservesThresholdMeaning() {
         var product = OfficialCashParser.kbank(kbank(), at).getFirst();
         assertThat(product.baseRate()).isEqualByComparingTo("1.23");
@@ -89,6 +100,12 @@ class OfficialCashParserTest {
         <table id="apdTbl"><thead><tr><th>저축은행</th><th>상품</th><th>기본</th><th>최고</th><th>금액</th><th>비교공시일</th></tr></thead>
         <tbody><tr><td>가</td><td>보통예금</td><td>0.10%</td><td>3.20%</td><td>100만원 이하</td><td>20261030</td></tr>
         <tr><td>나저축은행</td><td>보통예금</td><td>2.00%</td><td>2.00%</td><td>제한없음</td><td>20261101</td></tr></tbody></table>
+        """; }
+    static String kyobo() { return """
+        <html><head><title>교보 PLUS α CMA 서비스 - 교보증권</title></head><body>
+        <dl><dt><span>CMA용 수시 입출금식 RP 수익률 : 연 2.70%</span> (2026.08.28 기준, 세전)</dt>
+        <dd>CMA 현금잔고는 RP에 자동 투자되며, RP는 예금자보호법에 따라 보호되지 않습니다.</dd></dl>
+        <dl><dt>투자기간: 90일단위 변동금리</dt></dl></body></html>
         """; }
     static String mirae() { return """
         <table><caption>일반 RP</caption><tbody><tr><td>개인</td><td>수시 RP</td><td>99%</td></tr></tbody></table>

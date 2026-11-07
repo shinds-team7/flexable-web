@@ -54,6 +54,24 @@ final class OfficialCashParser {
             null, null, null, null, null, "미래에셋증권 RP 상품 안내", OfficialCashClient.Source.MIRAE_RP.url, null, null, at));
     }
 
+    /** 교보 PLUS α CMA(RP형) 안내의 "CMA용 수시 입출금식 RP 수익률 : 연 N% (기준일 기준, 세전)" 한 줄을 읽는다. */
+    static List<Product> kyobo(String html, OffsetDateTime at) {
+        Document doc = Jsoup.parse(html);
+        if (!doc.title().contains("교보 PLUS")) throw changed();
+        var lines = doc.select("dt").stream().filter(d -> d.text().startsWith("CMA용 수시 입출금식 RP 수익률")).toList();
+        if (lines.size() != 1) throw changed();
+        var m = Pattern.compile("CMA용 수시 입출금식 RP 수익률\\s*:\\s*(연\\s*\\d+(?:\\.\\d+)?\\s*%)\\s*\\((20\\d{2}\\s*\\.\\s*\\d{1,2}\\s*\\.\\s*\\d{1,2})\\s*기준,\\s*세전\\)")
+            .matcher(lines.getFirst().text());
+        if (!m.matches()) throw changed();
+        String all = doc.text();
+        if (!all.contains("예금자보호법에 따라 보호되지 않습니다") || !all.contains("90일")) throw changed();
+        BigDecimal r = rate(m.group(1));
+        return List.of(new Product("plus-alpha-cma-rp", "교보증권", "교보 PLUS α CMA(RP형)", "SECURITIES", "RP", r, r, "AGREED",
+            "CMA용 수시 입출금식 RP 약정수익률(세전). 입금 시점의 약정수익률을 90일간 적용하고, 90일이 지나면 그 시점의 공시수익률로 바뀌어요. 시장금리에 따라 변동될 수 있어요.",
+            null, "원금과 이자를 재투자하거나 원천징수하려면 매도 후 재매수해야 해요.", Boolean.FALSE, null, null,
+            "교보증권 PLUS α CMA 안내", OfficialCashClient.Source.KYOBO.url, date(m.group(2)), null, at));
+    }
+
     static List<Product> kbank(String html, OffsetDateTime at) {
         Document doc = Jsoup.parse(html);
         if (!doc.title().contains("플러스박스")) throw changed();

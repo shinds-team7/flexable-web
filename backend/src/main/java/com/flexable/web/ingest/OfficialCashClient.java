@@ -29,6 +29,7 @@ public class OfficialCashClient {
         MERITZ("meritz-cma-rp", "cma", "https://www.imeritz.com/meritzcma/CmaRp.do"),
         HANWHA("hanwha-cma-rp", "cma", "https://www.hanwhawm.com/static/finance/cma/FI211_1p.htm"),
         HMC("hmc-cma-salary", "cma", "https://www.hmsec.com/mobile/notice_info/guide/salary_account_guide_01.to"),
+        DAOL("daol-cma-rp", "cma", "https://m.daolsecurities.com/kr/FP/FP6T1.jsp"),
         WOORI("woori-won-cma-note", "cma", "https://securities.wooriib.com/HPKOFngoAction.do?BOARD_ID=38&method=hpwoncmanoteinf"),
         KYOBO("kyobo-plusalpha-cma-rp", "cma", "https://www.iprovest.com/cyber/cma/pluscmaintro.htm"),
         SK("sk-magic-cma-rp", "cma", "https://www.sks.co.kr/main/product/cma/mCMA/html/PD_04001_T01.htm");
@@ -113,6 +114,8 @@ public class OfficialCashClient {
             "/meritzcma/RPErtSearch.go", "meritz-json", "iscd=RP10000&aplyDate=" + verifiedAt.toLocalDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd")), false), verifiedAt);
         if (source == Source.SK) return OfficialCashJsonParser.sk(query(source, target, robots,
             "/main/product/rp/MAGIC_CMA_DATA_Q.cmd", "sk-json", "", false), verifiedAt);
+        if (source == Source.DAOL) return OfficialCashJsonParser.daol(query(source, target, robots,
+            "/kr/FP/rpInterest.jspx?cmd=getRPInfo", "daol-json", "", false), verifiedAt);
         String html = get(target.page(), false);
         if (source == Source.SAMSUNG) return OfficialCashJsonParser.samsung(html,
             query(source, target, robots, "/ux/kor/finance/cma/cma/getAihr103p.do", "samsung-rp-json", "tabInfo=&af_auto_index=start&ajaxQuery=1", false),

@@ -108,7 +108,16 @@ class ContractTest {
                     cma ? "AGREED" : "VARIABLE_DEPOSIT", "금액·기간 조건 원문", null, null, null, null, null,
                     "테스트 공시", "https://example.com/source", LocalDate.of(2026, 11, 1), null,
                     OffsetDateTime.parse("2026-11-04T09:00:00+09:00"))));
-            try { call(get("/api/v1/" + kind + "/products"), 200); }
+            try {
+                call(get("/api/v1/" + kind + "/products"), 200);
+                if (!cma) {
+                    String id = cashCatalog.list(kind).items().getFirst().id();
+                    String body = "{\"productId\":\"%s\",\"amount\":10000000,\"days\":31}";
+                    call(json(post("/api/v1/parking/simulate"), body.formatted(id)), 200);
+                    call(json(post("/api/v1/parking/simulate"), body.formatted("no-such-product")), 404);
+                    call(json(post("/api/v1/parking/simulate"), body.formatted(id).replace("31", "0")), 400);
+                }
+            }
             finally { cashCatalog.withdraw(kind, "contract-test"); }
         }
     }

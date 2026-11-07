@@ -6,6 +6,7 @@
 
 ## 2026-11-08
 
+- [Closes-part #247] 파킹통장 기본금리 이자 계산 1단계를 정했다·구현했다([정책 §11](policies.md), [결정](decisions/2026-11-07-parking-calc-scope-proposal.md)). 계약: `POST /parking/simulate`와 `ParkingSimulation` 추가, `CashCatalogProduct`에 `calculable`·`calcReason` 필수 필드 추가(CMA는 항상 false). 일 단위 ÷365·세금 15.4% 내림, 금액 구간·최고금리 제한 문구가 있는 상품은 계산하지 않고 이유를 보인다(실제 217개 중 102개 계산 가능). 우대·이벤트·구간 금리는 넣지 않는다 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [HANDOFF] 11-08 진행 결과(CMA 3곳 추가, 계산·범위 결정, 연결 못 한 후보와 이유, 다음 작업)를 기록했다 — 영향: 문서
 - [Refs #245] 외부 검토 문서의 수집 정책 수정안을 코드와 대조해 판정했다([결정](decisions/2026-11-08-cash-collection-policy-review.md)). robots 평가(자기 봇 그룹·Allow·긴 경로 우선)와 오류 구분은 이미 구현돼 있어 유지하고, 리다이렉트 추적·부분 반영·특판 레이어는 보류(계약 변경·보안 검토 필요), 기준일과 조회일을 섞지 않는 원칙을 확정했다. 코드·계약 변경 없음 — 영향: 문서
 - [Refs #245] CMA 범위 확대를 결정했다([결정](decisions/2026-11-07-cma-scope-expansion-proposal.md)): ISA 제외, MMF·MMW(실적배당) 제외, 종금형은 확인된 상품부터, 문법 오류 robots는 규칙 없음으로 읽고 이유를 남긴다. 교보·우리투자·다올 3곳을 연결했다. 정책·계약 변경 없음 — 영향: 문서

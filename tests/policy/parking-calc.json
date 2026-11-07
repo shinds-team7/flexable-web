@@ -1,0 +1,33 @@
+{
+  "_comment": "docs/policies.md §11 = 이 파일. ParkingPolicyTest가 실행한다. 이자 = floor(잔액 x 연이율(%) x 일수 / 36500), 세금 = floor(이자 x 0.154).",
+  "rulesVersion": "parking-calc-v1",
+  "limits": { "maxAmount": 10000000000, "maxDays": 3650 },
+  "calc": [
+    { "name": "1천만원 31일 3.00%", "amount": 10000000, "days": 31, "rate": "3.00", "interestPreTax": 25479, "tax": 3923, "interestAfterTax": 21556 },
+    { "name": "1천만원 365일 2.85%", "amount": 10000000, "days": 365, "rate": "2.85", "interestPreTax": 285000, "tax": 43890, "interestAfterTax": 241110 },
+    { "name": "1,234,567원 30일 0.01% 소액은 내림", "amount": 1234567, "days": 30, "rate": "0.01", "interestPreTax": 10, "tax": 1, "interestAfterTax": 9 },
+    { "name": "1원 1일은 0원", "amount": 1, "days": 1, "rate": "5", "interestPreTax": 0, "tax": 0, "interestAfterTax": 0 },
+    { "name": "5천만원 90일 2.50%", "amount": 50000000, "days": 90, "rate": "2.50", "interestPreTax": 308219, "tax": 47465, "interestAfterTax": 260754 },
+    { "name": "상한 100억원 3650일 20%", "amount": 10000000000, "days": 3650, "rate": "20", "interestPreTax": 20000000000, "tax": 3080000000, "interestAfterTax": 16920000000 }
+  ],
+  "eligibility": [
+    { "name": "저축은행 최고금리 제한없음, 구간 문구 없음", "baseRate": "0.50", "reason": null,
+      "conditions": "최고금리 적용 가능 금액(공시값): 제한없음\n우대조건: 없음\n가입대상: 제한없음\n가입경로: 영업점\n기타사항: 없음\n구간별·우대조건을 확인해야 하며 최고금리를 전체 잔액에 적용하지 않아요." },
+    { "name": "저축은행 최고금리 적용 금액에 한도가 있음", "baseRate": "0.50", "reason": "LIMITED",
+      "conditions": "최고금리 적용 가능 금액(공시값): 3000000 이하\n우대조건: 첫거래고객\n구간별·우대조건을 확인해야 하며 최고금리를 전체 잔액에 적용하지 않아요." },
+    { "name": "기타사항에 금액 구간이 문장으로 적힘", "baseRate": "0.50", "reason": "TIERED",
+      "conditions": "최고금리 적용 가능 금액(공시값): 제한없음\n기타사항: 3억원 이하 : 3.2%, 3억원 초과 ~ 10억원 이하 : 1.5%" },
+    { "name": "예치잔액별 차등이율", "baseRate": "0.50", "reason": "TIERED",
+      "conditions": "최고금리 적용 가능 금액(공시값): 제한없음\n기타사항: 예치잔액별 차등이율 적용" },
+    { "name": "금액구간 표가 있는 은행", "baseRate": "0.10", "reason": "TIERED",
+      "conditions": "기본금리: 입출금 기본금리 안내\n 구간\n 금리\n 50만원 미만\n 0.05%" },
+    { "name": "월평균잔액 조건", "baseRate": "0.10", "reason": "TIERED",
+      "conditions": "월평균잔액 50만원 이상일 때 보너스금리" },
+    { "name": "기본금리 없음", "baseRate": null, "reason": "NO_BASE",
+      "conditions": "최고금리 적용 가능 금액(공시값): 제한없음" },
+    { "name": "은행 단일 기본이율", "baseRate": "0.10", "reason": null,
+      "conditions": "인터넷 · 기본이율: 0.100% (적용일 2024-10-24) · 미확인\n입출금 금리 공시는 기존 가입 상품을 포함할 수 있어요." },
+    { "name": "가입대상의 나이 이상 문구는 구간이 아니다", "baseRate": "1.70", "reason": null,
+      "conditions": "가입대상: 실명의 개인으로 만 14세 이상의 국민인 거주자\n가입방법: 영업점" }
+  ]
+}

@@ -53,11 +53,15 @@ final class ParkingCalculator {
 
 	/** 계산할 수 없는 이유. 계산할 수 있으면 null. */
 	static String reason(Product p) {
-		if (p.baseRate() == null) {
+		return reason(p.baseRate(), p.conditions());
+	}
+
+	static String reason(BigDecimal baseRate, String conditions) {
+		if (baseRate == null) {
 			return NO_BASE;
 		}
 		StringBuilder rest = new StringBuilder();
-		for (String line : (p.conditions() == null ? "" : p.conditions().replace(BOILERPLATE, "")).split("\\R")) {
+		for (String line : (conditions == null ? "" : conditions.replace(BOILERPLATE, "")).split("\\R")) {
 			String t = line.strip();
 			if (t.startsWith(FSB_LIMIT)) {
 				if (!t.equals(FSB_LIMIT + " 제한없음")) {

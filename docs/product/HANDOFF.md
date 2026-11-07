@@ -1,5 +1,13 @@
 # 웹 개발 인수인계
 
+## 2026-11-07 운영 서버 읽기 전용 확인(웹 서버 `solpa.shinhanacademy.co.kr`)
+
+**정정**: 이전 기록의 "운영 파킹/CMA 조회 401"은 웹 서버가 아니라 앱 서버(`.env.example`의 `VITE_API_URL`, `flex-able-sh.duckdns.org`)에 요청한 결과였다. 웹 API는 README의 웹 서버 주소로 확인한다. 앱 서버는 웹 API를 로그인 필수로 막는다.
+
+- #246: 비로그인 `GET /parking/products`(217개: 저축은행 158·은행 59, 81개 회사)·`/cma/products`(12개: 증권사 9곳, RP 10·발행어음 2)가 200, 모든 상품 `isSample=false`, `verifiedAt` 오늘 10:00(KST) 갱신. `node scripts/verify-cash-coverage.mjs … --expect-parking 217 --expect-cma 12`가 통과했고 예금은 6/12/24/36개월 276/361/236/186개·합집합 432개로 11-04와 같다. 파킹 217 = 저축은행중앙회 158 + SC제일 30 + 제주 19 + 케이뱅크 4 + KDB 6(이슈의 기대 211에 KDB 6이 더해짐). **남은 확인**: 배포 커밋·Flyway·worker 로그, 화면(검색·필터·3개 비교), worker 재시작 뒤 6시간 내 재취득 없음, finlife 원천 대조. 이 읽기 전용 점검으로 알 수 없는 것들이다.
+- #198: `GET /youth-news` 1,985건에서 `audience.employment`가 421건, `schools` 281건, `majors` 97건, `special` 186건, `marital` 67건 채워져 있다(나머지는 빈 배열 또는 null). worker가 새 조건을 수집하고 있다. **남은 확인**: 30초 진단이 "공고문 확인"으로만 나오지 않는지, 코드 값이 공식 표와 다르게 들어오는 경우가 없는지.
+- #312(청년미래적금 계산)는 아직 VM에 배포되지 않았다: `GET /savings/policy/YOUTH_FUTURE`가 401(공개 경로 미반영). VM 반영은 사람이 한다.
+
 ## 2026-11-07 최신 상태(main 4d46049)
 
 열린 PR은 없고 열린 이슈는 9건이다. 11-06 오후에 병합된 작업과 아래 이슈를 최신 main 기준으로 정리했다. 정책·계약·개인정보 동작은 바꾸지 않는다.

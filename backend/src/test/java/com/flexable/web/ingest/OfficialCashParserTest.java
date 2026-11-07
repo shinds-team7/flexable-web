@@ -49,6 +49,17 @@ class OfficialCashParserTest {
         assertThatThrownBy(() -> OfficialCashParser.kyobo(kyobo().replace("CMA용 수시 입출금식 RP 수익률", "일반 RP 수익률"), at)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> OfficialCashParser.kyobo(kyobo().replace("<dl>", "<dl><dt>CMA용 수시 입출금식 RP 수익률 : 연 9.99% (2026.08.28 기준, 세전)</dt>"), at)).isInstanceOf(IllegalStateException.class);
     }
+    @Test void wooriReadsOnlyTheDatedRateTableNotTheHeadlineMax() {
+        var product = OfficialCashParser.woori(woori(), at).getFirst();
+        assertThat(product.category()).isEqualTo("PROMISSORY_NOTE");
+        assertThat(product.baseRate()).isEqualByComparingTo("3.00");
+        assertThat(product.maxRate()).isEqualByComparingTo("3.00"); // 화면 상단의 9.99는 쓰지 않는다
+        assertThat(product.sourceAsOf()).hasToString("2026-11-08");
+        assertThat(product.conditions()).contains("1천만 원 이하 : 3.00%", "1천만 원 초과 : 2.80%", "원문이 말하지 않아요");
+        assertThatThrownBy(() -> OfficialCashParser.woori(woori().replace("기준일 : 2026.11.08", "기준일 미정"), at)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> OfficialCashParser.woori(woori().replace("<td>2.80</td>", "<td>abc</td>"), at)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> OfficialCashParser.woori(woori() + woori(), at)).isInstanceOf(IllegalStateException.class);
+    }
     @Test void kbankScopesRatesToTheTierTableAndPreservesThresholdMeaning() {
         var product = OfficialCashParser.kbank(kbank(), at).getFirst();
         assertThat(product.baseRate()).isEqualByComparingTo("1.23");
@@ -100,6 +111,12 @@ class OfficialCashParserTest {
         <table id="apdTbl"><thead><tr><th>저축은행</th><th>상품</th><th>기본</th><th>최고</th><th>금액</th><th>비교공시일</th></tr></thead>
         <tbody><tr><td>가</td><td>보통예금</td><td>0.10%</td><td>3.20%</td><td>100만원 이하</td><td>20261030</td></tr>
         <tr><td>나저축은행</td><td>보통예금</td><td>2.00%</td><td>2.00%</td><td>제한없음</td><td>20261101</td></tr></tbody></table>
+        """; }
+    static String woori() { return """
+        <html><body><p>우리WON CMA Note 최고 연 9.99%</p><p>이자지급 매월 이자 결산(매월 말일)</p><p>이 예금은 예금자보호법에 따라 1억원까지 보호됩니다.</p>
+        <p>이자율 수시입출금식 (연이율, 기준일 : 2026.11.08)</p>
+        <table><caption>예금 잔액별 이자율 표</caption><thead><tr><th>예금 잔액</th><th>이자율(%)</th></tr></thead>
+        <tbody><tr><td>1천만 원 이하</td><td>3.00</td></tr><tr><td>1천만 원 초과</td><td>2.80</td></tr></tbody></table></body></html>
         """; }
     static String kyobo() { return """
         <html><head><title>교보 PLUS α CMA 서비스 - 교보증권</title></head><body>

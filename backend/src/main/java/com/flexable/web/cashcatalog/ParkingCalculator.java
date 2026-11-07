@@ -14,7 +14,7 @@ import com.flexable.web.cashcatalog.CashCatalogDtos.Product;
  */
 final class ParkingCalculator {
 
-	static final String RULES_VERSION = "parking-calc-v1";
+	static final String RULES_VERSION = "parking-calc-v2";
 	static final long MAX_AMOUNT = 10_000_000_000L;
 	static final int MAX_DAYS = 3650;
 
@@ -31,6 +31,18 @@ final class ParkingCalculator {
 	private ParkingCalculator() {}
 
 	record Result(long interestPreTax, long tax, long interestAfterTax) {}
+
+	/** mode가 null이면 계산 불가(reason). BASE_RATE는 기본금리 하나, TIERED는 원문에 적힌 구간별 금리(tiers). */
+	record Assessment(String mode, String reason, java.util.List<CashCatalogDtos.Tier> tiers) {}
+
+	static Assessment assess(Product p) {
+		var tiers = ParkingTiers.parse(p.conditions());
+		if (tiers != null) {
+			return new Assessment("TIERED", null, tiers.stream().map(t -> new CashCatalogDtos.Tier(t.upTo(), t.rate())).toList());
+		}
+		String reason = reason(p);
+		return new Assessment(reason == null ? "BASE_RATE" : null, reason, java.util.List.of());
+	}
 
 	/** 계산할 수 없는 이유. 계산할 수 있으면 null. */
 	static String reason(Product p) {
@@ -56,7 +68,34 @@ final class ParkingCalculator {
 	}
 
 	static Result calculate(long amount, int days, BigDecimal ratePercent) {
-		long pre = BigDecimal.valueOf(amount).multiply(ratePercent).multiply(BigDecimal.valueOf(days))
+		return finish(BigDecimal.valueOf(amount).multiply(ratePercent), days);
+	}
+
+	/** 구간 안의 금액에만 그 구간 금리를 적용한다. 구간별로 내림하지 않고 합친 뒤 한 번 내림한다. */
+	static Result calculateTiered(long amount, int days, java.util.List<CashCatalogDtos.Tier> tiers) {
+		BigDecimal weighted = BigDecimal.ZERO;
+		for (var part : parts(amount, tiers)) {
+			weighted = weighted.add(BigDecimal.valueOf(part.amount()).multiply(part.rate()));
+		}
+		return finish(weighted, days);
+	}
+
+	static java.util.List<CashCatalogDtos.ParkingPart> parts(long amount, java.util.List<CashCatalogDtos.Tier> tiers) {
+		var out = new java.util.ArrayList<CashCatalogDtos.ParkingPart>();
+		long previous = 0;
+		for (var t : tiers) {
+			long top = t.upTo() == null ? Long.MAX_VALUE : t.upTo();
+			long inside = Math.max(0, Math.min(amount, top) - previous);
+			out.add(new CashCatalogDtos.ParkingPart(t.upTo(), t.rate(), inside));
+			if (t.upTo() != null) {
+				previous = t.upTo();
+			}
+		}
+		return java.util.List.copyOf(out);
+	}
+
+	private static Result finish(BigDecimal amountTimesRate, int days) {
+		long pre = amountTimesRate.multiply(BigDecimal.valueOf(days))
 				.divide(BigDecimal.valueOf(36_500), 0, RoundingMode.DOWN).longValueExact();
 		long tax = BigDecimal.valueOf(pre).multiply(BigDecimal.valueOf(154)).divide(BigDecimal.valueOf(1000), 0,
 				RoundingMode.DOWN).longValueExact();

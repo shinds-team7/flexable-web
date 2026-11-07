@@ -56,7 +56,45 @@ class ParkingPolicyTest {
 					c.get("conditions").asString(), null, null, null, null, null, "출처", "https://example.com", null,
 					null, OffsetDateTime.parse("2026-11-08T09:00:00+09:00"));
 			String expected = c.get("reason").isNull() ? null : REASONS.get(c.get("reason").asString());
-			assertThat(ParkingCalculator.reason(p)).isEqualTo(expected);
+			var a = ParkingCalculator.assess(p);
+			assertThat(a.reason()).isEqualTo(expected);
+			assertThat(a.mode() != null).isEqualTo(expected == null);
+		}));
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 원문에서_읽는_구간표() throws Exception {
+		return root().get("tiers").valueStream().map(c -> DynamicTest.dynamicTest(c.get("name").asString(), () -> {
+			var tiers = ParkingTiers.parse(c.get("conditions").asString());
+			if (c.get("tiers").isNull()) {
+				assertThat(tiers).isNull();
+				return;
+			}
+			assertThat(tiers).hasSize(c.get("tiers").size());
+			for (int i = 0; i < tiers.size(); i++) {
+				JsonNode want = c.get("tiers").get(i);
+				assertThat(tiers.get(i).upTo()).isEqualTo(want.get("upTo").isNull() ? null : want.get("upTo").asLong());
+				assertThat(tiers.get(i).rate()).isEqualByComparingTo(want.get("rate").asString());
+			}
+		}));
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 구간별_이자_계산() throws Exception {
+		return root().get("calcTiered").valueStream().map(c -> DynamicTest.dynamicTest(c.get("name").asString(), () -> {
+			var tiers = new java.util.ArrayList<CashCatalogDtos.Tier>();
+			c.get("tiers").forEach(t -> tiers.add(new CashCatalogDtos.Tier(t.get("upTo").isNull() ? null : t.get("upTo").asLong(),
+					new BigDecimal(t.get("rate").asString()))));
+			long amount = c.get("amount").asLong();
+			var r = ParkingCalculator.calculateTiered(amount, c.get("days").asInt(), tiers);
+			assertThat(r.interestPreTax()).isEqualTo(c.get("interestPreTax").asLong());
+			assertThat(r.tax()).isEqualTo(c.get("tax").asLong());
+			assertThat(r.interestAfterTax()).isEqualTo(c.get("interestAfterTax").asLong());
+			var parts = ParkingCalculator.parts(amount, tiers);
+			for (int i = 0; i < parts.size(); i++) {
+				assertThat(parts.get(i).amount()).isEqualTo(c.get("parts").get(i).asLong());
+			}
+			assertThat(parts.stream().mapToLong(CashCatalogDtos.ParkingPart::amount).sum()).isEqualTo(amount);
 		}));
 	}
 }

@@ -1,5 +1,6 @@
 package com.flexable.web.cashcatalog;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
@@ -16,6 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 
 import com.flexable.web.cashcatalog.CashCatalogDtos.Product;
+import com.flexable.web.cashcatalog.CashCatalogDtos.CmaSimulation;
 import com.flexable.web.cashcatalog.CashCatalogDtos.ParkingSimulateRequest;
 import com.flexable.web.cashcatalog.CashCatalogDtos.ParkingSimulation;
 import com.flexable.web.cashcatalog.CashCatalogDtos.ProductList;
@@ -37,7 +39,7 @@ public class CashCatalogService {
                 .flatMap(s -> Arrays.stream(JSON.readValue(s.payload, Product[].class)))
                 .map(p -> p.withTags(CashTags.of(p.name(), p.conditions())))
                 .map(p -> p.withCalc(kind.equals("parking") ? ParkingCalculator.assess(p)
-                        : new ParkingCalculator.Assessment(null, ParkingCalculator.NO_CMA, List.of())))
+                        : CmaCalculator.assess(p)))
                 .sorted(Comparator.comparing(Product::company).thenComparing(Product::name).thenComparing(Product::id))
                 .toList();
         String notice = items.isEmpty() ? "확인된 공시 자료를 준비 중이에요. 실제 상품 데이터는 아직 등록되지 않았어요."
@@ -64,6 +66,31 @@ public class CashCatalogService {
                 c.interestAfterTax(), ParkingCalculator.RULES_VERSION, tiered
                 ? "공시 원문의 구간별 금리를 구간 안의 금액에만 적용한 예상 세전 이자예요. 우대·이벤트는 반영하지 않았고 금리가 바뀌면 달라져요. 세금은 15.4%로 계산했어요."
                 : "공시 기본금리만 쓴 예상 세전 이자예요. 우대·이벤트와 금액 구간은 반영하지 않았고 금리가 바뀌면 달라져요. 세금은 15.4%로 계산했어요.");
+    }
+
+    /** CMA 예상 이자 계산(policies §12). 재투자는 반영하지 않는다. 계산할 수 없는 상품은 이유와 함께 400. */
+    @Transactional(readOnly = true)
+    public CmaSimulation simulateCma(ParkingSimulateRequest r) {
+        if (r == null || r.productId() == null || r.productId().isBlank()) throw ApiException.invalid("productId", "상품을 골라 주세요");
+        if (r.amount() == null || r.amount() < 1 || r.amount() > ParkingCalculator.MAX_AMOUNT)
+            throw ApiException.invalid("amount", "금액은 1원 이상 100억 원 이하로 넣어 주세요");
+        if (r.days() == null || r.days() < 1 || r.days() > ParkingCalculator.MAX_DAYS)
+            throw ApiException.invalid("days", "기간은 1일 이상 3,650일 이하로 넣어 주세요");
+        Product p = list("cma").items().stream().filter(x -> x.id().equals(r.productId())).findFirst()
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "CMA 상품을 찾지 못했어요"));
+        if (!p.calculable()) throw ApiException.invalid("productId", p.calcReason());
+        BigDecimal rate;
+        if ("PERIOD_RATE".equals(p.calcMode())) {
+            rate = CmaCalculator.rateFor(p.periods(), r.days());
+            if (rate == null) throw ApiException.invalid("days", CmaCalculator.maxDays(p.periods())
+                    + "일까지만 계산해요. 그 뒤에는 재투자하는 날의 새 수익률이 적용돼요");
+        } else {
+            rate = p.baseRate();
+        }
+        var c = ParkingCalculator.calculate(r.amount(), r.days(), rate);
+        return new CmaSimulation(p.id(), r.amount(), r.days(), p.calcMode(), rate, c.interestPreTax(), c.tax(),
+                c.interestAfterTax(), CmaCalculator.RULES_VERSION,
+                "공시 약정수익률이 그대로 유지된다고 가정한 예상 세전 이자예요. 재투자(복리)는 반영하지 않았고 수익률은 바뀔 수 있어요. 원금 손실 가능성이 있고 예금자보호 여부는 상품마다 달라요. 세금은 15.4%로 계산했어요.");
     }
 
     /** 내부 수집 경계. reference는 수집 판단 근거이며 기관 허가를 뜻하지 않는다(11-04 후속 결정). */

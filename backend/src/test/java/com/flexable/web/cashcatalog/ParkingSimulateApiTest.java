@@ -91,14 +91,4 @@ class ParkingSimulateApiTest {
 		mvc.perform(post("/api/v1/parking/simulate").contentType(MediaType.APPLICATION_JSON).content("{}"))
 				.andExpect(status().isBadRequest());
 	}
-
-	@Test
-	void CMA는_아직_계산하지_않는다() throws Exception {
-		mvc.perform(get("/api/v1/cma/products")).andExpect(status().isOk());
-		catalog.publish("cma", "sim-cma", "synthetic", List.of(new Product("c", "합성증권", "합성 CMA", "SECURITIES", "RP",
-				new BigDecimal("2.50"), null, "AGREED", "조건", null, null, null, null, null, "테스트", "https://example.com/c",
-				null, null, OffsetDateTime.parse("2026-11-08T09:00:00+09:00"))));
-		mvc.perform(get("/api/v1/cma/products")).andExpect(jsonPath("$.items[0].calculable").value(false))
-				.andExpect(jsonPath("$.items[0].calcReason").value(ParkingCalculator.NO_CMA));
-	}
 }

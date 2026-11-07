@@ -4800,6 +4800,8 @@ export interface components {
             rateType: "VARIABLE_DEPOSIT" | "AGREED";
             /** @description 금액·기간 구간과 우대조건 등 공시 조건 원문. 전체 잔액 적용인지 구간별 적용인지 생략하지 않는다 */
             conditions: string;
+            /** @description 상품명·조건 원문에 정해 둔 낱말이 있으면 붙는 분류(policies §10, 규칙 cash-tags-v1). 낱말이 있다는 뜻일 뿐 가입 자격이나 우대 적용을 판정하지 않는다 */
+            tags: ("SPECIAL_OFFER" | "YOUTH" | "MILITARY" | "NON_FACE_TO_FACE" | "SALARY_LINK" | "AUTO_TRANSFER" | "CARD_USE")[];
             interestPayment: string | null;
             reinvestment: string | null;
             depositProtected: boolean | null;

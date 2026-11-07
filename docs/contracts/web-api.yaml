@@ -2954,7 +2954,7 @@ components:
     CashCatalogProduct:
       type: object
       additionalProperties: false
-      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
+      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, tags, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
       properties:
         id: { type: string, minLength: 1 }
         company: { type: string, minLength: 1 }
@@ -2965,6 +2965,10 @@ components:
         maxRate: { type: number, minimum: 0, nullable: true, description: '공시 연 %, 세전. 우대조건 충족 여부를 판정하지 않는다' }
         rateType: { type: string, enum: [VARIABLE_DEPOSIT, AGREED], description: '파킹은 변동 예금금리, CMA는 약정수익률. 미래 수익 보장 아님' }
         conditions: { type: string, description: '금액·기간 구간과 우대조건 등 공시 조건 원문. 전체 잔액 적용인지 구간별 적용인지 생략하지 않는다' }
+        tags:
+          type: array
+          description: '상품명·조건 원문에 정해 둔 낱말이 있으면 붙는 분류(policies §10, 규칙 cash-tags-v1). 낱말이 있다는 뜻일 뿐 가입 자격이나 우대 적용을 판정하지 않는다'
+          items: { type: string, enum: [SPECIAL_OFFER, YOUTH, MILITARY, NON_FACE_TO_FACE, SALARY_LINK, AUTO_TRANSFER, CARD_USE] }
         interestPayment: { type: string, nullable: true }
         reinvestment: { type: string, nullable: true }
         depositProtected: { type: boolean, nullable: true }

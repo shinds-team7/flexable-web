@@ -82,6 +82,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/parking/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 파킹통장 기본금리 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림)
+         * @description policies §11(규칙 parking-calc-v1). 공시 기본금리만 쓴다. 우대·이벤트·금액 구간 금리는 넣지 않는다.
+         *     목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유)이다. 없는 상품은 404.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description `/parking/products`의 상품 id */
+                        productId: string;
+                        /**
+                         * Format: int64
+                         * @description 맡긴 돈(원)
+                         */
+                        amount: number;
+                        /** @description 맡기는 일수 */
+                        days: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ParkingSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/practice/categories": {
         parameters: {
             query?: never;
@@ -4802,6 +4858,10 @@ export interface components {
             conditions: string;
             /** @description 상품명·조건 원문에 정해 둔 낱말이 있으면 붙는 분류(policies §10, 규칙 cash-tags-v1). 낱말이 있다는 뜻일 뿐 가입 자격이나 우대 적용을 판정하지 않는다 */
             tags: ("YOUTH" | "MILITARY" | "NON_FACE_TO_FACE" | "SALARY_LINK" | "AUTO_TRANSFER" | "CARD_USE")[];
+            /** @description 파킹통장 기본금리 이자 계산을 제공하는 상품인지(policies §11 parking-calc-v1). CMA는 항상 false */
+            calculable: boolean;
+            /** @description calculable이 false일 때 이유(사용자에게 그대로 보여 준다). true면 null */
+            calcReason: string | null;
             interestPayment: string | null;
             reinvestment: string | null;
             depositProtected: boolean | null;
@@ -4824,6 +4884,29 @@ export interface components {
              * @description 출처·형식·조건 검증 시각(+09:00)
              */
             verifiedAt: string;
+        };
+        ParkingSimulation: {
+            productId: string;
+            /** Format: int64 */
+            amount: number;
+            days: number;
+            /** @description 계산에 쓴 공시 기본금리(연 %, 세전) */
+            baseRate: number;
+            /**
+             * Format: int64
+             * @description floor(amount × baseRate × days ÷ 36500)
+             */
+            interestPreTax: number;
+            /**
+             * Format: int64
+             * @description floor(interestPreTax × 0.154)
+             */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** @example parking-calc-v1 */
+            rulesVersion: string;
+            notice: string;
         };
         /** @enum {string} */
         SavingsSector: "BANK" | "SAVINGS_BANK";

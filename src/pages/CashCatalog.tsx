@@ -1,15 +1,17 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { ProductTabs } from '@/components/ProductTabs';
 import { BankBadge, shortBankName } from '@/components/BankBadge';
 import { SelectedBar } from '@/components/CompareFilters';
 import { Icon } from '@/components/Icons';
 import { api, errorText } from '@/lib/api';
+import { won } from '@/lib/format';
 import type { components } from '@/lib/api-schema';
 import '@/styles/cash-catalog.css';
 
 type Product = components['schemas']['CashCatalogProduct'];
 type Catalog = components['schemas']['CashCatalogList'];
+type Sim = components['schemas']['ParkingSimulation'];
 type Kind = 'parking' | 'cma';
 type Tag = Product['tags'][number];
 // 상품명·공시 조건 원문에 이 문구가 있다는 뜻이다(policies §10). 가입 자격이나 우대 적용을 판정하지 않는다
@@ -35,6 +37,33 @@ const rows: { label: string; value: (p: Product) => string }[] = [
   { label: '적용 시작일', value: p => p.effectiveFrom ?? '미확인' },
   { label: '자료 검증 시각 (한국시간)', value: p => new Date(p.verifiedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) },
 ];
+
+// 서버가 계산한다(policies §11). 공시 기본금리만 쓰고 우대·이벤트·금액 구간은 넣지 않는다
+function ParkingCalc({ product }: { product: Product }) {
+  const [amount, setAmount] = useState('10000000');
+  const [days, setDays] = useState('30');
+  const calc = useMutation({
+    mutationFn: () => api<Sim>('/parking/simulate', { method: 'POST', json: { productId: product.id, amount: Number(amount), days: Number(days) } }),
+  });
+  const valid = /^\d+$/.test(amount) && Number(amount) >= 1 && /^\d+$/.test(days) && Number(days) >= 1;
+  if (!product.calculable) return <p className="cash-calc-off">이자 계산 안내: {product.calcReason}</p>;
+  return <details className="cash-calc"><summary>예상 이자 계산해 보기 (기본금리 기준)</summary>
+    <form onSubmit={e => { e.preventDefault(); if (valid) calc.mutate(); }}>
+      <label>맡길 돈 (원)<input inputMode="numeric" value={amount} onChange={e => { setAmount(e.target.value.replace(/[^\d]/g, '')); calc.reset(); }} /></label>
+      <label>맡기는 기간 (일)<input inputMode="numeric" value={days} onChange={e => { setDays(e.target.value.replace(/[^\d]/g, '')); calc.reset(); }} /></label>
+      <button className="btn" type="submit" disabled={!valid || calc.isPending}>계산하기</button>
+    </form>
+    <div role="status" aria-live="polite">
+      {calc.isError && <p className="cash-calc-error">{errorText(calc.error)}</p>}
+      {calc.data && <dl className="cash-calc-result">
+        <div><dt>세전 이자</dt><dd className="num">{won(calc.data.interestPreTax)}원</dd></div>
+        <div><dt>세금 (15.4%)</dt><dd className="num">{won(calc.data.tax)}원</dd></div>
+        <div><dt>세후 이자</dt><dd className="num"><b>{won(calc.data.interestAfterTax)}원</b></dd></div>
+      </dl>}
+      {calc.data && <p className="cash-calc-note">{calc.data.notice}</p>}
+    </div>
+  </details>;
+}
 
 export function CashCatalog({ kind }: { kind: Kind }) {
   const [search, setSearch] = useState('');
@@ -124,6 +153,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
               <label className="cash-check"><input type="checkbox" checked={checked} onChange={() => toggle(p.id)} aria-label={`${p.company} ${p.name} 비교`} /><span>비교</span></label>
             </div>
             <p className="cash-limit"><span>최고금리 적용 금액</span><b>{limit(p.rateLimit)}</b></p>
+            {kind === 'parking' && <ParkingCalc product={p} />}
             <details><summary>조건·출처 자세히 보기</summary><dl>{rows.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value(p)}</dd></div>)}</dl><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">공식 출처: {p.sourceName} ↗<span className="cash-sr"> (새 창)</span></a></details>
           </article>;
         })}</div>
@@ -135,7 +165,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
         <p className="cash-message" role="status">{message}</p>
         {selected.length === 0 ? <div className="cash-compare-empty"><Icon id="i-check" size={24} /><p>궁금한 상품의<br /><b>비교 칸을 체크해 주세요</b></p></div> : <ul className="cash-picks">{selected.map(p => <li key={p.id}><BankBadge name={p.company} size={32} /><div><p className="meta">{p.company}</p><b>{p.name}</b></div><button type="button" className="cash-remove" onClick={() => toggle(p.id)} aria-label={`${p.company} ${p.name} 비교 해제`}><Icon id="i-close" size={16} /></button></li>)}</ul>}
         {selected.length > 0 && <><a className="btn cash-compare-link" href="#cash-comparison">조건 비교표 보기 <span aria-hidden="true">↓</span></a><button className="cash-clear" onClick={() => { setPicked([]); setMessage(''); }}>선택 모두 해제</button></>}
-        <div className="cash-rail-note"><b>금리만큼 조건도 중요해요</b><p>적용 한도 · 이자 지급 · 예금자보호</p><p>예상 이자를 계산하지 않는 공시 비교예요.</p></div>
+        <div className="cash-rail-note"><b>금리만큼 조건도 중요해요</b><p>적용 한도 · 이자 지급 · 예금자보호</p><p>{kind === 'parking' ? '예상 이자는 공시 기본금리로만 계산해요.' : '예상 이자를 계산하지 않는 공시 비교예요.'}</p></div>
       </section></aside>
     </div>
     {selected.length > 0 && <section className="card cash-comparison" id="cash-comparison"><div className="cash-results-head"><h2>선택한 상품 조건 비교</h2><span className="cash-pick-count">{selected.length}개 선택</span></div><p className="sub">같은 금리여도 적용 금액·보유 기간·조건이 다를 수 있어요.</p>

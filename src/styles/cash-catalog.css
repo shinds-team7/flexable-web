@@ -86,3 +86,13 @@
 .cash-tag[aria-pressed="true"]{color:var(--color-on-brand);background:var(--color-brand-primary);border-color:var(--color-brand-primary)}
 .cash-tag:focus-visible{outline:2px solid var(--color-brand-primary);outline-offset:2px}
 .cash-tag-note{flex-basis:100%;margin:0;font-size:12px;color:var(--color-text-tertiary)}
+.cash-calc,.cash-calc-off{margin-top:calc(var(--density-gap)*2/3);font-size:13px;color:var(--color-text-secondary)}
+.cash-calc summary{cursor:pointer;color:var(--color-brand-text);font-weight:700}
+.cash-calc form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:calc(var(--density-gap)/2);margin-top:calc(var(--density-gap)/2)}
+.cash-calc label{display:flex;flex-direction:column;gap:calc(var(--density-gap)/3);font-weight:700;min-width:0}
+.cash-calc input{min-height:var(--density-control-sm);color:var(--color-text-primary);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-soft-sm);padding-inline:calc(var(--density-gap)/2);font-size:14px;width:160px;max-width:100%}
+.cash-calc-result{display:flex;flex-wrap:wrap;gap:var(--density-gap);margin-top:calc(var(--density-gap)/2)}
+.cash-calc-result dt{font-size:12px;color:var(--color-text-tertiary)}
+.cash-calc-result dd{margin:0;color:var(--color-text-primary)}
+.cash-calc-note,.cash-calc-error{margin:calc(var(--density-gap)/3) 0 0;font-size:12px;color:var(--color-text-tertiary)}
+.cash-calc-error{color:var(--color-text-secondary)}

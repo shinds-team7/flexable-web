@@ -14,7 +14,7 @@ public final class CashCatalogDtos {
             String interestPayment, String reinvestment, Boolean depositProtected, Long maxLimit, Long rateLimit,
             String sourceName, String sourceUrl, LocalDate sourceAsOf, LocalDate effectiveFrom,
             @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", timezone = "Asia/Seoul") OffsetDateTime verifiedAt,
-            List<String> tags) {
+            List<String> tags, boolean calculable, String calcReason) {
         /** 수집기가 만드는 형태. tags는 공개 조회 때 {@link CashTags}가 채운다. */
         public Product(String id, String company, String name, String sector, String category,
                 BigDecimal baseRate, BigDecimal maxRate, String rateType, String conditions,
@@ -23,21 +23,32 @@ public final class CashCatalogDtos {
                 OffsetDateTime verifiedAt) {
             this(id, company, name, sector, category, baseRate, maxRate, rateType, conditions, interestPayment,
                     reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf,
-                    effectiveFrom, verifiedAt, List.of());
+                    effectiveFrom, verifiedAt, List.of(), false, null);
         }
 
         Product withId(String publicId) {
             return new Product(publicId, company, name, sector, category, baseRate, maxRate, rateType, conditions,
                     interestPayment, reinvestment, depositProtected, maxLimit, rateLimit,
-                    sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt, tags);
+                    sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt, tags, calculable, calcReason);
         }
 
         Product withTags(List<String> value) {
             return new Product(id, company, name, sector, category, baseRate, maxRate, rateType, conditions,
                     interestPayment, reinvestment, depositProtected, maxLimit, rateLimit,
-                    sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt, value);
+                    sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt, value, calculable, calcReason);
+        }
+
+        Product withCalc(String reason) {
+            return new Product(id, company, name, sector, category, baseRate, maxRate, rateType, conditions,
+                    interestPayment, reinvestment, depositProtected, maxLimit, rateLimit,
+                    sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt, tags, reason == null, reason);
         }
     }
 
     public record ProductList(List<Product> items, boolean isSample, String notice) {}
+
+    public record ParkingSimulateRequest(String productId, Long amount, Integer days) {}
+
+    public record ParkingSimulation(String productId, long amount, int days, BigDecimal baseRate,
+            long interestPreTax, long tax, long interestAfterTax, String rulesVersion, String notice) {}
 }

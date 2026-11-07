@@ -25,6 +25,9 @@ final class CmaCalculator {
 	/** "1일 ~ 15일 : 2.75%" 모양. 금액이 아니라 보유 일수로 수익률이 갈린다. */
 	private static final Pattern PERIOD_LINE = Pattern.compile(
 			"^\\s*(\\d+)\\s*일\\s*[~\\-]\\s*(\\d+)\\s*일\\s*[:：]\\s*(?:연\\s*)?(\\d+(?:\\.\\d+)?)\\s*%");
+	/** "1- 27일: 2.45%"·"28일: 2.45%"처럼 기간 라벨이 붙은 수익률 줄. 모든 기간의 수익률이 같으면 기간과 상관없이 하나로 본다. */
+	private static final Pattern BAND_RATE = Pattern.compile(
+			"^\\s*(?:\\d+\\s*[~\\-]\\s*)?\\d+\\s*일\\s*[:：]\\s*(?:연\\s*)?(\\d+(?:\\.\\d+)?)\\s*%", Pattern.MULTILINE);
 	/** 읽을 수 없어도 기간 구간이 있다는 표시(신한 "1- 27일: 2.45%" 등). */
 	private static final Pattern PERIOD_HINT = Pattern.compile("\\d+\\s*일?\\s*[~\\-]\\s*\\d+\\s*일");
 
@@ -36,17 +39,27 @@ final class CmaCalculator {
 			return new ParkingCalculator.Assessment("PERIOD_RATE", null, List.of(), periods);
 		}
 		String text = p.conditions() == null ? "" : p.conditions();
-		if (PERIOD_HINT.matcher(text).find()) {
+		if (PERIOD_HINT.matcher(text).find() && !sameRateInEveryBand(text)) {
 			return none(PERIOD);
 		}
 		if (p.baseRate() == null || p.maxRate() == null || p.baseRate().compareTo(p.maxRate()) != 0) {
 			return none(NO_RATE);
 		}
-		String reason = ParkingCalculator.reason(p);
+		// "적용금액: 1 원이상"은 최소 가입 금액이지 금리 구간이 아니다
+		String reason = ParkingCalculator.reason(p.baseRate(), text.replaceAll("(?m)^\\s*적용금액\\s*:.*$", ""));
 		if (reason != null) {
 			return none(reason.equals(ParkingCalculator.NO_BASE) ? NO_RATE : TIERED);
 		}
 		return new ParkingCalculator.Assessment("AGREED_RATE", null, List.of(), List.of());
+	}
+
+	private static boolean sameRateInEveryBand(String text) {
+		Matcher m = BAND_RATE.matcher(text);
+		List<BigDecimal> rates = new ArrayList<>();
+		while (m.find()) {
+			rates.add(new BigDecimal(m.group(1)));
+		}
+		return rates.size() >= 2 && rates.stream().allMatch(r -> r.compareTo(rates.getFirst()) == 0);
 	}
 
 	private static ParkingCalculator.Assessment none(String reason) {

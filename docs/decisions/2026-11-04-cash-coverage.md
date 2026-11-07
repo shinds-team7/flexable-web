@@ -13,7 +13,7 @@
 | [저축은행중앙회](https://www.fsb.or.kr/ratanym_0100.act) | 158 | 검색·금리 하한 없는 전체 입출금 공시. 전체 건수 일치 확인. 구간 방향·우대조건·지급방식 보존 |
 | [케이뱅크](https://www.kbanknow.com/web/customer/use-info/info?tab=rate-info) | 4 | 판매 중 입출금 5개 중 사장님 제외. 플러스박스는 기존 상세 출처, 생활통장·챌린지박스·마이키즈통장은 공개 금리 조회. 중복 제외 |
 | [SC제일은행](https://www.standardchartered.co.kr/np/kr/pl/et/InterestRateDeposit3P.jsp) | 30 | 개인 입출금 전체 공시 32개와 금리 응답의 코드 집합 대조 후 기업용 2개 제외. 채널·금액 구간·각 적용일 보존. 기존 가입 상품 포함 가능. 최고금리는 추정하지 않음 |
-| [제주은행](https://www.jejubank.co.kr/hmpg/prdGdnc/sid/iomn.do) | 19 | 전체 보기 30개와 itemsCount 대조 후 법인·기업·사업자 제외. 남은 상품 모두 상세 조회. 하나라도 상세 확인 실패 시 전체 갱신 거부 |
+| [제주은행](https://www.jejubank.co.kr/hmpg/prdGdnc/sid/iomn.do) | 19 | 전체 보기 30개와 itemsCount 대조 후 법인·기업·사업자 제외. 남은 상품 모두 상세 조회. 하나라도 상세 확인 실패 시 전체 갱신 거부. 11-08 보완: 상세의 "이벤트 우대금리"(대상 기간·금액 구간·금리)를 조건에 넣고, 날짜가 없는 빈 이벤트 안내 틀은 넣지 않는다. 원금/이자 지급 방법이 비어 있으면 "이자지급시기"를 지급 정보로 쓴다(달리자 이벤트 3.30%·2026-12-31 종료, 탐나는전 지급일이 조건·지급 정보에 나온다). 구간 금리를 전체 잔액에 붙이는지는 여전히 원문에 없어 계산에서 제외한다 |
 | [유진투자증권](https://www.eugenefn.com/ingo/igca/igca100r.do) | RP 2 | 개인 자유형·자산관리형 분리 |
 | [미래에셋증권](https://securities.miraeasset.com/hks/hks4033/n01.do) | RP 1 | 개인 CMA 행만. 일반 RP·법인 제외 |
 | [삼성증권](https://www.samsungpop.com/mbw/finance/cma.do?cmd=guide) | RP 1·발행어음 1 | 초기 HTML의 과거 금리를 버리고 실제 공개 조회 사용. 개인 자동투자 CMA 코드만. 특판·법인·일반 약정 제외. 두 조회 중 하나라도 실패 시 출처 전체 유지 |

@@ -17,7 +17,7 @@ final class JejuCashParser {
     record Candidate(String id, String name) {}
     private static final Pattern RATE = Pattern.compile("(?:연\\s*)?(\\d+(?:\\.\\d+)?)\\s*%");
     private static final Set<String> FIELDS = Set.of("상품특징", "예금종류", "가입대상", "가입금액", "가입기간", "거래방법", "원금/이자지급방법",
-        "기본금리", "최고금리", "우대금리", "우대이자율", "우대서비스", "이자계산방법", "이자지급방법", "이자지급시기");
+        "기본금리", "최고금리", "우대금리", "우대이자율", "우대서비스", "이자계산방법", "이자지급방법", "이자지급시기", "이벤트우대금리");
 
     static List<Candidate> catalog(String json) {
         var root = JsonMapper.builder().build().readTree(json);
@@ -39,13 +39,16 @@ final class JejuCashParser {
     static Product detail(Candidate candidate, String html, OffsetDateTime at) {
         Document doc = Jsoup.parse(html);
         if (doc.getAllElements().stream().noneMatch(e -> e.ownText().strip().equals(candidate.name()))) throw changed();
-        var conditions = new java.util.LinkedHashSet<String>(); String payment = null;
+        var conditions = new java.util.LinkedHashSet<String>(); String payment = null, timing = null;
         for (var dl : doc.select("dl.text-row-item")) {
             String name = dl.select("dt").text().replaceAll("\\s+", "");
             String text = dl.select("dd").stream().map(e -> e.wholeText().strip().replaceAll("[\\t\\r ]+", " ").replaceAll("\\n\\s*\\n+", "\n"))
                 .filter(t -> !t.isBlank()).collect(java.util.stream.Collectors.joining("\n"));
-            if (FIELDS.contains(name) && !text.isBlank()) conditions.add(name + ": " + text);
+            // 이벤트가 없는 상품도 날짜 없는 빈 안내 틀("이벤트기간 : ~")이 붙어 있어 조건으로 쓰지 않는다
+            boolean emptyEventTemplate = name.equals("이벤트우대금리") && text.contains("이벤트기간 : ~");
+            if (FIELDS.contains(name) && !text.isBlank() && !emptyEventTemplate) conditions.add(name + ": " + text);
             if (name.equals("원금/이자지급방법") && !text.isBlank()) payment = text;
+            if (name.equals("이자지급시기") && !text.isBlank()) timing = text;
         }
         if (conditions.isEmpty()) throw changed();
         BigDecimal base = card(doc, "기본금리"), max = card(doc, "최고금리");
@@ -61,7 +64,7 @@ final class JejuCashParser {
             if (heading.equals("기본금리") || heading.equals("최고금리")) conditions.add(heading + " 공시 조건: " + card.select("p.txt").text());
         }
         return new Product(candidate.id(), "제주은행", candidate.name(), "BANK", null, base, max, "VARIABLE_DEPOSIT",
-            String.join("\n", conditions), payment, null, doc.text().contains("이 예금은 예금자보호법에 따라") ? Boolean.TRUE : null,
+            String.join("\n", conditions), payment != null ? payment : timing, null, doc.text().contains("이 예금은 예금자보호법에 따라") ? Boolean.TRUE : null,
             null, null, "제주은행 공식 입출금 상품 안내",
             detailPath(candidate.id()), null, null, at);
     }

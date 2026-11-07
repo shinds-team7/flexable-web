@@ -49,7 +49,7 @@ function ParkingCalc({ product }: { product: Product }) {
   if (!product.calculable) return <p className="cash-calc-off">이자 계산 안내: {product.calcReason}</p>;
   return <details className="cash-calc"><summary>예상 이자 계산해 보기 (기본금리 기준)</summary>
     <form onSubmit={e => { e.preventDefault(); if (valid) calc.mutate(); }}>
-      <label>맡길 돈 (원)<input inputMode="numeric" value={amount} onChange={e => { setAmount(e.target.value.replace(/[^\d]/g, '')); calc.reset(); }} /></label>
+      <label>맡길 돈 (원)<input inputMode="numeric" value={amount ? Number(amount).toLocaleString('ko-KR') : ''} onChange={e => { setAmount(e.target.value.replace(/[^\d]/g, '').slice(0, 11)); calc.reset(); }} /></label>
       <label>맡기는 기간 (일)<input inputMode="numeric" value={days} onChange={e => { setDays(e.target.value.replace(/[^\d]/g, '')); calc.reset(); }} /></label>
       <button className="btn" type="submit" disabled={!valid || calc.isPending}>계산하기</button>
     </form>

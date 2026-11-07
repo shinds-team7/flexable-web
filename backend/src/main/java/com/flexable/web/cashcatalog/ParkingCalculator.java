@@ -20,8 +20,13 @@ final class ParkingCalculator {
 
 	private static final String BOILERPLATE = "구간별·우대조건을 확인해야 하며 최고금리를 전체 잔액에 적용하지 않아요.";
 	private static final String FSB_LIMIT = "최고금리 적용 가능 금액(공시값):";
-	private static final Pattern MONEY_TIER = Pattern.compile("원\\s*(이하|초과|미만|이상)|(이하|초과|미만|이상)\\s*분|초과분");
-	private static final List<String> TIER_WORDS = List.of("차등", "금액별", "잔액별", "구간", "평균잔액", "월평균");
+	// 금리 구간일 가능성이 큰 문구는 어디에 있어도 막는다
+	private static final Pattern STRONG_TIER = Pattern.compile("원\\s*(이하|초과|미만)|(이하|초과|미만)\\s*분|초과분");
+	private static final List<String> STRONG_WORDS = List.of("차등", "금액별", "잔액별", "구간", "기간별", "거치기간", "기간에 따른");
+	// "N원 이상"·평균잔액은 우대 실적·수수료 면제 같은 조건에도 쓰인다. 그런 조건 줄이면 금리 구간으로 보지 않는다
+	private static final Pattern WEAK_TIER = Pattern.compile("원\\s*이상|평균잔액|월평균|(?:일|개월|년)\\s*이상");
+	private static final Pattern PERK_LINE = Pattern.compile("우대|실적|사용|이용|입금|결제|이체|수수료|면제|급여|연금|카드|충족|서비스|거래|가입|대출");
+	private static final String NO_TIER_PHRASE = "금액구간에따른제한없음";
 
 	static final String NO_CMA = "CMA 이자 계산은 아직 제공하지 않아요";
 	static final String NO_BASE = "공시에 기본금리가 없어 계산할 수 없어요";
@@ -60,9 +65,14 @@ final class ParkingCalculator {
 			}
 			rest.append(t).append('\n');
 		}
-		String text = rest.toString();
-		if (MONEY_TIER.matcher(text).find() || TIER_WORDS.stream().anyMatch(text::contains)) {
-			return TIERED;
+		for (String line : rest.toString().split("\\n")) {
+			String t = line.replace(" ", "").contains(NO_TIER_PHRASE) ? line.replaceAll("\\s", "").replace(NO_TIER_PHRASE, "") : line;
+			if (STRONG_TIER.matcher(t).find() || STRONG_WORDS.stream().anyMatch(t::contains)) {
+				return TIERED;
+			}
+			if (WEAK_TIER.matcher(t).find() && !PERK_LINE.matcher(t).find()) {
+				return TIERED;
+			}
 		}
 		return null;
 	}

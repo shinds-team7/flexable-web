@@ -6,6 +6,7 @@
 
 ## 2026-11-07
 
+- [Refs #297] 파킹·CMA 상품에 분류 `tags`를 더했다([결정](decisions/2026-11-07-cash-tags.md), 리드 승인, policies §10, `tests/policy/cash-tags.json`): 서버가 상품명·공시 조건 원문의 낱말(청년·군인·비대면·급여·자동이체·카드, 실제 목록에서 오탐뿐인 특판은 뺌)로 조회 때마다 계산하고, 판정이 아니라 "원문에 이 문구가 있다"는 뜻이다. 계약 `CashCatalogProduct.tags`(필수 배열), 화면은 유형·우대조건 칩 필터를 더한다. 로고는 허락 전이라 그대로, DB·개인정보 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Closes #113] 청년미래적금 서버 계산을 구현했다(리드가 policies §9 규칙과 가정 2건을 그대로 승인, [결정](decisions/2026-11-06-youth-future-savings-rules.md)): 백엔드 `policysavings`(`GET /savings/policy/{code}`·`POST …/simulate`, 입금건별 예치일수 이자·기여금 기본금리 이자·비과세), `tests/policy/policy-savings.json` `IMPLEMENTED`와 `PolicySavingsPolicyTest`. 화면은 고정 예시(월 78,000원·2.9%)를 지우고 가입일·기본금리·우대금리를 입력받아 서버 값을 보인다. 응답은 계속 `UNVERIFIED`이고 평균 적금 비교는 출처가 없어 null이다. 계약 필드는 바뀌지 않고 설명만 고쳤다. 저장하는 정보가 없어 방침 영향 없음 — 영향: 프론트·백엔드
 
 ## 2026-11-06

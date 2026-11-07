@@ -31,6 +31,7 @@ public class CashCatalogService {
         checkKind(kind);
         List<Product> items = snapshots.findByKind(kind).stream()
                 .flatMap(s -> Arrays.stream(JSON.readValue(s.payload, Product[].class)))
+                .map(p -> p.withTags(CashTags.of(p.name(), p.conditions())))
                 .sorted(Comparator.comparing(Product::company).thenComparing(Product::name).thenComparing(Product::id))
                 .toList();
         String notice = items.isEmpty() ? "확인된 공시 자료를 준비 중이에요. 실제 상품 데이터는 아직 등록되지 않았어요."

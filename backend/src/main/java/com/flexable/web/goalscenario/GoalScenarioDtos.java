@@ -87,6 +87,10 @@ final class GoalScenarioDtos {
 	record Saved(long id, OffsetDateTime savedAt, String name, long targetAmount, int years, int months, String proposer, LocalDate asOf,
 			String returnsFrom, String returnsTo, int paths, BigDecimal reachShare, List<Product> products, Scenario scenario,
 			List<String> assumptions, String notice, boolean isSample, long initialAmount, RateAssumption rateAssumption,
-			Alternative initialDeposit) {
+			Alternative initialDeposit, List<Scenario> otherScenarios) {
+		/** 이전 저장본에는 없어 빈 목록으로 읽는다. */
+		public Saved {
+			otherScenarios = otherScenarios == null ? List.of() : otherScenarios;
+		}
 	}
 }

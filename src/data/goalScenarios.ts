@@ -127,7 +127,10 @@ export type SavedGoalScenario = {
   paths: number;
   reachShare: number;
   products: ScenarioProduct[];
+  /** 저장할 때 고른 플랜. 저장본을 열면 이 플랜이 먼저 보인다 */
   scenario: GoalScenario;
+  /** 같은 계산 결과의 나머지 플랜. 이전 저장본은 빈 배열 */
+  otherScenarios: GoalScenario[];
   assumptions: string[];
   notice: string;
   isSample: boolean;
@@ -135,6 +138,9 @@ export type SavedGoalScenario = {
   rateAssumption: RateAssumption | null;
   initialDeposit: InitialDeposit | null;
 };
+
+/** 플랜 이름: 안전형·균형형·적극형(없으면 제목만). */
+export const planName = (p: GoalScenario) => (p.style ? `${STYLE_LABEL[p.style]} · ${p.title}` : p.title);
 
 export type SaveScenarioRequest = { resultId: string; scenarioId: string };
 

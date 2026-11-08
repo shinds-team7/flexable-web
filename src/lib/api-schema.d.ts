@@ -4261,7 +4261,7 @@ export interface components {
             /** @enum {string|null} */
             kind: "FIXED" | "RANGE" | null;
         };
-        /** @description 저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다. initialAmount 등은 이전 저장본에서 0·null */
+        /** @description 저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다. scenario는 저장할 때 고른 플랜이고 저장본을 열면 이 플랜이 먼저 보인다. initialAmount 등은 이전 저장본에서 0·null, otherScenarios는 빈 배열 */
         SavedGoalScenario: {
             /** Format: int64 */
             id: number;
@@ -4282,6 +4282,8 @@ export interface components {
             reachShare: number;
             products: components["schemas"]["GoalScenarioProduct"][];
             scenario: components["schemas"]["GoalScenario"];
+            /** @description 같은 계산 결과의 나머지 플랜(계산 응답의 순서 그대로, 고른 플랜 제외). 이전에 저장한 건은 빈 배열이고 다시 만들지 않는다 */
+            otherScenarios: components["schemas"]["GoalScenario"][];
             assumptions: string[];
             notice: string;
             isSample: boolean;

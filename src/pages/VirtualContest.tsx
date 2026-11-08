@@ -9,7 +9,7 @@ import {
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
 import { CATEGORY_GUIDE, SUBSIDIARY_NOTE, cleanTitle } from '@/data/placementGuide';
-import { DETAILS_READING, RESULT_GUIDE } from '@/data/placementResultGuide';
+import { disclosureStory } from '@/data/disclosureStory';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
 import { ApiError, errorText } from '@/lib/api';
@@ -29,8 +29,6 @@ const tone = (n: number) => n > 0 ? 'practice-rise' : n < 0 ? 'practice-fall' : 
 const points = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmt.format(Math.abs(n))}점`;
 /** 하루 점수 한 칸(policies §8-8: +100·0·−100). 안내 문구와 주 점수 칸 간격에만 쓰고 점수는 서버 값을 그대로 보인다 */
 const DAY = 100;
-/** 0.6676 → 66.7(보여 주기만, 내림) */
-const share = (n: number) => (Math.floor(n * 1000) / 10).toFixed(1);
 const contestName = (id: string) => `${id.slice(0, 4)}년 ${Number(id.slice(5))}월 대회`;
 const dateText = (iso: string) => { const [, m, d] = iso.slice(0, 10).split('-'); return `${Number(m)}월 ${Number(d)}일`; };
 
@@ -271,7 +269,7 @@ function useRemaining(until: string | null) {
 
 type PlacementQuestion = ContestPlacement['questions'][number];
 
-/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 주요 내용(있을 때만). 결과 화면도 같은 모양을 쓴다 */
+/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 주요 내용(있을 때만). 결과 화면은 공시 줄글(disclosureStory)로 보인다 */
 function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
   const t = cleanTitle(q.title);
   return <>
@@ -374,13 +372,13 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
           <span className="contest-q-no">{i + 1}</span>
           <span>{it.correct ? '맞음' : '틀림'} · <b>{it.company}</b>{it.date ? ` · ${it.date}` : ''} · 5거래일 뒤 <b className={tone(it.subsequentReturnRate)}>{percent(it.subsequentReturnRate)}</b> · 내 답 {it.prediction === 'POSITIVE' ? '오른다' : it.prediction === 'NEGATIVE' ? '내린다' : '고르지 않음'}</span>
         </p>
-        {it.categorySampleCount != null && it.categoryUpShare != null && it.categoryDownShare != null && <small>같은 유형 공시 {fmt.format(it.categorySampleCount)}건 중 {share(it.categoryUpShare)}% 올랐고 {share(it.categoryDownShare)}% 내렸어요{it.trend === 'MIXED' ? ' · 방향을 알기 어려운 유형' : it.trend === 'UP' ? ' · 대체로 오른 유형' : it.trend === 'DOWN' ? ' · 대체로 내린 유형' : ''}</small>}
-        {q && <div className="contest-graded-question">
-          <p className="contest-q-meta">{q.industry} 회사<span className="contest-chip">{q.categoryName}</span></p>
-          <QuestionBody q={q} sample={sample} />
-          <p className="contest-q-reading"><b>결과로 다시 보기</b> {RESULT_GUIDE[q.category]}</p>
-          {q.details && q.details.length > 0 && <p className="contest-q-reading"><b>주요 내용 읽는 법</b> {DETAILS_READING}</p>}
-        </div>}
+        {q && (() => { const t = cleanTitle(q.title); return <div className="contest-graded-question">
+          <p className="contest-q-meta">{q.industry} 회사<span className="contest-chip">{q.categoryName}</span>{sample && <span className="tag-ex">예시</span>}</p>
+          <h3 className="contest-q-title">{t.main}</h3>
+          {/* 공시 줄글: 서버 값(회사·날짜·주요 내용·5거래일 등락·유형 통계)을 문장으로 잇기만 한다 */}
+          <div className="contest-q-story">{disclosureStory(q, it, t.main, t.subsidiary).map((p, k) => <p key={k}>{p}</p>)}</div>
+          <p className="contest-q-guide"><b>이런 공시예요</b> {CATEGORY_GUIDE[q.category]}</p>
+        </div>; })()}
       </li>; })}
     </ol>
   </section>;

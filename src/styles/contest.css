@@ -153,8 +153,10 @@
 .contest-graded-question { display:grid; gap:calc(var(--density-gap)/3); margin-left:calc(var(--density-gap)*4/3); padding:calc(var(--density-gap)/2); border-radius:var(--radius-soft-sm); background:var(--color-surface); }
 .contest-graded-question .contest-q-title { font-size:14px; }
 .contest-graded-question .contest-q-details { background:var(--color-bg-subtle); }
-.contest-q-reading { margin:0; font-size:13px; line-height:1.7; color:var(--color-text-secondary); }
-.contest-q-reading b { margin-right:calc(var(--density-gap)/4); color:var(--color-text-primary); }
+.contest-q-story { display:grid; gap:calc(var(--density-gap)/3); }
+.contest-q-story p { margin:0; font-size:14px; line-height:1.75; color:var(--color-text-primary); }
+.contest-graded-question .contest-q-guide { font-size:13px; }
+.contest-graded-question .contest-q-guide b { margin-right:calc(var(--density-gap)/4); color:var(--color-text-primary); }
 .contest-result-start { margin-top:calc(var(--density-gap)/3); }
 
 .contest-rules { border:1px solid var(--color-border); border-radius:var(--radius-soft); padding:calc(var(--density-gap)/2) var(--density-gap); background:var(--color-surface); }

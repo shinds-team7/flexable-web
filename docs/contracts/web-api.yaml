@@ -906,8 +906,7 @@ paths:
               properties:
                 name: { type: string, minLength: 1, maxLength: 20, description: '앞뒤 공백을 뺀 1~20자' }
                 targetAmount: { type: integer, format: int64, minimum: 1000000, maximum: 1000000000 }
-                years: { type: integer, enum: [1, 2, 3, 4, 5], description: '3년을 넘으면 3년 적금 만기금을 재예치하고 새 적금을 이어 넣는다(policies §7-9)' }
-                initialAmount: { type: integer, format: int64, minimum: 0, maximum: 1000000000, nullable: true, description: '처음 모은 돈(선택, 비우면 0원). 플랜 비중대로 나눠 투자 몫은 처음부터 시장에, 저축 몫은 예금·CMA 중 나은 쪽에 둔다. OpenAI에는 보내지 않는다(policies §7-9)' }
+                years: { type: integer, enum: [1, 2, 3] }
       responses:
         '200':
           description: 시나리오 3개
@@ -2263,8 +2262,8 @@ components:
               code: { type: string, nullable: true, description: '종목 코드 또는 적금 상품 id' }
               name: { type: string }
               company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
-        ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 금리(예: "3.50"). CMA는 수집한 공시 기본금리의 중간값이고 공시가 없으면 예시 금리 2.50. 투자 유형은 null' }
-        isSample: { type: boolean, description: 'CMA 예시 금리면 true(공시 중간값이면 false)' }
+        ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
+        isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
         alternatives:
           type: array
           maxItems: 2
@@ -2280,7 +2279,7 @@ components:
               ratePercent: { type: string, nullable: true, description: '적금 기본금리(예: "3.20"). 지수 ETF는 null' }
     GoalScenarioResult:
       type: object
-      required: [resultId, name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused, initialAmount, recommendedId, rateAssumption, initialDeposit]
+      required: [resultId, name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
       additionalProperties: false
       properties:
         resultId: { type: string, description: '이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8)' }
@@ -2318,30 +2317,6 @@ components:
             limitPerDay: { type: integer }
             remainingToday: { type: integer }
         aiReused: { type: boolean, description: '같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false' }
-        initialAmount: { type: integer, format: int64, description: '요청의 처음 모은 돈(없으면 0)' }
-        recommendedId: { type: string, nullable: true, description: '서버가 고른 가장 합리적인 플랜의 id(policies §7-5). 목표에 닿고 원금 손실 비율이 10% 이하인 플랜 중 필요 월 금액이 가장 작은 것, 없으면 닿는 플랜 중 손실 비율이 가장 낮은 것. 닿는 플랜이 없으면 null' }
-        rateAssumption: { $ref: '#/components/schemas/GoalScenarioRateAssumption' }
-        initialDeposit: { $ref: '#/components/schemas/GoalScenarioInitialDeposit' }
-    GoalScenarioRateAssumption:
-      type: object
-      nullable: true
-      description: '3년을 넘는 기한에서만 있다. 3년 뒤 금리는 지금 금리가 유지된다고 가정하고, 각 플랜의 rateDown이 금리가 dropPercent%p 낮아질 때의 필요 월 금액이다. 3년 이하면 null'
-      required: [afterMonths, dropPercent]
-      additionalProperties: false
-      properties:
-        afterMonths: { type: integer, description: '36' }
-        dropPercent: { type: string, description: '"1.00"' }
-    GoalScenarioInitialDeposit:
-      type: object
-      nullable: true
-      description: '처음 모은 돈의 저축 몫을 맡길 예금(첫 단계). 처음 돈이 없거나 조건에 맞는 예금 공시가 없으면 null(그때는 CMA)'
-      required: [code, name, company, ratePercent]
-      additionalProperties: false
-      properties:
-        code: { type: string }
-        name: { type: string }
-        company: { type: string, nullable: true }
-        ratePercent: { type: string }
     SavedGoalScenarioSummary:
       type: object
       required: [id, savedAt, name, targetAmount, years, asOf, title, reachable, monthly, kind]
@@ -2359,9 +2334,9 @@ components:
         kind: { type: string, nullable: true, enum: [FIXED, RANGE, null] }
     SavedGoalScenario:
       type: object
-      required: [id, savedAt, name, targetAmount, years, months, proposer, asOf, returnsFrom, returnsTo, paths, reachShare, products, scenario, assumptions, notice, isSample, initialAmount, rateAssumption, initialDeposit]
+      required: [id, savedAt, name, targetAmount, years, months, proposer, asOf, returnsFrom, returnsTo, paths, reachShare, products, scenario, assumptions, notice, isSample]
       additionalProperties: false
-      description: '저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다. initialAmount 등은 이전 저장본에서 0·null'
+      description: '저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다'
       properties:
         id: { type: integer, format: int64 }
         savedAt: { type: string, format: date-time }
@@ -2380,35 +2355,12 @@ components:
         assumptions: { type: array, items: { type: string } }
         notice: { type: string }
         isSample: { type: boolean }
-        initialAmount: { type: integer, format: int64, description: '저장할 때의 처음 모은 돈. 이전 저장본은 0' }
-        rateAssumption: { $ref: '#/components/schemas/GoalScenarioRateAssumption' }
-        initialDeposit: { $ref: '#/components/schemas/GoalScenarioInitialDeposit' }
     GoalScenario:
       type: object
-      required: [id, title, summary, explanation, mix, reachable, monthly, paid, outcome, style, noExtraNeeded, initialSaving, rateDown]
+      required: [id, title, summary, explanation, mix, reachable, monthly, paid, outcome]
       additionalProperties: false
       properties:
         id: { type: string }
-        style: { type: string, nullable: true, enum: [SAFE, BALANCED, AGGRESSIVE, null], description: '투자 비중이 낮은 순서로 안전형·균형형·적극형(policies §7-5). 이전 저장본은 null' }
-        noExtraNeeded: { type: boolean, description: '처음 모은 돈만으로 기준 비율을 채워 필요 월 금액이 0원이면 true("추가 납입 없이 달성 가능")' }
-        initialSaving:
-          type: object
-          nullable: true
-          description: '처음 모은 돈 중 저축 몫과 둔 곳. 처음 돈이 없으면 null'
-          required: [amount, place]
-          additionalProperties: false
-          properties:
-            amount: { type: integer, format: int64 }
-            place: { type: string, enum: [DEPOSIT, CMA], description: 'DEPOSIT 예금, CMA. 예금의 이득이 묶는 1년당 세후 1만 원보다 적으면 CMA' }
-        rateDown:
-          type: object
-          nullable: true
-          description: '3년 뒤 금리가 1%포인트 낮아질 때의 필요 월 금액(rateAssumption이 있을 때만). 아니면 null'
-          required: [reachable, monthly]
-          additionalProperties: false
-          properties:
-            reachable: { type: boolean }
-            monthly: { type: integer, format: int64, nullable: true }
         title: { type: string, maxLength: 20 }
         summary: { type: string, maxLength: 40 }
         explanation: { type: string, description: '제안기 해설. 글자 수 제한 없음(문단 사이 줄바꿈 포함). 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6)' }
@@ -2426,7 +2378,7 @@ components:
               monthly: { type: integer, format: int64, nullable: true, description: '유형별 월 금액. reachable=false면 null' }
         reachable: { type: boolean, description: '목표 금액 이하의 월 금액으로 기준 비율을 채울 수 있는지' }
         monthly: { type: integer, format: int64, nullable: true, description: '필요 월 금액(천 원 단위 올림)' }
-        paid: { type: integer, format: int64, nullable: true, description: '넣은 돈 = monthly × months + 처음 모은 돈' }
+        paid: { type: integer, format: int64, nullable: true, description: '넣은 돈 = monthly × months' }
         outcome:
           type: object
           nullable: true

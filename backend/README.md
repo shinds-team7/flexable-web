@@ -47,7 +47,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |
 | `cashcatalog` | 파킹·CMA 공시 조건 조회·출처별 스냅샷. 공식 페이지 수집은 `ingest.CashCatalogJob`이 맡으며 계산·공개 입력 API는 없음(#218) | `common` |
 | `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |
-| `goalscenario` | F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7, #175). 제안기(AI 연결 전 데모 조합) 검증·필요 월 금액·결과 범위 계산, 1~5년 기한(3년 초과는 `ScenarioCash`가 재예치 계산)·처음 모은 돈·플랜 이름(안전형·균형형·적극형)과 추천 플랜, 회원의 시나리오 저장(최대 5개, `/me/goal/scenarios`) | `market`, `savings`, `deposit`, `cashcatalog`, `user`, `ai` |
+| `goalscenario` | F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7, #175). 제안기(AI 연결 전 데모 조합) 검증·필요 월 금액·결과 범위 계산, 회원의 시나리오 저장(최대 5개, `/me/goal/scenarios`) | `market`, `savings`, `user` |
 | `errorlog` | 오류 기록 `error_events`(V31): 브라우저가 보낸 오류(`POST /client-errors`)와 서버 500을 저장 전에 가려 같은 날 같은 오류는 한 줄로 묶음, 30일 보관·탈퇴 삭제. 500은 `common.ServerErrorSink`로 받음 | `common`, `user` |
 | `news` | 청년 금융 소식: 온통청년 수집 카드 자동 게시·AI 요약 저장·`GET /youth-news`(#47·#93) | `common` |
 | `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |

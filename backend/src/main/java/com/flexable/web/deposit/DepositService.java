@@ -185,45 +185,6 @@ public class DepositService {
 		return new Pick(p, o);
 	}
 
-	/** 목표 달성 시나리오(policies §7-2)가 쓰는 예금 후보: 상품 id·금융회사·이름·기본금리·이자 방식. */
-	public record FixedCandidate(String productId, String company, String name, BigDecimal baseRate, boolean compound) {
-	}
-
-	/** 예금 계산 결과(원). finalAmount = 원금 + 세후 이자. */
-	public record Maturity(long principal, long interestPreTax, long tax, long finalAmount) {
-	}
-
-	/** 개인이 가입할 수 있다는 공시 문구(finlife join_member). 적금(savings)과 같은 기준이다. */
-	private static final String INDIVIDUAL = "실명의 개인";
-
-	/**
-	 * 은행(1금융권)·만기 termMonths·가입 제한 "제한 없음"·가입 대상에 "실명의 개인"이 있는 상품·가입 한도 없음 중
-	 * 기본금리가 높은 순서로 limit개(같으면 상품 id 오름차순). 저축은행·지역 상품과 사업자·법인 전용 상품은 뺀다. 없으면 빈 목록.
-	 */
-	@Transactional(readOnly = true)
-	public List<FixedCandidate> openFixed(int termMonths, int limit) {
-		Map<Long, List<DepositRateOption>> byProduct = new HashMap<>();
-		for (DepositRateOption o : options.findBySaveTrm(termMonths)) {
-			byProduct.computeIfAbsent(o.getProductId(), k -> new ArrayList<>()).add(o);
-		}
-		return products.findAllById(byProduct.keySet())
-			.stream()
-			.filter(p -> "BANK".equals(p.getSector()) && "1".equals(p.getJoinDeny()) && p.getMaxLimit() == null
-					&& p.getJoinMember() != null && p.getJoinMember().contains(INDIVIDUAL))
-			.flatMap(p -> best(byProduct.get(p.getId())).map(o -> new Pick(p, o)).stream())
-			.sorted(Comparator.comparing(Pick::base).reversed().thenComparing(x -> x.product().getId()))
-			.limit(limit)
-			.map(x -> new FixedCandidate(String.valueOf(x.product().getId()), x.product().getKorCoNm(), x.product().getFinPrdtNm(),
-					x.base(), x.compound()))
-			.toList();
-	}
-
-	/** 한도 없이 amount를 months 동안 맡긴 예금 만기(정기예금 계산과 같은 규칙). */
-	public static Maturity maturity(long amount, int months, BigDecimal ratePercent, boolean compound) {
-		DepositCalculator.Result r = DepositCalculator.calculate(amount, null, months, ratePercent, compound);
-		return new Maturity(r.principal(), r.interestPreTax(), r.tax(), r.maturityAmount());
-	}
-
 	/** 기본금리가 있는 줄 중 가장 높은 것. */
 	private static Optional<DepositRateOption> best(List<DepositRateOption> candidates) {
 		return candidates.stream()

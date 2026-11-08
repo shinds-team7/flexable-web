@@ -5,10 +5,7 @@ import { api } from '@/lib/api';
 
 export type ScenarioProductType = 'SAVINGS' | 'CMA' | 'KR_INDEX_ETF' | 'US_INDEX_ETF' | 'KOSPI_TOP5';
 
-/** 목표 기한(년). 3년을 넘으면 3년 적금 만기금을 다시 맡기는 계산이다(policies §7-9). */
-export type Years = 1 | 2 | 3 | 4 | 5;
-
-export type GoalScenarioRequest = { name: string; targetAmount: number; years: Years; initialAmount?: number };
+export type GoalScenarioRequest = { name: string; targetAmount: number; years: 1 | 2 | 3 };
 
 export type ScenarioProduct = {
   type: ScenarioProductType;
@@ -29,11 +26,6 @@ export type ScenarioOutcome = {
   lossBp: number;
 };
 
-export type ScenarioStyle = 'SAFE' | 'BALANCED' | 'AGGRESSIVE';
-
-/** 투자 비중이 낮은 순서로 서버가 붙인 이름(policies §7-5). */
-export const STYLE_LABEL: Record<ScenarioStyle, string> = { SAFE: '안전형', BALANCED: '균형형', AGGRESSIVE: '적극형' };
-
 export type GoalScenario = {
   id: string;
   title: string;
@@ -44,18 +36,7 @@ export type GoalScenario = {
   monthly: number | null;
   paid: number | null;
   outcome: ScenarioOutcome | null;
-  /** 이전 저장본은 null */
-  style: ScenarioStyle | null;
-  /** 처음 모은 돈만으로 닿아 매달 넣을 돈이 0원 */
-  noExtraNeeded: boolean;
-  /** 처음 모은 돈 중 저축 몫과 둔 곳. 처음 돈이 없으면 null */
-  initialSaving: { amount: number; place: 'DEPOSIT' | 'CMA' } | null;
-  /** 3년 뒤 금리가 1%포인트 낮아질 때(4·5년만) */
-  rateDown: { reachable: boolean; monthly: number | null } | null;
 };
-
-export type RateAssumption = { afterMonths: number; dropPercent: string };
-export type InitialDeposit = { code: string; name: string; company: string | null; ratePercent: string };
 
 export type GoalScenarioResult = {
   resultId: string;
@@ -79,11 +60,6 @@ export type GoalScenarioResult = {
   aiUsage: { limitPerDay: number; remainingToday: number } | null;
   /** 같은 회원이 같은 조건으로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음) */
   aiReused: boolean;
-  initialAmount: number;
-  /** 서버가 고른 가장 합리적인 플랜(policies §7-5). 닿는 플랜이 없으면 null */
-  recommendedId: string | null;
-  rateAssumption: RateAssumption | null;
-  initialDeposit: InitialDeposit | null;
 };
 
 export type ScenarioFallbackReason = 'AI_UNAVAILABLE' | 'GUEST' | 'LIMIT' | 'DAILY_CAP' | 'AI_FAILED' | 'AI_REJECTED';
@@ -131,9 +107,6 @@ export type SavedGoalScenario = {
   assumptions: string[];
   notice: string;
   isSample: boolean;
-  initialAmount: number;
-  rateAssumption: RateAssumption | null;
-  initialDeposit: InitialDeposit | null;
 };
 
 export type SaveScenarioRequest = { resultId: string; scenarioId: string };
@@ -156,11 +129,10 @@ export const TYPE_LABEL: Record<ScenarioProductType, string> = {
 };
 
 /** 입력을 빨리 채우는 예시(결과는 서버가 계산한다). */
-export const GOAL_PRESETS: { id: string; chip: string; name: string; amount: number; years: Years }[] = [
+export const GOAL_PRESETS: { id: string; chip: string; name: string; amount: number; years: 1 | 2 | 3 }[] = [
   { id: 'y1', chip: '1년 · 1,500만 원', name: '1년 안에 목돈 만들기', amount: 15_000_000, years: 1 },
   { id: 'y2', chip: '2년 · 3,000만 원', name: '2년 뒤 전세 보증금 보태기', amount: 30_000_000, years: 2 },
   { id: 'y3', chip: '3년 · 5,000만 원', name: '3년 뒤 5,000만 원', amount: 50_000_000, years: 3 },
-  { id: 'y5', chip: '5년 · 1억 원', name: '5년 뒤 1억 원 만들기', amount: 100_000_000, years: 5 },
 ];
 
-export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000, initialMax: 1_000_000_000 };
+export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000 };

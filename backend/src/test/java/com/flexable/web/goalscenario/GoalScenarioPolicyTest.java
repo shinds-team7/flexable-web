@@ -90,42 +90,6 @@ class GoalScenarioPolicyTest {
 		});
 	}
 
-	private static ScenarioCash.Rate rate(JsonNode n, boolean compound) {
-		return n == null || n.isNull() ? null : new ScenarioCash.Rate(new BigDecimal(n.asString()), compound);
-	}
-
-	/** 3년 초과 재예치·금리 하락·처음 돈의 예금/CMA 선택(§7-9). 단리 상품(예금·적금)과 월복리 CMA. */
-	@TestFactory
-	Stream<DynamicTest> 저축_쪽() {
-		return each("cash", c -> {
-			ScenarioCash cash = new ScenarioCash(c.get("months").asInt(), rate(c.get("saving"), false), rate(c.get("deposit"), false),
-					rate(c.get("saving2"), false), rate(c.get("deposit2"), false), new BigDecimal(c.get("cma").asString()),
-					new BigDecimal(c.get("drop").asString()));
-			long amount = c.get("amount").asLong();
-			JsonNode e = c.get("expected");
-			switch (c.get("op").asString()) {
-				case "savings" -> assertThat(cash.savings(amount)).isEqualTo(e.get("final").asLong());
-				case "cma" -> assertThat(cash.cma(amount)).isEqualTo(e.get("final").asLong());
-				default -> {
-					ScenarioCash.Lump lump = cash.lump(amount);
-					assertThat(lump.finalAmount()).isEqualTo(e.get("final").asLong());
-					assertThat(lump.place().name()).isEqualTo(e.get("place").asString());
-				}
-			}
-		});
-	}
-
-	@TestFactory
-	Stream<DynamicTest> 처음_돈_투자() {
-		return each("lumpInvest", c -> {
-			var r = ScenarioMath.lumpInvest(c.get("amount").asLong(), new BigDecimal(c.get("factor").asString()), c.get("taxed").asBoolean());
-			JsonNode e = c.get("expected");
-			assertThat(r.gain()).as("gain").isEqualTo(e.get("gain").asLong());
-			assertThat(r.tax()).as("tax").isEqualTo(e.get("tax").asLong());
-			assertThat(r.finalAmount()).as("final").isEqualTo(e.get("final").asLong());
-		});
-	}
-
 	@TestFactory
 	Stream<DynamicTest> 투자() {
 		return each("invest", c -> {
@@ -235,8 +199,7 @@ class GoalScenarioPolicyTest {
 	Stream<DynamicTest> 입력_검증() {
 		return each("validation", c -> {
 			JsonNode q = c.get("request");
-			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("years").asInt(),
-					q.has("initialAmount") ? q.get("initialAmount").asLong() : null);
+			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("years").asInt());
 			String field = c.get("expected").get("field").asString();
 			assertThatThrownBy(() -> GoalScenarioService.validate(req)).isInstanceOfSatisfying(ApiException.class,
 					ex -> assertThat(((Map<?, ?>) ex.extra().get("fields")).keySet()).map(String::valueOf).contains(field));

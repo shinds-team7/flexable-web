@@ -106,9 +106,6 @@
 .gp-save-note{font-size:13px;color:var(--color-warning)}
 .gp-save-message{margin:calc(var(--density-gap)/3) 0 0;font-size:14px;color:var(--color-text-secondary)}
 .gp-saved-mark{margin-left:calc(var(--density-gap)/3);font-size:11px;color:var(--color-brand-text);background:var(--color-brand-subtle);border-radius:var(--radius-xs);padding:0 calc(var(--density-gap)/4)}
-.gp-recommend-mark{margin-left:calc(var(--density-gap)/3);font-size:11px;color:var(--color-brand-text);background:var(--color-brand-subtle);border-radius:var(--radius-xs);padding:0 calc(var(--density-gap)/4);font-weight:700}
-.gp-plan-extra{font-size:12px;font-weight:700;color:var(--color-brand-text)}
-.gp-initial-note,.gp-rate-note{margin:0 0 calc(var(--density-gap)/2);font-size:13px;line-height:1.5;color:var(--color-text-secondary)}
 .gp-wrap-side{max-width:1360px}
 .gp-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--density-gap);align-items:start}
 .gp-main{min-width:0}

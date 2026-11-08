@@ -1,8 +1,9 @@
 import type { components } from '@/lib/api-schema';
 
-// 배치고사 결과 화면의 공시 줄글(Issue #308). 서버가 준 값(공시 주요 내용의 비율·규모 구간·정해 둔 이름, 결과의 회사·날짜·5거래일 등락·유형 통계)을
-// 문장으로 잇기만 하고 새로 계산하지 않는다(ADR-3). 결과 화면에서만 쓰므로 방향·과거 경향을 말해도 된다(decisions/2026-11-05-virtual-sim-contest 2-2).
-// 공시 원문은 서버에 없다(2-6). 주요 내용이 없는 유형은 제목·회사·결과만으로 쓴다.
+// 배치고사 문제·결과 화면의 공시 줄글(Issue #308). 서버가 준 값(공시 주요 내용의 비율·규모 구간·정해 둔 이름, 결과의 회사·날짜·5거래일 등락·유형 통계)을
+// 문장으로 잇기만 하고 새로 계산하지 않는다(ADR-3). 공시 원문은 서버에 없다(2-6).
+// 문제 화면(questionStory)은 회사·날짜·방향·과거 경향을 말하지 않는다(2-2). 그 문장은 "문제 화면에도 쓰는 문구" 구간에 두고
+// backend PlacementGuideTextTest가 금지 표현을 검사한다. 회사·날짜·5거래일 움직임·유형 통계는 결과 화면(disclosureStory)에서만 붙인다.
 type Question = components['schemas']['VirtualContestPlacement']['questions'][number];
 type Item = components['schemas']['VirtualContestPlacementResult']['items'][number];
 
@@ -14,6 +15,7 @@ function josa(word: string, a: string, b: string) {
 }
 const is = (v: string) => `${v}${josa(v, '이에요', '예요')}`;
 
+// 문제 화면에도 쓰는 문구:start
 /** 항목 이름 → 문장. 정해 두지 않은 항목은 "이름은 값이에요"로 쓴다 */
 const SENTENCE: Record<string, (v: string, q: Question) => string> = {
   '새 주식 수(기존 대비)': (v, q) => q.category === 'BONUS_SHARES'
@@ -49,6 +51,22 @@ const SENTENCE: Record<string, (v: string, q: Question) => string> = {
   '양수 뒤 지분율': v => `사들인 뒤 그 회사 지분을 ${v} 갖게 돼요.`,
   '대상 회사와의 관계': v => v === '관계 없음' ? '대상 회사는 원래 관계가 없던 회사예요.' : `대상 회사는 이 회사의 ${is(v)}.`,
 };
+const MASKED = '회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 기존 대비 %로만 보여 줘요.';
+const NO_DETAILS_QUESTION = '이 유형은 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
+// 문제 화면에도 쓰는 문구:end
+
+/** 공시 주요 내용 → 줄글. 항목이 없으면 null */
+function detailsStory(q: Question): string | null {
+  const details = q.details ?? [];
+  if (!details.length) return null;
+  return details.map(d => (SENTENCE[d.label] ?? (v => `${d.label}${josa(d.label, '은', '는')} ${is(v)}.`))(d.value, q)).join(' ') + ' ' + MASKED;
+}
+
+/** 문제 화면의 공시 줄글: 업종·제목과 공시 주요 내용만(회사·날짜·방향·과거 경향 없음). 예시 글(body)은 카드에 따로 보이므로 주요 내용이 없으면 안내 문장을 뺀다 */
+export function questionStory(q: Question, title: string): string[] {
+  const body = detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
+  return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
+}
 
 // 대회 화면(VirtualContest.tsx)과 같은 표시: 등락은 소수 2자리, 비율은 소수 1자리 내림. 방향은 문장(올랐어요·내렸어요)으로 말한다
 const percent = (r: number) => `${Math.abs(r * 100).toFixed(2)}%`;
@@ -63,13 +81,10 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
   const who = `${q.industry} 회사 ${it.company}`;
   const intro = `${who}${josa(it.company, '이', '가')} ${when ? `${when}에 ` : ''}낸 '${title}' 공시예요.`
     + (subsidiary ? ' 이 회사가 직접 내린 결정이 아니라 종속회사(자회사)가 내린 결정을 알린 공시예요.' : '');
-  const details = q.details ?? [];
-  const body = details.length
-    ? details.map(d => (SENTENCE[d.label] ?? (v => `${d.label}${josa(d.label, '은', '는')} ${is(v)}.`))(d.value, q)).join(' ')
-      + ' 회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 비율로만 보여 줘요.'
-    : q.body
+  const body = detailsStory(q)
+    ?? (q.body
       ? q.body
-      : '이 유형은 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.';
+      : '이 유형은 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
   const r = it.subsequentReturnRate;
   let after = `공시 뒤 5거래일 동안 주가는 ${percent(r)} ${it.movement === 'UP' ? '올랐어요' : '내렸어요'}(기준일 종가 → 5번째 거래일 종가).`;
   if (it.categorySampleCount != null && it.categoryUpShare != null && it.categoryDownShare != null) {

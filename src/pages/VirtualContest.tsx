@@ -9,7 +9,7 @@ import {
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
 import { CATEGORY_GUIDE, SUBSIDIARY_NOTE, cleanTitle } from '@/data/placementGuide';
-import { disclosureStory } from '@/data/disclosureStory';
+import { disclosureStory, questionStory } from '@/data/disclosureStory';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
 import { ApiError, errorText } from '@/lib/api';
@@ -269,7 +269,7 @@ function useRemaining(until: string | null) {
 
 type PlacementQuestion = ContestPlacement['questions'][number];
 
-/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 주요 내용(있을 때만). 결과 화면은 공시 줄글(disclosureStory)로 보인다 */
+/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 줄글(업종·제목·주요 내용, 회사·날짜·방향 없음). 결과 화면은 회사·날짜·움직임까지 붙인 줄글(disclosureStory)로 보인다 */
 function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
   const t = cleanTitle(q.title);
   return <>
@@ -278,10 +278,10 @@ function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuesti
     <p className="contest-q-guide">{CATEGORY_GUIDE[q.category]}</p>
     {t.subsidiary && <p className="contest-q-note">{SUBSIDIARY_NOTE}</p>}
     {q.body && <p className="contest-q-body">{q.body}</p>}
-    {q.details && q.details.length > 0 && <div className="contest-q-details">
-      <p className="contest-q-details-title">공시 주요 내용{sample && <span className="tag-ex">예시</span>}</p>
-      <dl>{q.details.map(d => <div key={d.label}><dt>{d.label}</dt><dd>{d.value}</dd></div>)}</dl>
-    </div>}
+    <div className="contest-q-details">
+      <p className="contest-q-details-title">공시 내용{sample && <span className="tag-ex">예시</span>}</p>
+      <div className="contest-q-story">{questionStory(q, t.main).map((p, k) => <p key={k}>{p}</p>)}</div>
+    </div>
   </>;
 }
 

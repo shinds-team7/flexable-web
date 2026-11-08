@@ -7,7 +7,6 @@
 ## 2026-11-08
 
 - [결정] 은행 로고 이미지는 사용 허락을 구하지 않고 쓰지 않는다(`BankBadge.tsx`의 `LOGOS` 자리 삭제, 글자 아이콘만). 제주은행 구간 금리 적용 방식의 고객센터 서면 확인도 하지 않고, 해당 상품은 계속 계산하지 않는다([정책 §11](policies.md)) — 영향: 프론트·문서
-- [#307] 목표 시나리오 저장이 계산 결과의 플랜 세 개를 모두 저장한다([정책 §7-8](policies.md), [결정](decisions/2026-11-08-goal-5years-initial.md)). 계약: `SavedGoalScenario`에 `otherScenarios`(나머지 플랜, 이전 저장본은 빈 배열) 추가, 요청은 그대로이고 `scenarioId`는 먼저 보여 줄 플랜. 화면은 필요 월 금액 강조·저장본 플랜 선택 칸. 방침 제2조·변경 이력 11-08 — 영향: 프론트(`npm run gen:api`)·백엔드·문서
 - [#301] F7 목표 달성 시나리오에 기한 4·5년(3년 적금 만기금 재예치·3년 뒤 금리 현재 유지 가정과 1%p 하락 결과 `rateDown`), 처음 모은 돈(`initialAmount`, 예금/CMA 선택, 월 0원 `noExtraNeeded`), 플랜 이름(`style`)과 추천 플랜(`recommendedId`), CMA 금리를 공시 기본금리 중간값으로 바꿨다([정책 §7](policies.md), [결정](decisions/2026-11-08-goal-5years-initial.md)). 계약: `POST /goal/scenarios` 요청에 `initialAmount`·`years` 1~5, 응답과 저장본에 위 필드 추가(이전 저장본은 0·null). 방침 제2~4조 변경 이력 11-08 — 영향: 프론트(`npm run gen:api`)·백엔드·문서
 - [Refs #338] 웹 오류 기록 테이블 `error_events`(V31)와 `POST /client-errors`를 추가했다([결정](decisions/2026-11-08-error-events.md), [보는 법](error-logs.md)). 서버 500·브라우저 오류·API 4xx/5xx를 저장 전에 가려 같은 날 같은 오류는 한 줄로 묶고 30일 보관·탈퇴 삭제. 개인정보처리방침 제2조·제4조와 변경 이력(11-08 시행), `privacy-web.md` 0-9를 더했다 — 영향: 프론트(`npm run gen:api`)·백엔드·문서
 - [Closes #336] 앱 연동 시드머니 기록의 `choice`에 `EXTRA`(앱에서 지금 예산에서 바로 옮긴 돈, 앱 #225)를 더했다. `SeedEntry`·`AppLinkSeedMoney.lastEntry`의 `choice` enum이 `GOAL·ALL·MANUAL·EXTRA`가 되고, `cycleEnd`는 EXTRA일 때 옮긴 날짜라 같은 날 여러 번 올 수 있다(고유 키로 쓰지 않음). 앱 계약 사본 `vendor/web-link-api.yaml`을 앱 `main`과 맞췄다 — 영향: 프론트(`npm run gen:api`)·백엔드

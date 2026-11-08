@@ -4,7 +4,7 @@ import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useLoginModal } from '@/components/LoginModal';
 import {
-  FALLBACK_TEXT, GOAL_LIMITS, GOAL_PRESETS, STYLE_LABEL, TYPE_LABEL, deleteSavedScenario, planName, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
+  FALLBACK_TEXT, GOAL_LIMITS, GOAL_PRESETS, STYLE_LABEL, TYPE_LABEL, deleteSavedScenario, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
   type GoalScenario, type GoalScenarioResult, type InitialDeposit, type RateAssumption, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct,
   type ScenarioProductType, type Years,
 } from '@/data/goalScenarios';
@@ -71,7 +71,6 @@ function PlanDetail({ plan, products, targetAmount, years, demo, initial, rateAs
 }) {
   const productOf = (t: ScenarioProductType) => products.find((p) => p.type === t);
   return <>
-    <p className="gp-plan-summary"><b>{plan.title}</b> · {plan.summary}</p>
     <div className="gp-detail">
       <div className="gp-card">
         <h3 className="gp-h3">어떤 상품에, 매달 얼마씩? <span className="gp-badge gp-badge-muted">{demo ? '예시 비중' : 'AI 제안 비중'}</span></h3>
@@ -140,11 +139,6 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
   viewing: SavedGoalScenario | null; loading: boolean; onClose: () => void; onRecalc: (v: SavedGoalScenario) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  // 저장한 플랜이 먼저 열리고, 선택 칸으로 같은 계산 결과의 나머지 플랜을 바꿔 본다. 새 저장본을 열 때마다 저장한 플랜으로 돌아온다.
-  const [activeId, setActiveId] = useState<string | null>(null);
-  useEffect(() => { setActiveId(null); }, [viewing?.id]);
-  const plans = viewing ? [viewing.scenario, ...viewing.otherScenarios] : [];
-  const active = plans.find((p) => p.id === activeId) ?? viewing?.scenario;
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -164,22 +158,16 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
       <div className="gp-view-head">
         <div>
           <h2 id="gp-view-title" className="gp-view-name">{viewing.name}</h2>
-          <p className="gp-view-meta">{active?.title} · {viewing.years}년 뒤 {manwon(viewing.targetAmount)} · {savedDate(viewing.savedAt)}에 저장
+          <p className="gp-view-meta">{viewing.scenario.title} · {viewing.years}년 뒤 {manwon(viewing.targetAmount)} · {savedDate(viewing.savedAt)}에 저장
             <span className="gp-badge">{viewing.asOf} 기준 결과</span></p>
         </div>
         <button type="button" className="gp-text-btn" onClick={onClose} autoFocus>닫기</button>
       </div>
-      {plans.length > 1 && <div className="gp-view-plan">
-        <label htmlFor="gp-view-plan">플랜 보기</label>
-        <select id="gp-view-plan" value={active?.id} onChange={(e) => setActiveId(e.target.value)}>
-          {plans.map((p, i) => <option key={p.id} value={p.id}>{planName(p)}{i === 0 ? ' (저장한 플랜)' : ''}</option>)}
-        </select>
-      </div>}
-      {active && active.reachable && active.monthly !== null && <p className="gp-insight">
-        그때 계산으로는 매달 <b className="num">{won(active.monthly)}원</b>을 넣으면 {active.outcome?.kind === 'FIXED' ? `목표에 닿아요(${fixedWord(viewing.years)}).` : '10번 중 8번은 목표에 닿았어요.'}
+      {viewing.scenario.reachable && viewing.scenario.monthly !== null && <p className="gp-insight">
+        그때 계산으로는 매달 <b className="num">{won(viewing.scenario.monthly)}원</b>을 넣으면 {viewing.scenario.outcome?.kind === 'FIXED' ? `목표에 닿아요(${fixedWord(viewing.years)}).` : '10번 중 8번은 목표에 닿았어요.'}
       </p>}
-      {active && <PlanDetail plan={active} products={viewing.products} targetAmount={viewing.targetAmount} years={viewing.years} demo={viewing.proposer === 'DEMO'}
-        initial={viewing.initialAmount > 0 ? { amount: viewing.initialAmount, deposit: viewing.initialDeposit } : undefined} rateAssumption={viewing.rateAssumption} />}
+      <PlanDetail plan={viewing.scenario} products={viewing.products} targetAmount={viewing.targetAmount} years={viewing.years} demo={viewing.proposer === 'DEMO'}
+        initial={viewing.initialAmount > 0 ? { amount: viewing.initialAmount, deposit: viewing.initialDeposit } : undefined} rateAssumption={viewing.rateAssumption} />
       <Assumptions paths={viewing.paths} returnsFrom={viewing.returnsFrom} returnsTo={viewing.returnsTo} assumptions={viewing.assumptions} notice={viewing.notice} />
       <div className="gp-view-actions">
         <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>
@@ -205,8 +193,7 @@ export default function GoalScenarios() {
   const [error, setError] = useState('');
 
   const [savedList, setSavedList] = useState<SavedScenarioList | null>(null);
-  // 같은 계산 결과는 화면에서 한 번만 저장한다(플랜 세 개가 함께 저장됨). 저장한 플랜 id를 기억한다.
-  const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [viewing, setViewing] = useState<SavedGoalScenario | null>(null);
@@ -240,7 +227,7 @@ export default function GoalScenarios() {
     setViewing(null);
     setToDelete(null);
     setSavedList(null);
-    setSavedPlanId(null);
+    setSavedIds({});
     setSaveMessage('');
   }, [member, refreshSaved]);
 
@@ -261,7 +248,7 @@ export default function GoalScenarios() {
       const r = await fetchGoalScenarios({ name: trimmed, targetAmount: q.targetAmount, years: q.years, initialAmount: q.initialAmount });
       if (id !== requestId.current) return;
       setResult(r);
-      setSavedPlanId(null);
+      setSavedIds({});
       setViewing(null);
       setSelected(r.recommendedId ?? r.scenarios.find((s) => s.style === 'BALANCED')?.id ?? r.scenarios[0]?.id ?? null);
       scrollTo(resultRef.current);
@@ -292,8 +279,8 @@ export default function GoalScenarios() {
     setSaveMessage('');
     try {
       await saveScenario({ resultId: result.resultId, scenarioId: plan.id });
-      setSavedPlanId(plan.id);
-      setSaveMessage(`'${result.name}'의 세 플랜을 저장했어요. 저장한 시나리오에서 다시 볼 수 있어요.`);
+      setSavedIds((m) => ({ ...m, [plan.id]: true }));
+      setSaveMessage(`'${result.name}' 시나리오를 저장했어요. 저장한 시나리오에서 다시 볼 수 있어요.`);
       void refreshSaved();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'GOAL_SCENARIO_LIMIT') setSaveMessage('시나리오는 5개까지 저장할 수 있어요. 저장한 시나리오에서 하나를 지운 뒤 다시 저장해 주세요.');
@@ -411,12 +398,12 @@ export default function GoalScenarios() {
 
           <div className="gp-plans">
             {result.scenarios.map((s, i) => <button type="button" key={s.id} className="gp-plan" aria-pressed={selected === s.id} onClick={() => { setSelected(s.id); setSaveMessage(''); }}>
-              <span className="gp-plan-tag">{s.style ? STYLE_LABEL[s.style] : `PLAN 0${i + 1}`}{result.recommendedId === s.id && <span className="gp-recommend-mark">추천</span>}{savedPlanId === s.id && <span className="gp-saved-mark">저장함</span>}</span>
+              <span className="gp-plan-tag">{s.style ? STYLE_LABEL[s.style] : `PLAN 0${i + 1}`}{result.recommendedId === s.id && <span className="gp-recommend-mark">추천</span>}{savedIds[s.id] && <span className="gp-saved-mark">저장함</span>}</span>
               <span className="gp-plan-title">{s.title}</span>
+              <span className="gp-plan-desc">{s.summary}</span>
               {s.reachable && s.outcome && s.monthly !== null ? <>
-                <span className="gp-plan-label">필요한 월 금액</span>
+                <span className="gp-plan-label">{s.outcome.kind === 'FIXED' ? `필요한 월 금액 · ${fixedWord(result.years)}` : '필요한 월 금액 · 10번 중 8번 달성'}</span>
                 <span className="gp-plan-monthly num">{won(s.monthly)}<small>원</small></span>
-                <span className="gp-plan-basis">{s.outcome.kind === 'FIXED' ? fixedWord(result.years) : '10번 중 8번 달성 기준'}</span>
                 {s.noExtraNeeded && <span className="gp-plan-extra">추가 납입 없이 달성 가능</span>}
               </> : <>
                 <span className="gp-plan-label">필요한 월 금액</span>
@@ -434,12 +421,11 @@ export default function GoalScenarios() {
             initial={result.initialAmount > 0 ? { amount: result.initialAmount, deposit: result.initialDeposit } : undefined} rateAssumption={result.rateAssumption} />
 
           <div className="gp-save-row">
-            <button type="button" className="gp-secondary" onClick={save} disabled={saving || savedPlanId !== null || (member && full)}>
-              {!member ? '로그인하고 세 플랜 저장' : savedPlanId !== null ? '저장했어요' : saving ? '저장 중…' : `'${result.name}' 세 플랜 저장`}
+            <button type="button" className="gp-secondary" onClick={save} disabled={saving || savedIds[plan.id] || (member && full)}>
+              {!member ? '로그인하고 이 시나리오 저장' : savedIds[plan.id] ? '저장했어요' : saving ? '저장 중…' : `'${result.name}' 저장`}
             </button>
             {member && savedList && <span className="gp-save-count">{savedList.items.length}/{savedList.limit}개 저장</span>}
-            {member && full && savedPlanId === null && <span className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</span>}
-            {member && savedPlanId === null && !full && <span className="gp-save-note">지금 보는 플랜이 저장본에서 먼저 열려요.</span>}
+            {member && full && !savedIds[plan.id] && <span className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</span>}
           </div>
           {saveMessage && <p className="gp-save-message" role="status">{saveMessage}</p>}
 

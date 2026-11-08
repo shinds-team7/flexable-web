@@ -30,6 +30,8 @@ tags:
   - name: deposit
     description: '정기예금 비교(#140). 로그인 없이 쓴다. finlife 정기예금 공시를 DB에서 읽고 만기 금액은 서버가 계산(내림). 적금(savings)과 같은 모양이고 매달 넣는 돈 대신 한 번에 맡기는 금액을 쓴다'
   - name: youth-news
+  - name: client-errors
+    description: '브라우저 오류 기록(error_events). 로그인 없이 보낼 수 있고 서버가 저장 전에 가린다. 30일 보관'
   - name: health
 
 paths:
@@ -1579,6 +1581,39 @@ paths:
         '204': { description: 셈 }
         '400': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+
+  /client-errors:
+    post:
+      tags: [client-errors]
+      summary: '브라우저가 겪은 오류를 서버 오류 기록(error_events)에 남긴다'
+      description: |
+        - 로그인 없이 보낼 수 있다. 유효한 Bearer 토큰이 있으면 회원 번호를 함께 남기고, 만료·폐기된 토큰이면 401이다(화면은 토큰 없이 한 번 더 보낸다).
+        - 형식이 맞으면 한도를 넘어 버려도 204이다. 보낸 사람(회원 번호, 비로그인이면 접속 IP)마다 10분에 30건까지만 저장하고, 하루 새 줄은 500개까지이다.
+        - 서버가 저장 전에 메시지의 3자리 이상 숫자는 `#`, 이메일은 `***@***`로 가리고 경로의 쿼리를 버린다. 요청·응답 본문은 받지 않는다. 30일 뒤 지우고 탈퇴하면 그 회원 기록도 지운다.
+        - 이 요청 자체의 실패는 다시 기록하지 않는다.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, message]
+              properties:
+                kind: { type: string, enum: [API, CRASH, JS], description: 'API 요청 실패, CRASH 화면 오류 경계, JS 처리 못 한 브라우저 오류' }
+                message: { type: string, maxLength: 2000 }
+                stack: { type: string, maxLength: 8000, nullable: true }
+                screen: { type: string, maxLength: 100, nullable: true, description: '화면 경로(쿼리 없음)' }
+                method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE], nullable: true }
+                path: { type: string, maxLength: 300, nullable: true, description: 'API 경로(쿼리 없음)' }
+                status: { type: integer, minimum: 0, maximum: 599, nullable: true }
+                code: { type: string, maxLength: 40, nullable: true }
+                appVersion: { type: string, maxLength: 20, nullable: true, description: '웹 빌드 버전' }
+      responses:
+        '204': { description: 받음(한도를 넘어 저장하지 않았어도 204) }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
 
   /health:
     get:

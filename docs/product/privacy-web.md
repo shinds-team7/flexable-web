@@ -57,6 +57,10 @@
 
 **남은 확인(운영자)**: ① 대한상공회의소의 정확한 기관명·재수탁·VM 스냅숏/백업 여부와 보관 기간(아카데미에 문의) ② 위탁 관계 문서(목적 외 처리 금지·안전조치·종료 시 파기)를 아카데미와 주고받을 수 있는지 ③ 오늘 solpa에서 만든 시험 계정 정리 ④ 문의 메일 30일 삭제 습관 ⑤ 만 14세 미만 가입 제한을 화면 문구 말고 확인 절차로 둘지.
 
+## 0-9. 2026-11-08 오류 기록 테이블 `error_events` 추가(#338) — 11-08 시행
+
+서비스 이용 중 난 오류를 웹 DB에 구조화해 두고 팀원이 SQL로 본다([결정](../decisions/2026-11-08-error-events.md), [보는 법](../error-logs.md)). 저장 항목은 오류 종류·상태·코드, 화면 경로(쿼리 제외), 요청 경로(쿼리 제외, 숫자·긴 id는 `{id}`), 가린 오류 문구(500자)와 스택 앞부분(4000자, 이메일만 가림), 웹 버전, 브라우저 구분(`web`), 마지막으로 겪은 웹 회원 번호, 횟수·시각이다. 요청·응답 본문, 입력값, 쿼리 문자열, IP는 저장하지 않는다. 접속 IP는 한도(보낸 사람마다 10분 30건)를 세려고 서버 메모리에서만 쓰고(`errorlog.ErrorRecorder`) DB·로그에 남기지 않는다. **보관은 기록한 날부터 30일**이며 매일 04:30(KST) `ErrorEventCleanupJob`이 지우고, 탈퇴하면 `ErrorEventService.onWithdraw`가 그 회원 번호의 줄을 지운다. 기존 Docker 파일 로그(접속·서버 로그, 최대 7일)는 그대로이고 별개다. 외부 전송 없음. 방침 제2조(웹 접속·오류 대응 항목)와 제4조(오류 기록 30일)를 고쳤다. 변경 이력은 2026년 11월 8일 줄로 적었고 리드가 시행일을 11-08로 정했다(0-3과 같이 시연 서비스라 7일 전 고지는 하지 않는 방침, 사용자 결정 2026-10-24). 서버 500의 오류 문구에는 예외 메시지가 들어가므로, 예외 메시지에 개인 정보를 넣지 않는다는 점을 코드 리뷰에서 본다.
+
 ## 0-8. 2026-11-06 목표 달성 시나리오 AI 전송 항목에 함께 볼 상품 추가(#309)
 
 OpenAI로 보내는 항목에 서버가 고른 **함께 볼 상품의 이름·금융회사·금리·과거 통계**를 더한다. 공시·시세에서 나온 상품 자료이고 회원 정보는 더하지 않는다. 목표 이름·이메일·회원 번호는 그대로 보내지 않는다. 방침 제6조의 전송 항목 문구와 변경 이력을 고친다.
@@ -119,6 +123,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 연동 코드는 저장하지 않음 | `AppLinkService.link` → `AppApiClient.create`로 전달만, DB·로그에 없음 |
 | 문의 메일 국외 보관 | Gmail(Google LLC). 처리 후 30일 이내 삭제(운영자 수작업) |
 | 수탁자 대한상공회의소 | 웹 VM 제공 기관. 관리자 권한으로 VM에 접근할 수 있음(10-21 확인). 정확한 기관명·스냅숏은 확인 전(0) |
+| 오류 기록(11-08 시행) | `error_events`(errorlog, V31). `POST /api/v1/client-errors`(비로그인 가능, 토큰 있으면 회원 번호)와 서버 500(`common.ServerErrorSink` → `errorlog.ErrorRecorder`). 가리기·묶기·상한은 `ErrorEventService`, 보낸 사람별 10분 30건은 메모리 `AttemptLimiter`(IP 저장 없음). 30일 `ErrorEventCleanupJob`(매일 04:30 KST), 탈퇴 `ErrorEventService.onWithdraw`. 방침 제2조 "웹 접속·오류 대응", 제4조 "오류 기록" |
 | 소식 열람 집계(11-03) | `youth_news_view`(news, V20: news_id·viewer_id(임의 UUID)·viewed_on). `POST /api/v1/youth-news/{id}/views`, `GET /youth-news/hot`. 계정·IP와 연결하지 않고 (소식·방문자·날짜) 한 건, 방문자 하루 40건 상한. `news.NewsViewCleanupJob`이 매일 03:50 KST에 30일 지난 기록 삭제. 방침 제8조 "소식 열람 집계" |
 | 브라우저 저장 | `localStorage` `fx.token`(`lib/api.ts`), `fx.theme`(`lib/theme.ts`), `fx.landHint`(`pages/Landing.tsx`), `fx.tour.invest`(`data/tour.ts`, 비로그인 때 투자 화면 첫 방문 안내를 봤는지. 방침 제8조 "첫 화면 안내 표시 여부"), `fx.guide.deposit`·`fx.guide.savings`·`fx.guide.parking`·`fx.guide.cma`(`components/ProductGuide.tsx`, 예금·적금·파킹·CMA 비교 화면의 상품 가이드를 봤는지 `1`. 서버로 보내지 않으며 방침 제8조 "첫 화면 안내 표시 여부"에 해당), `fx.guide.contest`(`pages/VirtualContest.tsx`, 대회 참가 뒤 "대회는 이렇게 진행돼요" 안내를 펼쳤는지 `open`·`closed`. 서버로 보내지 않으며 같은 "첫 화면 안내 표시 여부"), `fx.investorType`(`data/investorType.ts`, 사용자가 고른 투자 성향 `stable`·`balanced`·`growth`. 회원도 지금은 서버에 저장하지 않는다. 방침 제8조 "고른 투자 성향"), `fx.news.saved`·`fx.news.filter.v2`(`data/newsSaved.ts`, 필터는 이제 정렬만), `fx.news.viewer`(`data/newsHot.ts`, 소식 열람 집계용 임의 UUID. 방침 제8조 "소식 열람 집계"), `sessionStorage` `fx.oauth.verifier`(`auth/oauth.ts`). 쿠키·분석 도구 없음. 비로그인 체험의 시드머니 [수정하기] 값은 브라우저 저장소가 아니라 탭 메모리에만 있다(`data/home.ts`, 회원은 서버 저장) |
 | 탈퇴 시 즉시 파기 | `UserService.withdraw` → `AppLinkService.removeForWithdrawal`, `AuthService.onWithdraw`, 외래 키 `ON DELETE CASCADE` |

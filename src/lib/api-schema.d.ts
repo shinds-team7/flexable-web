@@ -3404,6 +3404,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 브라우저가 겪은 오류를 서버 오류 기록(error_events)에 남긴다
+         * @description - 로그인 없이 보낼 수 있다. 유효한 Bearer 토큰이 있으면 회원 번호를 함께 남기고, 만료·폐기된 토큰이면 401이다(화면은 토큰 없이 한 번 더 보낸다).
+         *     - 형식이 맞으면 한도를 넘어 버려도 204이다. 보낸 사람(회원 번호, 비로그인이면 접속 IP)마다 10분에 30건까지만 저장하고, 하루 새 줄은 500개까지이다.
+         *     - 서버가 저장 전에 메시지의 3자리 이상 숫자는 `#`, 이메일은 `***@***`로 가리고 경로의 쿼리를 버린다. 요청·응답 본문은 받지 않는다. 30일 뒤 지우고 탈퇴하면 그 회원 기록도 지운다.
+         *     - 이 요청 자체의 실패는 다시 기록하지 않는다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description API 요청 실패, CRASH 화면 오류 경계, JS 처리 못 한 브라우저 오류
+                         * @enum {string}
+                         */
+                        kind: "API" | "CRASH" | "JS";
+                        message: string;
+                        stack?: string | null;
+                        /** @description 화면 경로(쿼리 없음) */
+                        screen?: string | null;
+                        /** @enum {string|null} */
+                        method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | null;
+                        /** @description API 경로(쿼리 없음) */
+                        path?: string | null;
+                        status?: number | null;
+                        code?: string | null;
+                        /** @description 웹 빌드 버전 */
+                        appVersion?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description 받음(한도를 넘어 저장하지 않았어도 204) */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;

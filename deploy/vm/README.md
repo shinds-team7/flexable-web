@@ -64,7 +64,7 @@ crontab -e   # 0 4 * * * /home/student/flexable-web/deploy/vm/backup.sh >> /home
 
 복원: `gunzip -c backups/<파일>.sql.gz | docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql -u"$MYSQL_USER" "$MYSQL_DATABASE"'`. 백업은 같은 VM에 있으므로 VM을 잃으면 함께 잃는다.
 
-**복원할 때(방침 제7조)**: 백업 이후에 탈퇴·연동 해제된 정보가 되살아나지 않게 한다. 지금 DB가 살아 있으면 복원 **전에** 남아 있는 회원 번호를 받아 두고(`SELECT id FROM users`), 복원한 뒤 그 목록에 없는 회원을 지운다(`DELETE FROM users WHERE id NOT IN (...)`, 연동·설정은 외래 키로 함께 지워짐). 지금 DB를 잃었으면 백업 이후 받은 탈퇴·해제 문의(메일)를 찾아 다시 지운다. 복원이 끝날 때까지 서비스를 열지 않는다.
+**복원할 때(방침 제7조)**: 백업 이후에 탈퇴·연동 해제된 정보가 되살아나지 않게 한다. 지금 DB가 살아 있으면 복원 **전에** 남아 있는 회원 번호를 받아 두고(`SELECT id FROM users`), 복원한 뒤 그 목록에 없는 회원을 지운다(`DELETE FROM users WHERE id NOT IN (...)`, 연동·설정은 외래 키로 함께 지워짐). 지금 DB를 잃었으면 백업 이후 받은 탈퇴·해제 문의(메일)를 찾아 다시 지운다. 복원한 뒤에는 `DELETE FROM error_events WHERE user_id IS NOT NULL AND user_id NOT IN (SELECT id FROM users);`로 없는 회원의 오류 기록도 지운다(`error_events.user_id`에는 외래 키가 없다). 복원이 끝날 때까지 서비스를 열지 않는다.
 
 ## 기록 삭제(접속·오류 기록 7일)
 

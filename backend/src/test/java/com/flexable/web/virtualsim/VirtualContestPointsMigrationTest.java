@@ -10,15 +10,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-/** V31: 이미 저장된 대회 점수(하루·주·판·마지막 승급·강등 주 합)를 ×100 하고, 다시 돌려도 결과가 같다(Issue #308) */
+/** V32: 이미 저장된 대회 점수(하루·주·판·마지막 승급·강등 주 합)를 ×100 하고, 다시 돌려도 결과가 같다(Issue #308) */
 class VirtualContestPointsMigrationTest {
 
-	private static final String V31 = "db/migration/V31__virtual_contest_points_x100.sql";
+	private static final String V32 = "db/migration/V32__virtual_contest_points_x100.sql";
 
 	@Test
 	void 기존_점수를_100배로_바꾼다() throws Exception {
 		DriverManagerDataSource ds = new DriverManagerDataSource("jdbc:h2:mem:points-x100;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "");
-		Flyway.configure().dataSource(ds).target("30").load().migrate();
+		Flyway.configure().dataSource(ds).target("31").load().migrate();
 		JdbcTemplate jdbc = new JdbcTemplate(ds);
 		jdbc.update("INSERT INTO users (id, email, terms_agreed_at, privacy_agreed_at, created_at) VALUES (1, 'a@example.com', NOW(), NOW(), NOW())");
 		jdbc.update("INSERT INTO users (id, email, terms_agreed_at, privacy_agreed_at, created_at) VALUES (2, 'b@example.com', NOW(), NOW(), NOW())");
@@ -44,7 +44,7 @@ class VirtualContestPointsMigrationTest {
 		assertThat(jdbc.queryForList("SELECT id, board, highest_board, balance, change_from, change_to FROM virtual_contest_entries ORDER BY id")).isEqualTo(boards);
 
 		// 같은 SQL을 다시 돌려도 결과가 같다
-		String sql = new String(getClass().getClassLoader().getResourceAsStream(V31).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+		String sql = new String(getClass().getClassLoader().getResourceAsStream(V32).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
 		for (String statement : sql.split(";")) {
 			String s = statement.lines().filter(l -> !l.startsWith("--")).reduce("", (x, y) -> x + "\n" + y).trim();
 			if (!s.isEmpty()) {

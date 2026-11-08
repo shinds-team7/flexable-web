@@ -9,6 +9,7 @@ import {
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
 import { CATEGORY_GUIDE, SUBSIDIARY_NOTE, cleanTitle } from '@/data/placementGuide';
+import { DETAILS_READING, RESULT_GUIDE } from '@/data/placementResultGuide';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
 import { ApiError, errorText } from '@/lib/api';
@@ -356,10 +357,17 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
 function PlacementDone({ result, questions, sample, onStart }: { result: ContestPlacementResult; questions: PlacementQuestion[]; sample: boolean; onStart: () => void }) {
   // 결과에는 주요 내용을 다시 싣지 않아(채점하면 문제 사본을 지움) 풀 때 받은 문제와 questionId로 잇는다
   const byId = new Map(questions.map(q => [q.id, q]));
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  // 결과가 뜨면 페이지 맨 위에서 시작하고 제목에 포커스를 둔다(움직임 줄이기면 바로 이동)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    heading.current?.focus({ preventScroll: true });
+  }, []);
   return <section className="contest-card contest-result" aria-labelledby="contestResultTitle">
-    <h2 id="contestResultTitle">배치고사 결과</h2>
+    <h2 id="contestResultTitle" ref={heading} tabIndex={-1}>배치고사 결과</h2>
     <p className="contest-big">{result.total}문제 중 <b>{result.correct}개</b> 맞혔어요 → <b>{BOARD_LABEL[result.board]}</b>에서 시작해요</p>
     <p className="practice-muted">시작 잔액은 {money(result.entry.seedMoney)}이에요. 공시 하나 뒤의 5거래일은 같은 유형이어도 방향이 자주 갈려서, 배치고사는 시작 판을 정하는 가벼운 퀴즈예요. 실력은 주간 점수로 겨뤄요.</p>
+    <button className="btn btn-primary contest-result-start" type="button" onClick={onStart}>대회 화면으로</button>
     <ol className="contest-graded">
       {result.items.map((it, i) => { const q = byId.get(it.questionId); return <li key={it.questionId} className={it.correct ? 'ok' : 'no'}>
         <p className="contest-graded-head">
@@ -370,10 +378,11 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
         {q && <div className="contest-graded-question">
           <p className="contest-q-meta">{q.industry} 회사<span className="contest-chip">{q.categoryName}</span></p>
           <QuestionBody q={q} sample={sample} />
+          <p className="contest-q-reading"><b>결과로 다시 보기</b> {RESULT_GUIDE[q.category]}</p>
+          {q.details && q.details.length > 0 && <p className="contest-q-reading"><b>주요 내용 읽는 법</b> {DETAILS_READING}</p>}
         </div>}
       </li>; })}
     </ol>
-    <button className="btn btn-primary" type="button" onClick={onStart}>대회 화면으로</button>
   </section>;
 }
 

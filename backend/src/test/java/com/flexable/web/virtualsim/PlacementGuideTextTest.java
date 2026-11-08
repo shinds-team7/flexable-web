@@ -21,7 +21,11 @@ class PlacementGuideTextTest {
 	static final List<String> BANNED = List.of("오르", "오른", "올라", "내리", "내린", "내려", "상승", "하락", "호재", "악재", "경향", "대체로", "보통", "비율", "유리", "불리");
 
 	private static Map<String, String> guide() throws Exception {
-		String ts = Files.readString(Path.of("..", "src", "data", "placementGuide.ts"));
+		return entries("placementGuide.ts");
+	}
+
+	private static Map<String, String> entries(String file) throws Exception {
+		String ts = Files.readString(Path.of("..", "src", "data", file));
 		Matcher m = Pattern.compile("^\\s+([A-Z_]+): '([^']+)',$", Pattern.MULTILINE).matcher(ts);
 		Map<String, String> out = new HashMap<>();
 		while (m.find()) {
@@ -40,6 +44,17 @@ class PlacementGuideTextTest {
 			assertThat(BANNED).as(c.name() + ": " + text).noneMatch(text::contains);
 		}
 		assertThat(guide).hasSize(VirtualSimCategory.values().length);
+	}
+
+	/** 결과 화면 전용 설명(placementResultGuide.ts, Issue #308)은 결과에서만 보여 금지 표현 검사를 하지 않고, 유형 12개 모두 있는지만 본다 */
+	@Test
+	void 결과_화면_설명도_유형_12개_모두_있다() throws Exception {
+		Map<String, String> result = entries("placementResultGuide.ts");
+		for (VirtualSimCategory c : VirtualSimCategory.values()) {
+			assertThat(result).as(c.name()).containsKey(c.name());
+			assertThat(result.get(c.name()).length()).as(c.name()).isBetween(20, 200);
+		}
+		assertThat(result).hasSize(VirtualSimCategory.values().length);
 	}
 
 	@Test

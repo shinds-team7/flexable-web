@@ -58,8 +58,8 @@
     "placementQuestions": 10,
     "placementMinutes": 30,
     "dailyTargetRate": 0.01,
-    "weeklyPromoteAt": 4,
-    "weeklyDemoteAt": -4,
+    "weeklyPromoteAt": 400,
+    "weeklyDemoteAt": -400,
     "weeks": [
       [
         1,
@@ -305,7 +305,7 @@
     ]
   },
   "dailyScore": {
-    "note": "하루 수익률 = 그날 판들의 초과 수익률 평균(소수 4자리 내림). 10판이면 ≥ 목표(0.01) +1, 미만 −1. 1~9판이면 ≥ 목표 0, 미만 −1. 판 없으면 0. 11-05 구현 PR 사용자 결정",
+    "note": "하루 수익률 = 그날 판들의 초과 수익률 평균(소수 4자리 내림). 10판이면 ≥ 목표(0.01) +100, 미만 −100. 1~9판이면 ≥ 목표 0, 미만 −100. 판 없으면 0. 11-05 구현 PR 사용자 결정, 100점 단위는 #308",
     "cases": [
       {
         "excessRates": [
@@ -321,7 +321,7 @@
           0.01
         ],
         "dayReturnRate": 0.01,
-        "points": 1
+        "points": 100
       },
       {
         "excessRates": [
@@ -337,7 +337,7 @@
           0.0099
         ],
         "dayReturnRate": 0.0099,
-        "points": -1
+        "points": -100
       },
       {
         "excessRates": [
@@ -353,7 +353,7 @@
           0
         ],
         "dayReturnRate": 0,
-        "points": -1,
+        "points": -100,
         "note": "유지만 함"
       },
       {
@@ -370,7 +370,7 @@
           -0.05
         ],
         "dayReturnRate": 0,
-        "points": -1
+        "points": -100
       },
       {
         "excessRates": [
@@ -386,7 +386,7 @@
           0.0099
         ],
         "dayReturnRate": 0.0099,
-        "points": -1,
+        "points": -100,
         "note": "평균 0.00995를 내림"
       },
       {
@@ -418,7 +418,7 @@
           0.0099
         ],
         "dayReturnRate": 0.0099,
-        "points": -1,
+        "points": -100,
         "note": "10판 미만, 목표 미만"
       },
       {
@@ -438,20 +438,20 @@
     ]
   },
   "weekly": {
-    "note": "그 주 하루 점수 합 ≥ +4 승급(B100M 제외), ≤ −4 강등(B10M 제외). 판이 바뀌면 잔액 = 새 판 대회 시드머니. 4주차(22일~말일, finalWeek)는 대회 마지막 날 판정해 결과(judged)만 기록하고 판·잔액은 그대로",
+    "note": "그 주 하루 점수 합 ≥ +400 승급(B100M 제외), ≤ −400 강등(B10M 제외). 판이 바뀌면 잔액 = 새 판 대회 시드머니. 4주차(22일~말일, finalWeek)는 대회 마지막 날 판정해 결과(judged)만 기록하고 판·잔액은 그대로",
     "cases": [
       {
         "board": "B10M",
         "days": [
-          1,
-          1,
-          1,
-          1,
+          100,
+          100,
+          100,
+          100,
           0,
           0,
           0
         ],
-        "sum": 4,
+        "sum": 400,
         "nextBoard": "B50M",
         "balance": 13500000,
         "nextBalance": 50000000
@@ -459,15 +459,15 @@
       {
         "board": "B10M",
         "days": [
-          1,
-          1,
-          1,
-          1,
-          1,
-          -1,
-          -1
+          100,
+          100,
+          100,
+          100,
+          100,
+          -100,
+          -100
         ],
-        "sum": 3,
+        "sum": 300,
         "nextBoard": "B10M",
         "balance": 13500000,
         "nextBalance": 13500000
@@ -475,15 +475,15 @@
       {
         "board": "B50M",
         "days": [
-          -1,
-          -1,
-          -1,
-          -1,
+          -100,
+          -100,
+          -100,
+          -100,
           0,
           0,
           0
         ],
-        "sum": -4,
+        "sum": -400,
         "nextBoard": "B10M",
         "balance": 70000000,
         "nextBalance": 10000000
@@ -491,15 +491,15 @@
       {
         "board": "B10M",
         "days": [
-          -1,
-          -1,
-          -1,
-          -1,
-          -1,
+          -100,
+          -100,
+          -100,
+          -100,
+          -100,
           0,
           0
         ],
-        "sum": -5,
+        "sum": -500,
         "nextBoard": "B10M",
         "balance": 8000000,
         "nextBalance": 8000000
@@ -507,15 +507,15 @@
       {
         "board": "B100M",
         "days": [
-          1,
-          1,
-          1,
-          1,
-          1,
+          100,
+          100,
+          100,
+          100,
+          100,
           0,
           0
         ],
-        "sum": 5,
+        "sum": 500,
         "nextBoard": "B100M",
         "balance": 120000000,
         "nextBalance": 120000000
@@ -523,18 +523,18 @@
       {
         "board": "B50M",
         "days": [
-          1,
-          1,
-          1,
-          1,
-          1,
+          100,
+          100,
+          100,
+          100,
+          100,
           0,
           0,
           0,
           0,
           0
         ],
-        "sum": 5,
+        "sum": 500,
         "finalWeek": true,
         "judged": "PROMOTE",
         "nextBoard": "B50M",
@@ -545,17 +545,17 @@
       {
         "board": "B50M",
         "days": [
-          -1,
-          -1,
-          -1,
-          -1,
+          -100,
+          -100,
+          -100,
+          -100,
           0,
           0,
           0,
           0,
           0
         ],
-        "sum": -4,
+        "sum": -400,
         "finalWeek": true,
         "judged": "DEMOTE",
         "nextBoard": "B50M",
@@ -566,15 +566,15 @@
       {
         "board": "B100M",
         "days": [
-          1,
-          1,
-          1,
-          1,
+          100,
+          100,
+          100,
+          100,
           0,
           0,
           0
         ],
-        "sum": 4,
+        "sum": 400,
         "finalWeek": true,
         "judged": "STAY",
         "nextBoard": "B100M",
@@ -609,7 +609,7 @@
     "entries": [
       {
         "member": "A",
-        "boardPoints": 5,
+        "boardPoints": 500,
         "excessRate": 0.1,
         "reachedAt": "2026-11-03T10:00:00+09:00",
         "joinedAt": "2026-11-01T09:00:00+09:00",
@@ -617,7 +617,7 @@
       },
       {
         "member": "B",
-        "boardPoints": 5,
+        "boardPoints": 500,
         "excessRate": 0.2,
         "reachedAt": "2026-11-02T09:00:00+09:00",
         "joinedAt": "2026-11-01T12:00:00+09:00",
@@ -625,7 +625,7 @@
       },
       {
         "member": "C",
-        "boardPoints": 3,
+        "boardPoints": 300,
         "excessRate": 0.9,
         "reachedAt": "2026-11-04T12:00:00+09:00",
         "joinedAt": "2026-11-01T08:00:00+09:00",
@@ -633,7 +633,7 @@
       },
       {
         "member": "D",
-        "boardPoints": 5,
+        "boardPoints": 500,
         "excessRate": 0.2,
         "reachedAt": "2026-11-05T20:00:00+09:00",
         "joinedAt": "2026-11-01T07:00:00+09:00",
@@ -641,7 +641,7 @@
       },
       {
         "member": "E",
-        "boardPoints": 3,
+        "boardPoints": 300,
         "excessRate": 0.9,
         "reachedAt": "2026-11-04T12:00:00+09:00",
         "joinedAt": "2026-11-01T08:00:00+09:00",

@@ -3669,15 +3669,15 @@ export interface components {
             rules: {
                 /** @description KST 하루 판 수(10) */
                 roundsPerDay: number;
-                /** @description 하루 점수 +1을 받을 수 있는 판 수(10). 그날 이보다 적게 시작했으면 목표 이상이어도 0, 못 미치면 −1 */
+                /** @description 하루 점수 +100을 받을 수 있는 판 수(10). 그날 이보다 적게 시작했으면 목표 이상이어도 0, 못 미치면 −100 */
                 roundsForDailyScore: number;
                 /** @description 한 판 사건 수(4) */
                 eventsPerRound: number;
-                /** @description 하루 목표(0.01). 하루 수익률(그날 판들의 초과 수익률 평균, 초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액)이 이상이면 +1, 못 미치면 −1. roundsForDailyScore판을 채우지 않은 날은 목표 이상 0·미만 −1, 판 없는 날 0 */
+                /** @description 하루 목표(0.01). 하루 수익률(그날 판들의 초과 수익률 평균, 초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액)이 이상이면 +100, 못 미치면 −100. roundsForDailyScore판을 채우지 않은 날은 목표 이상 0·미만 −100, 판 없는 날 0. 점수는 100점 단위 */
                 dailyTargetRate: number;
-                /** @description 주 점수가 이 값 이상이면 승급(4) */
+                /** @description 주 점수가 이 값 이상이면 승급(400) */
                 weeklyPromoteAt: number;
-                /** @description 주 점수가 이 값 이하면 강등(−4) */
+                /** @description 주 점수가 이 값 이하면 강등(−400) */
                 weeklyDemoteAt: number;
                 /** @description 배치고사 문제 수(10) */
                 placementQuestions: number;
@@ -3789,14 +3789,14 @@ export interface components {
             returnRate: number;
             /** @description 지금 판(참가 또는 마지막 승급·강등 뒤)에서 끝낸 판들의 평균 초과 수익률(초과 수익률 = (끝 잔액 − 같은 판을 유지만 했을 때 끝 잔액) / 시작 잔액, 소수 4자리 내림). 순위 2순위 기준이고 끝낸 판이 없으면 null(순위에서는 0으로 봄) */
             excessRate: number | null;
-            /** @description 지금 판에 들어온 뒤 받은 하루 점수의 합(랭킹 기준) */
+            /** @description 지금 판에 들어온 뒤 받은 하루 점수의 합(랭킹 기준, 100점 단위) */
             boardPoints: number;
             /** @description 이번 주 판정. 4주차(22일~말일)는 대회 마지막 날 판정만 기록하고 판은 바꾸지 않는다 */
             week: {
                 week: number;
                 /** Format: date */
                 endsOn: string;
-                /** @description 이번 주에 정해진 하루 점수의 합(+4 이상 승급, −4 이하 강등) */
+                /** @description 이번 주에 정해진 하루 점수의 합(+400 이상 승급, −400 이하 강등) */
                 points: number;
             };
             /** @description 오늘(KST) 진행 */
@@ -3844,6 +3844,7 @@ export interface components {
                 rounds: number;
                 /** @description 그날 판들의 초과 수익률 평균(하루 수익률). 판이 없으면 null */
                 excessRate: number | null;
+                /** @description 하루 점수(+100·0·−100) */
                 points: number;
             }[];
         };
@@ -3945,7 +3946,7 @@ export interface components {
                 /** @description 마지막 주 하루 점수의 합 */
                 points: number;
                 /**
-                 * @description PROMOTE 승급 기준 도달(+4 이상, 1억 판 제외), DEMOTE 강등 기준 도달(−4 이하, 1천만 판 제외), STAY 그 밖
+                 * @description PROMOTE 승급 기준 도달(+400 이상, 1억 판 제외), DEMOTE 강등 기준 도달(−400 이하, 1천만 판 제외), STAY 그 밖
                  * @enum {string}
                  */
                 result: "PROMOTE" | "DEMOTE" | "STAY";

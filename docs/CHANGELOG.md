@@ -6,6 +6,7 @@
 
 ## 2026-11-06
 
+- [#PR, Closes #308] 가상 시뮬레이션 대회 점수를 100점 단위로 바꿨다(사용자 결정, [결정 기록](decisions/2026-11-05-virtual-sim-contest.md) 4-2·4-4·"변경 기록 11-06 #308"): 하루 +100·0·−100, 주 ≥ +400 승급·≤ −400 강등. 판 점수·주 점수·4주차 기록(`finalWeek`)은 하루 점수의 합이라 함께 바뀌고 판정 조건·결과는 그대로다. policies §8-8 본문·예시, `virtual-contest.json` `weeklyPromoteAt`·`weeklyDemoteAt`·`dailyScore`·`weekly`·`ranking`, 계약 `VirtualContestRules`·`VirtualContestEntry` 설명과 `scoredDays[].points` 범위(−100~100), V31(저장된 점수 ×100, 다시 돌려도 같음). 배치고사 화면: 푸는 동안 대회 배너·문제 번호 이동·[다음 문제]·[지금 제출하기]·[나중에 이어 풀기] 없음, 답을 고르면 다음 문제로, 결과는 맨 위에서 시작·[대회 화면으로]를 요약 아래로·결과 전용 문제 설명(`placementResultGuide.ts`). 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [#306] 가상 시뮬레이션 대회 주를 1~7일, 8~14일, 15~21일, **22일~말일** 네 개로 바꾸고, 4주차는 대회 마지막 날 판정해 결과만 기록한다(보너스 주, 판·잔액·판 점수·최고 판·최종 순위는 그대로, [결정](decisions/2026-11-06-contest-final-week.md), 사용자 결정). policies §8-8 "주간 판정"·"월말 정산"·예시, `virtual-contest.json` `rules.weeks`·`weekly`(`finalWeek`·`judged`), 계약 `VirtualContest.weeks` 4개·`VirtualContestEntry.week.week` 최대 4·`VirtualContestResult.finalWeek` 추가. 화면 규칙·주별 일정·이번 주 점수·지난 대회 카드 문구. DB·개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Refs #302] 청년소식은 검사에 통과한 AI 요약 완료 후 공개·신규 저장한다([결정](decisions/2026-11-06-news-summary-required.md)). 원문 수집과 기존 저장 사본은 보존하며 미요약·실패 소식은 공개 목록·인기 소식·열람 집계에서 제외한다. 계약 `summary`를 비어 있지 않은 문자열로 변경. 구현은 후속 PR — 영향: 프론트·백엔드
 

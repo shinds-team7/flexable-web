@@ -2417,7 +2417,7 @@ components:
       additionalProperties: false
       properties:
         cycleEnd: { type: string, format: date }
-        choice: { type: string, enum: [GOAL, ALL, MANUAL] }
+        choice: { type: string, enum: [GOAL, ALL, MANUAL, EXTRA] }
         amount: { type: integer, format: int64 }
         totalAfter: { type: integer, format: int64 }
         createdAt: { type: string, format: date-time, nullable: true }
@@ -2500,7 +2500,7 @@ components:
               additionalProperties: false
               properties:
                 cycleEnd: { type: string, format: date }
-                choice: { type: string, enum: [GOAL, ALL, MANUAL] }
+                choice: { type: string, enum: [GOAL, ALL, MANUAL, EXTRA] }
                 amount: { type: integer, format: int64, nullable: true }
                 createdAt: { type: string, format: date-time, nullable: true }
             updatedAt: { type: string, format: date-time, nullable: true }

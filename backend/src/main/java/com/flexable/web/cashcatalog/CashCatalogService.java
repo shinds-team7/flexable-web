@@ -47,6 +47,21 @@ public class CashCatalogService {
         return new ProductList(items, false, notice);
     }
 
+    /**
+     * 수집한 CMA 공시 기본금리의 중간값(연 %, 소수 둘째 자리). 짝수 개면 가운데 두 값의 평균(반올림). 기본금리가 있는 상품이 없으면 빈 값.
+     * 목표 달성 시나리오(policies §7-2)가 CMA 금리로 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<BigDecimal> cmaMedianRate() {
+        List<BigDecimal> rates = list("cma").items().stream().map(Product::baseRate).filter(java.util.Objects::nonNull)
+                .sorted().toList();
+        if (rates.isEmpty()) return java.util.Optional.empty();
+        int n = rates.size();
+        BigDecimal median = n % 2 == 1 ? rates.get(n / 2)
+                : rates.get(n / 2 - 1).add(rates.get(n / 2)).divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
+        return java.util.Optional.of(median.setScale(2, java.math.RoundingMode.HALF_UP));
+    }
+
     /** 파킹통장 기본금리 이자 계산(policies §11). 계산할 수 없는 상품은 이유와 함께 400. */
     @Transactional(readOnly = true)
     public ParkingSimulation simulateParking(ParkingSimulateRequest r) {

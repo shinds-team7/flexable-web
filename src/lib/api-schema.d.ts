@@ -1910,8 +1910,16 @@ export interface paths {
                         name: string;
                         /** Format: int64 */
                         targetAmount: number;
-                        /** @enum {integer} */
-                        years: 1 | 2 | 3;
+                        /**
+                         * @description 3년을 넘으면 3년 적금 만기금을 재예치하고 새 적금을 이어 넣는다(policies §7-9)
+                         * @enum {integer}
+                         */
+                        years: 1 | 2 | 3 | 4 | 5;
+                        /**
+                         * Format: int64
+                         * @description 처음 모은 돈(선택, 비우면 0원). 플랜 비중대로 나눠 투자 몫은 처음부터 시장에, 저축 몫은 예금·CMA 중 나은 쪽에 둔다. OpenAI에는 보내지 않는다(policies §7-9)
+                         */
+                        initialAmount?: number | null;
                     };
                 };
             };
@@ -4142,9 +4150,9 @@ export interface components {
                 /** @description 적금 금융회사. 그 밖에는 null */
                 company: string | null;
             }[];
-            /** @description 적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null */
+            /** @description 적금 기본금리·CMA 금리(예: "3.50"). CMA는 수집한 공시 기본금리의 중간값이고 공시가 없으면 예시 금리 2.50. 투자 유형은 null */
             ratePercent: string | null;
-            /** @description CMA 예시 금리면 true */
+            /** @description CMA 예시 금리면 true(공시 중간값이면 false) */
             isSample: boolean;
             /** @description 함께 볼 상품(policies §7-2). 금액 계산에 쓰지 않는다. 적금·지수 ETF만 있고 CMA·KOSPI_TOP5와 #309 이전 저장본은 빈 배열 */
             alternatives: {
@@ -4207,7 +4215,30 @@ export interface components {
             } | null;
             /** @description 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false */
             aiReused: boolean;
+            /**
+             * Format: int64
+             * @description 요청의 처음 모은 돈(없으면 0)
+             */
+            initialAmount: number;
+            /** @description 서버가 고른 가장 합리적인 플랜의 id(policies §7-5). 목표에 닿고 원금 손실 비율이 10% 이하인 플랜 중 필요 월 금액이 가장 작은 것, 없으면 닿는 플랜 중 손실 비율이 가장 낮은 것. 닿는 플랜이 없으면 null */
+            recommendedId: string | null;
+            rateAssumption: components["schemas"]["GoalScenarioRateAssumption"];
+            initialDeposit: components["schemas"]["GoalScenarioInitialDeposit"];
         };
+        /** @description 3년을 넘는 기한에서만 있다. 3년 뒤 금리는 지금 금리가 유지된다고 가정하고, 각 플랜의 rateDown이 금리가 dropPercent%p 낮아질 때의 필요 월 금액이다. 3년 이하면 null */
+        GoalScenarioRateAssumption: {
+            /** @description 36 */
+            afterMonths: number;
+            /** @description "1.00" */
+            dropPercent: string;
+        } | null;
+        /** @description 처음 모은 돈의 저축 몫을 맡길 예금(첫 단계). 처음 돈이 없거나 조건에 맞는 예금 공시가 없으면 null(그때는 CMA) */
+        GoalScenarioInitialDeposit: {
+            code: string;
+            name: string;
+            company: string | null;
+            ratePercent: string;
+        } | null;
         SavedGoalScenarioSummary: {
             /** Format: int64 */
             id: number;
@@ -4230,7 +4261,7 @@ export interface components {
             /** @enum {string|null} */
             kind: "FIXED" | "RANGE" | null;
         };
-        /** @description 저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다 */
+        /** @description 저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다. initialAmount 등은 이전 저장본에서 0·null */
         SavedGoalScenario: {
             /** Format: int64 */
             id: number;
@@ -4254,9 +4285,39 @@ export interface components {
             assumptions: string[];
             notice: string;
             isSample: boolean;
+            /**
+             * Format: int64
+             * @description 저장할 때의 처음 모은 돈. 이전 저장본은 0
+             */
+            initialAmount: number;
+            rateAssumption: components["schemas"]["GoalScenarioRateAssumption"];
+            initialDeposit: components["schemas"]["GoalScenarioInitialDeposit"];
         };
         GoalScenario: {
             id: string;
+            /**
+             * @description 투자 비중이 낮은 순서로 안전형·균형형·적극형(policies §7-5). 이전 저장본은 null
+             * @enum {string|null}
+             */
+            style: "SAFE" | "BALANCED" | "AGGRESSIVE" | null;
+            /** @description 처음 모은 돈만으로 기준 비율을 채워 필요 월 금액이 0원이면 true("추가 납입 없이 달성 가능") */
+            noExtraNeeded: boolean;
+            /** @description 처음 모은 돈 중 저축 몫과 둔 곳. 처음 돈이 없으면 null */
+            initialSaving: {
+                /** Format: int64 */
+                amount: number;
+                /**
+                 * @description DEPOSIT 예금, CMA. 예금의 이득이 묶는 1년당 세후 1만 원보다 적으면 CMA
+                 * @enum {string}
+                 */
+                place: "DEPOSIT" | "CMA";
+            } | null;
+            /** @description 3년 뒤 금리가 1%포인트 낮아질 때의 필요 월 금액(rateAssumption이 있을 때만). 아니면 null */
+            rateDown: {
+                reachable: boolean;
+                /** Format: int64 */
+                monthly: number | null;
+            } | null;
             title: string;
             summary: string;
             /** @description 제안기 해설. 글자 수 제한 없음(문단 사이 줄바꿈 포함). 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6) */
@@ -4280,7 +4341,7 @@ export interface components {
             monthly: number | null;
             /**
              * Format: int64
-             * @description 넣은 돈 = monthly × months
+             * @description 넣은 돈 = monthly × months + 처음 모은 돈
              */
             paid: number | null;
             /** @description reachable=false면 null */

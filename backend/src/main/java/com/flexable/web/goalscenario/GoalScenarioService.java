@@ -21,11 +21,16 @@ import org.springframework.stereotype.Service;
 
 import com.flexable.web.common.ApiException;
 import com.flexable.web.common.ErrorCode;
+import com.flexable.web.cashcatalog.CashCatalogService;
+import com.flexable.web.deposit.DepositService;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Alternative;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Item;
+import com.flexable.web.goalscenario.GoalScenarioDtos.InitialSaving;
 import com.flexable.web.goalscenario.GoalScenarioDtos.MixItem;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Outcome;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Product;
+import com.flexable.web.goalscenario.GoalScenarioDtos.RateAssumption;
+import com.flexable.web.goalscenario.GoalScenarioDtos.RateDown;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Request;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Result;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Scenario;
@@ -52,7 +57,12 @@ public class GoalScenarioService {
 	static final int REACH_BP = 8000;
 	/** 유형당 보는 상품 수(계산에 쓰는 1순위 + 함께 볼 상품 최대 2개, 적금·지수 ETF만). */
 	static final int CANDIDATES = 3;
+	/** CMA 공시가 없을 때 쓰는 예시 금리(연 %). 공시가 있으면 기본금리의 중간값을 쓴다(§7-2). */
 	static final BigDecimal CMA_RATE = new BigDecimal("2.50");
+	/** 추천 플랜을 고를 때 허용하는 원금 손실 비율(만분율) 상한(§7-5). */
+	static final int RECOMMEND_LOSS_BP = 1000;
+	static final int MAX_YEARS = 5;
+	static final long MAX_INITIAL = 1_000_000_000L;
 	static final String NOTICE = "이 결과는 입력한 조건과 과거 자료·계산 모형을 바탕으로 AI와 계산 서버가 만든 추정 시나리오예요. "
 			+ "실제 수익과 목표 달성 여부를 보장하지 않으며, 투자한 원금의 일부 또는 전부를 잃을 수 있어요. 자료 기준일과 계산 가정을 함께 확인해 주세요.";
 	static final List<String> ASSUMPTIONS = List.of(
@@ -62,6 +72,12 @@ public class GoalScenarioService {
 			"배당·매매 수수료는 넣지 않았어요.",
 			"지수 ETF·주식은 지난 60개월의 월 수익률을 12개월 묶음으로 무작위로 이어 붙인 2,000가지 경우로 계산했어요.",
 			"코스피 주식은 시가총액 상위 5종목에 같은 금액으로 나눠 넣는다고 가정했어요.");
+	private static final String CMA_REAL_ASSUMPTION = "적금은 개인이 가입할 수 있는 은행 상품 중 기본금리가 가장 높은 상품을 골라 기본금리(우대금리 제외)로, "
+			+ "CMA는 수집한 공시 기본금리의 중간값으로 계산했어요.";
+	private static final String INITIAL_ASSUMPTION = "처음 모은 돈은 플랜 비중대로 나눠, 투자 몫은 처음부터 시장에 넣고 저축 몫은 예금과 CMA 중 기한 말 세후 금액이 나은 쪽에 맡겨요"
+			+ "(예금의 이득이 묶는 1년당 세후 1만 원보다 적으면 CMA). 적금은 매달 넣는 상품이라 처음 돈 비교에서 뺐어요.";
+	private static final String LONG_TERM_ASSUMPTION = "3년을 넘는 기한은 3년 적금 만기금을 남은 기간 예금(또는 CMA)에 다시 맡기고, 매달 넣던 돈은 남은 기간 새 적금(또는 CMA)에 넣어요. "
+			+ "3년 뒤 금리는 지금 금리가 그대로 유지된다고 가정했어요. 금리가 1%포인트 낮아지면 필요한 월 금액이 얼마가 되는지도 함께 보여 줘요.";
 	private static final List<ProductType> INVEST = List.of(ProductType.KR_INDEX_ETF, ProductType.US_INDEX_ETF, ProductType.KOSPI_TOP5);
 
 	private final MarketService market;
@@ -70,10 +86,14 @@ public class GoalScenarioService {
 	private final ScenarioResultCache results;
 	private final ScenarioAiQuota quota;
 	private final GoalScenarioAiProperties aiProps;
+	private final DepositService deposits;
+	private final CashCatalogService cashCatalog;
 
-	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results,
-			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps) {
+	GoalScenarioService(MarketService market, SavingsService savings, DepositService deposits, CashCatalogService cashCatalog,
+			ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results, ScenarioAiQuota quota, GoalScenarioAiProperties aiProps) {
 		this.aiProps = aiProps;
+		this.deposits = deposits;
+		this.cashCatalog = cashCatalog;
 		this.market = market;
 		this.savings = savings;
 		this.proposer = proposer;
@@ -86,7 +106,8 @@ public class GoalScenarioService {
 	 * moreSavings·moreItems는 함께 볼 상품이고 금액 계산에 쓰지 않는다. returns에는 함께 볼 지수 ETF의 수익률도 들어 있다.
 	 */
 	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns,
-			List<FixedCandidate> moreSavings, Map<ProductType, List<Item>> moreItems) {
+			List<FixedCandidate> moreSavings, Map<ProductType, List<Item>> moreItems, DepositService.FixedCandidate deposit,
+			FixedCandidate saving2, DepositService.FixedCandidate deposit2, BigDecimal cmaRate, boolean cmaSample) {
 	}
 
 	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수, 이전 AI 조합을 다시 썼는지. */
@@ -97,6 +118,7 @@ public class GoalScenarioService {
 	Result calculate(Request req, Long userId) {
 		String name = validate(req);
 		long target = req.targetAmount();
+		long initial = initialAmount(req);
 		int years = req.years();
 		int months = years * 12;
 
@@ -106,18 +128,30 @@ public class GoalScenarioService {
 		Picked picked = pick(months, last);
 		int[][] draws = draws(years);
 		Map<String, BigDecimal[]> factors = new HashMap<>();
+		Map<String, BigDecimal[]> lumpFactors = new HashMap<>();
 		for (ProductType t : INVEST) {
-			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws)));
+			picked.items().get(t).forEach(i -> {
+				factors.put(i.code(), factors(picked.returns().get(i.code()), draws));
+				lumpFactors.put(i.code(), lumpFactors(picked.returns().get(i.code()), draws));
+			});
 		}
 
 		Chosen chosen = choose(target, years, months, asOf, userId, picked);
+		ScenarioCash cash = cashModel(picked, months, BigDecimal.ZERO);
+		ScenarioCash down = months > ScenarioCash.FIRST_STAGE ? cashModel(picked, months, ScenarioCash.RATE_DROP) : null;
+		List<String> styles = styles(chosen.plans());
 		List<Scenario> scenarios = new ArrayList<>();
-		for (Plan plan : chosen.plans()) {
-			scenarios.add(scenario(plan, target, months, picked, factors));
+		for (int i = 0; i < chosen.plans().size(); i++) {
+			scenarios.add(scenario(chosen.plans().get(i), styles.get(i), target, months, initial, picked, factors, lumpFactors, cash, down));
 		}
+		Alternative initialDeposit = initial > 0 && picked.deposit() != null
+				? new Alternative(picked.deposit().productId(), picked.deposit().name(), picked.deposit().company(), picked.deposit().baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString())
+				: null;
 		Result result = new Result(null, name, target, years, months, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
 				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, new BigDecimal("0.8"),
-				products(picked), scenarios, ASSUMPTIONS, NOTICE, true, chosen.aiUsage(), chosen.reused());
+				products(picked), scenarios, assumptions(initial, months, picked.cmaSample()), NOTICE, true, chosen.aiUsage(), chosen.reused(),
+				initial, recommend(scenarios), down == null ? null : new RateAssumption(ScenarioCash.FIRST_STAGE, ScenarioCash.RATE_DROP.toPlainString()),
+				initialDeposit);
 		return results.remember(result);
 	}
 
@@ -130,10 +164,77 @@ public class GoalScenarioService {
 		if (req.targetAmount() == null || req.targetAmount() < 1_000_000 || req.targetAmount() > 1_000_000_000) {
 			throw ApiException.invalid("targetAmount", "목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요");
 		}
-		if (req.years() == null || req.years() < 1 || req.years() > 3) {
-			throw ApiException.invalid("years", "기한은 1년·2년·3년 중에서 골라 주세요");
+		if (req.years() == null || req.years() < 1 || req.years() > MAX_YEARS) {
+			throw ApiException.invalid("years", "기한은 1년부터 5년까지 골라 주세요");
 		}
+		initialAmount(req);
 		return name;
+	}
+
+	/** 처음 모은 돈. 비우면 0원. 0원~10억 원. */
+	static long initialAmount(Request req) {
+		Long v = req.initialAmount();
+		if (v == null) {
+			return 0;
+		}
+		if (v < 0 || v > MAX_INITIAL) {
+			throw ApiException.invalid("initialAmount", "처음 모은 돈은 0원부터 10억 원까지 넣을 수 있어요");
+		}
+		return v;
+	}
+
+	/** 투자 비중이 낮은 순서로 SAFE·BALANCED·AGGRESSIVE(같으면 제안 순서). 시나리오는 3개다. */
+	static List<String> styles(List<Plan> plans) {
+		String[] names = { "SAFE", "BALANCED", "AGGRESSIVE" };
+		List<Integer> order = new ArrayList<>();
+		for (int i = 0; i < plans.size(); i++) {
+			order.add(i);
+		}
+		order.sort(java.util.Comparator.comparingInt((Integer i) -> plans.get(i).mix().entrySet().stream()
+			.filter(e -> e.getKey().invest()).mapToInt(Map.Entry::getValue).sum()).thenComparingInt(i -> i));
+		String[] out = new String[plans.size()];
+		for (int rank = 0; rank < order.size(); rank++) {
+			out[order.get(rank)] = names[Math.min(rank, names.length - 1)];
+		}
+		return List.of(out);
+	}
+
+	/**
+	 * 서버가 계산 결과로 고르는 가장 합리적인 플랜(§7-5). 목표에 닿고 원금 손실 비율이 10% 이하인 플랜 중 필요 월 금액이 가장 작은 것
+	 * (같으면 앞선 것). 그런 플랜이 없으면 닿는 플랜 중 손실 비율이 가장 낮은 것. 닿는 플랜이 없으면 null.
+	 */
+	static String recommend(List<Scenario> scenarios) {
+		Scenario best = null;
+		for (Scenario s : scenarios) {
+			if (s.reachable() && s.outcome().lossBp() <= RECOMMEND_LOSS_BP && (best == null || s.monthly() < best.monthly())) {
+				best = s;
+			}
+		}
+		if (best != null) {
+			return best.id();
+		}
+		for (Scenario s : scenarios) {
+			if (s.reachable() && (best == null || s.outcome().lossBp() < best.outcome().lossBp()
+					|| (s.outcome().lossBp() == best.outcome().lossBp() && s.monthly() < best.monthly()))) {
+				best = s;
+			}
+		}
+		return best == null ? null : best.id();
+	}
+
+	private static List<String> assumptions(long initial, int months, boolean cmaSample) {
+		List<String> out = new ArrayList<>(ASSUMPTIONS);
+		if (initial > 0) {
+			out.set(0, "처음 모은 돈 " + String.format("%,d", initial) + "원을 시작 금액으로 하고, 매달 초에 같은 금액을 비중대로 나눠 넣어요. 리밸런싱·중도 인출은 없어요.");
+			out.add(INITIAL_ASSUMPTION);
+		}
+		if (!cmaSample) {
+			out.set(1, CMA_REAL_ASSUMPTION);
+		}
+		if (months > ScenarioCash.FIRST_STAGE) {
+			out.add(LONG_TERM_ASSUMPTION);
+		}
+		return out;
 	}
 
 	/**
@@ -195,7 +296,7 @@ public class GoalScenarioService {
 		names.add(picked.saving().company());
 		picked.items().values().forEach(items -> items.forEach(i -> names.add(i.name())));
 		picked.moreItems().values().forEach(items -> items.forEach(i -> names.add(i.name())));
-		List<BigDecimal> percents = new ArrayList<>(List.of(picked.saving().baseRate(), CMA_RATE, new BigDecimal("15.4")));
+		List<BigDecimal> percents = new ArrayList<>(List.of(picked.saving().baseRate(), picked.cmaRate(), new BigDecimal("15.4")));
 		for (FixedCandidate more : picked.moreSavings()) {
 			names.add(more.name());
 			names.add(more.company());
@@ -227,7 +328,8 @@ public class GoalScenarioService {
 		out.add(new ScenarioProposer.TypeStat("SAVINGS", "은행 정액적립식 적금(" + s.company() + " " + s.name() + "), 금리 확정, 이자 15.4% 과세",
 				rate(s), null, null, null, picked.moreSavings().stream()
 					.map(m -> new ScenarioProposer.AltStat(m.name(), m.company(), rate(m), null, null, null)).toList()));
-		out.add(new ScenarioProposer.TypeStat("CMA", "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세", CMA_RATE.toPlainString(), null, null, null, List.of()));
+		out.add(new ScenarioProposer.TypeStat("CMA", picked.cmaSample() ? "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세"
+				: "수시 입출금 CMA, 수집한 공시 기본금리의 중간값, 이자 15.4% 과세", picked.cmaRate().toPlainString(), null, null, null, List.of()));
 		for (ProductType t : INVEST) {
 			List<BigDecimal[]> series = picked.items().get(t).stream().map(i -> picked.returns().get(i.code())).toList();
 			BigDecimal[] avg = averageSeries(series);
@@ -303,7 +405,8 @@ public class GoalScenarioService {
 	 * 적금·지수 ETF는 다음 순위를 함께 볼 상품으로 최대 2개까지 고른다. 모자라면 있는 만큼만 쓰고 503으로 만들지 않는다.
 	 */
 	private Picked pick(int months, YearMonth last) {
-		List<FixedCandidate> fixed = savings.openFixed(months, CANDIDATES);
+		int first = Math.min(months, ScenarioCash.FIRST_STAGE);
+		List<FixedCandidate> fixed = savings.openFixed(first, CANDIDATES);
 		if (fixed.isEmpty()) {
 			throw new ApiException(ErrorCode.MARKET_UNAVAILABLE, "조건에 맞는 적금 공시가 아직 없어요", Map.of("field", "SAVINGS"));
 		}
@@ -325,7 +428,24 @@ public class GoalScenarioService {
 		Map<ProductType, List<Item>> more = new EnumMap<>(ProductType.class);
 		more.put(ProductType.KR_INDEX_ETF, kr.stream().skip(1).map(GoalScenarioService::item).toList());
 		more.put(ProductType.US_INDEX_ETF, us.stream().skip(1).map(GoalScenarioService::item).toList());
-		return new Picked(items, saving, returns, fixed.subList(1, fixed.size()), more);
+		DepositService.FixedCandidate deposit = deposits.openFixed(first, 1).stream().findFirst().orElse(null);
+		FixedCandidate saving2 = null;
+		DepositService.FixedCandidate deposit2 = null;
+		if (months > ScenarioCash.FIRST_STAGE) {
+			int rest = months - ScenarioCash.FIRST_STAGE;
+			saving2 = savings.openFixed(rest, 1).stream().findFirst().orElse(null);
+			deposit2 = deposits.openFixed(rest, 1).stream().findFirst().orElse(null);
+		}
+		Optional<BigDecimal> cmaMedian = cashCatalog.cmaMedianRate();
+		return new Picked(items, saving, returns, fixed.subList(1, fixed.size()), more, deposit, saving2, deposit2,
+				cmaMedian.orElse(CMA_RATE), cmaMedian.isEmpty());
+	}
+
+	private static ScenarioCash cashModel(Picked p, int months, BigDecimal drop) {
+		return new ScenarioCash(months, new ScenarioCash.Rate(p.saving().baseRate(), p.saving().compound()),
+				p.deposit() == null ? null : new ScenarioCash.Rate(p.deposit().baseRate(), p.deposit().compound()),
+				p.saving2() == null ? null : new ScenarioCash.Rate(p.saving2().baseRate(), p.saving2().compound()),
+				p.deposit2() == null ? null : new ScenarioCash.Rate(p.deposit2().baseRate(), p.deposit2().compound()), p.cmaRate(), drop);
 	}
 
 	private static Item item(InstrumentView i) {
@@ -418,23 +538,77 @@ public class GoalScenarioService {
 		return out;
 	}
 
-	/**
-	 * 월 금액 → 경로별 기한 말 금액. 적금·CMA는 모든 경로에서 같고, 투자 유형은 경로 배수를 곱한다.
-	 * itemFactors는 유형마다 상품별 경로 배수(KOSPI_TOP5는 5개).
-	 */
+	/** 경로마다 처음 한 번 넣은 돈의 기한 말 배수. */
+	static BigDecimal[] lumpFactors(BigDecimal[] returns, int[][] draws) {
+		BigDecimal[] out = new BigDecimal[draws.length];
+		for (int p = 0; p < draws.length; p++) {
+			BigDecimal[] path = new BigDecimal[draws[p].length * BLOCK];
+			for (int y = 0; y < draws[p].length; y++) {
+				System.arraycopy(returns, draws[p][y], path, y * BLOCK, BLOCK);
+			}
+			out[p] = ScenarioMath.lumpFactor(path);
+		}
+		return out;
+	}
+
+	/** 처음 모은 돈의 나눔: 투자 상품 하나에 들어가는 금액(유형별)과 저축 몫(투자 몫을 뺀 나머지, 반올림 나머지 포함). */
+	record Split(Map<ProductType, Long> each, long saving) {
+	}
+
+	static Split splitInitial(long initial, Map<ProductType, Integer> mix, Map<ProductType, Integer> counts) {
+		Map<ProductType, Long> each = new EnumMap<>(ProductType.class);
+		long invested = 0;
+		for (ProductType t : INVEST) {
+			int ratio = mix.getOrDefault(t, 0);
+			if (initial > 0 && ratio > 0) {
+				int k = counts.get(t);
+				long one = initial * ratio / 100 / k;
+				if (one > 0) {
+					each.put(t, one);
+					invested += one * k;
+				}
+			}
+		}
+		return new Split(each, initial - invested);
+	}
+
+	/** 처음 돈이 없고 적금·CMA만 현재 금리로 쓰는 단순한 경우(정책 예시·테스트). */
 	static LongFunction<long[]> finals(Map<ProductType, Integer> mix, int months, int n, BigDecimal savingsRate, boolean savingsCompound,
 			Map<ProductType, List<BigDecimal[]>> itemFactors) {
+		return finals(mix, months, n, ScenarioCash.simple(months, savingsRate, savingsCompound, CMA_RATE), 0, itemFactors, Map.of());
+	}
+
+	/**
+	 * 월 금액 → 경로별 기한 말 금액. 적금·CMA·처음 돈의 저축 몫은 모든 경로에서 같고, 투자 유형은 경로 배수를 곱한다.
+	 * itemFactors는 유형마다 상품별 매달 넣을 때의 경로 배수, lumpFactors는 처음 돈을 넣을 때의 경로 배수(KOSPI_TOP5는 5개).
+	 */
+	static LongFunction<long[]> finals(Map<ProductType, Integer> mix, int months, int n, ScenarioCash cash, long initial,
+			Map<ProductType, List<BigDecimal[]>> itemFactors, Map<ProductType, List<BigDecimal[]>> lumpFactors) {
+		Map<ProductType, Integer> counts = new EnumMap<>(ProductType.class);
+		itemFactors.forEach((t, fs) -> counts.put(t, fs.size()));
+		Split split = splitInitial(initial, mix, counts);
+		long[] lump = new long[n];
+		Arrays.fill(lump, cash.lump(split.saving()).finalAmount());
+		split.each().forEach((t, one) -> {
+			for (BigDecimal[] f : lumpFactors.get(t)) {
+				for (int p = 0; p < n; p++) {
+					lump[p] += ScenarioMath.lumpInvest(one, f[p], t == ProductType.US_INDEX_ETF).finalAmount();
+				}
+			}
+		});
 		return monthly -> {
 			Map<ProductType, Long> alloc = ScenarioMath.allocate(monthly, mix);
 			long fixed = 0;
 			if (alloc.containsKey(ProductType.SAVINGS)) {
-				fixed += SavingsService.maturity(alloc.get(ProductType.SAVINGS), months, savingsRate, savingsCompound).finalAmount();
+				fixed += cash.savings(alloc.get(ProductType.SAVINGS));
 			}
 			if (alloc.containsKey(ProductType.CMA)) {
-				fixed += ScenarioMath.cma(alloc.get(ProductType.CMA), months, CMA_RATE).finalAmount();
+				fixed += cash.cma(alloc.get(ProductType.CMA));
 			}
-			long[] out = new long[n];
-			Arrays.fill(out, fixed);
+			long[] out = lump.clone();
+			for (int p = 0; p < n; p++) {
+				out[p] += fixed;
+			}
 			for (ProductType t : INVEST) {
 				Long amount = alloc.get(t);
 				if (amount == null) {
@@ -458,11 +632,16 @@ public class GoalScenarioService {
 
 	/** 필요 월 금액과 그 금액에서의 결과(§7-5). n은 경로 수(투자가 없으면 1). 닿지 못하면 null. */
 	static Computed compute(long target, int months, int n, boolean invest, LongFunction<long[]> finals) {
+		return compute(target, months, 0, n, invest, finals);
+	}
+
+	/** initial은 처음 모은 돈(넣은 돈에 더한다). 처음 돈만으로 닿으면 월 금액이 0원이다. */
+	static Computed compute(long target, int months, long initial, int n, boolean invest, LongFunction<long[]> finals) {
 		long monthly = ScenarioMath.requiredMonthly(target, ScenarioMath.needed(n, REACH_BP), finals);
 		if (monthly < 0) {
 			return null;
 		}
-		long paid = monthly * months;
+		long paid = monthly * months + initial;
 		long[] values = finals.apply(monthly);
 		int chance = ScenarioMath.bp(ScenarioMath.reached(values, target), n);
 		int loss = ScenarioMath.bp((int) Arrays.stream(values).filter(v -> v < paid).count(), n);
@@ -475,22 +654,37 @@ public class GoalScenarioService {
 				sorted[ScenarioMath.quantileIndex(n, 5000)], sorted[ScenarioMath.quantileIndex(n, 9000)], chance, loss));
 	}
 
-	private Scenario scenario(Plan plan, long target, int months, Picked picked, Map<String, BigDecimal[]> factors) {
+	private Scenario scenario(Plan plan, String style, long target, int months, long initial, Picked picked, Map<String, BigDecimal[]> factors,
+			Map<String, BigDecimal[]> lumpFactors, ScenarioCash cash, ScenarioCash down) {
 		boolean invest = plan.mix().keySet().stream().anyMatch(ProductType::invest);
 		int n = invest ? PATHS : 1;
 		Map<ProductType, List<BigDecimal[]>> itemFactors = new EnumMap<>(ProductType.class);
+		Map<ProductType, List<BigDecimal[]>> itemLumps = new EnumMap<>(ProductType.class);
 		for (ProductType t : INVEST) {
 			itemFactors.put(t, picked.items().get(t).stream().map(i -> factors.get(i.code())).toList());
+			itemLumps.put(t, picked.items().get(t).stream().map(i -> lumpFactors.get(i.code())).toList());
 		}
-		FixedCandidate s = picked.saving();
-		Computed c = compute(target, months, n, invest, finals(plan.mix(), months, n, s.baseRate(), s.compound(), itemFactors));
+		Computed c = compute(target, months, initial, n, invest, finals(plan.mix(), months, n, cash, initial, itemFactors, itemLumps));
+		Map<ProductType, Integer> counts = new EnumMap<>(ProductType.class);
+		itemFactors.forEach((t, fs) -> counts.put(t, fs.size()));
+		long savingShare = splitInitial(initial, plan.mix(), counts).saving();
+		InitialSaving initialSaving = initial > 0 && savingShare > 0
+				? new InitialSaving(savingShare, cash.lump(savingShare).place().name())
+				: null;
+		RateDown rateDown = null;
+		if (down != null) {
+			Computed cd = compute(target, months, initial, n, invest, finals(plan.mix(), months, n, down, initial, itemFactors, itemLumps));
+			rateDown = new RateDown(cd != null, cd == null ? null : cd.monthly());
+		}
 		if (c == null) {
 			List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), null)).toList();
-			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, false, null, null, null);
+			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, false, null, null, null, style, false,
+					initialSaving, rateDown);
 		}
 		Map<ProductType, Long> alloc = ScenarioMath.allocate(c.monthly(), plan.mix());
 		List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), alloc.get(e.getKey()))).toList();
-		return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, true, c.monthly(), c.paid(), c.outcome());
+		return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, true, c.monthly(), c.paid(), c.outcome(), style,
+				c.monthly() == 0, initialSaving, rateDown);
 	}
 
 	private static List<Product> products(Picked picked) {
@@ -498,13 +692,13 @@ public class GoalScenarioService {
 		for (ProductType t : ProductType.values()) {
 			String rate = switch (t) {
 				case SAVINGS -> rate(picked.saving());
-				case CMA -> CMA_RATE.toPlainString();
+				case CMA -> picked.cmaRate().toPlainString();
 				default -> null;
 			};
 			List<Alternative> more = t == ProductType.SAVINGS
 					? picked.moreSavings().stream().map(m -> new Alternative(m.productId(), m.name(), m.company(), rate(m))).toList()
 					: picked.moreItems().getOrDefault(t, List.of()).stream().map(i -> new Alternative(i.code(), i.name(), null, null)).toList();
-			out.add(new Product(t, picked.items().get(t), rate, t == ProductType.CMA, more));
+			out.add(new Product(t, picked.items().get(t), rate, t == ProductType.CMA && picked.cmaSample(), more));
 		}
 		return out;
 	}

@@ -6,6 +6,7 @@
 
 ## 2026-11-08
 
+- [Closes #336] 앱 연동 시드머니 기록의 `choice`에 `EXTRA`(앱에서 지금 예산에서 바로 옮긴 돈, 앱 #225)를 더했다. `SeedEntry`·`AppLinkSeedMoney.lastEntry`의 `choice` enum이 `GOAL·ALL·MANUAL·EXTRA`가 되고, `cycleEnd`는 EXTRA일 때 옮긴 날짜라 같은 날 여러 번 올 수 있다(고유 키로 쓰지 않음). 앱 계약 사본 `vendor/web-link-api.yaml`을 앱 `main`과 맞췄다 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Refs #247] 신한 명품 CMA RP를 CMA 계산 대상으로 옮겼다([정책 §12](policies.md)). 신한 공개 응답에서 "1- 27일"과 "28일" 수익률이 둘 다 2.45%임을 확인해, 모든 기간의 수익률이 같으면 하나의 약정수익률로 계산하고 "적용금액" 최소 금액 줄은 금액 구간으로 보지 않는다. 15개 중 계산 가능 13개. 공개 API·계약 변경 없음 — 영향: 백엔드·문서
 - [Refs #247] CMA 계산 불가 상품은 파킹의 20% 감춤 규칙을 적용하지 않고 이유를 안내하며 목록에 그대로 두기로 확정했다([정책 §12](policies.md), 리드 결정) — 영향: 문서
 - [Issue 없음] `docs/product/HANDOFF.md`만 고치는 변경(끝난 항목 삭제, 진행·배포·확인 결과 적기)은 PR 없이 `main`에 바로 커밋·push. 다른 파일이 섞이면 PR. `AGENTS.md` "작업 완료 시", 앱 저장소 PR #296과 같은 방식 — 영향: 작업 방식

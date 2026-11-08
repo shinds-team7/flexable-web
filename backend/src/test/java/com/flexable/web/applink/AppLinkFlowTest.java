@@ -342,6 +342,35 @@ class AppLinkFlowTest {
 			.andExpect(jsonPath("$.source").value("none"));
 	}
 
+	/** EXTRA(바로 보낸 돈)는 cycleEnd가 옮긴 날짜라 같은 날 여러 번 올 수 있고, 시작일이 없을 수도 있다. 모두 받은 순서대로 저장·응답한다. */
+	@Test
+	void extraEntriesWithSameDateAndNoStartDateAreKeptInOrder() throws Exception {
+		String token = signup();
+		OffsetDateTime at = OffsetDateTime.parse("2026-11-08T10:00:00+09:00");
+		LocalDate day = LocalDate.parse("2026-11-08");
+		when(app.seedMoney(anyString())).thenReturn(new AppSeedMoney(1_300_000, 500_000, 300_000,
+				new LastEntry(day, "EXTRA", 100_000, at), at, null,
+				List.of(new Entry(LocalDate.parse("2026-10-25"), "GOAL", 300_000, 800_000, at),
+						new Entry(day, "EXTRA", 200_000, 1_000_000, at),
+						new Entry(day, "EXTRA", 100_000, 1_100_000, at.plusHours(1)),
+						new Entry(day, "EXTRA", 200_000, 1_300_000, at.plusHours(2)))));
+		link(token, CODE).andExpect(status().isCreated());
+		long linkRow = jdbc.queryForObject("SELECT id FROM app_links WHERE user_id = ?", Long.class, userId(token));
+		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_link_entries WHERE app_link_id = ?", Integer.class, linkRow))
+			.isEqualTo(4);
+
+		mvc.perform(get("/api/v1/me/seed-money").header("Authorization", "Bearer " + token))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.startedOn").isEmpty())
+			.andExpect(jsonPath("$.entries.length()").value(4))
+			.andExpect(jsonPath("$.entries[1].choice").value("EXTRA"))
+			.andExpect(jsonPath("$.entries[1].cycleEnd").value("2026-11-08"))
+			.andExpect(jsonPath("$.entries[1].totalAfter").value(1_000_000))
+			.andExpect(jsonPath("$.entries[2].cycleEnd").value("2026-11-08"))
+			.andExpect(jsonPath("$.entries[2].totalAfter").value(1_100_000))
+			.andExpect(jsonPath("$.entries[3].totalAfter").value(1_300_000));
+	}
+
 	/** 웹에 다시 들어오지 않아도 매일 확인에서 앱 해제를 알아 웹 연동 정보를 지운다. 다른 회원의 연동과 앱 장애는 그대로 둔다. */
 	@Test
 	void dailyRecheckRemovesLinksUnlinkedInApp() throws Exception {

@@ -4307,7 +4307,7 @@ export interface components {
             /** Format: date */
             cycleEnd: string;
             /** @enum {string} */
-            choice: "GOAL" | "ALL" | "MANUAL";
+            choice: "GOAL" | "ALL" | "MANUAL" | "EXTRA";
             /** Format: int64 */
             amount: number;
             /** Format: int64 */
@@ -4379,7 +4379,7 @@ export interface components {
                     /** Format: date */
                     cycleEnd: string;
                     /** @enum {string} */
-                    choice: "GOAL" | "ALL" | "MANUAL";
+                    choice: "GOAL" | "ALL" | "MANUAL" | "EXTRA";
                     /** Format: int64 */
                     amount: number | null;
                     /** Format: date-time */

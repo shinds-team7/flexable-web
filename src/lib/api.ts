@@ -45,6 +45,13 @@ export const setUnauthorizedHandler = (fn: (() => void) | null) => {
   onUnauthorized = fn;
 };
 
+export type ApiErrorInfo = { method: string; path: string; status: number; code: string; message: string };
+let onApiError: ((e: ApiErrorInfo) => void) | null = null;
+/** 4xx·5xx 응답을 받으면 알려 준다(오류 기록용, errorReport.ts가 등록). 리스너가 던져도 요청 흐름에 영향이 없다. */
+export const setApiErrorListener = (fn: ((e: ApiErrorInfo) => void) | null) => {
+  onApiError = fn;
+};
+
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, headers, ...rest } = init;
   const token = tokenStore.get();
@@ -63,12 +70,24 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const { code, message, ...details } = body && typeof body === 'object' ? body : ({} as Record<string, unknown>);
-    throw new ApiError(
+    const apiError = new ApiError(
       res.status,
       typeof code === 'string' ? code : 'UNKNOWN',
       typeof message === 'string' ? message : '요청을 처리하지 못했어요',
       details,
     );
+    try {
+      onApiError?.({
+        method: (rest.method ?? 'GET').toUpperCase(),
+        path,
+        status: apiError.status,
+        code: apiError.code,
+        message: apiError.message,
+      });
+    } catch {
+      /* 오류 기록이 요청을 막지 않는다 */
+    }
+    throw apiError;
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

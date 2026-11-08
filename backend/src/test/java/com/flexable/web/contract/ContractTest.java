@@ -108,7 +108,16 @@ class ContractTest {
                     cma ? "AGREED" : "VARIABLE_DEPOSIT", "금액·기간 조건 원문", null, null, null, null, null,
                     "테스트 공시", "https://example.com/source", LocalDate.of(2026, 11, 1), null,
                     OffsetDateTime.parse("2026-11-04T09:00:00+09:00"))));
-            try { call(get("/api/v1/" + kind + "/products"), 200); }
+            try {
+                call(get("/api/v1/" + kind + "/products"), 200);
+                if (!cma) {
+                    String id = cashCatalog.list(kind).items().getFirst().id();
+                    String body = "{\"productId\":\"%s\",\"amount\":10000000,\"days\":31}";
+                    call(json(post("/api/v1/parking/simulate"), body.formatted(id)), 200);
+                    call(json(post("/api/v1/parking/simulate"), body.formatted("no-such-product")), 404);
+                    call(json(post("/api/v1/parking/simulate"), body.formatted(id).replace("31", "0")), 400);
+                }
+            }
             finally { cashCatalog.withdraw(kind, "contract-test"); }
         }
     }
@@ -377,6 +386,9 @@ class ContractTest {
 		call(json(post("/api/v1/youth-news/" + viewedId + "/views"), "{\"viewerId\":\"nope\"}"), 400);
 		call(json(post("/api/v1/youth-news/999999/views"), viewBody), 404);
 		call(get("/api/v1/youth-news/hot"), 200);
+		// 브라우저 오류 기록: 형식이 맞으면 204(한도를 넘어도), 아니면 400
+		call(json(post("/api/v1/client-errors"), "{\"kind\":\"API\",\"message\":\"x\",\"status\":500,\"method\":\"GET\",\"path\":\"/api/v1/a/1\",\"code\":\"UNKNOWN\",\"screen\":\"/home\",\"appVersion\":\"1.0.0\"}"), 204);
+		call(json(post("/api/v1/client-errors"), "{\"kind\":\"SERVER\",\"message\":\"x\"}"), 400);
 	}
 
 	/** 목 서버(npm run mock:api)가 돌려주는 응답 example도 스펙에 맞아야 한다. 경로 변수가 없는 GET·PUT·POST의 200만 본다. */

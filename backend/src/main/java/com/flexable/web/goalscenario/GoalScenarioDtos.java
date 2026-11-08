@@ -18,7 +18,15 @@ final class GoalScenarioDtos {
 	record Item(String code, String name, String company) {
 	}
 
-	record Product(ProductType type, List<Item> items, String ratePercent, boolean isSample) {
+	/** 계산에 쓰지 않고 함께 보여 주는 같은 유형의 상품(policies §7-2). ratePercent는 적금만 있다. */
+	record Alternative(String code, String name, String company, String ratePercent) {
+	}
+
+	/** alternatives가 없는 이전 저장본도 빈 목록으로 읽는다. */
+	record Product(ProductType type, List<Item> items, String ratePercent, boolean isSample, List<Alternative> alternatives) {
+		Product {
+			alternatives = alternatives == null ? List.of() : alternatives;
+		}
 	}
 
 	record MixItem(ProductType type, int ratioPercent, Long monthly) {

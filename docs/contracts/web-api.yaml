@@ -30,6 +30,8 @@ tags:
   - name: deposit
     description: '정기예금 비교(#140). 로그인 없이 쓴다. finlife 정기예금 공시를 DB에서 읽고 만기 금액은 서버가 계산(내림). 적금(savings)과 같은 모양이고 매달 넣는 돈 대신 한 번에 맡기는 금액을 쓴다'
   - name: youth-news
+  - name: client-errors
+    description: '브라우저 오류 기록(error_events). 로그인 없이 보낼 수 있고 서버가 저장 전에 가린다. 30일 보관'
   - name: health
 
 paths:
@@ -47,6 +49,62 @@ paths:
               schema: { $ref: '#/components/schemas/CashCatalogList' }
   /cma/products:
     get: *cashCatalogList
+  /cma/simulate:
+    post:
+      tags: [deposit]
+      summary: 'CMA 예상 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림, 재투자 미반영)'
+      description: |
+        policies §12(규칙 cma-calc-v1). 공시 약정수익률이 하나인 상품(AGREED_RATE)과 원문에 보유 기간별 수익률이 적힌 상품(PERIOD_RATE)만 계산한다. 수익률이 유지된다고 가정한 예상이며 재투자(복리)는 반영하지 않는다. 원금 손실 가능성과 예금자보호 여부는 `notice`와 목록의 `depositProtected`로 보인다.
+        목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유). PERIOD_RATE에서 일수가 마지막 구간을 넘으면 400(`fields.days`). 없는 상품은 404.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [productId, amount, days]
+              properties:
+                productId: { type: string, minLength: 1, description: '`/cma/products`의 상품 id' }
+                amount: { type: integer, format: int64, minimum: 1, maximum: 10000000000, description: '맡긴 돈(원)' }
+                days: { type: integer, minimum: 1, maximum: 3650, description: '맡기는 일수' }
+      responses:
+        '200':
+          description: 계산 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CmaSimulation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /parking/simulate:
+    post:
+      tags: [deposit]
+      summary: '파킹통장 기본금리 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림)'
+      description: |
+        policies §11(규칙 parking-calc-v2). 공시 기본금리 하나(BASE_RATE) 또는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리(TIERED)로 계산한다. 우대·이벤트는 넣지 않는다.
+        목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유)이다. 없는 상품은 404.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [productId, amount, days]
+              properties:
+                productId: { type: string, minLength: 1, description: '`/parking/products`의 상품 id' }
+                amount: { type: integer, format: int64, minimum: 1, maximum: 10000000000, description: '맡긴 돈(원)' }
+                days: { type: integer, minimum: 1, maximum: 3650, description: '맡기는 일수' }
+      responses:
+        '200':
+          description: 계산 결과
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParkingSimulation' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /practice/categories:
     get:
       tags: [practice]
@@ -851,7 +909,7 @@ paths:
                 years: { type: integer, enum: [1, 2, 3] }
       responses:
         '200':
-          description: 시나리오 2~3개
+          description: 시나리오 3개
           content:
             application/json:
               schema: { $ref: '#/components/schemas/GoalScenarioResult' }
@@ -1262,7 +1320,7 @@ paths:
   /savings/policy/{code}:
     get:
       tags: [savings]
-      summary: 정책 적금(청년미래적금) 규칙과 확인 상태. 승인 전 초안(policies §9)이라 verificationStatus는 UNVERIFIED
+      summary: 정책 적금(청년미래적금) 규칙과 확인 상태. 구현됨(policies §9). 일수 기준·기여금 입금일 가정이 공식 확인 전이라 verificationStatus는 UNVERIFIED
       parameters:
         - { name: code, in: path, required: true, schema: { type: string, enum: [YOUTH_FUTURE] } }
       responses:
@@ -1523,6 +1581,39 @@ paths:
         '204': { description: 셈 }
         '400': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+
+  /client-errors:
+    post:
+      tags: [client-errors]
+      summary: '브라우저가 겪은 오류를 서버 오류 기록(error_events)에 남긴다'
+      description: |
+        - 로그인 없이 보낼 수 있다. 유효한 Bearer 토큰이 있으면 회원 번호를 함께 남기고, 만료·폐기된 토큰이면 401이다(화면은 토큰 없이 한 번 더 보낸다).
+        - 형식이 맞으면 한도를 넘어 버려도 204이다. 보낸 사람(회원 번호, 비로그인이면 접속 IP)마다 10분에 30건까지만 저장하고, 하루 새 줄은 500개까지이다.
+        - 서버가 저장 전에 메시지의 3자리 이상 숫자는 `#`, 이메일은 `***@***`로 가리고 경로의 쿼리를 버린다. 요청·응답 본문은 받지 않는다. 30일 뒤 지우고 탈퇴하면 그 회원 기록도 지운다.
+        - 이 요청 자체의 실패는 다시 기록하지 않는다.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, message]
+              properties:
+                kind: { type: string, enum: [API, CRASH, JS], description: 'API 요청 실패, CRASH 화면 오류 경계, JS 처리 못 한 브라우저 오류' }
+                message: { type: string, maxLength: 2000 }
+                stack: { type: string, maxLength: 8000, nullable: true }
+                screen: { type: string, maxLength: 100, nullable: true, description: '화면 경로(쿼리 없음)' }
+                method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE], nullable: true }
+                path: { type: string, maxLength: 300, nullable: true, description: 'API 경로(쿼리 없음)' }
+                status: { type: integer, minimum: 0, maximum: 599, nullable: true }
+                code: { type: string, maxLength: 40, nullable: true }
+                appVersion: { type: string, maxLength: 20, nullable: true, description: '웹 빌드 버전' }
+      responses:
+        '204': { description: 받음(한도를 넘어 저장하지 않았어도 204) }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
 
   /health:
     get:
@@ -2155,7 +2246,7 @@ components:
       description: 'SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2'
     GoalScenarioProduct:
       type: object
-      required: [type, items, ratePercent, isSample]
+      required: [type, items, ratePercent, isSample, alternatives]
       additionalProperties: false
       properties:
         type: { $ref: '#/components/schemas/GoalScenarioProductType' }
@@ -2173,6 +2264,19 @@ components:
               company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
         ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
         isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
+        alternatives:
+          type: array
+          maxItems: 2
+          description: '함께 볼 상품(policies §7-2). 금액 계산에 쓰지 않는다. 적금·지수 ETF만 있고 CMA·KOSPI_TOP5와 #309 이전 저장본은 빈 배열'
+          items:
+            type: object
+            required: [code, name, company, ratePercent]
+            additionalProperties: false
+            properties:
+              code: { type: string, description: '종목 코드 또는 적금 상품 id' }
+              name: { type: string }
+              company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
+              ratePercent: { type: string, nullable: true, description: '적금 기본금리(예: "3.20"). 지수 ETF는 null' }
     GoalScenarioResult:
       type: object
       required: [resultId, name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
@@ -2197,7 +2301,7 @@ components:
           items: { $ref: '#/components/schemas/GoalScenarioProduct' }
         scenarios:
           type: array
-          minItems: 2
+          minItems: 3
           maxItems: 3
           items: { $ref: '#/components/schemas/GoalScenario' }
         assumptions: { type: array, items: { type: string }, description: '세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정' }
@@ -2348,7 +2452,7 @@ components:
       additionalProperties: false
       properties:
         cycleEnd: { type: string, format: date }
-        choice: { type: string, enum: [GOAL, ALL, MANUAL] }
+        choice: { type: string, enum: [GOAL, ALL, MANUAL, EXTRA] }
         amount: { type: integer, format: int64 }
         totalAfter: { type: integer, format: int64 }
         createdAt: { type: string, format: date-time, nullable: true }
@@ -2431,7 +2535,7 @@ components:
               additionalProperties: false
               properties:
                 cycleEnd: { type: string, format: date }
-                choice: { type: string, enum: [GOAL, ALL, MANUAL] }
+                choice: { type: string, enum: [GOAL, ALL, MANUAL, EXTRA] }
                 amount: { type: integer, format: int64, nullable: true }
                 createdAt: { type: string, format: date-time, nullable: true }
             updatedAt: { type: string, format: date-time, nullable: true }
@@ -2941,7 +3045,7 @@ components:
     CashCatalogProduct:
       type: object
       additionalProperties: false
-      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
+      required: [id, company, name, sector, category, baseRate, maxRate, rateType, conditions, tags, calculable, calcReason, calcMode, tiers, periods, interestPayment, reinvestment, depositProtected, maxLimit, rateLimit, sourceName, sourceUrl, sourceAsOf, effectiveFrom, verifiedAt]
       properties:
         id: { type: string, minLength: 1 }
         company: { type: string, minLength: 1 }
@@ -2952,6 +3056,38 @@ components:
         maxRate: { type: number, minimum: 0, nullable: true, description: '공시 연 %, 세전. 우대조건 충족 여부를 판정하지 않는다' }
         rateType: { type: string, enum: [VARIABLE_DEPOSIT, AGREED], description: '파킹은 변동 예금금리, CMA는 약정수익률. 미래 수익 보장 아님' }
         conditions: { type: string, description: '금액·기간 구간과 우대조건 등 공시 조건 원문. 전체 잔액 적용인지 구간별 적용인지 생략하지 않는다' }
+        tags:
+          type: array
+          description: '상품명·조건 원문에 정해 둔 낱말이 있으면 붙는 분류(policies §10, 규칙 cash-tags-v1). 낱말이 있다는 뜻일 뿐 가입 자격이나 우대 적용을 판정하지 않는다'
+          items: { type: string, enum: [YOUTH, MILITARY, NON_FACE_TO_FACE, SALARY_LINK, AUTO_TRANSFER, CARD_USE] }
+        calculable: { type: boolean, description: '파킹통장 기본금리 이자 계산을 제공하는 상품인지(policies §11 parking-calc-v1). CMA는 항상 false' }
+        calcReason: { type: string, nullable: true, description: 'calculable이 false일 때 이유(사용자에게 그대로 보여 준다). true면 null' }
+        calcMode:
+          type: string
+          nullable: true
+          enum: [BASE_RATE, TIERED, AGREED_RATE, PERIOD_RATE, null]
+          description: '파킹: BASE_RATE는 공시 기본금리 하나로, TIERED는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리로 계산(policies §11 parking-calc-v2). CMA: AGREED_RATE는 약정수익률 하나, PERIOD_RATE는 보유 기간별 수익률(policies §12 cma-calc-v1). 계산 불가면 null'
+        tiers:
+          type: array
+          description: 'calcMode가 TIERED일 때 원문에서 읽은 구간(위로 올라가는 순서). 아니면 빈 배열'
+          items:
+            type: object
+            additionalProperties: false
+            required: [upTo, rate]
+            properties:
+              upTo: { type: integer, format: int64, nullable: true, description: '이 구간의 끝 금액(원). null이면 그 위 전부' }
+              rate: { type: number, description: '그 구간 안의 금액에 적용하는 공시 연 %, 세전' }
+        periods:
+          type: array
+          description: 'calcMode가 PERIOD_RATE일 때 원문에서 읽은 보유 기간별 수익률(1일부터 이어짐). 아니면 빈 배열'
+          items:
+            type: object
+            additionalProperties: false
+            required: [fromDay, toDay, rate]
+            properties:
+              fromDay: { type: integer, minimum: 1 }
+              toDay: { type: integer, minimum: 1 }
+              rate: { type: number, description: '그 기간 동안 보유할 때의 약정수익률(연 %, 세전)' }
         interestPayment: { type: string, nullable: true }
         reinvestment: { type: string, nullable: true }
         depositProtected: { type: boolean, nullable: true }
@@ -2962,6 +3098,47 @@ components:
         sourceAsOf: { type: string, format: date, nullable: true, description: '공시 기준일. 수집일로 대체하지 않음' }
         effectiveFrom: { type: string, format: date, nullable: true }
         verifiedAt: { type: string, format: date-time, description: '출처·형식·조건 검증 시각(+09:00)' }
+    CmaSimulation:
+      type: object
+      additionalProperties: false
+      required: [productId, amount, days, mode, rate, interestPreTax, tax, interestAfterTax, rulesVersion, notice]
+      properties:
+        productId: { type: string }
+        amount: { type: integer, format: int64 }
+        days: { type: integer }
+        mode: { type: string, enum: [AGREED_RATE, PERIOD_RATE] }
+        rate: { type: number, description: '계산에 쓴 약정수익률(연 %, 세전). PERIOD_RATE는 days가 속한 기간의 값' }
+        interestPreTax: { type: integer, format: int64, description: 'floor(amount × rate × days ÷ 36500)' }
+        tax: { type: integer, format: int64, description: 'floor(interestPreTax × 0.154)' }
+        interestAfterTax: { type: integer, format: int64 }
+        rulesVersion: { type: string, example: cma-calc-v1 }
+        notice: { type: string }
+    ParkingSimulation:
+      type: object
+      additionalProperties: false
+      required: [productId, amount, days, mode, baseRate, parts, interestPreTax, tax, interestAfterTax, rulesVersion, notice]
+      properties:
+        productId: { type: string }
+        amount: { type: integer, format: int64 }
+        days: { type: integer }
+        mode: { type: string, enum: [BASE_RATE, TIERED] }
+        baseRate: { type: number, nullable: true, description: 'BASE_RATE일 때 계산에 쓴 공시 기본금리(연 %, 세전). TIERED면 null' }
+        parts:
+          type: array
+          description: 'TIERED일 때 구간별로 들어간 금액. 합이 amount와 같다. BASE_RATE면 빈 배열'
+          items:
+            type: object
+            additionalProperties: false
+            required: [upTo, rate, amount]
+            properties:
+              upTo: { type: integer, format: int64, nullable: true }
+              rate: { type: number }
+              amount: { type: integer, format: int64 }
+        interestPreTax: { type: integer, format: int64, description: 'floor(amount × baseRate × days ÷ 36500). TIERED는 floor(Σ 구간 금액 × 구간 금리 × days ÷ 36500)' }
+        tax: { type: integer, format: int64, description: 'floor(interestPreTax × 0.154)' }
+        interestAfterTax: { type: integer, format: int64 }
+        rulesVersion: { type: string, example: parking-calc-v2 }
+        notice: { type: string }
     SavingsSector: { type: string, enum: [BANK, SAVINGS_BANK] }
     SavingsResult:
       type: object

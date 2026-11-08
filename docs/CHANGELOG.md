@@ -4,9 +4,46 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-11-08
+
+- [#PR, Closes #308] 가상 시뮬레이션 대회 점수를 100점 단위로 바꿨다(사용자 결정, [결정 기록](decisions/2026-11-05-virtual-sim-contest.md) 4-2·4-4·"변경 기록 11-06 #308"): 하루 +100·0·−100, 주 ≥ +400 승급·≤ −400 강등. 판 점수·주 점수·4주차 기록(`finalWeek`)은 하루 점수의 합이라 함께 바뀌고 판정 조건·결과는 그대로다. policies §8-8 본문·예시, `virtual-contest.json` `weeklyPromoteAt`·`weeklyDemoteAt`·`dailyScore`·`weekly`·`ranking`, 계약 `VirtualContestRules`·`VirtualContestEntry` 설명과 `scoredDays[].points` 범위(−100~100), V32(저장된 점수 ×100, 다시 돌려도 같음). 배치고사 화면: 푸는 동안 대회 배너·문제 번호 이동·[다음 문제]·[지금 제출하기]·[나중에 이어 풀기] 없음, 답을 고르면 다음 문제로, 결과는 맨 위에서 시작·[대회 화면으로]를 요약 아래로·결과 문제마다 회사·날짜·공시 주요 내용·5거래일 움직임을 이은 공시 줄글(`disclosureStory.ts`, 문제 화면은 회사·날짜·움직임을 뺀 줄글). 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [결정] 은행 로고 이미지는 사용 허락을 구하지 않고 쓰지 않는다(`BankBadge.tsx`의 `LOGOS` 자리 삭제, 글자 아이콘만). 제주은행 구간 금리 적용 방식의 고객센터 서면 확인도 하지 않고, 해당 상품은 계속 계산하지 않는다([정책 §11](policies.md)) — 영향: 프론트·문서
+- [Refs #338] 웹 오류 기록 테이블 `error_events`(V31)와 `POST /client-errors`를 추가했다([결정](decisions/2026-11-08-error-events.md), [보는 법](error-logs.md)). 서버 500·브라우저 오류·API 4xx/5xx를 저장 전에 가려 같은 날 같은 오류는 한 줄로 묶고 30일 보관·탈퇴 삭제. 개인정보처리방침 제2조·제4조와 변경 이력(11-08 시행), `privacy-web.md` 0-9를 더했다 — 영향: 프론트(`npm run gen:api`)·백엔드·문서
+- [Closes #336] 앱 연동 시드머니 기록의 `choice`에 `EXTRA`(앱에서 지금 예산에서 바로 옮긴 돈, 앱 #225)를 더했다. `SeedEntry`·`AppLinkSeedMoney.lastEntry`의 `choice` enum이 `GOAL·ALL·MANUAL·EXTRA`가 되고, `cycleEnd`는 EXTRA일 때 옮긴 날짜라 같은 날 여러 번 올 수 있다(고유 키로 쓰지 않음). 앱 계약 사본 `vendor/web-link-api.yaml`을 앱 `main`과 맞췄다 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [Refs #247] 신한 명품 CMA RP를 CMA 계산 대상으로 옮겼다([정책 §12](policies.md)). 신한 공개 응답에서 "1- 27일"과 "28일" 수익률이 둘 다 2.45%임을 확인해, 모든 기간의 수익률이 같으면 하나의 약정수익률로 계산하고 "적용금액" 최소 금액 줄은 금액 구간으로 보지 않는다. 15개 중 계산 가능 13개. 공개 API·계약 변경 없음 — 영향: 백엔드·문서
+- [Refs #247] CMA 계산 불가 상품은 파킹의 20% 감춤 규칙을 적용하지 않고 이유를 안내하며 목록에 그대로 두기로 확정했다([정책 §12](policies.md), 리드 결정) — 영향: 문서
+- [Issue 없음] `docs/product/HANDOFF.md`만 고치는 변경(끝난 항목 삭제, 진행·배포·확인 결과 적기)은 PR 없이 `main`에 바로 커밋·push. 다른 파일이 섞이면 PR. `AGENTS.md` "작업 완료 시", 앱 저장소 PR #296과 같은 방식 — 영향: 작업 방식
+- [Refs #247] CMA 예상 이자 계산을 정했다·구현했다([정책 §12](policies.md) `cma-calc-v1`, [결정](decisions/2026-11-08-cma-calc-proposal.md)). 계약: `POST /cma/simulate`와 `CmaSimulation` 추가, `CashCatalogProduct`에 `periods` 필수 필드 추가, `calcMode`에 `AGREED_RATE`·`PERIOD_RATE` 추가(CMA도 이제 계산 가능 상품이 있음). 약정수익률이 하나인 상품과 원문에 보유 기간별 표가 있는 상품만 계산하고 재투자는 반영하지 않는다. 신한·한화·우리WON은 계산하지 않고 이유를 보인다 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [Refs #247] CMA 예상 이자 계산 범위를 결정했다([결정](decisions/2026-11-08-cma-calc-proposal.md), 리드 승인): 단일 약정수익률 11개를 1단계로, 유진 자산관리형 보유 기간별 금리를 2단계로, 한화·우리WON·신한(원문 확인 전)은 제외, 재투자는 반영하지 않고 세금 15.4%. 정책·계약은 구현 PR에서 추가한다 — 영향: 문서
+- [HANDOFF] 키움·카카오페이증권·토스증권·케이프 탐색 결과와 CMA 계산 제안(#330, 미승인) 위치를 기록했다 — 영향: 문서
+- [HANDOFF] 파킹 계산 2단계(#327)·판정 정밀도(#328) 결과와 남은 일을 기록했다 — 영향: 문서
+- [Refs #247] 파킹통장 계산 가능 판정의 오탐을 줄였다([정책 §11](policies.md)). 우대 실적·수수료 면제 같은 조건 줄의 "N원 이상"·평균잔액과 "금액구간에따른제한없음"은 금리 구간으로 보지 않고, 예치 기간별 이율 문구는 막는다. 실제 217개 중 계산 가능 119→128개(59.0%). 규칙 버전·공개 계약 변경 없음 — 영향: 백엔드·문서
+- [Refs #247] 파킹통장 이자 계산 2단계를 정했다·구현했다([정책 §11](policies.md) `parking-calc-v2`). 원문에 "초과분" 낱말이나 "예시 … 적용" 문장이 있고 구간이 빈틈없이 이어지는 상품만 구간 안의 금액에 구간 금리를 적용해 계산한다(실제 17개 추가, 계산 가능 119개). 계약: `CashCatalogProduct`에 `calcMode`·`tiers` 필수 필드, `ParkingSimulation`에 `mode`·`parts` 필수 필드 추가, `baseRate`는 nullable — 영향: 프론트(`npm run gen:api`)·백엔드
+- [HANDOFF] 파킹 계산 1단계(#324)·제주 보완(#325) 병합과 화면 확인 범위, 제주 남은 항목을 기록했다 — 영향: 문서
+- [Refs #245, #247] 제주은행 상세에서 "이벤트 우대금리"(기간·금액 구간·금리)와 "이자지급시기"를 읽어 조건·지급 정보에 넣었다([커버리지 결정](decisions/2026-11-04-cash-coverage.md) 제주 행). 달리자의 이벤트 3.30%·종료일과 탐나는전의 지급일이 빠져 `maxRate`와 조건이 맞지 않던 문제를 줄인다. 공개 API·계약 변경 없음 — 영향: 백엔드 수집·문서
+- [Closes-part #247] 파킹통장 기본금리 이자 계산 1단계를 정했다·구현했다([정책 §11](policies.md), [결정](decisions/2026-11-07-parking-calc-scope-proposal.md)). 계약: `POST /parking/simulate`와 `ParkingSimulation` 추가, `CashCatalogProduct`에 `calculable`·`calcReason` 필수 필드 추가(CMA는 항상 false). 일 단위 ÷365·세금 15.4% 내림, 금액 구간·최고금리 제한 문구가 있는 상품은 계산하지 않고 이유를 보인다(실제 217개 중 102개 계산 가능). 우대·이벤트·구간 금리는 넣지 않는다 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [HANDOFF] 11-08 진행 결과(CMA 3곳 추가, 계산·범위 결정, 연결 못 한 후보와 이유, 다음 작업)를 기록했다 — 영향: 문서
+- [Refs #245] 외부 검토 문서의 수집 정책 수정안을 코드와 대조해 판정했다([결정](decisions/2026-11-08-cash-collection-policy-review.md)). robots 평가(자기 봇 그룹·Allow·긴 경로 우선)와 오류 구분은 이미 구현돼 있어 유지하고, 리다이렉트 추적·부분 반영·특판 레이어는 보류(계약 변경·보안 검토 필요), 기준일과 조회일을 섞지 않는 원칙을 확정했다. 코드·계약 변경 없음 — 영향: 문서
+- [Refs #245] CMA 범위 확대를 결정했다([결정](decisions/2026-11-07-cma-scope-expansion-proposal.md)): ISA 제외, MMF·MMW(실적배당) 제외, 종금형은 확인된 상품부터, 문법 오류 robots는 규칙 없음으로 읽고 이유를 남긴다. 교보·우리투자·다올 3곳을 연결했다. 정책·계약 변경 없음 — 영향: 문서
+- [Refs #247] 파킹통장 금액별 계산 범위를 결정했다([결정](decisions/2026-11-07-parking-calc-scope-proposal.md)): 1단계는 기본금리로 일 단위(잔액×연이율×일수÷365, 내림) 계산, 계산 불가가 전체의 20% 이하면 목록에서 감추되 1단계는 약 45.6%라 버튼만 막는다, 2단계는 원문에 초과분 적용이 적힌 상품만(제주은행은 약관 확인 전 제외). 정책(§)·계약·코드는 구현 PR에서 추가한다 — 영향: 문서
+- [Refs #245] 다올투자증권 CMA(RP형) 1개를 공식 안내 화면이 부르는 공개 조회에서 수집하도록 추가했다([커버리지 결정](decisions/2026-11-04-cash-coverage.md), CMA 기대 합계 14→15). robots 허용, 수익률과 기준일 두 값만 읽는다. 공개 API·계약 변경 없음 — 영향: 백엔드 수집·문서
+
+- [Refs #245] 우리투자증권 우리WON CMA Note(발행어음형) 1개를 공식 안내 페이지에서 수집하도록 추가했다([커버리지 결정](decisions/2026-11-04-cash-coverage.md), CMA 기대 합계 13→14). 기준일이 있는 잔액별 이자율 표만 읽고 상단 최고금리 문구는 쓰지 않는다. 공개 API·계약 변경 없음 — 영향: 백엔드 수집·문서
+
+- [Refs #245] 교보증권 PLUS α CMA(RP형) 1개를 공식 안내 페이지에서 수집하도록 추가했다([커버리지 결정](decisions/2026-11-04-cash-coverage.md) 표 갱신, CMA 기대 합계 12→13). robots 허용·HTTP 200을 확인한 안내 페이지의 수익률 한 줄만 읽고 구조가 바뀌면 기존 스냅샷을 유지한다. 공개 API·계약 변경 없음 — 영향: 백엔드 수집·문서
+
+## 2026-11-07
+
+- [Refs #245] HANDOFF에 #245 남은 항목(미연결 기관·부산 F9999·미래에셋 발행어음)의 막힌 이유와 재확인 조건 표를 더했다. 기존 결정 문서의 관측을 모았으며 정책·계약·코드 변경 없음 — 영향: 문서
+
+- [HANDOFF] 웹 서버 읽기 전용 확인(#246 파킹 217·CMA 12·예금 432 점검 통과, #198 조건 필드 수집 확인)을 기록하고, 앞서 "401"이라 적은 관측이 앱 서버에 요청한 결과였음을 정정했다 — 영향: 문서
+- [Refs #297] 파킹·CMA 상품에 분류 `tags`를 더했다([결정](decisions/2026-11-07-cash-tags.md), 리드 승인, policies §10, `tests/policy/cash-tags.json`): 서버가 상품명·공시 조건 원문의 낱말(청년·군인·비대면·급여·자동이체·카드, 실제 목록에서 오탐뿐인 특판은 뺌)로 조회 때마다 계산하고, 판정이 아니라 "원문에 이 문구가 있다"는 뜻이다. 계약 `CashCatalogProduct.tags`(필수 배열), 화면은 유형·우대조건 칩 필터를 더한다. 로고는 허락 전이라 그대로, DB·개인정보 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [Closes #113] 청년미래적금 서버 계산을 구현했다(리드가 policies §9 규칙과 가정 2건을 그대로 승인, [결정](decisions/2026-11-06-youth-future-savings-rules.md)): 백엔드 `policysavings`(`GET /savings/policy/{code}`·`POST …/simulate`, 입금건별 예치일수 이자·기여금 기본금리 이자·비과세), `tests/policy/policy-savings.json` `IMPLEMENTED`와 `PolicySavingsPolicyTest`. 화면은 고정 예시(월 78,000원·2.9%)를 지우고 가입일·기본금리·우대금리를 입력받아 서버 값을 보인다. 응답은 계속 `UNVERIFIED`이고 평균 적금 비교는 출처가 없어 null이다. 계약 필드는 바뀌지 않고 설명만 고쳤다. 저장하는 정보가 없어 방침 영향 없음 — 영향: 프론트·백엔드
+
 ## 2026-11-06
 
-- [#PR, Closes #308] 가상 시뮬레이션 대회 점수를 100점 단위로 바꿨다(사용자 결정, [결정 기록](decisions/2026-11-05-virtual-sim-contest.md) 4-2·4-4·"변경 기록 11-06 #308"): 하루 +100·0·−100, 주 ≥ +400 승급·≤ −400 강등. 판 점수·주 점수·4주차 기록(`finalWeek`)은 하루 점수의 합이라 함께 바뀌고 판정 조건·결과는 그대로다. policies §8-8 본문·예시, `virtual-contest.json` `weeklyPromoteAt`·`weeklyDemoteAt`·`dailyScore`·`weekly`·`ranking`, 계약 `VirtualContestRules`·`VirtualContestEntry` 설명과 `scoredDays[].points` 범위(−100~100), V31(저장된 점수 ×100, 다시 돌려도 같음). 배치고사 화면: 푸는 동안 대회 배너·문제 번호 이동·[다음 문제]·[지금 제출하기]·[나중에 이어 풀기] 없음, 답을 고르면 다음 문제로, 결과는 맨 위에서 시작·[대회 화면으로]를 요약 아래로·결과 문제마다 회사·날짜·공시 주요 내용·5거래일 움직임을 이은 공시 줄글(`disclosureStory.ts`, 문제 화면은 회사·날짜·움직임을 뺀 줄글). 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [HANDOFF] 11-07 최신 상태(#300~#310 병합, #298 `PROPOSED` 병합, 신규 이슈 #301·#307·#308)를 기록했다 — 영향: 문서
+- [#310, Closes #309] 목표 시나리오 3개 고정·유형별 해설·함께 볼 상품(policies §7-2·§7-6, 결정 문서 "11-06 시나리오 3개·유형별 해설·함께 볼 상품"): 프롬프트 goal-scenario-v7, 계약 `GoalScenarioProduct.alternatives` 추가·`scenarios` 3개, 적금·지수 ETF의 다음 순위 최대 2개를 표시·AI 근거로만 사용(계산은 1순위 그대로), 토큰 상한 6000·호출 제한 90초·nginx 100초, §7-6의 이전 시간 표기 정정. 테마 추천과 미래 예측은 넣지 않음 — 영향: 프론트(`npm run gen:api`)·백엔드·운영(nginx 설정 반영)
 - [#306] 가상 시뮬레이션 대회 주를 1~7일, 8~14일, 15~21일, **22일~말일** 네 개로 바꾸고, 4주차는 대회 마지막 날 판정해 결과만 기록한다(보너스 주, 판·잔액·판 점수·최고 판·최종 순위는 그대로, [결정](decisions/2026-11-06-contest-final-week.md), 사용자 결정). policies §8-8 "주간 판정"·"월말 정산"·예시, `virtual-contest.json` `rules.weeks`·`weekly`(`finalWeek`·`judged`), 계약 `VirtualContest.weeks` 4개·`VirtualContestEntry.week.week` 최대 4·`VirtualContestResult.finalWeek` 추가. 화면 규칙·주별 일정·이번 주 점수·지난 대회 카드 문구. DB·개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Refs #302] 청년소식은 검사에 통과한 AI 요약 완료 후 공개·신규 저장한다([결정](decisions/2026-11-06-news-summary-required.md)). 원문 수집과 기존 저장 사본은 보존하며 미요약·실패 소식은 공개 목록·인기 소식·열람 집계에서 제외한다. 계약 `summary`를 비어 있지 않은 문자열로 변경. 구현은 후속 PR — 영향: 프론트·백엔드
 

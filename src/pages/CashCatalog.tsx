@@ -1,16 +1,26 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { ProductTabs } from '@/components/ProductTabs';
 import { BankBadge, shortBankName } from '@/components/BankBadge';
 import { SelectedBar } from '@/components/CompareFilters';
 import { Icon } from '@/components/Icons';
 import { api, errorText } from '@/lib/api';
+import { won } from '@/lib/format';
 import type { components } from '@/lib/api-schema';
 import '@/styles/cash-catalog.css';
 
 type Product = components['schemas']['CashCatalogProduct'];
 type Catalog = components['schemas']['CashCatalogList'];
+type ParkingSim = components['schemas']['ParkingSimulation'];
+type Sim = ParkingSim | components['schemas']['CmaSimulation'];
 type Kind = 'parking' | 'cma';
+type Tag = Product['tags'][number];
+// 상품명·공시 조건 원문에 이 문구가 있다는 뜻이다(policies §10). 가입 자격이나 우대 적용을 판정하지 않는다
+const TAG_GROUPS: { title: string; tags: { id: Tag; label: string }[] }[] = [
+  { title: '상품 유형', tags: [{ id: 'YOUTH', label: '청년' }, { id: 'MILITARY', label: '군인' }] },
+  { title: '우대조건·가입 방식', tags: [{ id: 'NON_FACE_TO_FACE', label: '비대면 가입' }, { id: 'SALARY_LINK', label: '급여 연동' }, { id: 'AUTO_TRANSFER', label: '자동이체' }, { id: 'CARD_USE', label: '카드 사용' }] },
+];
+const TAG_LABEL = new Map(TAG_GROUPS.flatMap(g => g.tags.map(t => [t.id, t.label] as const)));
 const categoryName = (category: Product['category']) => category === 'RP' ? 'RP형' : category === 'PROMISSORY_NOTE' ? '발행어음형' : '파킹통장';
 const rate = (value: number | null) => value == null ? '미확인' : `${value.toFixed(2)}%`;
 const limit = (value: number | null) => value == null ? '미확인' : `${value.toLocaleString('ko-KR')}원`;
@@ -29,12 +39,50 @@ const rows: { label: string; value: (p: Product) => string }[] = [
   { label: '자료 검증 시각 (한국시간)', value: p => new Date(p.verifiedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) },
 ];
 
+const partLabel = (parts: ParkingSim['parts'], i: number) => {
+  const from = i === 0 ? 0 : parts[i - 1].upTo ?? 0, to = parts[i].upTo;
+  return to == null ? `${won(from)}원 초과` : `${i === 0 ? '' : `${won(from)}원 초과 `}${won(to)}원 이하`.trim();
+};
+const CALC_BASIS: Record<string, string> = { BASE_RATE: '기본금리 기준', TIERED: '구간별 금리 기준', AGREED_RATE: '약정수익률 기준, 재투자 미반영', PERIOD_RATE: '보유 기간별 수익률 기준, 재투자 미반영' };
+// 서버가 계산한다(policies §11·§12). 공시 기본금리만 쓰고 우대·이벤트·금액 구간은 넣지 않는다
+function CashCalc({ product, kind }: { product: Product; kind: Kind }) {
+  const [amount, setAmount] = useState('10000000');
+  const [days, setDays] = useState('30');
+  const calc = useMutation({
+    mutationFn: () => api<Sim>(`/${kind}/simulate`, { method: 'POST', json: { productId: product.id, amount: Number(amount), days: Number(days) } }),
+  });
+  const parts = calc.data && 'parts' in calc.data ? calc.data.parts : [];
+  const valid = /^\d+$/.test(amount) && Number(amount) >= 1 && /^\d+$/.test(days) && Number(days) >= 1;
+  if (!product.calculable) return <p className="cash-calc-off">이자 계산 안내: {product.calcReason}</p>;
+  return <details className="cash-calc"><summary>예상 이자 계산해 보기 ({CALC_BASIS[product.calcMode ?? 'BASE_RATE']})</summary>
+    <form onSubmit={e => { e.preventDefault(); if (valid) calc.mutate(); }}>
+      <label>맡길 돈 (원)<input inputMode="numeric" value={amount ? Number(amount).toLocaleString('ko-KR') : ''} onChange={e => { setAmount(e.target.value.replace(/[^\d]/g, '').slice(0, 11)); calc.reset(); }} /></label>
+      <label>맡기는 기간 (일){product.calcMode === 'PERIOD_RATE' && product.periods.length > 0 && <small>최대 {product.periods[product.periods.length - 1].toDay}일</small>}<input inputMode="numeric" value={days} onChange={e => { setDays(e.target.value.replace(/[^\d]/g, '')); calc.reset(); }} /></label>
+      <button className="btn" type="submit" disabled={!valid || calc.isPending}>계산하기</button>
+    </form>
+    <div role="status" aria-live="polite">
+      {calc.isError && <p className="cash-calc-error">{errorText(calc.error)}</p>}
+      {calc.data && <dl className="cash-calc-result">
+        <div><dt>세전 이자</dt><dd className="num">{won(calc.data.interestPreTax)}원</dd></div>
+        <div><dt>세금 (15.4%)</dt><dd className="num">{won(calc.data.tax)}원</dd></div>
+        <div><dt>세후 이자</dt><dd className="num"><b>{won(calc.data.interestAfterTax)}원</b></dd></div>
+      </dl>}
+      {calc.data && 'rate' in calc.data && <p className="cash-calc-note">적용한 약정수익률 연 {calc.data.rate.toFixed(2)}% (세전)</p>}
+      {parts.length > 0 && <table className="cash-calc-parts"><caption>구간별로 들어간 금액</caption>
+        <thead><tr><th scope="col">구간</th><th scope="col">연 금리</th><th scope="col">들어간 금액</th></tr></thead>
+        <tbody>{parts.map((part, i) => <tr key={i}><th scope="row">{partLabel(parts, i)}</th><td className="num">{part.rate.toFixed(2)}%</td><td className="num">{won(part.amount)}원</td></tr>)}</tbody></table>}
+      {calc.data && <p className="cash-calc-note">{calc.data.notice}</p>}
+    </div>
+  </details>;
+}
+
 export function CashCatalog({ kind }: { kind: Kind }) {
   const [search, setSearch] = useState('');
   const [condition, setCondition] = useState('');
   const [company, setCompany] = useState('');
   const [sector, setSector] = useState('');
   const [category, setCategory] = useState('');
+  const [tags, setTags] = useState<Tag[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const [sort, setSort] = useState('NAME');
@@ -43,7 +91,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
   const companies = [...new Set(all.map(p => p.company))];
   const matches = (text: string, word: string) => text.toLocaleLowerCase('ko-KR').includes(word.trim().toLocaleLowerCase('ko-KR'));
   const visible = all.filter(p => (!company || p.company === company) && (!sector || p.sector === sector)
-    && (!category || p.category === category) && matches(`${p.company} ${p.name}`, search)
+    && (!category || p.category === category) && tags.every(t => p.tags.includes(t)) && matches(`${p.company} ${p.name}`, search)
     && matches([p.conditions, p.interestPayment, p.reinvestment].filter(Boolean).join(' '), condition))
     .sort((a, b) => {
       const field = sort === 'BASE' ? 'baseRate' : 'maxRate';
@@ -57,13 +105,15 @@ export function CashCatalog({ kind }: { kind: Kind }) {
     else setMessage('상품은 최대 3개까지 비교할 수 있어요. 선택한 상품을 먼저 해제해 주세요.');
   };
   const noun = kind === 'parking' ? '파킹통장' : 'CMA';
-  const reset = () => { setSearch(''); setCondition(''); setCompany(''); setSector(''); setCategory(''); };
+  const reset = () => { setSearch(''); setCondition(''); setCompany(''); setSector(''); setCategory(''); setTags([]); };
+  const toggleTag = (t: Tag) => setTags(tags.includes(t) ? tags.filter(x => x !== t) : [...tags, t]);
   const filters = [
     ...(search ? [{ key: 'search', label: search, onRemove: () => setSearch('') }] : []),
     ...(condition ? [{ key: 'condition', label: condition, onRemove: () => setCondition('') }] : []),
     ...(company ? [{ key: 'company', label: company, onRemove: () => setCompany('') }] : []),
     ...(sector ? [{ key: 'sector', label: sector === 'BANK' ? '은행' : '저축은행', onRemove: () => setSector('') }] : []),
     ...(category ? [{ key: 'category', label: category === 'RP' ? 'RP형' : '발행어음형', onRemove: () => setCategory('') }] : []),
+    ...tags.map(t => ({ key: `tag-${t}`, label: `원문에 ${TAG_LABEL.get(t)}`, onRemove: () => toggleTag(t) })),
   ];
   return <section className="cash-catalog"><div className="page col">
     <div className="card cmp-top cash-top">
@@ -86,6 +136,13 @@ export function CashCatalog({ kind }: { kind: Kind }) {
         {kind === 'parking' ? <label>금융권<select value={sector} onChange={e => setSector(e.target.value)}><option value="">전체 금융권</option><option value="BANK">은행</option><option value="SAVINGS_BANK">저축은행</option></select></label>
           : <label>상품 종류<select value={category} onChange={e => setCategory(e.target.value)}><option value="">전체 종류</option><option value="RP">RP형</option><option value="PROMISSORY_NOTE">발행어음형</option></select></label>}
       </div>
+      <div className="cash-tag-filters">
+        {TAG_GROUPS.map(g => <div key={g.title} className="cash-tag-group" role="group" aria-label={g.title}>
+          <span className="cash-tag-title">{g.title}</span>
+          {g.tags.map(t => <button key={t.id} type="button" className="cash-tag" aria-pressed={tags.includes(t.id)} onClick={() => toggleTag(t.id)}>{t.label}</button>)}
+        </div>)}
+        <p className="cash-tag-note">공시 원문에 해당 문구가 있는 상품만 보여 줘요. 가입 자격과 우대 적용은 원문에서 확인해 주세요.</p>
+      </div>
       <SelectedBar items={filters.length ? filters : [{ key: 'all', label: '전체 상품' }]} onReset={reset} />
     </section>
     <div className="cash-notice"><Icon id="i-info" size={20} /><p>{kind === 'cma' ? 'CMA는 원금 손실 가능성이 있고 약정수익률은 변경될 수 있어요. 예금자보호 여부를 상품별로 확인하세요.' : '파킹통장 금리는 변경될 수 있어요. 높은 금리가 적용되는 금액 구간과 우대조건을 함께 확인하세요.'}</p></div>
@@ -97,7 +154,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
         <p className="meta">세전 연 기준 · 적용 금액과 조건에 따라 달라져요</p>
         {query.isPending && <div className="cash-empty" role="status"><span className="dots-spinner" aria-hidden="true" /><p>공시 자료를 불러오는 중이에요.</p></div>}
         {query.isError && <div className="cash-empty" role="alert"><h3>공시 자료를 불러오지 못했어요</h3><p className="sub">{errorText(query.error)}</p><button className="btn" onClick={() => void query.refetch()}>다시 불러오기</button></div>}
-        {query.data && visible.length === 0 && <div className="cash-empty"><Icon id="i-search" size={28} /><h3>{all.length ? '조건에 맞는 상품이 없어요' : '공시 자료를 준비하고 있어요'}</h3><p className="sub">{all.length ? '검색어나 금융회사, 상품 종류를 바꿔 보세요.' : '확인된 상품이 등록되면 이곳에서 볼 수 있어요.'}</p>{all.length > 0 && <button className="btn" onClick={reset}>조건 초기화</button>}</div>}
+        {query.data && visible.length === 0 && <div className="cash-empty"><Icon id="i-search" size={28} /><h3>{all.length ? '조건에 맞는 상품이 없어요' : '공시 자료를 준비하고 있어요'}</h3><p className="sub">{all.length ? '검색어나 금융회사, 상품 종류, 원문 문구 필터를 바꿔 보세요.' : '확인된 상품이 등록되면 이곳에서 볼 수 있어요.'}</p>{all.length > 0 && <button className="btn" onClick={reset}>조건 초기화</button>}</div>}
         <div className="cash-products">{visible.map(p => {
           const checked = selected.some(s => s.id === p.id);
           return <article className={'cash-product' + (checked ? ' cash-picked' : '')} key={p.id}>
@@ -107,6 +164,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
               <label className="cash-check"><input type="checkbox" checked={checked} onChange={() => toggle(p.id)} aria-label={`${p.company} ${p.name} 비교`} /><span>비교</span></label>
             </div>
             <p className="cash-limit"><span>최고금리 적용 금액</span><b>{limit(p.rateLimit)}</b></p>
+            <CashCalc product={p} kind={kind} />
             <details><summary>조건·출처 자세히 보기</summary><dl>{rows.map(row => <div key={row.label}><dt>{row.label}</dt><dd>{row.value(p)}</dd></div>)}</dl><a href={p.sourceUrl} target="_blank" rel="noopener noreferrer">공식 출처: {p.sourceName} ↗<span className="cash-sr"> (새 창)</span></a></details>
           </article>;
         })}</div>
@@ -118,7 +176,7 @@ export function CashCatalog({ kind }: { kind: Kind }) {
         <p className="cash-message" role="status">{message}</p>
         {selected.length === 0 ? <div className="cash-compare-empty"><Icon id="i-check" size={24} /><p>궁금한 상품의<br /><b>비교 칸을 체크해 주세요</b></p></div> : <ul className="cash-picks">{selected.map(p => <li key={p.id}><BankBadge name={p.company} size={32} /><div><p className="meta">{p.company}</p><b>{p.name}</b></div><button type="button" className="cash-remove" onClick={() => toggle(p.id)} aria-label={`${p.company} ${p.name} 비교 해제`}><Icon id="i-close" size={16} /></button></li>)}</ul>}
         {selected.length > 0 && <><a className="btn cash-compare-link" href="#cash-comparison">조건 비교표 보기 <span aria-hidden="true">↓</span></a><button className="cash-clear" onClick={() => { setPicked([]); setMessage(''); }}>선택 모두 해제</button></>}
-        <div className="cash-rail-note"><b>금리만큼 조건도 중요해요</b><p>적용 한도 · 이자 지급 · 예금자보호</p><p>예상 이자를 계산하지 않는 공시 비교예요.</p></div>
+        <div className="cash-rail-note"><b>금리만큼 조건도 중요해요</b><p>적용 한도 · 이자 지급 · 예금자보호</p><p>{kind === 'parking' ? '예상 이자는 공시 기본금리나 구간별 금리로만 계산해요.' : '예상 이자는 약정수익률이 유지된다고 가정한 값이에요.'}</p></div>
       </section></aside>
     </div>
     {selected.length > 0 && <section className="card cash-comparison" id="cash-comparison"><div className="cash-results-head"><h2>선택한 상품 조건 비교</h2><span className="cash-pick-count">{selected.length}개 선택</span></div><p className="sub">같은 금리여도 적용 금액·보유 기간·조건이 다를 수 있어요.</p>

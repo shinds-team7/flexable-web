@@ -11,6 +11,25 @@ class JejuCashParserTest {
           {"prdId":"SID_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","prdNm":"합성 파킹통장","joingTrgtDesc":"실명의 개인"},
           {"prdId":"SID_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","prdNm":"사업자통장","joingTrgtDesc":"개인사업자"}]}
         """;
+    @Test void keepsEventRateAndFallsBackToPaymentTimingButDropsEmptyEventTemplate() {
+        var candidate = new JejuCashParser.Candidate(ID, "합성 파킹통장");
+        var at = OffsetDateTime.parse("2026-11-08T10:00:00+09:00");
+        String base = """
+            <h1>합성 파킹통장</h1>
+            <div class="card3"><h4 class="tit">기본금리</h4><p class="txt">연 0.50%(5백만원 이하, 세전)</p></div>
+            <dl class="text-row-item"><dt>가입대상</dt><dd>실명의 개인</dd></dl>
+            <dl class="text-row-item"><dt>이벤트 우대금리</dt><dd>이벤트기간 : ~ \r\n 이벤트 우대금리 안내 \r\n 이벤트 조건 \r\n 이벤트 금리</dd></dl>
+            """;
+        var plain = JejuCashParser.detail(candidate, base + "<dl class=\"text-row-item\"><dt>이자지급시기</dt><dd>매월 네번째 토요일</dd></dl>", at);
+        assertThat(plain.conditions()).doesNotContain("이벤트우대금리");
+        assertThat(plain.interestPayment()).isEqualTo("매월 네번째 토요일");
+        var event = JejuCashParser.detail(candidate, base
+            + "<dl class=\"text-row-item\"><dt>이벤트 우대금리</dt><dd>대상 기간 : 2026.09.15 ~ 2026.12.31<br>금액 구간 : 매일의 최종 예금잔액 중 5백만원 이하<br>이벤트 우대금리 : 3.30%</dd></dl>"
+            + "<dl class=\"text-row-item\"><dt>원금/이자 지급 방법</dt><dd>매월 말일</dd></dl>"
+            + "<dl class=\"text-row-item\"><dt>이자지급시기</dt><dd>매월 네번째 토요일</dd></dl>", at);
+        assertThat(event.conditions()).contains("2026.09.15 ~ 2026.12.31", "이벤트 우대금리 : 3.30%");
+        assertThat(event.interestPayment()).isEqualTo("매월 말일"); // 지급 방법이 있으면 시기보다 우선한다
+    }
     @Test void validatesWholeCatalogAndKeepsCardAmountConditions() {
         var candidates = JejuCashParser.catalog(CATALOG);
         assertThat(candidates).containsExactly(new JejuCashParser.Candidate(ID, "합성 파킹통장"));

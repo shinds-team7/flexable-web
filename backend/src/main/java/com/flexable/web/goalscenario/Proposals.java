@@ -32,6 +32,9 @@ final class Proposals {
 					"지수 ETF와 주식 비중을 크게 높여, 같은 목표를 더 적은 월 금액으로 노리는 조합이에요. 잘 안 풀리면 목표에 많이 못 미칠 수 있어서, 중간에 크게 줄어도 기다릴 수 있는 돈일 때만 고려해 보세요.",
 					ordered("SAVINGS", 10, "CMA", 10, "KR_INDEX_ETF", 20, "US_INDEX_ETF", 30, "KOSPI_TOP5", 30)));
 
+	/** 제안 하나의 시나리오 수. */
+	static final int SCENARIOS = 3;
+
 	/** 로그에 남기는 걸린 칸 문구의 최대 길이. 해설은 길이 제한이 없어 뒤쪽에서 걸린 문장도 보이게 넉넉히 둔다. */
 	static final int LOG_TEXT_MAX = 2000;
 
@@ -87,7 +90,7 @@ final class Proposals {
 
 	/** facts는 AI에게 보낸 사실(목표 금액·기한·상품 이름·금리·세율). 문구 속 숫자를 이 값과 대조한다(ProposalText). */
 	static Checked check(List<Draft> drafts, ProposalText.Facts facts) {
-		if (drafts == null || drafts.size() < 2 || drafts.size() > 3) {
+		if (drafts == null || drafts.size() != SCENARIOS) {
 			return Checked.fail("COUNT");
 		}
 		List<Plan> out = new ArrayList<>();

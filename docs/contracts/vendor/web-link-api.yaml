@@ -144,7 +144,8 @@ components:
         provider: { type: string, enum: [email, kakao, google] }
     SeedChoice:
       type: string
-      enum: [GOAL, ALL, MANUAL]
+      enum: [GOAL, ALL, MANUAL, EXTRA]
+      description: 'EXTRA는 앱에서 수입일과 상관없이 지금 예산에서 바로 옮긴 돈(cycleEnd는 옮긴 날짜)'
     SeedMoney:
       type: object
       required: [total, base, monthlyGoal, lastEntry, updatedAt, startedOn, entries]
@@ -168,7 +169,7 @@ components:
         startedOn: { type: string, format: date, nullable: true, description: '첫 하루 예산 기록일. 없으면 null' }
         entries:
           type: array
-          description: '확정 기록 전부, cycleEnd 오름차순. MANUAL 0원도 포함, 미반영 주기는 없음'
+          description: '확정 기록 전부, 시간 오름차순(반영 주기 끝 날짜 또는 옮긴 날짜). MANUAL 0원도 포함, 미반영 주기는 없음'
           items:
             type: object
             required: [cycleEnd, choice, amount, totalAfter, createdAt]

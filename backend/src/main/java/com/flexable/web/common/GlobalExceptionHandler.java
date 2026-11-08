@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -17,10 +18,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+	private final ObjectProvider<ServerErrorSink> errorSink;
+
+	public GlobalExceptionHandler(ObjectProvider<ServerErrorSink> errorSink) {
+		this.errorSink = errorSink;
+	}
 
 	@ExceptionHandler(ApiException.class)
 	ResponseEntity<Map<String, Object>> handleApi(ApiException e) {
@@ -50,8 +59,9 @@ public class GlobalExceptionHandler {
 	}
 
 	@ExceptionHandler(Exception.class)
-	ResponseEntity<Map<String, Object>> handleUnknown(Exception e) {
+	ResponseEntity<Map<String, Object>> handleUnknown(Exception e, HttpServletRequest request) {
 		log.error("Unhandled error", e);
+		errorSink.ifAvailable(sink -> sink.serverError(request, e));
 		return ErrorResponses.of(ErrorCode.INTERNAL_ERROR);
 	}
 }

@@ -82,6 +82,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cma/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * CMA 예상 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림, 재투자 미반영)
+         * @description policies §12(규칙 cma-calc-v1). 공시 약정수익률이 하나인 상품(AGREED_RATE)과 원문에 보유 기간별 수익률이 적힌 상품(PERIOD_RATE)만 계산한다. 수익률이 유지된다고 가정한 예상이며 재투자(복리)는 반영하지 않는다. 원금 손실 가능성과 예금자보호 여부는 `notice`와 목록의 `depositProtected`로 보인다.
+         *     목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유). PERIOD_RATE에서 일수가 마지막 구간을 넘으면 400(`fields.days`). 없는 상품은 404.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description `/cma/products`의 상품 id */
+                        productId: string;
+                        /**
+                         * Format: int64
+                         * @description 맡긴 돈(원)
+                         */
+                        amount: number;
+                        /** @description 맡기는 일수 */
+                        days: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CmaSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/parking/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 파킹통장 기본금리 이자 계산(서버 계산, 일 단위 ÷365, 세금 15.4% 내림)
+         * @description policies §11(규칙 parking-calc-v2). 공시 기본금리 하나(BASE_RATE) 또는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리(TIERED)로 계산한다. 우대·이벤트는 넣지 않는다.
+         *     목록의 `calculable`이 false인 상품은 400(`fields.productId`에 이유)이다. 없는 상품은 404.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description `/parking/products`의 상품 id */
+                        productId: string;
+                        /**
+                         * Format: int64
+                         * @description 맡긴 돈(원)
+                         */
+                        amount: number;
+                        /** @description 맡기는 일수 */
+                        days: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description 계산 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ParkingSimulation"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/practice/categories": {
         parameters: {
             query?: never;
@@ -1804,7 +1916,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description 시나리오 2~3개 */
+                /** @description 시나리오 3개 */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2727,7 +2839,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 정책 적금(청년미래적금) 규칙과 확인 상태. 승인 전 초안(policies §9)이라 verificationStatus는 UNVERIFIED */
+        /** 정책 적금(청년미래적금) 규칙과 확인 상태. 구현됨(policies §9). 일수 기준·기여금 입금일 가정이 공식 확인 전이라 verificationStatus는 UNVERIFIED */
         get: {
             parameters: {
                 query?: never;
@@ -3284,6 +3396,70 @@ export interface paths {
                 };
                 400: components["responses"]["Error"];
                 404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 브라우저가 겪은 오류를 서버 오류 기록(error_events)에 남긴다
+         * @description - 로그인 없이 보낼 수 있다. 유효한 Bearer 토큰이 있으면 회원 번호를 함께 남기고, 만료·폐기된 토큰이면 401이다(화면은 토큰 없이 한 번 더 보낸다).
+         *     - 형식이 맞으면 한도를 넘어 버려도 204이다. 보낸 사람(회원 번호, 비로그인이면 접속 IP)마다 10분에 30건까지만 저장하고, 하루 새 줄은 500개까지이다.
+         *     - 서버가 저장 전에 메시지의 3자리 이상 숫자는 `#`, 이메일은 `***@***`로 가리고 경로의 쿼리를 버린다. 요청·응답 본문은 받지 않는다. 30일 뒤 지우고 탈퇴하면 그 회원 기록도 지운다.
+         *     - 이 요청 자체의 실패는 다시 기록하지 않는다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description API 요청 실패, CRASH 화면 오류 경계, JS 처리 못 한 브라우저 오류
+                         * @enum {string}
+                         */
+                        kind: "API" | "CRASH" | "JS";
+                        message: string;
+                        stack?: string | null;
+                        /** @description 화면 경로(쿼리 없음) */
+                        screen?: string | null;
+                        /** @enum {string|null} */
+                        method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | null;
+                        /** @description API 경로(쿼리 없음) */
+                        path?: string | null;
+                        status?: number | null;
+                        code?: string | null;
+                        /** @description 웹 빌드 버전 */
+                        appVersion?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description 받음(한도를 넘어 저장하지 않았어도 204) */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
             };
         };
         delete?: never;
@@ -3971,6 +4147,16 @@ export interface components {
             ratePercent: string | null;
             /** @description CMA 예시 금리면 true */
             isSample: boolean;
+            /** @description 함께 볼 상품(policies §7-2). 금액 계산에 쓰지 않는다. 적금·지수 ETF만 있고 CMA·KOSPI_TOP5와 #309 이전 저장본은 빈 배열 */
+            alternatives: {
+                /** @description 종목 코드 또는 적금 상품 id */
+                code: string;
+                name: string;
+                /** @description 적금 금융회사. 그 밖에는 null */
+                company: string | null;
+                /** @description 적금 기본금리(예: "3.20"). 지수 ETF는 null */
+                ratePercent: string | null;
+            }[];
         };
         GoalScenarioResult: {
             /** @description 이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8) */
@@ -4186,7 +4372,7 @@ export interface components {
             /** Format: date */
             cycleEnd: string;
             /** @enum {string} */
-            choice: "GOAL" | "ALL" | "MANUAL";
+            choice: "GOAL" | "ALL" | "MANUAL" | "EXTRA";
             /** Format: int64 */
             amount: number;
             /** Format: int64 */
@@ -4258,7 +4444,7 @@ export interface components {
                     /** Format: date */
                     cycleEnd: string;
                     /** @enum {string} */
-                    choice: "GOAL" | "ALL" | "MANUAL";
+                    choice: "GOAL" | "ALL" | "MANUAL" | "EXTRA";
                     /** Format: int64 */
                     amount: number | null;
                     /** Format: date-time */
@@ -4791,6 +4977,34 @@ export interface components {
             rateType: "VARIABLE_DEPOSIT" | "AGREED";
             /** @description 금액·기간 구간과 우대조건 등 공시 조건 원문. 전체 잔액 적용인지 구간별 적용인지 생략하지 않는다 */
             conditions: string;
+            /** @description 상품명·조건 원문에 정해 둔 낱말이 있으면 붙는 분류(policies §10, 규칙 cash-tags-v1). 낱말이 있다는 뜻일 뿐 가입 자격이나 우대 적용을 판정하지 않는다 */
+            tags: ("YOUTH" | "MILITARY" | "NON_FACE_TO_FACE" | "SALARY_LINK" | "AUTO_TRANSFER" | "CARD_USE")[];
+            /** @description 파킹통장 기본금리 이자 계산을 제공하는 상품인지(policies §11 parking-calc-v1). CMA는 항상 false */
+            calculable: boolean;
+            /** @description calculable이 false일 때 이유(사용자에게 그대로 보여 준다). true면 null */
+            calcReason: string | null;
+            /**
+             * @description 파킹: BASE_RATE는 공시 기본금리 하나로, TIERED는 원문에 구간 안의 금액에만 적용한다고 적힌 구간별 금리로 계산(policies §11 parking-calc-v2). CMA: AGREED_RATE는 약정수익률 하나, PERIOD_RATE는 보유 기간별 수익률(policies §12 cma-calc-v1). 계산 불가면 null
+             * @enum {string|null}
+             */
+            calcMode: "BASE_RATE" | "TIERED" | "AGREED_RATE" | "PERIOD_RATE" | null;
+            /** @description calcMode가 TIERED일 때 원문에서 읽은 구간(위로 올라가는 순서). 아니면 빈 배열 */
+            tiers: {
+                /**
+                 * Format: int64
+                 * @description 이 구간의 끝 금액(원). null이면 그 위 전부
+                 */
+                upTo: number | null;
+                /** @description 그 구간 안의 금액에 적용하는 공시 연 %, 세전 */
+                rate: number;
+            }[];
+            /** @description calcMode가 PERIOD_RATE일 때 원문에서 읽은 보유 기간별 수익률(1일부터 이어짐). 아니면 빈 배열 */
+            periods: {
+                fromDay: number;
+                toDay: number;
+                /** @description 그 기간 동안 보유할 때의 약정수익률(연 %, 세전) */
+                rate: number;
+            }[];
             interestPayment: string | null;
             reinvestment: string | null;
             depositProtected: boolean | null;
@@ -4813,6 +5027,64 @@ export interface components {
              * @description 출처·형식·조건 검증 시각(+09:00)
              */
             verifiedAt: string;
+        };
+        CmaSimulation: {
+            productId: string;
+            /** Format: int64 */
+            amount: number;
+            days: number;
+            /** @enum {string} */
+            mode: "AGREED_RATE" | "PERIOD_RATE";
+            /** @description 계산에 쓴 약정수익률(연 %, 세전). PERIOD_RATE는 days가 속한 기간의 값 */
+            rate: number;
+            /**
+             * Format: int64
+             * @description floor(amount × rate × days ÷ 36500)
+             */
+            interestPreTax: number;
+            /**
+             * Format: int64
+             * @description floor(interestPreTax × 0.154)
+             */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** @example cma-calc-v1 */
+            rulesVersion: string;
+            notice: string;
+        };
+        ParkingSimulation: {
+            productId: string;
+            /** Format: int64 */
+            amount: number;
+            days: number;
+            /** @enum {string} */
+            mode: "BASE_RATE" | "TIERED";
+            /** @description BASE_RATE일 때 계산에 쓴 공시 기본금리(연 %, 세전). TIERED면 null */
+            baseRate: number | null;
+            /** @description TIERED일 때 구간별로 들어간 금액. 합이 amount와 같다. BASE_RATE면 빈 배열 */
+            parts: {
+                /** Format: int64 */
+                upTo: number | null;
+                rate: number;
+                /** Format: int64 */
+                amount: number;
+            }[];
+            /**
+             * Format: int64
+             * @description floor(amount × baseRate × days ÷ 36500). TIERED는 floor(Σ 구간 금액 × 구간 금리 × days ÷ 36500)
+             */
+            interestPreTax: number;
+            /**
+             * Format: int64
+             * @description floor(interestPreTax × 0.154)
+             */
+            tax: number;
+            /** Format: int64 */
+            interestAfterTax: number;
+            /** @example parking-calc-v2 */
+            rulesVersion: string;
+            notice: string;
         };
         /** @enum {string} */
         SavingsSector: "BANK" | "SAVINGS_BANK";

@@ -42,11 +42,13 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
 | `virtualsim` | 가상 시뮬레이션(`/virtual-sim/*`, policies §8): 전체 공시·룰셋·가상 회사 글 저장소, 시드 가상 시세, 30분 메모리 세션, 회원 월간 대회(`VirtualContest*`, policies §8-8: 배치고사·판 기록·하루/주 판정·랭킹, 1분 정리 `VirtualContestJob`). 매매·평가는 `practice.PracticeEngine` | `market`, `practice` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
-| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 없음 | `common` |
+| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 `policysavings` | `common` |
+| `policysavings` | 청년미래적금 규칙과 만기 계산(`/savings/policy/{code}`, policies §9, #113). 규칙은 코드에 두고 응답은 `UNVERIFIED` | `common` |
 | `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |
 | `cashcatalog` | 파킹·CMA 공시 조건 조회·출처별 스냅샷. 공식 페이지 수집은 `ingest.CashCatalogJob`이 맡으며 계산·공개 입력 API는 없음(#218) | `common` |
 | `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |
 | `goalscenario` | F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7, #175). 제안기(AI 연결 전 데모 조합) 검증·필요 월 금액·결과 범위 계산, 회원의 시나리오 저장(최대 5개, `/me/goal/scenarios`) | `market`, `savings`, `user` |
+| `errorlog` | 오류 기록 `error_events`(V31): 브라우저가 보낸 오류(`POST /client-errors`)와 서버 500을 저장 전에 가려 같은 날 같은 오류는 한 줄로 묶음, 30일 보관·탈퇴 삭제. 500은 `common.ServerErrorSink`로 받음 | `common`, `user` |
 | `news` | 청년 금융 소식: 온통청년 수집 카드 자동 게시·AI 요약 저장·`GET /youth-news`(#47·#93) | `common` |
 | `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |
 | `engagement` | 목표·AI 안내·사용량, 공유·지표 이벤트(미구현) | `simulation`, `user`, `seedmoney`, `ai` |
@@ -107,6 +109,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `POST /deposit/simulate` | 없음 | `{productId, amount, termMonths, interestType, rateBasis: BASE\|MAX}` → 만기 계산 + `series` + `assumptions` |
 | `POST /savings/simulate` | 없음 | `{productId, monthly, termMonths, reserveType, rateBasis: BASE\|MAX}` → 만기 계산 + `assumptions` |
 | `GET /youth-news?age=&region=&category=` | 없음 | 청년 금융 소식 `{items:[{id, category, categories, title, summary, benefit, audience:{summary, ageMin, ageMax, incomeLimit}, regions, applyStart, applyDeadline, alwaysOpen, action, source:{org, url, asOf}, postedAt, keywords, calcLink:{to, label}\|null, correctedAt, slot}]}`. 정본은 [`web-api.yaml`](../docs/contracts/web-api.yaml). 수집한 소식을 **사람 검수 없이** 내보내고 반려(`REJECTED`)한 것과 출처·지역이 빠진 것만 뺀다([결정](../docs/decisions/2026-10-26-youth-news-auto-publish.md)). `summary`는 worker가 만든 AI 요약(없으면 `null`), `benefit`·`action`은 지금 `null`이다. `regions`는 `"NATIONWIDE"` 또는 시도 이름 목록, 날짜는 `YYYY-MM-DD`, 원문에서 확인 못 한 값은 `null`(조건 없음이 아님). 필터는 모두 선택: `age`(만 나이, 나이 범위를 모르는 쪽은 막지 않음), `region`(시도 이름, 전국 소식 포함), `category`(`TRANSPORT`·`HOUSING`·`FINANCE`·`JOB`·`EDUCATION`·`CULTURE`·`TAX`·`ETC`(기타), 그 밖은 400, `categories` 중 하나라도 맞으면 포함). `category`는 대표 분야(배지), `categories`는 드는 분야 전부(분야가 없으면 `["ETC"]`). 신청 날짜가 없고 상시도 아닌데 원문의 사업기간(`bizPrdEndYmd`)이 끝난 소식은 마감으로 보고 뺀다(마감일이 지난 소식은 화면이 목록에서 내린다). `Cache-Control: public, max-age=300` |
+| `POST /client-errors` | 없음(토큰 있으면 회원 번호 기록) | `{kind: API\|CRASH\|JS, message, stack?, screen?, method?, path?, status?, code?, appVersion?}` → 204. 서버가 저장 전에 3자리 이상 숫자는 `#`, 이메일은 `***@***`로 가리고 경로 쿼리를 버린다. 같은 날 같은 오류는 한 줄(`occurrences`), 하루 새 줄 500개, 보낸 사람(회원 번호 또는 IP)마다 10분 30건(넘어도 204). 30일 보관·탈퇴 삭제. 서버 500도 같은 테이블에 남긴다. 보는 법은 [error-logs.md](../docs/error-logs.md) |
 | `GET /health` | 없음 | `{status: "UP"}` |
 
 투자 시뮬레이션 계산(`simulation.SimulationEngine`): 시작일은 그 달 1일로 맞추고(오늘 이후·10년 넘게 전은 400), 고른 종목 중 시작 무렵 시세가 없는 종목이 있으면 시작일을 바꾸지 않고 400으로 "○○부터 시세가 있어요"를 안내한다. 기간은 시작 월부터 고른 종목들의 마지막 시세일까지이고 시계열은 기간과 관계없이 주별이다. 한 주(월~일)의 값 = 그 주 마지막 거래일 종가로 평가(휴장 주는 직전 종가). 납입은 시작 월부터 매달 그 달 첫 거래일 종가로 산다. 한 번에(`LUMP_SUM`) = 첫 달에 `totalAmount`, 매달 나눠서(`SPLIT`)·지금 저축 속도로(`PACE`) = 매달 `monthlyAmount`. 원 단위 정수·내림, 종목 배분 나머지는 첫 종목, 수량은 소수 8자리 내림(소수점 매수 가정). 배당·세금·수수료 미반영.

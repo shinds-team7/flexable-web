@@ -1,0 +1,23 @@
+{
+  "status": "IMPLEMENTED",
+  "note": "리드 승인(11-07, 서버 분류 필드). 상품명·공시 조건 원문에 낱말이 있으면 태그를 붙인다. 가입 자격·우대 적용을 판정하지 않는다(policies §10).",
+  "rulesVersion": "cash-tags-v1",
+  "keywords": {
+    "YOUTH": ["청년", "사회초년생"],
+    "MILITARY": ["군인", "장병"],
+    "NON_FACE_TO_FACE": ["비대면", "방문없이"],
+    "SALARY_LINK": ["급여", "월급"],
+    "AUTO_TRANSFER": ["자동이체"],
+    "CARD_USE": ["카드"]
+  },
+  "cases": [
+    { "name": "낱말이 없으면 태그 없음", "productName": "예시 파킹통장", "conditions": "가입대상: 개인\n공시 금리: 2.00%", "expected": [] },
+    { "name": "상품명의 낱말도 본다", "productName": "청년 우대 통장", "conditions": "가입대상: 개인", "expected": ["YOUTH"] },
+    { "name": "특판은 태그가 아니다(삼성증권 CMA의 '특판·일반약정식 발행어음과 구분' 설명을 잘못 잡던 낱말)", "productName": "CMA 발행어음형", "conditions": "공시약정수익률이며 특판·일반약정식 발행어음과 구분해요.", "expected": [] },
+    { "name": "띄어쓰기를 무시한다('방문 없이'·'급 여')", "productName": "예시 통장", "conditions": "영업점 방문 없이 가입, 급 여 이체 시 우대", "expected": ["NON_FACE_TO_FACE", "SALARY_LINK"] },
+    { "name": "급여·자동이체·카드 우대 조건", "productName": "예시 통장", "conditions": "우대조건: 급여 이체 + 자동이체 + 체크카드 사용", "expected": ["SALARY_LINK", "AUTO_TRANSFER", "CARD_USE"] },
+    { "name": "군인 대상은 군인 태그", "productName": "장병 우대 통장", "conditions": "가입대상: 현역 군인", "expected": ["MILITARY"] },
+    { "name": "비대면 가입", "productName": "예시 통장", "conditions": "가입방법: 비대면 전용", "expected": ["NON_FACE_TO_FACE"] },
+    { "name": "조건이 비어 있어도 오류 없음", "productName": "예시 통장", "conditions": null, "expected": [] }
+  ]
+}

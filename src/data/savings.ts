@@ -6,7 +6,7 @@
 // 금액은 모두 서버 계산 결과다. 정책 적금 예시 값도 C-12로 미리 계산해 둔 상수이고, 화면에서 다시 계산하지 않는다.
 // 정책 적금 예시는 매달 78,000원(시연 페르소나 '지수'의 저축 속도) 조건만 있다. 다른 조건은 SAMPLE_ONLY 오류로 알린다.
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { ApiError, api } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export type SavingsSort = 'BASE_RATE' | 'MAX_RATE' | 'TERM';
 export type SortDirection = 'DESC' | 'ASC';
@@ -88,39 +88,35 @@ export type PolicySavingsRules = {
   termMonths: number;
   maxMonthly: number;
   contributionRates: Record<PolicyType, number>; // 정부기여율 %
-  defaultBankRate: number; // 연 %, 사용자가 고칠 수 있다
+  contributionEarnsInterest: boolean;
   taxFree: boolean;
   rulesVersion: string;
   verificationStatus: VerificationStatus;
-  sourceUrl: string | null; // 기획이 준 공식 안내 링크만. 없으면 화면에 "확인 중"
+  sourceUrl: string | null; // 공식 안내 링크. 없으면 화면에 "확인 중"
   asOf: string;
   checklist: string[]; // 자격 조건 확인하기(판정하지 않음)
   assumptions: string[];
   notice: string;
   isSample: boolean;
 };
-export type PolicySimulateRequest = { code: string; monthly: number; termMonths: number; type: PolicyType; bankRate: number };
+// 기본금리·우대금리는 은행마다 달라 사용자가 넣는다(policies §9)
+export type PolicySimulateRequest = { code: string; joinDate: string; monthly: number; type: PolicyType; baseRate: number; bonusRate: number };
 export type PolicySimulation = {
+  maturityDate: string;
   principal: number;
   govContribution: number;
+  ownInterest: number;
+  contributionInterest: number;
   interestPreTax: number;
   tax: number; // 비과세라 0
   total: number;
-  averageSavingsComparison: { name: string; rate: number; interestAfterTax: number; total: number };
+  averageSavingsComparison: { name: string; rate: number; interestAfterTax: number; total: number } | null;
   rulesVersion: string;
   verificationStatus: VerificationStatus;
   assumptions: string[];
   notice: string;
   isSample: boolean;
 };
-
-// 정책 적금 고지 문구(03 §8-3, 01 F2-b). 일반 적금 고지는 서버가 내려 준다
-const POLICY_EST = '공식 안내 기준으로 계산한 추정이에요. 자격과 금리는 신청할 때 꼭 확인해 주세요.';
-
-const SAMPLE_MONTHLY = 78000;
-
-const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 150));
-const sampleOnly = () => new ApiError(400, 'SAMPLE_ONLY', '예시에서는 매달 78,000원 기본 조건만 계산해요');
 
 async function fetchProducts(q: SavingsListParams): Promise<SavingsProductList> {
   const qs = new URLSearchParams({
@@ -145,48 +141,13 @@ async function simulate(q: SavingsSimulateRequest): Promise<SavingsSimulation> {
   return api<SavingsSimulation>('/savings/simulate', { method: 'POST', json: q });
 }
 
-const POLICY_ASSUMPTIONS = ['기여금은 만기에 한 번에 받는다고 가정, 기여금에는 이자 없음', '기여금 적립 방식 확인 중 · 추정', '이자는 정액적립식 단리, 비과세'];
-
-// TODO(BE·기획): GET /api/v1/savings/policy/{code}. 규칙·기본 금리는 policy_savings에 사람이 넣는다(출처·기준일 필수)
 async function fetchPolicy(code: string): Promise<PolicySavingsRules> {
-  if (code !== 'YOUTH_FUTURE') throw new ApiError(404, 'POLICY_NOT_FOUND', '정책 적금을 찾지 못했어요');
-  return delay({
-    code,
-    name: '청년미래적금',
-    termMonths: 36,
-    maxMonthly: 500000,
-    contributionRates: { GENERAL: 6, PREFERRED: 12 },
-    defaultBankRate: 2.9,
-    taxFree: true,
-    rulesVersion: 'sample-2026-10',
-    verificationStatus: 'UNVERIFIED',
-    sourceUrl: null,
-    asOf: '2026-10-18',
-    checklist: ['만 19~34세인가요?', '공고문의 소득 기준을 확인했나요?', '소득정보 제공 동의와 서류를 기간 안에 낼 수 있나요?'],
-    assumptions: POLICY_ASSUMPTIONS,
-    notice: POLICY_EST,
-    isSample: true,
-  });
+  return api<PolicySavingsRules>(`/savings/policy/${encodeURIComponent(code)}`);
 }
 
-// TODO(BE): POST /api/v1/savings/policy/{code}/simulate {monthly, termMonths, type, bankRate}
 async function simulatePolicy(q: PolicySimulateRequest): Promise<PolicySimulation> {
-  if (q.code !== 'YOUTH_FUTURE') throw new ApiError(404, 'POLICY_NOT_FOUND', '정책 적금을 찾지 못했어요');
-  if (q.monthly !== SAMPLE_MONTHLY || q.termMonths !== 36 || q.bankRate !== 2.9) throw sampleOnly();
-  const gov = q.type === 'GENERAL' ? 168480 : 336960;
-  return delay({
-    principal: 2808000,
-    govContribution: gov,
-    interestPreTax: 125532,
-    tax: 0,
-    total: 2808000 + gov + 125532,
-    averageSavingsComparison: { name: '은행 평균 적금(한국은행)', rate: 2.9, interestAfterTax: 106201, total: 2914201 },
-    rulesVersion: 'sample-2026-10',
-    verificationStatus: 'UNVERIFIED',
-    assumptions: POLICY_ASSUMPTIONS,
-    notice: POLICY_EST,
-    isSample: true,
-  });
+  const { code, ...body } = q;
+  return api<PolicySimulation>(`/savings/policy/${encodeURIComponent(code)}/simulate`, { method: 'POST', json: body });
 }
 
 export const useSavingsProducts = (q: SavingsListParams, enabled = true) =>

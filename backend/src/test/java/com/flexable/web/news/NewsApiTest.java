@@ -130,7 +130,8 @@ class NewsApiTest {
 		jdbc.update("DELETE FROM youth_news_view");
 		String viewer = "33333333-3333-4333-8333-333333333333";
 		for (long n = 1; n <= NewsViewService.DAILY_CAP_PER_VIEWER; n++) {
-			jdbc.update("INSERT INTO youth_news_view (news_id, viewer_id, viewed_on) VALUES (?, ?, CURRENT_DATE)", 100000 + n, viewer);
+			jdbc.update("INSERT INTO youth_news_view (news_id, viewer_id, viewed_on) VALUES (?, ?, ?)", 100000 + n, viewer,
+				LocalDate.now(java.time.ZoneId.of("Asia/Seoul"))); // 서비스가 서울 날짜로 세므로 DB의 UTC 날짜(CURRENT_DATE)와 자정 전후 9시간 어긋난다
 		}
 		view("seoul-rent", viewer, 204);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM youth_news_view WHERE viewer_id = ?", Long.class, viewer))

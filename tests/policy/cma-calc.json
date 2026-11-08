@@ -1,0 +1,140 @@
+{
+  "_comment": "docs/policies.md §12 = 이 파일. CmaPolicyTest가 실행한다. 이자 = floor(잔액 x 약정수익률(%) x 일수 / 36500), 세금 = floor(이자 x 0.154). 재투자(복리)는 반영하지 않는다.",
+  "rulesVersion": "cma-calc-v1",
+  "calc": [
+    {
+      "name": "1천만원 31일 2.50%",
+      "amount": 10000000,
+      "days": 31,
+      "rate": "2.50",
+      "interestPreTax": 21232,
+      "tax": 3269,
+      "interestAfterTax": 17963
+    },
+    {
+      "name": "5천만원 1일 2.70%",
+      "amount": 50000000,
+      "days": 1,
+      "rate": "2.7",
+      "interestPreTax": 3698,
+      "tax": 569,
+      "interestAfterTax": 3129
+    }
+  ],
+  "periodCalc": [
+    {
+      "name": "유진 자산관리형 100일은 91~120일 구간 2.84%",
+      "days": 100,
+      "rate": "2.84"
+    },
+    {
+      "name": "경계 15일은 첫 구간",
+      "days": 15,
+      "rate": "2.75"
+    },
+    {
+      "name": "경계 16일은 둘째 구간",
+      "days": 16,
+      "rate": "2.78"
+    },
+    {
+      "name": "마지막 180일",
+      "days": 180,
+      "rate": "2.90"
+    },
+    {
+      "name": "180일을 넘으면 구간 밖",
+      "days": 181,
+      "rate": null
+    }
+  ],
+  "periodTable": "1일 ~ 15일 : 2.75%\n16일 ~ 60일 : 2.78%\n61일 ~ 90일 : 2.81%\n91일 ~ 120일 : 2.84%\n121일 ~ 150일 : 2.87%\n151일 ~ 180일 : 2.90%\n- 가입대상 : 실명의 개인 및 법인",
+  "eligibility": [
+    {
+      "name": "KB 발행어음형: 수익률 하나, 재투자 주기만 적힘",
+      "baseRate": "2.6",
+      "maxRate": "2.6",
+      "mode": "AGREED_RATE",
+      "reason": null,
+      "conditions": "개인 자동투자상품. 1일단위 재투자(수익금이 매일 다시 원금에 포함되어 재투자) / 직접 매매하는 약정식 RP·법인 상품은 포함하지 않아요."
+    },
+    {
+      "name": "삼성 RP형: 자동매수 시간대와 이용료 문구",
+      "baseRate": "2.5",
+      "maxRate": "2.5",
+      "mode": "AGREED_RATE",
+      "reason": null,
+      "conditions": "자동매수: 자동매수 가능 시간내 입금 RP 상품 자동매수처리 자동매수 가능 시간외 입금 자동매수전 예탁금에 대한 이용로 지급\n재투자: 재투자 없음\n수수료: 별도의 수수료 없음\n자동매수 가능 시간대: 영업일 00:00 ~ 23:00\n공시 약정수익률이며 특판·일반 약정식 발행어음과 구분해요."
+    },
+    {
+      "name": "유진 자산관리형: 보유 기간별 수익률",
+      "baseRate": "2.75",
+      "maxRate": "2.9",
+      "mode": "PERIOD_RATE",
+      "reason": null,
+      "conditions": "1일 ~ 15일 : 2.75%\n16일 ~ 60일 : 2.78%\n61일 ~ 90일 : 2.81%\n91일 ~ 120일 : 2.84%\n121일 ~ 150일 : 2.87%\n151일 ~ 180일 : 2.90%\n- 가입대상 : 실명의 개인 및 법인"
+    },
+    {
+      "name": "신한: 두 기간의 수익률이 같으면(공개 응답 확인) 하나로 계산, 적용금액 줄은 최소 금액",
+      "baseRate": "2.45",
+      "maxRate": "2.45",
+      "mode": "AGREED_RATE",
+      "reason": null,
+      "conditions": "1- 27일: 2.45%\n28일: 2.45%\n적용금액: 1 원이상\n일반 RP·ISA 전용·법인 CMA 금리와 구분해요."
+    },
+    {
+      "name": "한화: 수익률 범위만 공시(기본금리 없음)",
+      "baseRate": null,
+      "maxRate": "2.6",
+      "mode": null,
+      "reason": "NO_RATE",
+      "conditions": "공시 금액 구간별 세전 연 2.45% ~ 2.60%. 이 안내에는 개별 금액 구간·기본금리·재투자 주기가 명시되어 있지 않아 미확인으로 표시해요."
+    },
+    {
+      "name": "기본금리와 최고금리가 다르면 하나로 정해지지 않았다",
+      "baseRate": "2.0",
+      "maxRate": "2.5",
+      "mode": null,
+      "reason": "NO_RATE",
+      "conditions": "개인용 CMA"
+    },
+    {
+      "name": "우리WON: 금액별 이자율 문구가 있으면 계산하지 않는다",
+      "baseRate": "3.00",
+      "maxRate": "3.00",
+      "mode": null,
+      "reason": "TIERED",
+      "conditions": "1천만 원 이하 : 3.00%\n1천만 원 초과 : 2.80%\n매일의 예금 최종 잔액 구간별로 이자율이 달라지며"
+    },
+    {
+      "name": "기간별 수익률이 서로 다르면 읽을 수 없는 한 계산하지 않는다",
+      "baseRate": "2.45",
+      "maxRate": "2.60",
+      "mode": null,
+      "reason": "PERIOD",
+      "conditions": "1- 27일: 2.45%\n28일: 2.60%\n적용금액: 1 원이상"
+    }
+  ],
+  "periods": [
+    {
+      "name": "구간이 끊기면 거부",
+      "conditions": "1일 ~ 15일 : 2.75%\n20일 ~ 60일 : 2.78%",
+      "valid": false
+    },
+    {
+      "name": "1일에서 시작하지 않으면 거부",
+      "conditions": "5일 ~ 15일 : 2.75%\n16일 ~ 60일 : 2.78%",
+      "valid": false
+    },
+    {
+      "name": "한 줄이면 구간표가 아니다",
+      "conditions": "1일 ~ 15일 : 2.75%",
+      "valid": false
+    },
+    {
+      "name": "정상 구간표",
+      "conditions": "1일 ~ 15일 : 2.75%\n16일 ~ 60일 : 2.78%",
+      "valid": true
+    }
+  ]
+}

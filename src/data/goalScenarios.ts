@@ -12,6 +12,8 @@ export type ScenarioProduct = {
   items: { code: string | null; name: string; company: string | null }[];
   ratePercent: string | null;
   isSample: boolean;
+  /** 함께 볼 상품. 금액 계산에는 쓰지 않는다(policies §7-2). */
+  alternatives: { code: string; name: string; company: string | null; ratePercent: string | null }[];
 };
 
 export type ScenarioOutcome = {

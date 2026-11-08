@@ -46,6 +46,11 @@ const COMPARE_MAX = 5;
 const REGIONS = ['서울', '부산', '대구', '인천', '광주·전남', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '경북', '경남', '제주'];
 const ALL_SIZE = 1000; // 쪽 나누기 없이 전체를 한 번에 받는다
 const POLICY_CODE = 'YOUTH_FUTURE';
+const DEFAULT_BASE_RATE = 5; // 신한은행 공식 상품설명서(2026-06-22) 기본금리. 은행마다 달라 사용자가 고친다
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 const FALLBACK_PACE = 78000; // 비로그인 체험 기본(03 §8-2)
 
 const pct = (r: number) => r.toFixed(2) + '%';
@@ -717,22 +722,25 @@ function NowMode({ pace, compareLimit, initialPolicy }: { pace: number; compareL
 function PolicyResult({
   code,
   monthly,
-  termMonths,
+  joinDate,
   type,
-  bankRate,
+  baseRate,
+  bonusRate,
 }: {
   code: string;
   monthly: number;
-  termMonths: number;
+  joinDate: string;
   type: PolicyType;
-  bankRate: number;
+  baseRate: number;
+  bonusRate: number;
 }) {
   const sim = usePolicySimulation({
     code,
+    joinDate,
     monthly,
-    termMonths,
     type,
-    bankRate,
+    baseRate,
+    bonusRate,
   });
   if (sim.isPending) return <div className="skel" style={{ height: 120, marginTop: 16 }} />;
   if (sim.isError) return <ErrorCard error={sim.error} onRetry={() => sim.refetch()} />;
@@ -745,7 +753,7 @@ function PolicyResult({
   return (
     <>
       <p className="story" style={{ marginTop: 16 }}>
-        만기에 모두 {won(s.total)}원을 받는다고 계산했어요. {s.isSample && <span className="tag-ex">예시</span>}
+        {s.maturityDate} 만기에 모두 {won(s.total)}원을 받는다고 계산했어요. {s.isSample && <span className="tag-ex">예시</span>}
       </p>
       <div className="sv-stack" role="img" aria-label={parts.map((p) => `${p.k} ${won(p.v)}원`).join(', ')}>
         {parts.map((p) => (
@@ -760,14 +768,19 @@ function PolicyResult({
           </span>
         ))}
       </div>
-      <div className="card-sunken" style={{ marginTop: 16 }}>
-        <p className="meta">
-          같은 돈을 {s.averageSavingsComparison.name}에 넣었다면(연 {pct(s.averageSavingsComparison.rate)}, 세후)
-        </p>
-        <p style={{ fontWeight: 700 }} className="num">
-          {won(s.averageSavingsComparison.total)}원 · 세후 이자 {won(s.averageSavingsComparison.interestAfterTax)}원
-        </p>
-      </div>
+      <p className="meta" style={{ marginTop: 10 }}>
+        내 납입 이자 {won(s.ownInterest)}원 · 정부기여금 이자 {won(s.contributionInterest)}원 · 이자 비과세
+      </p>
+      {s.averageSavingsComparison && (
+        <div className="card-sunken" style={{ marginTop: 16 }}>
+          <p className="meta">
+            같은 돈을 {s.averageSavingsComparison.name}에 넣었다면(연 {pct(s.averageSavingsComparison.rate)}, 세후)
+          </p>
+          <p style={{ fontWeight: 700 }} className="num">
+            {won(s.averageSavingsComparison.total)}원 · 세후 이자 {won(s.averageSavingsComparison.interestAfterTax)}원
+          </p>
+        </div>
+      )}
       <Assumptions items={s.assumptions} />
     </>
   );
@@ -776,8 +789,10 @@ function PolicyResult({
 /** 월 납입액은 왼쪽 조건을 그대로 쓰고(월 최대를 넘으면 맞춤), 기간은 정책 적금 만기로 고정한다. 유형·금리만 여기서 고른다. */
 function PolicyCard({ rules, monthly, term }: { rules: PolicySavingsRules; monthly: number; term: SavingsTerm }) {
   const [type, setType] = useState<PolicyType>('GENERAL');
-  const [rateDraft, setRateDraft] = useState(String(rules.defaultBankRate));
-  const [bankRate, setBankRate] = useState(rules.defaultBankRate);
+  const [joinDraft, setJoinDraft] = useState(todayIso);
+  const [baseDraft, setBaseDraft] = useState(String(DEFAULT_BASE_RATE));
+  const [bonusDraft, setBonusDraft] = useState('0');
+  const [applied, setApplied] = useState({ joinDate: todayIso(), baseRate: DEFAULT_BASE_RATE, bonusRate: 0 });
   const [note, setNote] = useState('');
   const capped = Math.min(monthly, rules.maxMonthly);
   const adjusted = [
@@ -787,13 +802,19 @@ function PolicyCard({ rules, monthly, term }: { rules: PolicySavingsRules; month
 
   const applyRate = (e: FormEvent) => {
     e.preventDefault();
-    const r = Number(rateDraft);
-    if (rateDraft.trim() === '' || !Number.isFinite(r) || r < 0) {
-      setNote('금리를 확인해 주세요');
+    const base = Number(baseDraft);
+    const bonus = Number(bonusDraft);
+    const validRate = (t: string, r: number) => t.trim() !== '' && Number.isFinite(r) && r >= 0 && r <= 20;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(joinDraft)) {
+      setNote('가입일을 확인해 주세요');
+      return;
+    }
+    if (!validRate(baseDraft, base) || !validRate(bonusDraft, bonus)) {
+      setNote('금리는 0% 이상 20% 이하로 넣어 주세요');
       return;
     }
     setNote('');
-    setBankRate(r);
+    setApplied({ joinDate: joinDraft, baseRate: base, bonusRate: bonus });
   };
 
   return (
@@ -823,24 +844,43 @@ function PolicyCard({ rules, monthly, term }: { rules: PolicySavingsRules; month
           </div>
         </div>
         <div className="field">
-          <label className="field-label" htmlFor="pRate">
-            적용 금리(연 %)
+          <label className="field-label" htmlFor="pJoin">
+            가입일
+          </label>
+          <input id="pJoin" className="input" type="date" value={joinDraft} onChange={(e) => setJoinDraft(e.target.value)} />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="pBase">
+            기본금리(연 %)
+          </label>
+          <input id="pBase" className="input" type="number" min={0} max={20} step={0.01} value={baseDraft} onChange={(e) => setBaseDraft(e.target.value)} />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="pBonus">
+            우대금리 합(연 %)
           </label>
           <div className="toolbar" style={{ gap: 8 }}>
-            <input id="pRate" className="input" type="number" min={0} step={0.01} value={rateDraft} onChange={(e) => setRateDraft(e.target.value)} />
-            <button className="btn btn-line btn-sm">금리 적용</button>
+            <input id="pBonus" className="input" type="number" min={0} max={20} step={0.01} value={bonusDraft} onChange={(e) => setBonusDraft(e.target.value)} />
+            <button className="btn btn-line btn-sm">계산하기</button>
           </div>
         </div>
       </form>
       <p className="meta" style={{ marginTop: 6 }}>
-        기본값은 최신 은행 평균 적금 금리예요. 취급 은행 공시 금리로 바꿔 넣으세요.
+        기본값은 신한은행 공식 상품설명서의 기본금리예요. 우대금리는 조건을 채운 만큼만 넣고, 취급 은행의 공시 금리로 바꿔 넣으세요.
       </p>
       {note && (
         <p className="form-error" role="status">
           {note}
         </p>
       )}
-      <PolicyResult code={rules.code} monthly={capped} termMonths={rules.termMonths} type={type} bankRate={bankRate} />
+      <PolicyResult
+        code={rules.code}
+        monthly={capped}
+        joinDate={applied.joinDate}
+        type={type}
+        baseRate={applied.baseRate}
+        bonusRate={applied.bonusRate}
+      />
       <details className="sv-policy-check">
         <summary>자격 조건 확인하기</summary>
         <p>스스로 확인하는 목록이에요. 가입할 수 있는지 판정하지 않아요.</p>

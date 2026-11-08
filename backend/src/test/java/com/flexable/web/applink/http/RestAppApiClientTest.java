@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.flexable.web.applink.AppApiClient.AppSeedMoney;
+import com.flexable.web.applink.AppApiClient.Entry;
 import com.flexable.web.applink.AppApiClient.CreatedLink;
 import com.flexable.web.applink.AppApiException;
 import com.flexable.web.applink.AppApiException.Kind;
@@ -99,6 +100,26 @@ class RestAppApiClientTest {
 			return e.kind();
 		}
 		throw new AssertionError("예외가 나야 합니다");
+	}
+
+	/** 앱 #225: EXTRA는 cycleEnd가 옮긴 날짜라 같은 날 여러 번 올 수 있다. startedOn이 null이어도 기록은 그대로 읽는다. */
+	@Test
+	void readsExtraEntriesWithSameDateAndNullStartedOn() {
+		reply(200, """
+				{"total":1300000,"base":500000,"monthlyGoal":300000,
+				 "lastEntry":{"cycleEnd":"2026-11-08","choice":"EXTRA","amount":200000,"createdAt":"2026-11-08T12:00:00+09:00"},
+				 "updatedAt":"2026-11-08T12:00:00+09:00","startedOn":null,
+				 "entries":[{"cycleEnd":"2026-10-25","choice":"GOAL","amount":300000,"totalAfter":800000,"createdAt":"2026-10-25T20:10:00+09:00"},
+				            {"cycleEnd":"2026-11-08","choice":"EXTRA","amount":200000,"totalAfter":1000000,"createdAt":"2026-11-08T10:00:00+09:00"},
+				            {"cycleEnd":"2026-11-08","choice":"EXTRA","amount":100000,"totalAfter":1100000,"createdAt":"2026-11-08T11:00:00+09:00"},
+				            {"cycleEnd":"2026-11-08","choice":"EXTRA","amount":200000,"totalAfter":1300000,"createdAt":"2026-11-08T12:00:00+09:00"}]}""");
+		AppSeedMoney seed = client().seedMoney(LINK_ID);
+		assertThat(seed.startedOn()).isNull();
+		assertThat(seed.lastEntry().choice()).isEqualTo("EXTRA");
+		assertThat(seed.entries()).extracting(Entry::choice).containsExactly("GOAL", "EXTRA", "EXTRA", "EXTRA");
+		assertThat(seed.entries()).extracting(Entry::cycleEnd).filteredOn(d -> d.toString().equals("2026-11-08")).hasSize(3);
+		assertThat(seed.entries()).extracting(Entry::totalAfter).containsExactly(800_000L, 1_000_000L, 1_100_000L, 1_300_000L);
+		assertThat(seed.entries().get(3).totalAfter()).isEqualTo(seed.total());
 	}
 
 	@Test

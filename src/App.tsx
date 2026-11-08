@@ -1,5 +1,6 @@
 import { createBrowserRouter, Link, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
+import { RouteError } from '@/components/RouteError';
 import BillingResult from '@/pages/BillingResult';
 import Diversify from '@/pages/Diversify';
 import FinanceGuide from '@/pages/FinanceGuide';
@@ -29,6 +30,7 @@ import Support from '@/pages/Support';
 export const router = createBrowserRouter([
   {
     element: <Layout />,
+    errorElement: <RouteError />,
     children: [
       { path: '/', element: <Navigate to="/home" replace /> },
       { path: '/home', element: <Landing /> },

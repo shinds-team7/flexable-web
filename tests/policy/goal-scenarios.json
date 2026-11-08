@@ -12,6 +12,30 @@
     { "name": "CMA 월복리 2.5%", "monthly": 1000000, "months": 12, "ratePercent": "2.5",
       "expected": { "principal": 12000000, "interestPreTax": 163743, "tax": 25216, "final": 12138527 } }
   ],
+  "cash": [
+    { "name": "4년 적금: 3년 만기금 재예치 + 새 적금", "op": "savings", "months": 48, "saving": "3.80", "deposit": "3.60", "saving2": "3.30", "deposit2": "3.40", "cma": "2.50", "drop": "0", "amount": 500000,
+      "expected": { "final": 25526244 } },
+    { "name": "4년 적금: 3년 뒤 금리 1%p 하락", "op": "savings", "months": 48, "saving": "3.80", "deposit": "3.60", "saving2": "3.30", "deposit2": "3.40", "cma": "2.50", "drop": "1.00", "amount": 500000,
+      "expected": { "final": 25338918 } },
+    { "name": "5년 적금: 재예치용 상품이 없으면 CMA", "op": "savings", "months": 60, "saving": "3.80", "deposit": null, "saving2": null, "deposit2": null, "cma": "2.50", "drop": "0", "amount": 500000,
+      "expected": { "final": 31979301 } },
+    { "name": "5년 CMA 월 납입", "op": "cma", "months": 60, "saving": "3.80", "deposit": null, "saving2": null, "deposit2": null, "cma": "2.50", "drop": "0", "amount": 300000,
+      "expected": { "final": 19008457 } },
+    { "name": "5년 CMA 월 납입: 3년 뒤 금리 1%p 하락", "op": "cma", "months": 60, "saving": "3.80", "deposit": null, "saving2": null, "deposit2": null, "cma": "2.50", "drop": "1.00", "amount": 300000,
+      "expected": { "final": 18745991 } },
+    { "name": "처음 돈 600만 원 1년: 예금이 CMA보다 5만 원 넘게 나아 예금", "op": "lump", "months": 12, "saving": "3.50", "deposit": "3.60", "saving2": null, "deposit2": null, "cma": "2.50", "drop": "0", "amount": 6000000,
+      "expected": { "final": 6182736, "place": "DEPOSIT" } },
+    { "name": "처음 돈 10만 원 1년: 이득이 1만 원 미만이라 CMA", "op": "lump", "months": 12, "saving": "3.50", "deposit": "3.60", "saving2": null, "deposit2": null, "cma": "2.50", "drop": "0", "amount": 100000,
+      "expected": { "final": 102135, "place": "CMA" } },
+    { "name": "처음 돈 600만 원 4년: 3년 예금 뒤 1년 재예치", "op": "lump", "months": 48, "saving": "3.80", "deposit": "3.60", "saving2": "3.30", "deposit2": "3.40", "cma": "2.50", "drop": "0", "amount": 6000000,
+      "expected": { "final": 6736561, "place": "DEPOSIT" } }
+  ],
+  "lumpInvest": [
+    { "name": "처음 돈 투자(과세): 배수 1.25면 이익 25만 원, 세금 38,500원", "amount": 1000000, "factor": "1.25", "taxed": true,
+      "expected": { "gain": 250000, "tax": 38500, "final": 1211500 } },
+    { "name": "처음 돈 투자(과세): 손실이면 세금 0", "amount": 1000000, "factor": "0.90", "taxed": true,
+      "expected": { "gain": -100000, "tax": 0, "final": 900000 } }
+  ],
   "invest": [
     { "name": "비과세 투자", "monthly": 1000000, "returns": ["0.10", "-0.05", "0.02", "0", "0", "0", "0", "0", "0", "0", "0", "0.031"], "taxed": false,
       "expected": { "principal": 12000000, "value": 12428601, "tax": 0, "final": 12428601 } },
@@ -44,7 +68,10 @@
   ],
   "quantileIndex": [ { "n": 2000, "expected": { "low": 199, "median": 999, "high": 1799 } }, { "n": 5, "expected": { "low": 0, "median": 2, "high": 4 } } ],
   "validation": [
-    { "name": "기한 4년", "request": { "name": "목돈", "targetAmount": 15000000, "years": 4 }, "expected": { "status": 400, "field": "years" } },
+    { "name": "기한 6년", "request": { "name": "목돈", "targetAmount": 15000000, "years": 6 }, "expected": { "status": 400, "field": "years" } },
+    { "name": "기한 0년", "request": { "name": "목돈", "targetAmount": 15000000, "years": 0 }, "expected": { "status": 400, "field": "years" } },
+    { "name": "처음 돈 음수", "request": { "name": "목돈", "targetAmount": 15000000, "years": 1, "initialAmount": -1 }, "expected": { "status": 400, "field": "initialAmount" } },
+    { "name": "처음 돈 10억 원 초과", "request": { "name": "목돈", "targetAmount": 15000000, "years": 1, "initialAmount": 1000000001 }, "expected": { "status": 400, "field": "initialAmount" } },
     { "name": "목표 하한 미만", "request": { "name": "목돈", "targetAmount": 999999, "years": 1 }, "expected": { "status": 400, "field": "targetAmount" } },
     { "name": "목표 상한 초과", "request": { "name": "목돈", "targetAmount": 1000000001, "years": 1 }, "expected": { "status": 400, "field": "targetAmount" } },
     { "name": "이름 공백만", "request": { "name": "   ", "targetAmount": 15000000, "years": 1 }, "expected": { "status": 400, "field": "name" } },

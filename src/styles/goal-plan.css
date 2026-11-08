@@ -45,9 +45,16 @@
 .gp-plan[aria-pressed="true"]{border-color:var(--color-brand-primary);box-shadow:0 0 0 3px var(--color-brand-subtle)}
 .gp-plan-tag{font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--color-text-tertiary)}
 .gp-plan-title{font-size:18px;font-weight:700;margin-top:calc(var(--density-gap)/6)}
-.gp-plan-desc{font-size:13px;color:var(--color-text-tertiary);margin-bottom:calc(var(--density-gap)*7/12)}
+.gp-plan-title{margin-bottom:calc(var(--density-gap)*7/12)}
+.gp-plan-basis{font-size:12px;color:var(--color-text-tertiary);margin-bottom:calc(var(--density-gap)/2)}
+.gp-plan-summary{margin:calc(var(--density-gap)*7/12) 0 0;font-size:14px;color:var(--color-text-secondary)}
+.gp-plan-summary b{color:var(--color-text-primary)}
+.gp-view-plan{display:flex;align-items:center;gap:calc(var(--density-gap)/2);margin:0 0 calc(var(--density-gap)*2/3)}
+.gp-view-plan label{font-size:13px;font-weight:600;color:var(--color-text-secondary)}
+.gp-view-plan select{min-width:0;flex:1;max-width:360px}
 .gp-plan-label{font-size:12px;color:var(--color-text-tertiary)}
-.gp-plan-monthly{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:calc(var(--density-gap)/12) 0 calc(var(--density-gap)/2)}
+.gp-plan-monthly{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:calc(var(--density-gap)/12) 0 calc(var(--density-gap)/12)}
+.gp-plan[aria-pressed="true"] .gp-plan-monthly{color:var(--color-brand-text)}
 .gp-plan-monthly small{font-size:15px;font-weight:600}
 .gp-plan-none{font-size:15px;font-weight:600;color:var(--color-text-secondary);margin:calc(var(--density-gap)/6) 0 calc(var(--density-gap)/2)}
 .gp-mini,.gp-bar{display:flex;gap:2px;overflow:hidden}

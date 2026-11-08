@@ -37,8 +37,10 @@ public final class VirtualContestRules {
 	public static final long LIQUIDATION_BELOW = 1_000_000L;
 	/** 하루 목표: 그날 판들의 초과 수익률 평균(11-05 구현 PR 사용자 결정) */
 	public static final BigDecimal DAILY_TARGET = new BigDecimal("0.01");
-	public static final int PROMOTE_AT = 4;
-	public static final int DEMOTE_AT = -4;
+	/** 하루 점수 한 단위(#308: 100점 단위로 쌓고 보인다) */
+	public static final int DAY_POINTS = 100;
+	public static final int PROMOTE_AT = 4 * DAY_POINTS;
+	public static final int DEMOTE_AT = -4 * DAY_POINTS;
 	public static final int RANKING_TOP = 100;
 	public static final int RETENTION_MONTHS = 12;
 	public static final int WEEK_DAYS = 7;
@@ -89,24 +91,24 @@ public final class VirtualContestRules {
 		return balance < LIQUIDATION_BELOW;
 	}
 
-	/** 하루 점수 +1을 받을 수 있는 판 수(11-05 구현 PR 사용자 결정) */
+	/** 하루 점수 +100을 받을 수 있는 판 수(11-05 구현 PR 사용자 결정) */
 	public static final int ROUNDS_FOR_SCORE = ROUNDS_PER_DAY;
 
 	/**
-	 * 하루 점수: 하루 수익률이 목표에 못 미치면 −1. 목표 이상이면 그날 10판을 모두 시작했을 때만 +1, 1~9판이면 0. 판이 없는 날(null)은 0.
-	 * 좋을 때 멈추면 +1을 못 받고, 나쁠 때 멈춰도 −1을 피하지 못한다
+	 * 하루 점수: 하루 수익률이 목표에 못 미치면 −100. 목표 이상이면 그날 10판을 모두 시작했을 때만 +100, 1~9판이면 0. 판이 없는 날(null)은 0.
+	 * 좋을 때 멈추면 +100을 못 받고, 나쁠 때 멈춰도 −100을 피하지 못한다
 	 */
 	public static int dailyPoints(BigDecimal dayRate, int roundsStarted) {
 		if (dayRate == null) {
 			return 0;
 		}
 		if (dayRate.compareTo(DAILY_TARGET) < 0) {
-			return -1;
+			return -DAY_POINTS;
 		}
-		return roundsStarted >= ROUNDS_FOR_SCORE ? 1 : 0;
+		return roundsStarted >= ROUNDS_FOR_SCORE ? DAY_POINTS : 0;
 	}
 
-	/** 주간 판정: +4 이상 한 단계 승급, −4 이하 한 단계 강등(끝 판은 그대로) */
+	/** 주간 판정: +400 이상 한 단계 승급, −400 이하 한 단계 강등(끝 판은 그대로) */
 	public static VirtualContestBoard weekly(VirtualContestBoard board, int weekPoints) {
 		return weekPoints >= PROMOTE_AT ? board.up() : weekPoints <= DEMOTE_AT ? board.down() : board;
 	}

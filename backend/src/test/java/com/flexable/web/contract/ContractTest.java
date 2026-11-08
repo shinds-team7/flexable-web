@@ -453,7 +453,7 @@ class ContractTest {
 	void 목표_달성_시나리오() throws Exception {
 		// 200은 5년 넘는 시세가 필요해 GoalScenarioApiTest가 따로 검사한다. 여기서는 오류 응답 모양만 본다
 		call(json(post("/api/v1/goal/scenarios"), "{\"name\":\"목돈\",\"targetAmount\":15000000,\"years\":1}"), 503);
-		call(json(post("/api/v1/goal/scenarios"), "{\"name\":\"목돈\",\"targetAmount\":15000000,\"years\":6}"), 400);
+		call(json(post("/api/v1/goal/scenarios"), "{\"name\":\"목돈\",\"targetAmount\":15000000,\"years\":4}"), 400);
 		// 저장(회원만). 200·201 모양은 GoalScenarioApiTest가 검사한다
 		call(get("/api/v1/me/goal/scenarios"), 401);
 		String token = signup();

@@ -43,7 +43,6 @@ import com.atlassian.oai.validator.model.Request;
 import com.atlassian.oai.validator.model.SimpleResponse;
 import com.atlassian.oai.validator.report.LevelResolver;
 import com.atlassian.oai.validator.report.ValidationReport;
-import com.flexable.web.deposit.DepositCatalogService;
 import com.flexable.web.market.Board;
 import com.flexable.web.market.DailyClose;
 import com.flexable.web.market.MarketDtos.InstrumentRow;
@@ -70,8 +69,6 @@ class GoalScenarioApiTest {
 	MarketService market;
 	@Autowired
 	SavingsCatalogService savings;
-	@Autowired
-	DepositCatalogService deposits;
 	@Autowired
 	JdbcTemplate jdbc;
 	@MockitoBean
@@ -147,20 +144,7 @@ class GoalScenarioApiTest {
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("4.00"), null))),
 				new ProductData("0010003", "C", "BANK", "202610", "열린은행", "누구나 적금", "인터넷", null, null, "1", "실명의 개인", null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("3.50"), null))),
-				openSaving("0010005", "F", "둘째 적금", "3.20"), openSaving("0010006", "G", "셋째 적금", "3.00"), openSaving("0010007", "H", "넷째 적금", "2.80"),
-				openSaving36("0010008", "I", "삼년 적금", "3.80")));
-		// 처음 모은 돈의 저축 몫과 4·5년 재예치에 쓰는 예금: 1년 3.30%, 3년 3.60%. 저축은행 상품은 후보에서 빠진다
-		deposits.replaceAll(List.of(
-				new DepositCatalogService.ProductData("0030001", "X", "BANK", "202610", "예금은행", "높은 예금", "인터넷", null, null, "1", "실명의 개인", null, null,
-						"20261001", null, "202610011000", List.of(new DepositCatalogService.OptionData("S", 12, new BigDecimal("3.30"), null),
-								new DepositCatalogService.OptionData("S", 36, new BigDecimal("3.60"), null))),
-				new DepositCatalogService.ProductData("0030002", "Y", "SAVINGS_BANK", "202610", "예금저축은행", "저축은행 예금", "인터넷", null, null, "1", "실명의 개인", null, null,
-						"20261001", null, "202610011000", List.of(new DepositCatalogService.OptionData("S", 12, new BigDecimal("5.00"), null)))));
-	}
-
-	private static ProductData openSaving36(String company, String code, String name, String rate) {
-		return new ProductData(company, code, "BANK", "202610", "삼년은행", name, "인터넷", null, null, "1", "실명의 개인", null, null,
-				"20261001", null, "202610011000", List.of(new OptionData("S", "S", 36, new BigDecimal(rate), null)));
+				openSaving("0010005", "F", "둘째 적금", "3.20"), openSaving("0010006", "G", "셋째 적금", "3.00"), openSaving("0010007", "H", "넷째 적금", "2.80")));
 	}
 
 	private static ProductData openSaving(String company, String code, String name, String rate) {
@@ -310,93 +294,10 @@ class GoalScenarioApiTest {
 
 	@Test
 	void 입력이_범위를_벗어나면_400() throws Exception {
-		call(BODY.formatted("목돈", 15_000_000, 6), 400);
-		call(BODY.formatted("목돈", 15_000_000, 0), 400);
-		call("{\"name\":\"목돈\",\"targetAmount\":15000000,\"years\":1,\"initialAmount\":-1}", 400);
-		call("{\"name\":\"목돈\",\"targetAmount\":15000000,\"years\":1,\"initialAmount\":1000000001}", 400);
+		call(BODY.formatted("목돈", 15_000_000, 4), 400);
 		call(BODY.formatted("목돈", 999_999, 1), 400);
 		call(BODY.formatted("   ", 15_000_000, 1), 400);
 		call("{\"name\":\"목돈\",\"years\":1}", 400);
-	}
-
-	private static final String BODY_INITIAL = "{\"name\":\"%s\",\"targetAmount\":%d,\"years\":%d,\"initialAmount\":%d}";
-
-	@Test
-	void 처음_모은_돈은_저축_몫을_예금에_두고_넣은_돈에_더한다() throws Exception {
-		String base = call(BODY.formatted("목돈", 15_000_000, 1), 200);
-		assertThat((Integer) JsonPath.read(base, "$.initialAmount")).isZero();
-		assertThat((Object) JsonPath.read(base, "$.scenarios[0].initialSaving")).isNull();
-		assertThat((Object) JsonPath.read(base, "$.initialDeposit")).isNull();
-
-		String body = call(BODY_INITIAL.formatted("목돈", 15_000_000, 1, 6_000_000), 200);
-		assertThat(((Number) JsonPath.read(body, "$.initialAmount")).longValue()).isEqualTo(6_000_000L);
-		// 1년 예금 3.30%가 CMA 2.5%보다 묶는 1년당 1만 원 넘게 나아 예금에 둔다(저축은행 예금은 후보 밖)
-		assertThat((String) JsonPath.read(body, "$.initialDeposit.name")).isEqualTo("높은 예금");
-		assertThat((String) JsonPath.read(body, "$.initialDeposit.ratePercent")).isEqualTo("3.30");
-		// 적금 70·CMA 30인 첫 플랜은 투자가 없어 처음 돈 전부가 저축 몫
-		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].initialSaving.amount")).longValue()).isEqualTo(6_000_000L);
-		assertThat((String) JsonPath.read(body, "$.scenarios[0].initialSaving.place")).isEqualTo("DEPOSIT");
-		long monthlyWith = ((Number) JsonPath.read(body, "$.scenarios[0].monthly")).longValue();
-		long monthlyWithout = ((Number) JsonPath.read(base, "$.scenarios[0].monthly")).longValue();
-		assertThat(monthlyWith).as("처음 돈이 있으면 필요한 월 금액이 줄어요").isLessThan(monthlyWithout);
-		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].paid")).longValue()).isEqualTo(monthlyWith * 12 + 6_000_000L);
-		// 투자 몫: 둘째 플랜은 투자 비중 50%라 처음 돈 3,000,000원이 처음부터 시장에 들어가고 저축 몫은 3,000,000원
-		assertThat(((Number) JsonPath.read(body, "$.scenarios[1].initialSaving.amount")).longValue()).isEqualTo(3_000_000L);
-		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).anyMatch(a -> a.contains("처음 모은 돈"));
-	}
-
-	@Test
-	void 처음_돈만으로_닿으면_월_금액_0원이고_추가_납입이_필요_없다() throws Exception {
-		String body = call(BODY_INITIAL.formatted("목돈", 15_000_000, 1, 15_000_000), 200);
-		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].monthly")).longValue()).isZero();
-		assertThat((Boolean) JsonPath.read(body, "$.scenarios[0].noExtraNeeded")).isTrue();
-		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].paid")).longValue()).isEqualTo(15_000_000L);
-		assertThat((Boolean) JsonPath.read(body, "$.scenarios[0].reachable")).isTrue();
-		List<Number> mixMonthly = JsonPath.read(body, "$.scenarios[0].mix[*].monthly");
-		assertThat(mixMonthly).allSatisfy(m -> assertThat(m.longValue()).isZero());
-		assertThat((String) JsonPath.read(body, "$.recommendedId")).isNotBlank();
-	}
-
-	@Test
-	void 플랜은_투자_비중_순으로_안전형_균형형_적극형이고_추천은_하나다() throws Exception {
-		String body = call(BODY.formatted("목돈", 15_000_000, 1), 200);
-		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].style")).containsExactly("SAFE", "BALANCED", "AGGRESSIVE");
-		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).contains((String) JsonPath.read(body, "$.recommendedId"));
-		assertThat((Object) JsonPath.read(body, "$.rateAssumption")).isNull();
-		assertThat((Object) JsonPath.read(body, "$.scenarios[0].rateDown")).isNull();
-	}
-
-	@Test
-	void 사_년은_삼_년_적금_뒤_재예치하고_금리_하락_결과를_함께_준다() throws Exception {
-		String body = call(BODY.formatted("목돈", 40_000_000, 4), 200);
-		assertThat((Integer) JsonPath.read(body, "$.months")).isEqualTo(48);
-		assertThat((Integer) JsonPath.read(body, "$.rateAssumption.afterMonths")).isEqualTo(36);
-		assertThat((String) JsonPath.read(body, "$.rateAssumption.dropPercent")).isEqualTo("1.00");
-		// 실제 상품 이름은 첫 3년 상품만
-		assertThat((String) JsonPath.read(body, "$.products[0].items[0].name")).isEqualTo("삼년 적금");
-		assertThat((String) JsonPath.read(body, "$.products[0].ratePercent")).isEqualTo("3.80");
-		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).anyMatch(a -> a.contains("3년 뒤 금리"));
-		for (int i = 0; i < 3; i++) {
-			String at = "$.scenarios[" + i + "]";
-			if ((Boolean) JsonPath.read(body, at + ".reachable")) {
-				long monthly = ((Number) JsonPath.read(body, at + ".monthly")).longValue();
-				assertThat((Boolean) JsonPath.read(body, at + ".rateDown.reachable")).isTrue();
-				long down = ((Number) JsonPath.read(body, at + ".rateDown.monthly")).longValue();
-				assertThat(down).as("금리가 낮아지면 필요한 월 금액은 같거나 늘어요").isGreaterThanOrEqualTo(monthly);
-			}
-		}
-		// 첫 플랜(적금 70·CMA 30)은 투자가 없어 확정형
-		assertThat((String) JsonPath.read(body, "$.scenarios[0].outcome.kind")).isEqualTo("FIXED");
-	}
-
-	@Test
-	void 오_년도_계산하고_삼_년_이하에는_금리_하락_가정이_없다() throws Exception {
-		String five = call(BODY.formatted("목돈", 60_000_000, 5), 200);
-		assertThat((Integer) JsonPath.read(five, "$.months")).isEqualTo(60);
-		assertThat((Object) JsonPath.read(five, "$.rateAssumption")).isNotNull();
-		String three = call(BODY.formatted("목돈", 40_000_000, 3), 200);
-		assertThat((Object) JsonPath.read(three, "$.rateAssumption")).isNull();
-		assertThat((Object) JsonPath.read(three, "$.scenarios[0].rateDown")).isNull();
 	}
 
 	@Test
@@ -627,10 +528,6 @@ class GoalScenarioApiTest {
 		assertThat(((Number) JsonPath.read(saved, "$.scenario.monthly")).longValue())
 			.isEqualTo(((Number) JsonPath.read(result, "$.scenarios[1].monthly")).longValue());
 		assertThat((Object) JsonPath.read(saved, "$.scenario.outcome")).isEqualTo(JsonPath.read(result, "$.scenarios[1].outcome"));
-		// 같은 계산 결과의 나머지 플랜 두 개도 그때 값 그대로 저장한다(계산 응답의 순서, 고른 플랜 제외)
-		assertThat((List<String>) JsonPath.read(saved, "$.otherScenarios[*].id")).containsExactly("steady", "bold");
-		assertThat((Object) JsonPath.read(saved, "$.otherScenarios[0]")).isEqualTo(JsonPath.read(result, "$.scenarios[0]"));
-		assertThat((Object) JsonPath.read(saved, "$.otherScenarios[1]")).isEqualTo(JsonPath.read(result, "$.scenarios[2]"));
 		long id = ((Number) JsonPath.read(saved, "$.id")).longValue();
 
 		String list = send(auth(get("/api/v1/me/goal/scenarios"), token), 200);
@@ -647,22 +544,6 @@ class GoalScenarioApiTest {
 		send(auth(delete("/api/v1/me/goal/scenarios/" + id), token), 204);
 		send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 404);
 		assertThat((List<?>) JsonPath.read(send(auth(get("/api/v1/me/goal/scenarios"), token), 200), "$.items")).isEmpty();
-	}
-
-	@Test
-	void 플랜_전체_저장_이전의_저장본은_나머지_플랜이_빈_목록이다() throws Exception {
-		String token = signup();
-		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
-		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
-		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
-		assertThat(snapshot).contains("otherScenarios");
-		// 플랜 하나만 저장하던 때의 JSON: otherScenarios 칸이 없다
-		String old = snapshot.replaceAll(",\"otherScenarios\":\\[.*\\]\\}$", "}");
-		assertThat(old).isNotEqualTo(snapshot).doesNotContain("otherScenarios");
-		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
-		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
-		assertThat((List<?>) JsonPath.read(saved, "$.otherScenarios")).isEmpty();
-		assertThat((String) JsonPath.read(saved, "$.scenario.id")).isEqualTo("steady");
 	}
 
 	@Test

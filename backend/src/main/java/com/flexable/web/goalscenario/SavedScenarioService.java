@@ -25,8 +25,8 @@ import com.flexable.web.user.UserWithdrawalListener;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 회원이 저장한 목표 시나리오(policies §7-8). 방금 계산한 결과(resultId) 중 하나를 그때 값 그대로 저장하고, 다시 계산하지 않는다.
- * 회원당 최대 5개, 지우거나 탈퇴하면 삭제한다.
+ * 회원이 저장한 목표 시나리오(policies §7-8). 방금 계산한 결과(resultId)의 플랜 세 개를 그때 값 그대로 저장하고(고른 플랜은 scenario,
+ * 나머지는 otherScenarios), 다시 계산하지 않는다. 회원당 최대 5건, 지우거나 탈퇴하면 삭제한다.
  */
 @Service
 public class SavedScenarioService implements UserWithdrawalListener {
@@ -38,7 +38,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 	/** snapshot 칸에 넣는 JSON. 목록·상세에 필요한 값을 모두 담는다. */
 	record Snapshot(int months, String proposer, String asOf, String returnsFrom, String returnsTo, int paths, BigDecimal reachShare,
 			List<Product> products, Scenario scenario, List<String> assumptions, String notice, boolean isSample, long initialAmount,
-			GoalScenarioDtos.RateAssumption rateAssumption, GoalScenarioDtos.Alternative initialDeposit) {
+			GoalScenarioDtos.RateAssumption rateAssumption, GoalScenarioDtos.Alternative initialDeposit, List<Scenario> otherScenarios) {
 	}
 
 	private final SavedScenarioRepository saved;
@@ -76,7 +76,8 @@ public class SavedScenarioService implements UserWithdrawalListener {
 			throw new ApiException(ErrorCode.GOAL_SCENARIO_LIMIT);
 		}
 		Snapshot snap = new Snapshot(r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.reachShare(),
-				r.products(), s, r.assumptions(), r.notice(), r.isSample(), r.initialAmount(), r.rateAssumption(), r.initialDeposit());
+				r.products(), s, r.assumptions(), r.notice(), r.isSample(), r.initialAmount(), r.rateAssumption(), r.initialDeposit(),
+				r.scenarios().stream().filter(x -> !x.id().equals(s.id())).toList());
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS); // DB(DATETIME(6))와 같은 정밀도로 돌려준다
 		SavedScenario row = saved.save(new SavedScenario(userId, now, r.name(), r.targetAmount(), r.years(), JSON.writeValueAsString(snap)));
 		// 동시에 저장해 5개를 넘겼으면 이번 저장을 되돌린다
@@ -116,6 +117,6 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		Snapshot s = read(row);
 		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getYears(), s.months(), s.proposer(),
 				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), s.products(), s.scenario(), s.assumptions(),
-				s.notice(), s.isSample(), s.initialAmount(), s.rateAssumption(), s.initialDeposit());
+				s.notice(), s.isSample(), s.initialAmount(), s.rateAssumption(), s.initialDeposit(), s.otherScenarios());
 	}
 }

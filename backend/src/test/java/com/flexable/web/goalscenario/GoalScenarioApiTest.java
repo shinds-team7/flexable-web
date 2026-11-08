@@ -627,6 +627,10 @@ class GoalScenarioApiTest {
 		assertThat(((Number) JsonPath.read(saved, "$.scenario.monthly")).longValue())
 			.isEqualTo(((Number) JsonPath.read(result, "$.scenarios[1].monthly")).longValue());
 		assertThat((Object) JsonPath.read(saved, "$.scenario.outcome")).isEqualTo(JsonPath.read(result, "$.scenarios[1].outcome"));
+		// 같은 계산 결과의 나머지 플랜 두 개도 그때 값 그대로 저장한다(계산 응답의 순서, 고른 플랜 제외)
+		assertThat((List<String>) JsonPath.read(saved, "$.otherScenarios[*].id")).containsExactly("steady", "bold");
+		assertThat((Object) JsonPath.read(saved, "$.otherScenarios[0]")).isEqualTo(JsonPath.read(result, "$.scenarios[0]"));
+		assertThat((Object) JsonPath.read(saved, "$.otherScenarios[1]")).isEqualTo(JsonPath.read(result, "$.scenarios[2]"));
 		long id = ((Number) JsonPath.read(saved, "$.id")).longValue();
 
 		String list = send(auth(get("/api/v1/me/goal/scenarios"), token), 200);
@@ -643,6 +647,22 @@ class GoalScenarioApiTest {
 		send(auth(delete("/api/v1/me/goal/scenarios/" + id), token), 204);
 		send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 404);
 		assertThat((List<?>) JsonPath.read(send(auth(get("/api/v1/me/goal/scenarios"), token), 200), "$.items")).isEmpty();
+	}
+
+	@Test
+	void 플랜_전체_저장_이전의_저장본은_나머지_플랜이_빈_목록이다() throws Exception {
+		String token = signup();
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
+		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
+		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
+		assertThat(snapshot).contains("otherScenarios");
+		// 플랜 하나만 저장하던 때의 JSON: otherScenarios 칸이 없다
+		String old = snapshot.replaceAll(",\"otherScenarios\":\\[.*\\]\\}$", "}");
+		assertThat(old).isNotEqualTo(snapshot).doesNotContain("otherScenarios");
+		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
+		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat((List<?>) JsonPath.read(saved, "$.otherScenarios")).isEmpty();
+		assertThat((String) JsonPath.read(saved, "$.scenario.id")).isEqualTo("steady");
 	}
 
 	@Test

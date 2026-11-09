@@ -6,6 +6,7 @@ import { router } from './App';
 import { SessionProvider } from './auth/session';
 import { IconSprite } from './components/Icons';
 import { installErrorReporting } from './lib/errorReport';
+import './styles/fonts.css';
 import './styles/tokens.css';
 import './styles/global.css';
 

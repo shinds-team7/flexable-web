@@ -261,16 +261,16 @@ class PlacementSummaryJobTest {
 	}
 
 	@Test
-	void 지금_룰셋에서_경향이_뚜렷한_유형을_먼저_요약한다() {
+	void 반응_창_근거_유형을_먼저_요약한다() {
 		Documents dart = seed();
-		// 유상증자가 뚜렷한 유형(DOWN)인 실제 룰셋. 배치고사 10문제 중 6문제가 이런 유형에서 나온다
+		// 룰셋에서 유상증자가 뚜렷한 유형(DOWN)이어도 순서에 쓰지 않는다(decisions/2026-11-09-placement-reaction-window)
 		store.saveRuleset(new com.flexable.web.virtualsim.VirtualSimRuleset(com.flexable.web.virtualsim.VirtualSimRuleset.VERSION, "2021-01-01", "2026-01-01", false,
 				List.of(), List.of(new com.flexable.web.virtualsim.VirtualSimRuleset.CategoryStats(VirtualSimCategory.NEW_SHARES, 100, 30, 70, 0,
 						new java.math.BigDecimal("0.3000"), -50, -300, 200, java.math.BigDecimal.ONE, "DOWN", List.of())),
 				List.of()));
 		var job = job(dart, new Writer(), props("dart", 1, 2, 10));
-		// 주요 내용이 있어도 뚜렷한 유형(유상증자)이 먼저, 그다음 주요 내용이 없는 공급 계약을 최근부터
-		assertThat(job.targets(10)).extracting(t -> t.disclosure().receiptNo()).containsExactly("20250101000001", "20250101000003", "20250101000002");
+		// 반응 창 근거 유형(공급 계약)을 최근부터 먼저, 그다음 유상증자
+		assertThat(job.targets(10)).extracting(t -> t.disclosure().receiptNo()).containsExactly("20250101000003", "20250101000002", "20250101000001");
 	}
 
 	@Test

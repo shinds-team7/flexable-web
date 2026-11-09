@@ -273,7 +273,7 @@ function useRemaining(until: string | null) {
 type PlacementQuestion = ContestPlacement['questions'][number];
 
 /** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 줄글(업종·제목·AI 요약 또는 주요 내용, 회사·날짜·방향 없음). 결과 화면은 회사·날짜·움직임까지 붙인 줄글(disclosureStory)로 보인다 */
-function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
+function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean | null; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
   const t = cleanTitle(q.title);
   return <>
     <h3 id={headingId} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="contest-q-title">{t.main}</h3>
@@ -293,7 +293,7 @@ function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuesti
  * 돌아온 문제에서 고른 답을 다시 누르면 그 답을 그대로 두고 넘어가고, 다른 답을 누르면 바꿔서 넘어간다(취소는 없다).
  * 마지막 문제에서는 넘어가지 않고 제출한다. 채점은 제출 때 서버가 한다
  */
-function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement: ContestPlacement; sample: boolean; busy: boolean; error: string;
+function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement: ContestPlacement; sample: boolean | null; busy: boolean; error: string;
   onSubmit: (answers: Record<string, Prediction>) => void }) {
   const [answers, setAnswers] = useState<Record<string, Prediction>>({});
   const [index, setIndex] = useState(0);
@@ -355,7 +355,7 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
   </form>;
 }
 
-function PlacementDone({ result, questions, sample, onStart }: { result: ContestPlacementResult; questions: PlacementQuestion[]; sample: boolean; onStart: () => void }) {
+function PlacementDone({ result, questions, sample, onStart }: { result: ContestPlacementResult; questions: PlacementQuestion[]; sample: boolean | null; onStart: () => void }) {
   // 결과에는 주요 내용을 다시 싣지 않아(채점하면 문제 사본을 지움) 풀 때 받은 문제와 questionId로 잇는다
   const byId = new Map(questions.map(q => [q.id, q]));
   const heading = useRef<HTMLHeadingElement | null>(null);
@@ -627,7 +627,8 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
   const location = useLocation();
   const [info, setInfo] = useState<ContestInfo | null>(null);
   const [mine, setMine] = useState<ContestMine | null>(null);
-  const [sample, setSample] = useState(false);
+  // 예시 자료인지(가상 시뮬레이션 상태). 확인하기 전·확인에 실패하면 null이고, 공시 AI 요약의 출처 안내를 붙이지 않는다
+  const [sample, setSample] = useState<boolean | null>(null);
   const [view, setView] = useState<View>('home');
   const [placement, setPlacement] = useState<ContestPlacement | null>(null);
   const [result, setResult] = useState<ContestPlacementResult | null>(null);

@@ -86,6 +86,9 @@ class PlacementGuideTextTest {
 			n++;
 			// 공시 주요 내용이 있는 유형은 예시 요약을 두지 않는다(실제 출제 화면과 같은 갈래를 함께 보이려고)
 			assertThat(VirtualSimSample.details(c)).as(c.name()).isNull();
+			// 예시 요약은 예시 사건 글에 있는 사실만 담는다: 사건 글에 없는 숫자(%·금액)가 요약에 없다
+			assertThat(summary).as(c.name()).doesNotContainPattern("\\d");
+			assertThat(VirtualSimSample.companies()).as(c.name()).allSatisfy(d -> assertThat(d.bodies()).containsKey(c));
 			PlacementSummaries.Verdict v = PlacementSummaries.check(summary, summary, companies);
 			assertThat(v.ok()).as(c.name() + ": " + v.reject()).isTrue();
 			assertThat(BANNED).as(summary).noneMatch(summary.replace("보통주", "")::contains);

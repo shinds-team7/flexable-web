@@ -53,13 +53,17 @@ const SENTENCE: Record<string, (v: string, q: Question) => string> = {
 };
 const MASKED = '회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 기존 대비 %로만 보여 줘요.';
 const NO_DETAILS_QUESTION = '이 유형은 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
-const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜·금액은 뺐어요.';
+const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 금액은 규모 구간으로만 보여 줘요.';
 const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
 
-/** 공시 AI 요약 → 줄글(요약 + 출처 안내). 요약이 없으면 null */
-function summaryStory(q: Question, sample: boolean): string | null {
-  return q.summary ? `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}` : null;
+/**
+ * 공시 AI 요약 → 줄글(요약 + 출처 안내). 요약이 없으면 null.
+ * sample: 예시 자료면 true, 실제 자료면 false, 상태를 아직 확인하지 못했으면 null(출처를 단정하지 않고 안내를 붙이지 않는다)
+ */
+function summaryStory(q: Question, sample: boolean | null): string | null {
+  if (!q.summary) return null;
+  return sample === null ? q.summary : `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}`;
 }
 
 /** 공시 주요 내용 → 줄글. 항목이 없으면 null */
@@ -71,9 +75,9 @@ function detailsStory(q: Question): string | null {
 
 /**
  * 문제 화면의 공시 줄글: 업종·제목과 공시 AI 요약(있으면) 또는 공시 주요 내용만(회사·날짜·방향·과거 경향 없음).
- * 예시 글(body)은 카드에 따로 보이므로 요약·주요 내용이 없으면 안내 문장을 뺀다. sample: 예시 자료면 true
+ * 예시 글(body)은 카드에 따로 보이므로 요약·주요 내용이 없으면 안내 문장을 뺀다. sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
-export function questionStory(q: Question, title: string, sample = false): string[] {
+export function questionStory(q: Question, title: string, sample: boolean | null = null): string[] {
   const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
   return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
 }
@@ -84,9 +88,9 @@ const share = (r: number) => (Math.floor(r * 1000) / 10).toFixed(1);
 
 /**
  * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 AI 요약 또는 공시 주요 내용(있을 때) ③ 그 뒤 5거래일 실제 움직임과 같은 유형 통계.
- * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true, sample: 예시 자료면 true
+ * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true, sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
-export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean, sample = false): string[] {
+export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean, sample: boolean | null = null): string[] {
   const when = it.date ? `${it.date.slice(0, 4)}년 ${Number(it.date.slice(5, 7))}월 ${Number(it.date.slice(8, 10))}일` : null;
   const who = `${q.industry} 회사 ${it.company}`;
   const intro = `${who}${josa(it.company, '이', '가')} ${when ? `${when}에 ` : ''}낸 '${title}' 공시예요.`

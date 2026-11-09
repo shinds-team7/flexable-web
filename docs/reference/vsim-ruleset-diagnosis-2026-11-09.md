@@ -1,6 +1,6 @@
 # 가상 시뮬레이션 룰셋 신뢰도 진단(2026-11-09 측정)
 
-- 날짜: 2026-11-09 · 측정: 개발(rhkrqkq) · 관련: Issue 1(룰셋 신뢰도 진단) · 대상: `vsim-rules-v2` + `vsim-types-v3`([가상 시뮬레이션 결정](../decisions/2026-11-04-virtual-simulation.md) 1-1~1-9)
+- 날짜: 2026-11-09 · 측정: 개발(rhkrqkq) · 관련: Issue #369 · 대상: `vsim-rules-v2` + `vsim-types-v3`([가상 시뮬레이션 결정](../decisions/2026-11-04-virtual-simulation.md) 1-1~1-9)
 - 스크립트: [`scripts/vsim-ruleset-diagnosis.py`](../../scripts/vsim-ruleset-diagnosis.py)(표준 라이브러리, 로컬 DB 사본에서 내보낸 CSV만 읽음)
 - 성격: **측정 기록**이다. 룰셋·분류·계약·화면·정책은 바꾸지 않는다. 바꿀지는 별도 Issue에서 정한다.
 

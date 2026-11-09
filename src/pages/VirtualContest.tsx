@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { useLoginModal } from '@/components/LoginModal';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
 import { CATEGORY_GUIDE, SUBSIDIARY_NOTE, cleanTitle } from '@/data/placementGuide';
+import { clearPlacement, markPlacement } from '@/data/placementMark';
 import { disclosureStory, questionStory } from '@/data/disclosureStory';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
@@ -76,6 +77,8 @@ function JoinCard({ info, title, text, action }: { info: ContestInfo; title: str
       <ul className="contest-join-facts" aria-label="배치고사 요약"><li>{r.placementQuestions}문제</li><li>30분</li><li>시즌마다 1번</li></ul>
       <h2 id="contestJoinTitle">{title}</h2>
       <p className="practice-muted">{text}</p>
+      {/* 시작 전 안내에만 둔다. 배치고사·대회 판을 하는 동안에는 가이드를 볼 수 없다(Issue #367) */}
+      <p className="contest-join-guide"><Link to="/simulation/guide">공시가 처음이면 「공시 읽는 법」을 먼저 읽어 보세요 ›</Link></p>
       {action}
     </div>
     <PlacementBoards info={info} />
@@ -653,6 +656,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
       const [contest, me] = await Promise.all([getContest(), member ? getMyContests() : Promise.resolve(null)]);
       if (current !== generation.current) return;
       setInfo(contest); setMine(me); setError('');
+      if (me?.current) clearPlacement();
       setBoard(b => b ?? me?.current?.board ?? 'B10M');
     } catch (e) { if (current === generation.current) setError(errorText(e)); }
   }, [member]);
@@ -699,7 +703,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
 
   const beginPlacement = async () => {
     setBusy(true); setError('');
-    try { setPlacement(await startPlacement()); setView('placement'); }
+    try { const p = await startPlacement(); markPlacement(info?.contestId ?? '', p.expiresAt); setPlacement(p); setView('placement'); }
     catch (e) { setError(errorText(e)); if (e instanceof ApiError && e.code === 'CONTEST_ALREADY_JOINED') void load(); }
     finally { setBusy(false); }
   };
@@ -708,7 +712,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
     setBusy(true); setError('');
     try {
       const graded = await submitPlacement(placement.placementId, placement.questions.map(q => ({ questionId: q.id, prediction: answers[q.id] ?? null })));
-      setResult(graded); setView('result'); setBoard(graded.board); void load();
+      clearPlacement(); setResult(graded); setView('result'); setBoard(graded.board); void load();
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
   };

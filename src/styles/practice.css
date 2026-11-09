@@ -3,6 +3,9 @@
 .practice-heading h1 { font-size:30px; letter-spacing:-1px; margin:0 0 calc(var(--density-gap)/3); }
 .practice-heading p, .practice-muted { color:var(--color-text-tertiary); font-size:14px; line-height:1.65; }
 .practice-insight-link { color:var(--color-brand-text); font-size:14px; }
+.practice-heading-links { display:flex; align-items:center; flex-wrap:wrap; gap:calc(var(--density-gap)/2); }
+.practice-guide-btn { gap:calc(var(--density-gap)/4); }
+.practice-guide-btn span { display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; border:1.5px solid currentColor; font-size:11px; font-weight:800; }
 .practice-notice { display:flex; align-items:center; gap:calc(var(--density-gap)/2); padding:calc(var(--density-pad)/2) var(--density-gap); margin-bottom:var(--density-gap); background:var(--color-bg-subtle); border-radius:var(--radius-soft-sm); font-size:13px; }
 .practice-notice>span { white-space:nowrap; font-weight:700; color:var(--color-brand-text); }
 .practice-notice p { margin:0; color:var(--color-text-secondary); }
@@ -47,6 +50,7 @@
 .practice-summary>.practice-start+.practice-start { margin-top:calc(var(--density-gap)/3); }
 .practice-guide { border-top:1px solid var(--color-border); margin-top:var(--density-gap); padding-top:var(--density-gap); }
 .practice-guide ol { padding-left:calc(var(--density-gap)*.75); font-size:12px; color:var(--color-text-tertiary); line-height:1.9; margin-bottom:0; }
+.practice-guide-link { display:inline-block; margin-top:calc(var(--density-gap)/2); font-size:13px; font-weight:600; color:var(--color-brand-text); }
 .practice-market { min-width:0; padding:var(--density-pad) var(--density-gap); }
 .practice-market-head { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); }
 .practice-market-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:calc(var(--density-gap)/3); }

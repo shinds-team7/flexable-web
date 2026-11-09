@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -70,6 +71,28 @@ class PlacementGuideTextTest {
 			for (PlacementDetails.Detail d : items) {
 				assertThat(BANNED).as(d.toString()).noneMatch(w -> d.label().contains(w) || d.value().contains(w));
 			}
+		}
+	}
+
+	/**
+	 * 「공시 읽는 법」(/simulation/guide, Issue #367)은 항목과 뜻만 적는다. 위 금지 표현에 공시 AI 요약 검사(policies §8-8 "공시 AI 요약" BANNED)의 주가·평가·전망·권유 낱말을 더해 본다.
+	 * 줄 주석(//)과, 요약 검사처럼 "주주가"(최대주주가·회사 주주가)는 빼고 본다
+	 */
+	static final List<String> GUIDE_BANNED = Stream.concat(BANNED.stream(), Stream.of("주가", "오름", "내림", "급등", "급락", "긍정", "부정적",
+			"좋은 소식", "나쁜 소식", "기대", "우려", "전망", "예상", "예측", "앞으로", "향후", "가능성", "반드시", "확실", "무조건", "추천", "권유", "사세요", "파세요",
+			"목표가", "저평가", "고평가")).toList();
+
+	@Test
+	void 공시_읽는_법_글에도_방향_평가_경향_표현이_없다() throws Exception {
+		for (Path file : List.of(Path.of("..", "src", "pages", "SimulationGuide.tsx"), Path.of("..", "src", "data", "simulationGuide.ts"))) {
+			String text = Files.readString(file).replaceAll("(?m)^\\s*//.*$", "").replace("주주가", "");
+			assertThat(text).as(file.toString()).contains("확인할 것").hasSizeGreaterThan(1000);
+			assertThat(GUIDE_BANNED).as(file.toString()).noneMatch(text::contains);
+		}
+		// 유형 12개 모두 확인할 것이 있다
+		String data = Files.readString(Path.of("..", "src", "data", "simulationGuide.ts"));
+		for (VirtualSimCategory c : VirtualSimCategory.values()) {
+			assertThat(data).as(c.name()).contains("category: '" + c.name() + "'").contains("name: '" + c.displayName() + "'");
 		}
 	}
 

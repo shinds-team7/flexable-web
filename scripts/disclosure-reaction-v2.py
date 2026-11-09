@@ -254,7 +254,7 @@ for code in codes:
         To = (cs[b + 5] / o - 1 - mT) if o else None
         eR, eT = mret(m, ds[b - 1], ds[b + 1], ew_level), mret(m, ds[b + 1], ds[b + 5], ew_level)
         rows.append((code_i[code], ds[b], R, T, To, count_in(code, b - 2, b + 1, b), count_in(code, b - 1, b + 5, b), ev_at.get((code, b), []),
-                     cs[b + 1] / cs[b - 1] - 1 - eR, cs[b + 5] / cs[b + 1] - 1 - eT))
+                     np.nan if eR is None else cs[b + 1] / cs[b - 1] - 1 - eR, np.nan if eT is None else cs[b + 5] / cs[b + 1] - 1 - eT))
 
 dates = sorted({r[1] for r in rows})
 date_i = {d: i for i, d in enumerate(dates)}
@@ -424,7 +424,7 @@ if USE_INDEX:
     P("| 유형 | R 실제 지수 | R 동일가중 | T 실제 지수 | T 동일가중 |")
     P("|---|---|---|---|---|")
     ew = {w: np.array([r[8 if w == "R" else 9] for r in rows]) for w in ("R", "T")}
-    fe = {w: fit(ew[w], X, OV[w], ALL) for w in ("R", "T")}
+    fe = {w: fit(np.nan_to_num(ew[w]), X, OV[w], ~np.isnan(ew[w])) for w in ("R", "T")}
     fi = {w: fit(Y[w], X, OV[w], ALL) for w in ("R", "T")}
     for k, (c, _) in enumerate(names):
         cell = lambda f: f"{bp(f.get(k))} ({pv(f.get(k) and f[k][2])})"

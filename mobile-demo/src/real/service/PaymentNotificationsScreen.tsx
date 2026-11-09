@@ -56,7 +56,7 @@ export function PaymentNotificationsScreen() {
   };
   return (
     <View style={{ flex: 1 }}>
-      <SubHeader title="신한카드 자동 기록" fallback="/my" />
+      <SubHeader title="신한카드 자동 기록" fallback="/profile" />
       <Screen>
         <Card style={{ gap: 14 }}>
           <T weight="800" size={19}>

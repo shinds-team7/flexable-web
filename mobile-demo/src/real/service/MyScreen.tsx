@@ -17,7 +17,6 @@ import { ApiError, api, sessionGeneration } from "./api/client";
 import { getReferral, registerReferral } from "./coinApi";
 import { APP_VERSION, SUPPORT_EMAIL } from "./config";
 import {
-  useBudgetNotificationSetting,
   useEntryReminderSetting,
   useEntryReminderTime,
   useSeedReminderSetting,
@@ -175,8 +174,6 @@ export function MyScreen() {
   const [remind, setRemind] = useSeedReminderSetting();
   // Same for the reminder to record; the service layout reschedules it.
   const [remindEntry, setRemindEntry] = useEntryReminderSetting();
-  // 알림창 상시 알림. 끄면 지우고, 켜면 서비스 레이아웃이 다시 띄운다.
-  const [showBudget, setShowBudget] = useBudgetNotificationSetting();
   const [entryTime, setEntryTime] = useEntryReminderTime();
   const [timeSheet, setTimeSheet] = useState(false);
   // 시트를 열 때마다 새로 만들어 저장하지 않은 선택이 남지 않게 한다
@@ -226,7 +223,7 @@ export function MyScreen() {
           />
         </Card>
       )}
-      {/* 시연: 실제 앱에서는 기기 알림이 있는 앱에서만 보인다 */}
+      {/* 시연: 실제 앱에서는 기기 알림이 있는 앱에서만 보인다. 알림창 상시 알림 토글은 실제 화면 캡처를 받은 뒤 넣는다 */}
       {(
         <Card style={styles.group}>
           <Row
@@ -238,15 +235,6 @@ export function MyScreen() {
             aria-checked={remind}
             right={<SwitchMark on={remind} />}
             onPress={() => setRemind(!remind)}
-          />
-          <Row
-            label="알림창에 오늘 남은 예산"
-            caption="알림창을 내리면 남은 예산을 볼 수 있어요"
-            accessibilityRole="switch"
-            accessibilityState={{ checked: showBudget }}
-            aria-checked={showBudget}
-            right={<SwitchMark on={showBudget} />}
-            onPress={() => setShowBudget(!showBudget)}
           />
           <Row
             label="기록 알림"

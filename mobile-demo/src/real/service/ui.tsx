@@ -110,15 +110,19 @@ export function MoneyField({
   value,
   onChange,
   placeholder = "0",
+  hideLabel,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
   placeholder?: string;
+  /** 칸 위 글자를 숨긴다(스크린리더는 label을 그대로 읽는다) */
+  hideLabel?: boolean;
 }) {
   return (
     <Field
       label={label}
+      hideLabel={hideLabel}
       keyboardType="number-pad"
       placeholder={placeholder}
       value={value ? money(value) : ""}

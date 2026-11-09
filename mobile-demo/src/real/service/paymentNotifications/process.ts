@@ -23,8 +23,23 @@ export type ImportDependencies = {
   prepare(id: string, body: PaymentBody): Promise<PaymentBody>;
   save(id: string, body: PaymentBody): Promise<void>;
   acknowledge(id: string): Promise<void>;
+  /** Notices the server already rejected in this session, by id. Not resent until the app restarts. */
+  rejected: Map<string, string>;
 };
 export type PaymentProblem = { id: string; reason: string; postedAt: number };
+
+/** The native id is a 64-char SHA-256 hex digest, exactly the server's Idempotency-Key limit (64). Send it as is, never prefixed. */
+export const paymentIdempotencyKey = (id: string) => id;
+
+/** Rejections that resending the same body can never fix (e.g. the fixed category was deleted). Anything else stops the run and retries later. */
+export function rejectionReason(error: unknown) {
+  const { code, message } = (error ?? {}) as {
+    code?: unknown;
+    message?: unknown;
+  };
+  if (code !== "VALIDATION_FAILED" && code !== "NOT_FOUND") return undefined;
+  return `자동 기록하지 못했어요${typeof message === "string" && message ? `(${message})` : ""}`;
+}
 
 /** Persist the exact request BEFORE sending it. Retried requests keep the same body and idempotency key. */
 export async function importPaymentNotices(
@@ -35,6 +50,15 @@ export async function importPaymentNotices(
   let saved = 0;
   for (const notice of notices) {
     if (!deps.current()) break;
+    const rejected = deps.rejected.get(notice.id);
+    if (rejected) {
+      problems.push({
+        id: notice.id,
+        postedAt: notice.postedAt,
+        reason: rejected,
+      });
+      continue;
+    }
     let body: PaymentBody;
     if (notice.prepared) body = JSON.parse(notice.prepared) as PaymentBody;
     else {
@@ -87,7 +111,16 @@ export async function importPaymentNotices(
       });
     }
     if (!deps.current()) break;
-    await deps.save(notice.id, body);
+    try {
+      await deps.save(notice.id, body);
+    } catch (error) {
+      // One permanently rejected notice must not block every later one. It stays queued (not acknowledged) for the user to exclude.
+      const reason = rejectionReason(error);
+      if (!reason) throw error;
+      deps.rejected.set(notice.id, reason);
+      problems.push({ id: notice.id, postedAt: notice.postedAt, reason });
+      continue;
+    }
     if (!deps.current()) break;
     await deps.acknowledge(notice.id);
     saved++;

@@ -12,6 +12,12 @@ import {
 function short(n: number) {
   return n >= 10000 ? `${Math.floor(n / 1000) / 10}만` : won(n);
 }
+/** "YYYY-MM-DD"에 n일을 더한 날짜(달력 날짜만 다루므로 UTC로 계산) */
+function addDays(ymd: string, n: number) {
+  const d = new Date(ymd + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 /**
  * 요일별 생활비 배분. 금액은 서버가 남은 생활비를 남은 날의 요일 비중대로 나눈 값(dayBudgets)이다.
  * 오늘은 신한 블루, 지난 요일은 회색, 남은 요일은 연한 블루로 칠하고, 막대 높이는 금액에 맞춘다.
@@ -19,19 +25,29 @@ function short(n: number) {
 export function DayBudgets({
   date,
   dayBudgets,
+  dayPlans = [],
   preset,
   onEdit,
 }: {
   /** 오늘 날짜 "YYYY-MM-DD"(서울) */
   date: string;
-  /** 월~일 하루 예산 */
+  /** 월~일 하루 예산(기본 몫) */
   dayBudgets: number[];
+  /** 예정 지출이 있는 날짜의 하루 예산(서버 값). 이번 주 오늘~일요일에 있으면 그 칸은 이 값을 보인다 */
+  dayPlans?: { date: string; budget: number }[];
   preset: Preset;
   onEdit: () => void;
 }) {
   // getDay() is 0 for Sunday; the row starts on Monday.
   const today = (new Date(date + "T12:00:00").getDay() + 6) % 7;
-  const top = Math.max(1, ...dayBudgets);
+  const amounts = DAYS.map((_, i) => {
+    const plan =
+      i >= today
+        ? dayPlans.find((p) => p.date === addDays(date, i - today))
+        : undefined;
+    return plan ? plan.budget : (dayBudgets[i] ?? 0);
+  });
+  const top = Math.max(1, ...amounts);
   return (
     <Card style={{ gap: 14 }}>
       <View style={styles.head}>
@@ -62,7 +78,7 @@ export function DayBudgets({
       </View>
       <View style={styles.row}>
         {DAYS.map((d, i) => {
-          const amount = dayBudgets[i] ?? 0;
+          const amount = amounts[i];
           const on = i === today;
           const past = i < today;
           const ink = on

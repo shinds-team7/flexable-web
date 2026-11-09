@@ -6,9 +6,10 @@ import { Button, Card, Screen, T } from "@/real/components/ui";
 import { SubHeader } from "@/real/components/SubHeader";
 import { levelLabel, levelName } from "@/real/components/LevelIcon";
 import { colors, radius } from "@/real/theme";
-import { sessionGeneration } from "./api/client";
+import { ApiError, sessionGeneration } from "./api/client";
 import {
   demoUnlockOutfit,
+  claimAdBonus,
   equipOutfit,
   getOutfits,
   getWallet,
@@ -22,12 +23,15 @@ import { useSession } from "./Session";
 import { DEFAULT_OUTFIT_ID } from "./outfits";
 import { OutfitView } from "./OutfitView";
 import { PurchaseModal } from "./PurchaseModal";
+import { RewardModal } from "./RewardModal";
 import type { Outfit, OutfitList } from "./types";
 import { ErrorNotice, Loading, money } from "./ui";
 import { publishWallet, useWallet } from "./wallet";
 
-// 레벨 코스튬은 6단계(광부·마구간지기·상인·기사·귀족·왕족)다. 디자인 중이라 서버가 아직 내려 주지 않는 칸은
+// 레벨 코스튬은 6단계(광부·농부·상인·기사·귀족·왕족)다. 디자인 중이라 서버가 아직 내려 주지 않는 칸은
 // cat-unlock 실루엣과 자물쇠로 채운다.
+// 시연: expo-crypto 없이 브라우저 UUID를 쓴다
+const randomUUID = () => globalThis.crypto.randomUUID();
 const LEVEL_SLOTS = 6;
 const UNLOCK_CAT = require("../../../assets/real/outfits/cat-unlock.png");
 
@@ -44,6 +48,8 @@ export function CustomizeScreen() {
   const wallet = useWallet();
   const { user } = useSession();
   const [adMessage, setAdMessage] = useState("");
+  // 광고를 다 보고 받은 코인 안내("+15 코인을 받았어요")
+  const [adEarned, setAdEarned] = useState<{ total: number; bonus: number } | null>(null);
   const lock = useRef(false);
   const focus = useRef(0);
 
@@ -124,14 +130,16 @@ export function CustomizeScreen() {
     else load();
     toast("코스튬을 해금했어요");
   };
-  // 보상은 구글 검증 콜백이 서버에서 지급하므로, 광고를 본 뒤 지갑을 다시 읽어 늘었는지 확인한다(몇 초 걸릴 수 있다).
+  // 기본 10코인은 구글 검증 콜백이 서버에서 지급하고, 앱은 광고가 열려 있던 시간을 보내 보너스(+5·+10)를 받는다.
+  // 콜백이 몇 초 늦을 수 있어 보너스 요청이 409 AD_NOT_REWARDED면 잠시 뒤 다시 보낸다. 받으면 자동 적립 안내를 띄운다.
   const watchAd = () =>
     run(async () => {
       if (!user) return;
       setAdMessage("");
       const generation = sessionGeneration();
       const before = wallet?.ad.rewardedToday ?? 0;
-      const result = await showRewardedAd(user.id);
+      const requestId = randomUUID();
+      const { result, seconds } = await showRewardedAd(user.id);
       if (result === "failed") {
         setAdMessage("광고를 불러오지 못했어요. 잠시 후 다시 시도해 주세요");
         return;
@@ -141,11 +149,25 @@ export function CustomizeScreen() {
         return;
       }
       for (let i = 0; i < 8; i++) {
-        const w = await getWallet();
-        publishWallet(w, generation);
-        if (w.ad.rewardedToday > before) {
-          setList((l) => l && { ...l, balance: w.balance });
+        try {
+          const got = await claimAdBonus(requestId, seconds);
+          publishWallet(got.wallet, generation);
+          setList((l) => l && { ...l, balance: got.wallet.balance });
+          if (generation === sessionGeneration())
+            setAdEarned({ total: got.total, bonus: got.bonus });
           return;
+        } catch (e) {
+          if (!(e instanceof ApiError) || e.code !== "AD_NOT_REWARDED") {
+            // 보너스 요청만 실패했으면 기본 보상이 들어왔는지 지갑으로 확인한다
+            const w = await getWallet();
+            publishWallet(w, generation);
+            setList((l) => l && { ...l, balance: w.balance });
+            if (w.ad.rewardedToday > before) {
+              if (generation === sessionGeneration())
+                setAdEarned({ total: w.ad.reward, bonus: 0 });
+              return;
+            }
+          }
         }
         await new Promise((r) => setTimeout(r, 1500));
       }
@@ -233,6 +255,7 @@ export function CustomizeScreen() {
               onSelect={setSelected}
               empty={Math.max(0, LEVEL_SLOTS - levels.length)}
               emptyFrom={levels.length + 1}
+              captions={false}
             />
             <T size={14} weight="700" color={colors.textSub}>
               코인 코스튬
@@ -256,6 +279,21 @@ export function CustomizeScreen() {
         busy={busy}
         onApply={() => bought && apply(bought.id)}
         onClose={() => setBought(null)}
+      />
+      <RewardModal
+        reward={
+          adEarned && {
+            id: 0,
+            reason: "AD_REWARD",
+            amount: adEarned.total,
+            refDate: null,
+            createdAt: new Date().toISOString(),
+          }
+        }
+        title={adEarned ? `+${adEarned.total} 코인을 받았어요` : undefined}
+        // 제목에 받은 코인이 있어 본문·"+N" 줄은 두지 않는다(11-08)
+        plain
+        onClose={() => setAdEarned(null)}
       />
     </View>
   );
@@ -315,13 +353,17 @@ function Action({
   );
 }
 
-/** 가지지 않은 코스튬(잠긴 레벨·안 산 상품)은 그림을 어둡게 덮고 자물쇠를 띄운다. empty 는 뒤에 붙일 준비 중 칸 수 */
+/**
+ * 가지지 않은 코스튬(잠긴 레벨·안 산 상품)은 그림을 어둡게 덮고 자물쇠를 띄운다. empty 는 뒤에 붙일 준비 중 칸 수.
+ * captions=false 면 칸 아래 글자(단계 아이콘·이름, 보유 중 등)를 비운다(레벨 코스튬). 이름은 화면 읽기 라벨로만 남는다.
+ */
 function Grid({
   items,
   selected,
   onSelect,
   empty = 0,
   emptyFrom = 1,
+  captions = true,
 }: {
   items: Outfit[];
   selected: string;
@@ -329,6 +371,7 @@ function Grid({
   empty?: number;
   /** 첫 준비 중 칸의 레벨(이름을 붙인다) */
   emptyFrom?: number;
+  captions?: boolean;
 }) {
   return (
     <View style={grid.wrap}>
@@ -358,9 +401,11 @@ function Grid({
                 </View>
               )}
             </View>
-            <T size={12} color={colors.textMuted}>
-              {caption}
-            </T>
+            {captions && (
+              <T size={12} color={colors.textMuted}>
+                {caption}
+              </T>
+            )}
           </Pressable>
         );
       })}
@@ -382,9 +427,11 @@ function Grid({
               <Ionicons name="lock-closed" size={18} color={colors.textMuted} />
             </View>
           </View>
-          <T size={12} color={colors.textMuted}>
-            {levelLabel(emptyFrom + i)}
-          </T>
+          {captions && (
+            <T size={12} color={colors.textMuted}>
+              {levelLabel(emptyFrom + i)}
+            </T>
+          )}
         </View>
       ))}
     </View>

@@ -1,8 +1,10 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 import { Button, Card, Screen, T } from "@/real/components/ui";
 import { SubHeader } from "@/real/components/SubHeader";
+import { colors } from "@/real/theme";
 import { useSession } from "./Session";
 import { useToast } from "@/real/components/Toast";
 import { ErrorNotice } from "./ui";
@@ -107,19 +109,25 @@ export function PaymentNotificationsScreen() {
                   accessibilityState={{ checked: consent }}
                   aria-checked={consent}
                   onPress={() => setAgreement({ owner, accepted: !consent })}
-                  style={{ paddingVertical: 12 }}
+                  hitSlop={8}
+                  style={{
+                    minHeight: 56,
+                    paddingVertical: 10,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                  }}
                 >
-                  <T>
-                    {consent ? "☑" : "☐"} (선택) 위 내용을 확인하고 자동 기록에
-                    동의해요
+                  <Ionicons
+                    name={consent ? "checkbox" : "square-outline"}
+                    size={30}
+                    color={consent ? colors.brand : colors.textSub}
+                  />
+                  <T style={{ flex: 1 }}>
+                    (선택) 위 내용을 확인하고 자동 기록에 동의해요
                   </T>
                 </Pressable>
               )}
-              <Button
-                variant="soft"
-                label="개인정보처리방침 보기"
-                onPress={() => router.push("/privacy")}
-              />
               <Button
                 variant="soft"
                 label="Android 알림 접근 설정 열기"
@@ -160,14 +168,9 @@ export function PaymentNotificationsScreen() {
               )}
               <Button
                 variant="soft"
-                label={data.busy ? "반영 중이에요" : "대기 알림 다시 확인"}
-                disabled={busy || data.busy}
-                onPress={refreshPaymentImport}
+                label="개인정보처리방침 보기"
+                onPress={() => router.push("/privacy")}
               />
-              <T>
-                대기 {status?.pending ?? 0}개 · 이번 실행에서 기록{" "}
-                {data.owner === owner ? data.saved : 0}개
-              </T>
               {!!status?.dropped && (
                 <T>
                   보관 기간 또는 개수 제한으로 처리하지 못한 알림{" "}

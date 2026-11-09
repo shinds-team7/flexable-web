@@ -17,6 +17,7 @@ import {
 } from "@/real/components/CharacterStage";
 import { LevelGuide } from "./LevelGuide";
 import { AttendanceModal } from "./AttendanceModal";
+import { HomeGuide, useHomeGuide } from "./HomeGuide";
 import { WeekExpensesSheet } from "./WeekExpensesSheet";
 import { OutfitView } from "./OutfitView";
 import { RewardModal } from "./RewardModal";
@@ -47,6 +48,9 @@ export function HomeScreen() {
   const wallet = useWallet();
   const [rewards, setRewards] = useState<CoinReward[]>([]);
   const checking = useRef(false);
+  // 첫 check-in이 끝나야 가입 선물·출석 모달을 띄울지 알 수 있다. 첫 홈 가이드는 그 뒤에 띄운다
+  const [checkedIn, setCheckedIn] = useState(false);
+  const guide = useHomeGuide();
   // 자동 출석 모달은 하루(서버 날짜)에 한 번만 연다. 실패하거나 닫아도 같은 날 또 띄우지 않는다.
   const autoDay = useRef<string | null>(null);
   // Opening or returning to the home runs check-in; the coin chip reads the wallet it returns.
@@ -77,6 +81,7 @@ export function HomeScreen() {
       .catch(() => {})
       .finally(() => {
         checking.current = false;
+        setCheckedIn(true);
       });
   }, []);
   useFocusEffect(runCheckIn);
@@ -264,6 +269,7 @@ export function HomeScreen() {
             <DayBudgets
               date={s.date}
               dayBudgets={s.dayBudgets}
+              dayPlans={s.dayPlans}
               preset={s.dayPreset}
               onEdit={() => router.push("/budget/day-weights")}
             />
@@ -334,6 +340,12 @@ export function HomeScreen() {
         visible={attendance && !shownReward}
         budgetBonus={budgetBonus}
         onClose={closeAttendance}
+      />
+      <HomeGuide
+        visible={
+          guide.pending && checkedIn && !shownReward && !attendance && !!s
+        }
+        onDone={guide.finish}
       />
     </View>
   );

@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { useState } from "react";
 import { Share, View } from "react-native";
 import { Button, Sheet, T } from "@/real/components/ui";
 import { useToast } from "@/real/components/Toast";
@@ -6,7 +7,9 @@ import {
   imageImportSupported,
   useImageImport,
 } from "./receiptImport/useImageImport";
-/** + 버튼이 여는 시트. 이미지에서 가져오기와 직접 입력 중 고른다. */
+import { voiceInputAvailable } from "./voiceInput";
+import { VoiceScheduleModal } from "./VoiceScheduleModal";
+/** + 버튼이 여는 시트. 음성 입력(예정 지출), 이미지에서 가져오기, 직접 입력 중 고른다. */
 export function AddTransactionSheet({
   visible,
   onClose,
@@ -16,17 +19,27 @@ export function AddTransactionSheet({
 }) {
   const imageImport = useImageImport();
   const toast = useToast();
+  const [voice, setVoice] = useState(false);
   return (
     <>
       <Sheet
         visible={visible}
         onClose={onClose}
         title="거래 추가"
-        subtitle="이미지는 기기에서만 읽고 서버에 올리지 않아요"
       >
         <View style={{ gap: 10 }}>
+          {voiceInputAvailable() && (
+            <Button
+              label="음성 입력"
+              icon="mic"
+              onPress={() => {
+                onClose();
+                setVoice(true);
+              }}
+            />
+          )}
           <Button
-            label={imageImport.busy ? "이미지 읽는 중…" : "이미지 업로드"}
+            label={imageImport.busy ? "이미지 읽는 중…" : "결제내역 스크린샷 등록"}
             icon="image-outline"
             disabled={!imageImportSupported || imageImport.busy}
             onPress={() => {
@@ -47,6 +60,7 @@ export function AddTransactionSheet({
           />
         </View>
       </Sheet>
+      <VoiceScheduleModal visible={voice} onClose={() => setVoice(false)} />
       <Sheet
         visible={!!imageImport.error}
         onClose={imageImport.clearError}

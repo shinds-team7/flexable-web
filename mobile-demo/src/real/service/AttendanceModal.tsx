@@ -13,10 +13,11 @@ import { ErrorNotice, Loading, useResource } from "./ui";
 import { publishWallet } from "./wallet";
 
 const CYCLE = 7;
-/** 보상이 있는 날(그 주기 안의 순서). 3일차는 코인, 7일차는 첫 주기에만 코스튬 */
+/** 보상이 있는 날(그 주기 안의 순서). 3일차는 보너스 코인(매 주기), 7일차는 첫 주기에만 코스튬 */
 const COIN_DAY = 3;
 const COSTUME_DAY = 7;
-const MILESTONE_COIN = 50;
+/** 3일차 보너스(기본 +5에 더함). 실제 지급액은 서버 todayReward·rewarded가 기준이고 이 값은 원에 붙는 안내다 */
+const MILESTONE_COIN = 20;
 /** 원의 지름은 줄 폭을 7칸으로 나눈 값에 맞춰 줄어들고 이 크기를 넘지 않는다. 폭·높이를 같은 숫자로 줘야 정확한 원이다 */
 const CIRCLE_MAX = 38;
 const CIRCLE_MIN = 24;
@@ -80,8 +81,16 @@ export function AttendanceModal({
   useEffect(() => {
     if (!pending || autoTried.current) return;
     autoTried.current = true;
-    const timer = setTimeout(check, AUTO_DELAY);
-    return () => clearTimeout(timer);
+    let fired = false;
+    const timer = setTimeout(() => {
+      fired = true;
+      check();
+    }, AUTO_DELAY);
+    return () => {
+      clearTimeout(timer);
+      // 보상 모달이 먼저 떠서 잠깐 가려지는 등 요청 전에 취소되면, 다시 보일 때 자동 출석을 이어서 한다
+      if (!fired) autoTried.current = false;
+    };
   }, [pending]);
   return (
     <Modal
@@ -144,7 +153,7 @@ function AttendanceBody({
     Math.min(CIRCLE_MAX, Math.floor((trackWidth - TRACK_PAD * 2) / CYCLE) - 4),
   );
   const done = a.checkedToday ? ((a.total - 1) % CYCLE) + 1 : a.total % CYCLE;
-  // 7일차 코스튬은 처음 7일에만 있다. 8일째부터는 7일차도 코인이다
+  // 7일차 코스튬은 처음 7일에만 있다. 8일째부터 7일차는 기본 코인만 받는다
   const firstCycle = (a.checkedToday ? a.total : a.total + 1) <= CYCLE;
   const title = a.checkedToday
     ? a.total === 1
@@ -209,7 +218,7 @@ function AttendanceBody({
             {a.todayOutfitId ? " 와 코스튬" : ""}
           </T>
         )}
-        {a.checkedToday && rewarded === undefined && (
+        {a.checkedToday && !rewarded && !outfitId && (
           <T size={15} color={colors.textSub} style={{ textAlign: "center" }}>
             오늘 출석을 마쳤어요
           </T>
@@ -251,7 +260,7 @@ function DayCircle({
   firstCycle: boolean;
 }) {
   const costume = day === COSTUME_DAY && firstCycle;
-  const coin = day === COIN_DAY || (day === COSTUME_DAY && !firstCycle);
+  const coin = day === COIN_DAY;
   const reduced = useReducedMotion();
   const scale = useAnimValue(1);
   const turn = useAnimValue(0);

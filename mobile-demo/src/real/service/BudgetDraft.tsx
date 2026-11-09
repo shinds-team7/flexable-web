@@ -13,7 +13,7 @@ import type { BudgetSettings } from "./types";
 const initial = (): BudgetSettings => ({
   balance: 0,
   balanceAt: new Date().toISOString(),
-  payday: 25,
+  payday: 1,
   incomeAmount: 0,
   cardUnpaid: 0,
   fixedExpenses: [],

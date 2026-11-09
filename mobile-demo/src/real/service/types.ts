@@ -31,6 +31,8 @@ export type ChatRequest = S["ChatRequest"];
 export type ChatResponse = S["ChatResponse"];
 
 export type CoinWallet = S["Wallet"];
+export type AdBonus =
+  paths["/coins/ad-bonus"]["post"]["responses"]["200"]["content"]["application/json"];
 export type CoinReward = S["Reward"];
 export type CheckIn = Json<paths["/coins/check-in"]["post"]["responses"][200]>;
 export type CoinLedgerEntry = S["LedgerEntry"];

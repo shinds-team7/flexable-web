@@ -1,14 +1,21 @@
 import { router } from "expo-router";
-import { useRef, useState, type ReactNode } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
+import { useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform } from "react-native";
 import { OnboardingFrame } from "@/real/components/OnboardingFrame";
-import { Button, Card, T } from "@/real/components/ui";
+import { Card, T } from "@/real/components/ui";
+import {
+  FixedExpensesEditor,
+  PaydayPicker,
+  ProtectedItemsEditor,
+  fixedValid,
+  protectedValid,
+} from "./BudgetFields";
 import { useBudgetDraft } from "./BudgetDraft";
+import { markHomeGuidePending } from "./HomeGuide";
 import { api } from "./api/client";
 import { useSession } from "./Session";
 import {
   ErrorNotice,
-  Field,
   Guard,
   Loading,
   MoneyField,
@@ -47,8 +54,6 @@ function Content({ step }: { step: Step }) {
   // The exact draft object last PUT; a retry after a later step fails re-sends only if the input changed.
   const saved = useRef<BudgetSettings | null>(null);
   const [error, setError] = useState<unknown>();
-  // Only one fixed/protected item is expanded at a time; "확인" folds it into a summary row.
-  const [open, setOpen] = useState<number | null>(null);
   if (!state.draft)
     return state.error ? <ErrorNotice error={state.error} /> : <Loading />;
   const { value: v, editing } = state.draft;
@@ -108,12 +113,7 @@ function Content({ step }: { step: Step }) {
       setError("고정지출의 이름, 금액, 날짜를 확인해 주세요");
       return;
     }
-    if (
-      step === "protect" &&
-      v.protectedItems.some(
-        (x) => !x.name.trim() || x.amount < 1 || x.amount >= 1e12,
-      )
-    ) {
+    if (step === "protect" && v.protectedItems.some((x) => !protectedValid(x))) {
       setError("저축 항목의 이름과 금액을 확인해 주세요");
       return;
     }
@@ -125,6 +125,9 @@ function Content({ step }: { step: Step }) {
           await api("/budget/settings", { method: "PUT", body: v });
           saved.current = v;
         }
+        // 처음 가입해 설정을 마쳤을 때만 첫 홈 가이드를 남긴다(다시 설정할 때는 아님)
+        const user = session.user;
+        if (user && !user.onboarded) await markHomeGuidePending(user.id);
         await session.refreshUser();
         session.invalidate();
         await state.reset();
@@ -219,23 +222,10 @@ function Content({ step }: { step: Step }) {
         )}
         {step === "income" && (
           <>
-            <Field
-              label="매달 수입일 (1~31)"
-              keyboardType="number-pad"
-              value={String(v.payday || "")}
-              onChangeText={(s) =>
-                set({
-                  ...v,
-                  payday: Number(s.replace(/[^0-9]/g, "").slice(0, 2)),
-                })
-              }
+            <PaydayPicker
+              value={v.payday}
+              onChange={(payday) => set({ ...v, payday })}
             />
-            <Button
-              label="매달 말일"
-              variant="soft"
-              onPress={() => set({ ...v, payday: 31 })}
-            />
-            {v.payday === 31 && <T>매달 말일에 맞춰 계산해요</T>}
             <MoneyField
               label="예정 수입액 (원)"
               value={v.incomeAmount}
@@ -244,80 +234,11 @@ function Content({ step }: { step: Step }) {
           </>
         )}
         {step === "fixed" && (
-          <>
-            {v.fixedExpenses.map((x, i) => {
-              const update = (patch: Partial<typeof x>) =>
-                set({
-                  ...v,
-                  fixedExpenses: v.fixedExpenses.map((a, j) =>
-                    j === i ? { ...a, ...patch } : a,
-                  ),
-                });
-              return (
-                <ItemCard
-                  key={i}
-                  open={open === i}
-                  summary={`${x.name} · ${money(x.amount)}원 · 매달 ${x.day === 31 ? "말일" : `${x.day}일`}`}
-                  onEdit={() => setOpen(i)}
-                  onConfirm={() => {
-                    if (!fixedValid(x))
-                      return setError(
-                        "고정지출의 이름, 금액, 날짜를 확인해 주세요",
-                      );
-                    setError(undefined);
-                    setOpen(null);
-                  }}
-                  onRemove={() => {
-                    setOpen(null);
-                    set({
-                      ...v,
-                      fixedExpenses: v.fixedExpenses.filter((_, j) => j !== i),
-                    });
-                  }}
-                >
-                  <Field
-                    label="이름"
-                    placeholder="예: 월세"
-                    maxLength={40}
-                    value={x.name}
-                    onChangeText={(name) => update({ name })}
-                  />
-                  <MoneyField
-                    label="금액 (원)"
-                    placeholder="예: 700,000"
-                    value={x.amount}
-                    onChange={(amount) => update({ amount })}
-                  />
-                  <Field
-                    label="매달 나가는 날 (31 = 말일)"
-                    placeholder="예: 25"
-                    keyboardType="number-pad"
-                    value={String(x.day || "")}
-                    onChangeText={(s) =>
-                      update({
-                        day: Number(s.replace(/[^0-9]/g, "").slice(0, 2)),
-                      })
-                    }
-                  />
-                </ItemCard>
-              );
-            })}
-            <Button
-              label="+ 고정지출 추가"
-              variant="soft"
-              disabled={v.fixedExpenses.length >= 30 || open !== null}
-              onPress={() => {
-                setOpen(v.fixedExpenses.length);
-                set({
-                  ...v,
-                  fixedExpenses: [
-                    ...v.fixedExpenses,
-                    { name: "", amount: 0, day: 0 },
-                  ],
-                });
-              }}
-            />
-          </>
+          <FixedExpensesEditor
+            items={v.fixedExpenses}
+            onChange={(fixedExpenses) => set({ ...v, fixedExpenses })}
+            onError={setError}
+          />
         )}
         {step === "card" && (
           <MoneyField
@@ -336,71 +257,11 @@ function Content({ step }: { step: Step }) {
           />
         )}
         {step === "protect" && (
-          <>
-            {v.protectedItems.map((x, i) => {
-              const update = (patch: Partial<typeof x>) =>
-                set({
-                  ...v,
-                  protectedItems: v.protectedItems.map((a, j) =>
-                    j === i ? { ...a, ...patch } : a,
-                  ),
-                });
-              return (
-                <ItemCard
-                  key={i}
-                  open={open === i}
-                  summary={`${x.name} · ${money(x.amount)}원`}
-                  onEdit={() => setOpen(i)}
-                  onConfirm={() => {
-                    if (!x.name.trim() || x.amount < 1 || x.amount >= 1e12)
-                      return setError(
-                        "저축 항목의 이름과 금액을 확인해 주세요",
-                      );
-                    setError(undefined);
-                    setOpen(null);
-                  }}
-                  onRemove={() => {
-                    setOpen(null);
-                    set({
-                      ...v,
-                      protectedItems: v.protectedItems.filter(
-                        (_, j) => j !== i,
-                      ),
-                    });
-                  }}
-                >
-                  <Field
-                    label="이름"
-                    placeholder="예: 적금"
-                    maxLength={40}
-                    value={x.name}
-                    onChangeText={(name) => update({ name })}
-                  />
-                  <MoneyField
-                    label="금액 (원)"
-                    placeholder="예: 300,000"
-                    value={x.amount}
-                    onChange={(amount) => update({ amount })}
-                  />
-                </ItemCard>
-              );
-            })}
-            <Button
-              label="+ 저축할 돈 추가"
-              variant="soft"
-              disabled={v.protectedItems.length >= 30 || open !== null}
-              onPress={() => {
-                setOpen(v.protectedItems.length);
-                set({
-                  ...v,
-                  protectedItems: [
-                    ...v.protectedItems,
-                    { name: "", amount: 0 },
-                  ],
-                });
-              }}
-            />
-          </>
+          <ProtectedItemsEditor
+            items={v.protectedItems}
+            onChange={(protectedItems) => set({ ...v, protectedItems })}
+            onError={setError}
+          />
         )}
         <ErrorNotice error={error ?? state.error} />
       </OnboardingFrame>
@@ -441,75 +302,5 @@ function Done() {
         )
       )}
     </OnboardingFrame>
-  );
-}
-function fixedValid(x: { name: string; amount: number; day: number }) {
-  return (
-    !!x.name.trim() &&
-    x.amount >= 1 &&
-    x.amount < 1e12 &&
-    Number.isInteger(x.day) &&
-    x.day >= 1 &&
-    x.day <= 31
-  );
-}
-function ItemCard({
-  open,
-  summary,
-  onEdit,
-  onConfirm,
-  onRemove,
-  children,
-}: {
-  open: boolean;
-  summary: string;
-  onEdit: () => void;
-  onConfirm: () => void;
-  onRemove: () => void;
-  children: ReactNode;
-}) {
-  if (!open)
-    return (
-      <Card
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingVertical: 12,
-        }}
-      >
-        <T weight="600" style={{ flex: 1 }} numberOfLines={1}>
-          {summary}
-        </T>
-        <Pressable accessibilityRole="button" onPress={onEdit} hitSlop={8}>
-          <T color={colors.brandDark} weight="600">
-            수정
-          </T>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={onRemove} hitSlop={8}>
-          <T color={colors.textMuted} weight="600">
-            삭제
-          </T>
-        </Pressable>
-      </Card>
-    );
-  return (
-    <Card style={{ gap: 12 }}>
-      {children}
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        <Button
-          label="지우기"
-          variant="ghost"
-          onPress={onRemove}
-          style={{ flex: 1 }}
-        />
-        <Button
-          label="확인"
-          variant="soft"
-          onPress={onConfirm}
-          style={{ flex: 2 }}
-        />
-      </View>
-    </Card>
   );
 }

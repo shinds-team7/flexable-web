@@ -109,7 +109,8 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
   );
   const isDup = (r: Row) =>
     !!r.type && known.has(dupKey(r.date, r.type, Number(r.amount), r.title));
-  const isOn = (r: Row) => r.picked ?? (r.review.length === 0 && !isDup(r));
+  // 이미 기록된 것 같은 거래만 빼고 모두 기본 선택한다. 확인이 필요한 항목은 저장 전에 표시로 알린다.
+  const isOn = (r: Row) => r.picked ?? !isDup(r);
   const listOf = (type: Kind | null) =>
     (type === "INCOME"
       ? income.data

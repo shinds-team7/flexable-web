@@ -1,18 +1,18 @@
 import { randomUUID } from "./uuid";
 import { useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { Button, ConfirmModal, Segment, T } from "@/real/components/ui";
 import { useToast } from "@/real/components/Toast";
 import { goBack } from "@/real/components/SubHeader";
-import { colors, radius } from "@/real/theme";
+import { colors } from "@/real/theme";
 import { api } from "./api/client";
+import { CategoryPicker } from "./CategoryPicker";
 import { CategorySheet } from "./CategorySheet";
 import { DateField } from "./DateField";
 import { occurredAtFor, validDate } from "./occurredAt";
 import { useSession } from "./Session";
 import {
-  CategoryIcon,
   digits,
   ErrorNotice,
   Field,
@@ -127,7 +127,12 @@ function Form({
       categoryId,
       // The server needs a title; an empty one falls back to the category name.
       title:
-        title.trim() ||
+        // 수입은 제목 칸이 없다. 원래 수입이던 거래만 기존 제목을 두고, 나머지는 카테고리 이름
+        (type === "EXPENSE"
+          ? title.trim()
+          : existing?.type === "INCOME"
+            ? existing.title
+            : "") ||
         list.find((c) => c.id === categoryId)?.name ||
         (type === "INCOME" ? "수입" : "지출"),
       memo,
@@ -237,51 +242,39 @@ function Form({
         </T>
         {categories.loading && <Loading />}
         <ErrorNotice error={categories.error} retry={categories.retry} />
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {list.map((c) => (
-            <Pressable
-              key={c.id}
-              disabled={busy || uncertain}
-              accessibilityRole="radio"
-              accessibilityLabel={c.name}
-              accessibilityState={{ checked: categoryId === c.id }}
-              aria-checked={categoryId === c.id}
-              onPress={() => setCategoryId(c.id)}
-              style={{
-                width: "30%",
-                padding: 12,
-                gap: 6,
-                alignItems: "center",
-                borderRadius: radius.soft,
-                backgroundColor:
-                  categoryId === c.id ? colors.brandSoft : "#fff",
-                borderWidth: 1,
-                borderColor: categoryId === c.id ? colors.brand : colors.line,
-              }}
-            >
-              <CategoryIcon icon={c.icon} color={c.color} />
-              <T size={13} style={{ textAlign: "center" }}>
-                {c.name}
-              </T>
-            </Pressable>
-          ))}
-          <Button
-            label="+ 추가"
-            variant="soft"
-            style={{ width: "30%" }}
-            onPress={() => setSheet(true)}
-          />
-        </View>
-        <Field
-          editable={!busy && !uncertain}
-          label={expense ? "어디에 썼나요?" : "어디서 받았나요?"}
-          placeholder={expense ? "예: 점심 김밥" : "예: 10월 급여"}
-          help="비워 두면 카테고리 이름으로 기록해요"
-          value={title}
-          onChangeText={setTitle}
-          maxLength={40}
+        <CategoryPicker
+          list={list}
+          selected={categoryId}
+          onSelect={setCategoryId}
+          disabled={busy || uncertain}
+          trailing={
+            <Button
+              label="+ 추가"
+              variant="soft"
+              style={{ width: "30%" }}
+              onPress={() => setSheet(true)}
+            />
+          }
         />
-        <DateField label="날짜" value={date} onChange={setDate} />
+        {/* 수입은 제목 칸 없이 카테고리 이름으로 기록한다(고칠 때는 기존 제목 유지) */}
+        {expense && (
+          <Field
+            editable={!busy && !uncertain}
+            label="어디에 썼나요?"
+            placeholder="예: 점심 김밥"
+            help="비워 두면 카테고리 이름으로 기록해요"
+            value={title}
+            onChangeText={setTitle}
+            maxLength={40}
+          />
+        )}
+        {/* 새 거래는 오늘까지만(미래는 예정 지출). 고칠 때는 기존 날짜를 그대로 둘 수 있게 제한하지 않는다 */}
+        <DateField
+          label="날짜"
+          value={date}
+          onChange={setDate}
+          max={existing ? undefined : seoulDate()}
+        />
       </View>
       {uncertain && (
         <T>저장 여부를 확인하지 못했어요. 같은 내용으로 다시 확인할게요</T>

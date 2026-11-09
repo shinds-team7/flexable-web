@@ -5,7 +5,7 @@ import { Button, Card, ConfirmModal, T } from "@/real/components/ui";
 import { useToast } from "@/real/components/Toast";
 import { api } from "./api/client";
 import { DateField } from "./DateField";
-import { CategorySheet } from "./CategorySheet";
+import { CategoryPicker } from "./CategoryPicker";
 import { validDate } from "./occurredAt";
 import { useSession } from "./Session";
 import { useServerExtensions } from "./serverExtensions";
@@ -50,7 +50,6 @@ function ScheduledForm({ initial }: { initial: string }) {
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [editing, setEditing] = useState<ScheduledExpense | null>(null);
   const [remove, setRemove] = useState<ScheduledExpense | null>(null);
-  const [addingCategory, setAddingCategory] = useState(false);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
@@ -126,8 +125,9 @@ function ScheduledForm({ initial }: { initial: string }) {
       <Card style={{ gap: 12 }}>
         <T weight="700">{editing ? "지출 예정 수정" : "미리 기록해 둘 지출"}</T>
         <T size={13}>
-          예정 지출은 실제 거래와 별도로 보관해요. 날짜가 되어도 예산에서
-          자동으로 빼지 않아요. 실제로 쓴 돈은 지출로 직접 기록해 주세요
+          예정 지출은 실제 거래와 별도로 보관해요. 다음 수입일 전까지의 예정
+          금액은 남은 생활비에서 미리 빼 두고 그날 하루 예산에 더해요. 실제로
+          쓴 돈은 지출로 직접 기록해 주세요
         </T>
         <MoneyField
           label="예정 금액 (원)"
@@ -146,23 +146,13 @@ function ScheduledForm({ initial }: { initial: string }) {
           카테고리
         </T>
         <ErrorNotice error={categories.error} retry={categories.retry} />
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {categories.data?.map((c) => (
-            <Button
-              key={c.id}
-              label={c.name}
-              variant={selectedCategory === c.id ? "primary" : "soft"}
-              accessibilityState={{ selected: selectedCategory === c.id }}
-              disabled={busy}
-              onPress={() => setCategoryId(c.id)}
-            />
-          ))}
-          <Button
-            label="+ 카테고리 추가"
-            variant="ghost"
-            onPress={() => setAddingCategory(true)}
-          />
-        </View>
+        {/* 거래 등록의 지출 카테고리와 같은 목록·순서다. 카테고리 추가는 거래 등록·카테고리 관리에서 한다 */}
+        <CategoryPicker
+          list={categories.data ?? []}
+          selected={selectedCategory}
+          onSelect={setCategoryId}
+          disabled={busy}
+        />
         <ErrorNotice error={error} />
         <Button
           label={
@@ -221,12 +211,6 @@ function ScheduledForm({ initial }: { initial: string }) {
             </View>
           </Card>
         ))}
-      <CategorySheet
-        visible={addingCategory}
-        onClose={() => setAddingCategory(false)}
-        type="EXPENSE"
-        onCreated={() => categories.retry()}
-      />
       <ConfirmModal
         visible={!!remove}
         title="지출 예정을 삭제할까요?"

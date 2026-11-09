@@ -24,6 +24,7 @@ export function setApiSession(_value: string | null, _expired?: () => Promise<vo
 export function sessionGeneration() {
   return generation;
 }
+/** Full URL of an API path, e.g. for opening the social login start page in a browser. */
 export function apiUrl(path: string) {
   return `demo://api/v1${path}`;
 }

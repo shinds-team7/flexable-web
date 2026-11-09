@@ -9,6 +9,7 @@ import {
 } from '@/data/virtualContest';
 import { getVirtualSimStatus } from '@/data/virtualSim';
 import { CATEGORY_GUIDE, SUBSIDIARY_NOTE, cleanTitle } from '@/data/placementGuide';
+import { clearPlacement, markPlacement } from '@/data/placementMark';
 import { disclosureStory, questionStory } from '@/data/disclosureStory';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
@@ -653,6 +654,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
       const [contest, me] = await Promise.all([getContest(), member ? getMyContests() : Promise.resolve(null)]);
       if (current !== generation.current) return;
       setInfo(contest); setMine(me); setError('');
+      if (me?.current) clearPlacement();
       setBoard(b => b ?? me?.current?.board ?? 'B10M');
     } catch (e) { if (current === generation.current) setError(errorText(e)); }
   }, [member]);
@@ -699,7 +701,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
 
   const beginPlacement = async () => {
     setBusy(true); setError('');
-    try { setPlacement(await startPlacement()); setView('placement'); }
+    try { const p = await startPlacement(); markPlacement(info?.contestId ?? '', p.expiresAt); setPlacement(p); setView('placement'); }
     catch (e) { setError(errorText(e)); if (e instanceof ApiError && e.code === 'CONTEST_ALREADY_JOINED') void load(); }
     finally { setBusy(false); }
   };
@@ -708,7 +710,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
     setBusy(true); setError('');
     try {
       const graded = await submitPlacement(placement.placementId, placement.questions.map(q => ({ questionId: q.id, prediction: answers[q.id] ?? null })));
-      setResult(graded); setView('result'); setBoard(graded.board); void load();
+      clearPlacement(); setResult(graded); setView('result'); setBoard(graded.board); void load();
     } catch (e) { setError(errorText(e)); }
     finally { setBusy(false); }
   };

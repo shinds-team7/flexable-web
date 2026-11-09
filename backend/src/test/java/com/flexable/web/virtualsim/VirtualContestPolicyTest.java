@@ -129,6 +129,35 @@ class VirtualContestPolicyTest {
 		assertThat(made.get(0).up()).isTrue();
 	}
 
+	/** 출제: 묶음마다 설명(공시 AI 요약·주요 내용)이 있는 공시를 먼저 고르고, 모자라면 설명이 없는 공시로 채운다 */
+	@Test
+	void placement_draw_prefers_described() {
+		List<VirtualContestQuestions.Past> pool = new ArrayList<>();
+		java.util.function.BiFunction<String, VirtualSimCategory, VirtualContestQuestions.Past> past = (k, c) -> new VirtualContestQuestions.Past(k, "회사", "업종", c, "t",
+				null, null, null, 100, 110, 120);
+		for (int i = 0; i < 20; i++) {
+			pool.add(past.apply("ev-plain-" + i, VirtualSimCategory.FACILITY));
+			pool.add(past.apply("any-plain-" + i, VirtualSimCategory.EARNINGS));
+		}
+		for (int i = 0; i < 6; i++) {
+			pool.add(past.apply("any-sum-" + i, VirtualSimCategory.DIVIDEND));
+		}
+		pool.add(past.apply("ev-sum-0", VirtualSimCategory.SUPPLY_CONTRACT));
+		pool.add(past.apply("ev-sum-1", VirtualSimCategory.BUYBACK_ACQUIRE));
+		Set<String> summarized = new java.util.HashSet<>(List.of("ev-sum-0", "ev-sum-1"));
+		for (int i = 0; i < 6; i++) {
+			summarized.add("any-sum-" + i);
+		}
+		for (long seed = 1; seed <= 20; seed++) {
+			List<String> keys = VirtualContestQuestions.draw(pool, summarized, new java.util.Random(seed)).stream().map(VirtualContestQuestions.Past::key).toList();
+			assertThat(keys).hasSize(10).doesNotHaveDuplicates();
+			// 근거 유형 4개: 설명 있는 2개를 먼저, 모자란 2개는 설명 없는 근거 유형. 나머지 6개는 설명 있는 공시 6개
+			assertThat(keys).contains("ev-sum-0", "ev-sum-1");
+			assertThat(keys.stream().filter(k -> k.startsWith("ev-plain-"))).hasSize(2);
+			assertThat(keys.stream().filter(k -> k.startsWith("any-sum-"))).hasSize(6);
+		}
+	}
+
 	@Test
 	void candidates() throws Exception {
 		for (JsonNode c : root().get("candidates").get("cases")) {

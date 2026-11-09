@@ -257,8 +257,8 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				return placement(p);
 			}
 			Rules rules = rules().orElseThrow(() -> new ApiException(ErrorCode.PRACTICE_UNAVAILABLE));
-			// 실제 과거 공시 10개: 반응 창 근거 유형 4개 + 유형 상관없이 6개(decisions/2026-11-09-placement-reaction-window)
-			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool(rules.rules()), random);
+			// 실제 과거 공시 10개: 반응 창 근거 유형 4개 + 유형 상관없이 6개, 묶음마다 요약·주요 내용이 있는 공시 먼저(decisions/2026-11-09-placement-reaction-window)
+			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool(rules.rules()), sim.sample() ? Set.of() : sims.visibleSummaryReceipts(), random);
 			if (drawn.isEmpty()) {
 				throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
 			}

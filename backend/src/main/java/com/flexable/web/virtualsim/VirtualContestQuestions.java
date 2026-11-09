@@ -88,16 +88,25 @@ public final class VirtualContestQuestions {
 	}
 
 	/**
-	 * 10문제를 뽑는다: 반응 창 근거 유형(EVIDENCE_TYPES)의 공시에서 4개, 남은 공시 전체(근거 유형 포함)에서 6개. 순서는 섞는다. 모자라면 빈 목록(503)
+	 * 설명이 있는 공시인지: 공시 AI 요약(summarized, 숨기지 않은 요약이 있는 접수번호)·공시 주요 내용·예시 글 중 하나가 있다.
+	 * 셋 다 없으면 문제 화면에 제목과 유형 설명만 남는다
 	 */
-	public static List<Past> draw(List<Past> pool, RandomGenerator random) {
+	public static boolean described(Past p, Set<String> summarized) {
+		return p.body() != null || p.details() != null || summarized.contains(p.key());
+	}
+
+	/**
+	 * 10문제를 뽑는다: 반응 창 근거 유형(EVIDENCE_TYPES)의 공시에서 4개, 남은 공시 전체(근거 유형 포함)에서 6개. 각 묶음에서 설명이 있는 공시(described)를
+	 * 먼저 무작위로 고르고, 모자라면 설명이 없는 공시로 채운다. 순서는 섞는다. 모자라면 빈 목록(503)
+	 */
+	public static List<Past> draw(List<Past> pool, Set<String> summarized, RandomGenerator random) {
 		List<Past> evidencePool = new ArrayList<>(pool.stream().filter(p -> EVIDENCE_TYPES.contains(p.category())).toList());
 		if (evidencePool.size() < EVIDENCE || pool.size() < EVIDENCE + ANY) {
 			return List.of();
 		}
 		List<Past> chosen = new ArrayList<>();
 		Set<String> used = new HashSet<>();
-		Collections.shuffle(evidencePool, random);
+		describedFirst(evidencePool, summarized, random);
 		for (Past p : evidencePool) {
 			if (chosen.size() == EVIDENCE) {
 				break;
@@ -107,7 +116,7 @@ public final class VirtualContestQuestions {
 			}
 		}
 		List<Past> rest = new ArrayList<>(pool);
-		Collections.shuffle(rest, random);
+		describedFirst(rest, summarized, random);
 		for (Past p : rest) {
 			if (chosen.size() == EVIDENCE + ANY) {
 				break;
@@ -121,6 +130,12 @@ public final class VirtualContestQuestions {
 		}
 		Collections.shuffle(chosen, random);
 		return chosen;
+	}
+
+	/** 섞은 뒤 설명이 있는 공시를 앞으로(같은 쪽 안에서는 섞인 순서 그대로) */
+	private static void describedFirst(List<Past> list, Set<String> summarized, RandomGenerator random) {
+		Collections.shuffle(list, random);
+		list.sort(java.util.Comparator.comparing((Past p) -> !described(p, summarized)));
 	}
 
 	/**

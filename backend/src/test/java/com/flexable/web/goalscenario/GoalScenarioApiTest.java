@@ -71,6 +71,8 @@ class GoalScenarioApiTest {
 	SavingsCatalogService savings;
 	@Autowired
 	JdbcTemplate jdbc;
+	@Autowired
+	SavedScenarioRepository savedScenarios;
 	@MockitoBean
 	ScenarioProposer proposer;
 	@MockitoSpyBean
@@ -275,7 +277,7 @@ class GoalScenarioApiTest {
 		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
 		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
 		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
-		String old = snapshot.replaceAll(",\"alternatives\":\\[[^\\]]*\\]", "");
+		String old = JsonPath.parse(snapshot).delete("$.products[*].alternatives").delete("$.alternatives").jsonString();
 		assertThat(old).isNotEqualTo(snapshot).doesNotContain("alternatives");
 		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
 		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
@@ -544,6 +546,37 @@ class GoalScenarioApiTest {
 		send(auth(delete("/api/v1/me/goal/scenarios/" + id), token), 204);
 		send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 404);
 		assertThat((List<?>) JsonPath.read(send(auth(get("/api/v1/me/goal/scenarios"), token), 200), "$.items")).isEmpty();
+	}
+
+	@Test
+	void 저장하면_고른_플랜과_나머지_플랜을_모두_그대로_돌려준다() throws Exception {
+		String token = signup();
+		String result = call(BODY.formatted("여행 자금", 15_000_000, 1), 200);
+		String saved = save(token, JsonPath.read(result, "$.resultId"), "spread", 201);
+		assertThat((String) JsonPath.read(saved, "$.scenario.id")).isEqualTo("spread");
+		assertThat((List<String>) JsonPath.read(saved, "$.alternatives[*].id")).containsExactly("steady", "bold");
+		assertThat((Object) JsonPath.read(saved, "$.alternatives[0]")).isEqualTo(JsonPath.read(result, "$.scenarios[0]"));
+		assertThat((Object) JsonPath.read(saved, "$.alternatives[1]")).isEqualTo(JsonPath.read(result, "$.scenarios[2]"));
+
+		// 목록은 고른 플랜 기준이고, 플랜 전체를 저장해도 1개로 센다
+		String list = send(auth(get("/api/v1/me/goal/scenarios"), token), 200);
+		assertThat((List<?>) JsonPath.read(list, "$.items")).hasSize(1);
+		assertThat((String) JsonPath.read(list, "$.items[0].title")).isEqualTo("나눠서 키우기");
+	}
+
+	@Test
+	void 플랜_하나만_저장하던_저장본은_나머지_플랜이_빈_목록이다() throws Exception {
+		String token = signup();
+		String result = call(BODY.formatted("여행 자금", 15_000_000, 1), 200);
+		long id = ((Number) JsonPath.read(save(token, JsonPath.read(result, "$.resultId"), "spread", 201), "$.id")).longValue();
+		SavedScenario row = savedScenarios.findById(id).orElseThrow();
+		String legacy = JsonPath.parse(row.getSnapshot()).delete("$.alternatives").jsonString();
+		savedScenarios.delete(row);
+		long legacyId = savedScenarios.save(new SavedScenario(row.getUserId(), row.getSavedAt(), row.getName(), row.getTargetAmount(), row.getYears(), legacy)).getId();
+
+		String body = send(auth(get("/api/v1/me/goal/scenarios/" + legacyId), token), 200);
+		assertThat((String) JsonPath.read(body, "$.scenario.id")).isEqualTo("spread");
+		assertThat((List<?>) JsonPath.read(body, "$.alternatives")).isEmpty();
 	}
 
 	@Test

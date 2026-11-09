@@ -61,6 +61,6 @@ final class GoalScenarioDtos {
 
 	record Saved(long id, OffsetDateTime savedAt, String name, long targetAmount, int years, int months, String proposer, LocalDate asOf,
 			String returnsFrom, String returnsTo, int paths, BigDecimal reachShare, List<Product> products, Scenario scenario,
-			List<String> assumptions, String notice, boolean isSample) {
+			List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample) {
 	}
 }

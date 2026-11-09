@@ -11,7 +11,7 @@ import { ApiError, errorText } from '@/lib/api';
 import '@/styles/goal-plan.css';
 
 // F7 v2 목표 달성 시나리오(/goal, Issue #175·#201, docs/policies.md §7).
-// 금액·확률·비중은 모두 서버 계산 값이고, 화면은 그리기만 한다(ADR-3). 회원은 시나리오를 그때 결과 그대로 최대 5개 저장한다(§7-8).
+// 금액·확률·비중은 모두 서버 계산 값이고, 화면은 그리기만 한다(ADR-3). 회원은 플랜 전체를 그때 결과 그대로 최대 5개 저장한다(§7-8).
 const COLORS: Record<ScenarioProductType, string> = {
   SAVINGS: 'var(--color-series-1)', CMA: 'var(--color-series-3)', KR_INDEX_ETF: 'var(--color-series-2)',
   US_INDEX_ETF: 'var(--color-series-4)', KOSPI_TOP5: 'var(--color-series-5)',
@@ -121,6 +121,37 @@ function Assumptions({ paths, returnsFrom, returnsTo, assumptions, notice }: { p
   </>;
 }
 
+/** 저장본 내용. 저장한 플랜이 먼저 열리고, 나머지 플랜이 있으면 선택 칸으로 바꿔 본다. 값은 저장할 때 그대로다. */
+function SavedPlanView({ viewing, loading, onClose, onRecalc }: {
+  viewing: SavedGoalScenario; loading: boolean; onClose: () => void; onRecalc: (v: SavedGoalScenario) => void;
+}) {
+  const [activeId, setActiveId] = useState(viewing.scenario.id);
+  const plans = [viewing.scenario, ...viewing.alternatives];
+  const plan = plans.find((p) => p.id === activeId) ?? viewing.scenario;
+  return <div className="gp-view-body">
+    <div className="gp-view-head">
+      <div>
+        <h2 id="gp-view-title" className="gp-view-name">{viewing.name}</h2>
+        <p className="gp-view-meta">{plan.title} · {viewing.years}년 뒤 {manwon(viewing.targetAmount)} · {savedDate(viewing.savedAt)}에 저장
+          <span className="gp-badge">{viewing.asOf} 기준 결과</span></p>
+      </div>
+      <button type="button" className="gp-text-btn" onClick={onClose} autoFocus>닫기</button>
+    </div>
+    {plans.length > 1 && <nav className="gp-view-rail" aria-label="플랜 선택">
+      {plans.map((p) => <button type="button" key={p.id} className="gp-view-tab" aria-pressed={p.id === plan.id} onClick={() => setActiveId(p.id)}>{p.title}</button>)}
+    </nav>}
+    {plan.reachable && plan.monthly !== null && <p className="gp-insight">
+      그때 계산으로는 매달 <b className="num">{won(plan.monthly)}원</b>을 넣으면 {plan.outcome?.kind === 'FIXED' ? '목표에 닿아요(확정).' : '10번 중 8번은 목표에 닿았어요.'}
+    </p>}
+    <PlanDetail plan={plan} products={viewing.products} targetAmount={viewing.targetAmount} years={viewing.years} demo={viewing.proposer === 'DEMO'} />
+    <Assumptions paths={viewing.paths} returnsFrom={viewing.returnsFrom} returnsTo={viewing.returnsTo} assumptions={viewing.assumptions} notice={viewing.notice} />
+    <div className="gp-view-actions">
+      <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>
+      <button type="button" className="gp-text-btn" onClick={onClose}>닫기</button>
+    </div>
+  </div>;
+}
+
 /** 저장한 시나리오를 저장할 때 값 그대로 보여 주는 모달. Esc·[닫기]·바깥 클릭으로 닫는다. */
 function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
   viewing: SavedGoalScenario | null; loading: boolean; onClose: () => void; onRecalc: (v: SavedGoalScenario) => void;
@@ -141,25 +172,7 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
   return <dialog ref={ref} className="gp-view-dialog" aria-labelledby="gp-view-title"
     onCancel={(e) => { e.preventDefault(); onClose(); }}
     onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    {viewing && <div className="gp-view-body">
-      <div className="gp-view-head">
-        <div>
-          <h2 id="gp-view-title" className="gp-view-name">{viewing.name}</h2>
-          <p className="gp-view-meta">{viewing.scenario.title} · {viewing.years}년 뒤 {manwon(viewing.targetAmount)} · {savedDate(viewing.savedAt)}에 저장
-            <span className="gp-badge">{viewing.asOf} 기준 결과</span></p>
-        </div>
-        <button type="button" className="gp-text-btn" onClick={onClose} autoFocus>닫기</button>
-      </div>
-      {viewing.scenario.reachable && viewing.scenario.monthly !== null && <p className="gp-insight">
-        그때 계산으로는 매달 <b className="num">{won(viewing.scenario.monthly)}원</b>을 넣으면 {viewing.scenario.outcome?.kind === 'FIXED' ? '목표에 닿아요(확정).' : '10번 중 8번은 목표에 닿았어요.'}
-      </p>}
-      <PlanDetail plan={viewing.scenario} products={viewing.products} targetAmount={viewing.targetAmount} years={viewing.years} demo={viewing.proposer === 'DEMO'} />
-      <Assumptions paths={viewing.paths} returnsFrom={viewing.returnsFrom} returnsTo={viewing.returnsTo} assumptions={viewing.assumptions} notice={viewing.notice} />
-      <div className="gp-view-actions">
-        <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>
-        <button type="button" className="gp-text-btn" onClick={onClose}>닫기</button>
-      </div>
-    </div>}
+    {viewing && <SavedPlanView key={viewing.id} viewing={viewing} loading={loading} onClose={onClose} onRecalc={onRecalc} />}
   </dialog>;
 }
 
@@ -178,7 +191,7 @@ export default function GoalScenarios() {
   const [error, setError] = useState('');
 
   const [savedList, setSavedList] = useState<SavedScenarioList | null>(null);
-  const [savedIds, setSavedIds] = useState<Record<string, boolean>>({});
+  const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [viewing, setViewing] = useState<SavedGoalScenario | null>(null);
@@ -212,7 +225,7 @@ export default function GoalScenarios() {
     setViewing(null);
     setToDelete(null);
     setSavedList(null);
-    setSavedIds({});
+    setSavedPlanId(null);
     setSaveMessage('');
   }, [member, refreshSaved]);
 
@@ -231,7 +244,7 @@ export default function GoalScenarios() {
       const r = await fetchGoalScenarios({ name: trimmed, targetAmount: q.targetAmount, years: q.years });
       if (id !== requestId.current) return;
       setResult(r);
-      setSavedIds({});
+      setSavedPlanId(null);
       setViewing(null);
       setSelected(r.scenarios.find((s) => s.id === 'spread')?.id ?? r.scenarios[0]?.id ?? null);
       scrollTo(resultRef.current);
@@ -262,7 +275,7 @@ export default function GoalScenarios() {
     setSaveMessage('');
     try {
       await saveScenario({ resultId: result.resultId, scenarioId: plan.id });
-      setSavedIds((m) => ({ ...m, [plan.id]: true }));
+      setSavedPlanId(plan.id);
       setSaveMessage(`'${result.name}' 시나리오를 저장했어요. 저장한 시나리오에서 다시 볼 수 있어요.`);
       void refreshSaved();
     } catch (err) {
@@ -373,7 +386,7 @@ export default function GoalScenarios() {
 
           <div className="gp-plans">
             {result.scenarios.map((s, i) => <button type="button" key={s.id} className="gp-plan" aria-pressed={selected === s.id} onClick={() => { setSelected(s.id); setSaveMessage(''); }}>
-              <span className="gp-plan-tag">PLAN 0{i + 1}{savedIds[s.id] && <span className="gp-saved-mark">저장함</span>}</span>
+              <span className="gp-plan-tag">PLAN 0{i + 1}{savedPlanId === s.id && <span className="gp-saved-mark">저장함</span>}</span>
               <span className="gp-plan-title">{s.title}</span>
               <span className="gp-plan-desc">{s.summary}</span>
               {s.reachable && s.outcome && s.monthly !== null ? <>
@@ -394,11 +407,11 @@ export default function GoalScenarios() {
           <PlanDetail plan={plan} products={result.products} targetAmount={result.targetAmount} years={result.years} demo={demo} />
 
           <div className="gp-save-row">
-            <button type="button" className="gp-secondary" onClick={save} disabled={saving || savedIds[plan.id] || (member && full)}>
-              {!member ? '로그인하고 이 시나리오 저장' : savedIds[plan.id] ? '저장했어요' : saving ? '저장 중…' : `'${result.name}' 저장`}
+            <button type="button" className="gp-secondary" onClick={save} disabled={saving || savedPlanId !== null || (member && full)}>
+              {!member ? '로그인하고 이 시나리오 저장' : savedPlanId !== null ? '저장했어요' : saving ? '저장 중…' : `'${result.name}' 저장`}
             </button>
             {member && savedList && <span className="gp-save-count">{savedList.items.length}/{savedList.limit}개 저장</span>}
-            {member && full && !savedIds[plan.id] && <span className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</span>}
+            {member && full && savedPlanId === null && <span className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</span>}
           </div>
           {saveMessage && <p className="gp-save-message" role="status">{saveMessage}</p>}
 

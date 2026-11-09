@@ -1970,7 +1970,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** 방금 계산한 결과(resultId) 중 시나리오 하나를 그때 값 그대로 저장. 5개가 차 있으면 409 GOAL_SCENARIO_LIMIT, 30분이 지났거나 없는 resultId면 409 GOAL_SCENARIO_EXPIRED */
+        /** 방금 계산한 결과(resultId)의 플랜 전체를 그때 값 그대로 저장. scenarioId는 다시 볼 때 먼저 보여 줄 플랜. 5개(저장 건 기준)가 차 있으면 409 GOAL_SCENARIO_LIMIT, 30분이 지났거나 없는 resultId면 409 GOAL_SCENARIO_EXPIRED */
         post: {
             parameters: {
                 query?: never;
@@ -4252,6 +4252,8 @@ export interface components {
             reachShare: number;
             products: components["schemas"]["GoalScenarioProduct"][];
             scenario: components["schemas"]["GoalScenario"];
+            /** @description scenario(저장할 때 고른 플랜, 먼저 보여 줌)를 뺀 같은 계산 결과의 나머지 플랜(결과 순서). 플랜 하나만 저장하던 때의 저장본은 빈 배열 */
+            alternatives: components["schemas"]["GoalScenario"][];
             assumptions: string[];
             notice: string;
             isSample: boolean;

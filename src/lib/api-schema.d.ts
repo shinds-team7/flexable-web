@@ -847,6 +847,7 @@ export interface paths {
                          *           "categoryName": "유상증자",
                          *           "title": "주요사항보고서(유상증자결정)",
                          *           "body": null,
+                         *           "summary": null,
                          *           "details": [
                          *             {
                          *               "label": "새 주식 수(기존 대비)",
@@ -873,6 +874,7 @@ export interface paths {
                          *           "categoryName": "실적 발표",
                          *           "title": "연결재무제표기준영업(잠정)실적(공정공시)",
                          *           "body": null,
+                         *           "summary": "이 회사가 지난 분기 잠정 실적을 알렸어요. 매출액은 전년 같은 분기보다 12.4% 늘었고 영업이익은 3.1% 줄었어요. 감사를 받기 전 숫자라 나중에 바뀔 수 있어요.",
                          *           "details": null
                          *         },
                          *         {
@@ -882,6 +884,7 @@ export interface paths {
                          *           "categoryName": "사채 발행",
                          *           "title": "[기재정정]주요사항보고서(전환사채권발행결정)",
                          *           "body": null,
+                         *           "summary": null,
                          *           "details": [
                          *             {
                          *               "label": "사채 종류",
@@ -908,6 +911,7 @@ export interface paths {
                          *           "categoryName": "공급 계약",
                          *           "title": "단일판매ㆍ공급계약체결",
                          *           "body": null,
+                         *           "summary": "이 회사가 국내 회사와 설비 공급 계약을 맺었다고 알렸어요. 계약 금액은 100억~500억 원 규모로 최근 매출액의 8.5%에 해당해요. 계약 기간 동안 나눠서 납품해요.",
                          *           "details": null
                          *         },
                          *         {
@@ -917,6 +921,7 @@ export interface paths {
                          *           "categoryName": "자기주식 취득",
                          *           "title": "주요사항보고서(자기주식취득결정)",
                          *           "body": null,
+                         *           "summary": null,
                          *           "details": [
                          *             {
                          *               "label": "취득 예정 규모",
@@ -939,6 +944,7 @@ export interface paths {
                          *           "categoryName": "시설·지분 투자",
                          *           "title": "주요사항보고서(타법인주식및출자증권양수결정)",
                          *           "body": null,
+                         *           "summary": null,
                          *           "details": [
                          *             {
                          *               "label": "양수 규모",
@@ -965,6 +971,7 @@ export interface paths {
                          *           "categoryName": "배당",
                          *           "title": "현금ㆍ현물배당결정",
                          *           "body": null,
+                         *           "summary": "이 회사가 보통주 한 주마다 현금을 나눠 주는 결산 배당을 결정했어요. 배당금 총액은 100억~500억 원 규모이고 시가배당률은 2.1%예요.",
                          *           "details": null
                          *         },
                          *         {
@@ -974,6 +981,7 @@ export interface paths {
                          *           "categoryName": "소송·사고",
                          *           "title": "소송등의제기ㆍ신청(일정금액이상의청구)",
                          *           "body": null,
+                         *           "summary": "이 회사를 상대로 한 손해배상 청구 소송이 제기됐다고 알렸어요. 청구 금액은 10억~50억 원 규모로 자기자본의 1.2%에 해당해요. 회사는 소송 대리인을 정해 대응하겠다고 밝혔어요.",
                          *           "details": null
                          *         },
                          *         {
@@ -983,6 +991,7 @@ export interface paths {
                          *           "categoryName": "최대주주 변경",
                          *           "title": "최대주주변경",
                          *           "body": null,
+                         *           "summary": null,
                          *           "details": null
                          *         },
                          *         {
@@ -992,6 +1001,7 @@ export interface paths {
                          *           "categoryName": "시설·지분 투자",
                          *           "title": "신규시설투자등",
                          *           "body": null,
+                         *           "summary": null,
                          *           "details": null
                          *         }
                          *       ]
@@ -3623,7 +3633,7 @@ export interface components {
             sources: string[];
         };
         /**
-         * @description 가상 사건 유형(vsim-types-v2, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
+         * @description 가상 사건 유형(vsim-types-v3, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
          * @enum {string}
          */
         VirtualSimCategory: "EARNINGS" | "SUPPLY_CONTRACT" | "NEW_SHARES" | "BONUS_SHARES" | "BONDS" | "BUYBACK_ACQUIRE" | "BUYBACK_DISPOSE" | "DIVIDEND" | "RESTRUCTURE" | "FACILITY" | "LEGAL" | "OWNERSHIP";
@@ -3871,7 +3881,7 @@ export interface components {
                 rankingTop: number;
             };
         };
-        /** @description 배치고사 문제(실제 과거 공시, 예시 자료면 예시 글). 회사명·날짜·정답·경향·가격·절대 금액·상대방 이름은 없다(회사명·날짜·정답·경향은 결과에서 공개). 결과(VirtualContestPlacementResult)에는 주요 내용을 다시 싣지 않으니 화면은 이 응답의 문제와 questionId로 잇는다 */
+        /** @description 배치고사 문제(실제 과거 공시, 예시 자료면 예시 글). 회사명·날짜·정답·경향·가격·절대 금액·상대방 이름은 없다(회사명·날짜·정답·경향은 결과에서 공개). 결과(VirtualContestPlacementResult)에는 주요 내용·AI 요약을 다시 싣지 않으니 화면은 이 응답의 문제와 questionId로 잇는다 */
         VirtualContestPlacement: {
             placementId: string;
             /**
@@ -3887,7 +3897,7 @@ export interface components {
                 categoryName: string;
                 /** @description 실제 DART 공시 제목(예시 자료는 유형별 제목 형식). [기재정정] 같은 접두어가 붙을 수 있다 */
                 title: string;
-                /** @description 실제 공시는 null(공시 본문은 저장하지 않는다. 주요 내용은 details), 예시 자료는 예시 글 */
+                /** @description 실제 공시는 null(공시 원문은 저장하지 않는다. 주요 내용은 details, AI 요약은 summary), 예시 자료는 예시 글 */
                 body: string | null;
                 /** @description 공시 주요 내용(policies §8-8 "공시 주요 내용"). OpenDART 주요사항보고서 주요정보에서 서버가 만든 비율(소수 1자리 내림)·규모 구간·정해 둔 분류 이름만 있고 회사·상대방 이름·날짜·절대 금액은 없다. 방향·과거 경향·상승 비율도 없다. 구조화 자료가 없는 유형(실적·공급 계약·배당·소송·최대주주 변경·신규시설투자 등)이거나 아직 받지 못했으면 null. 예시 자료는 예시 값 */
                 details: {
@@ -3896,6 +3906,8 @@ export interface components {
                     /** @description 값(예: 12.5%, 100억~500억 원, 주주배정 후 일반공모) */
                     value: string;
                 }[] | null;
+                /** @description 공시 AI 요약(policies §8-8 "공시 AI 요약", decisions/2026-11-09-placement-ai-summary). worker가 OpenDART 공시서류원본파일 본문 글을 AI로 요약하고 자동 검사를 통과한 2~5문장만 싣는다. 공시 사실과 사업 지표의 증감(실적 증감률 등)은 있고, 주가 방향·호재/악재 같은 평가·전망·과거 경향은 없다. 회사·상대방·사람 이름, 날짜, 절대 금액·주식 수·가격이 없고 숫자는 원문의 % 값·규모 구간 이름·기간 길이뿐이다. 사람이 검수하지 않았다. 아직 만들지 않았거나 검사에 걸렸거나 운영자가 숨겼으면 null(화면은 details·유형 설명을 쓴다). 예시 자료는 예시 글. 결과(VirtualContestPlacementResult)에는 다시 싣지 않는다 */
+                summary: string | null;
             }[];
         };
         VirtualContestPlacementResult: {

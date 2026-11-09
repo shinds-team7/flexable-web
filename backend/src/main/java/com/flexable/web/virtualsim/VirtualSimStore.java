@@ -178,6 +178,70 @@ public class VirtualSimStore {
 		jdbc.update("DELETE FROM dart_detail_failures WHERE stock_code = ? AND api = ?", stockCode, api);
 	}
 
+	// ───────── 배치고사 공시 AI 요약(worker가 쓰고 api가 읽는다, V33) ─────────
+
+	/** 공시 한 건의 요약 결과. summary가 null이면 만들어 봤지만 쓸 요약이 없다(reason: 검사에 걸린 까닭 또는 NO_TEXT) */
+	public record SummaryRow(String receiptNo, String summary, String reason, String model) {
+	}
+
+	/** 다시 만들지 않을 공시의 접수번호: 지금 작성 규칙 버전으로 만든 것과 운영자가 숨긴 것 */
+	public Set<String> summarizedReceipts() {
+		return new HashSet<>(jdbc.queryForList("SELECT receipt_no FROM dart_disclosure_summaries WHERE version = ? OR hidden = TRUE", String.class,
+				PlacementSummaries.VERSION));
+	}
+
+	/** 접수번호마다 지금 작성 규칙 버전으로 덮어쓴다. 숨긴 행은 바꾸지 않는다. 원문 받기 실패 기록(V34)은 지운다. 넣거나 바꾼 수를 돌려준다 */
+	@Transactional
+	public int saveSummaries(List<SummaryRow> rows) {
+		Timestamp now = Timestamp.from(clock.instant());
+		int n = 0;
+		for (SummaryRow r : rows) {
+			jdbc.update("DELETE FROM dart_summary_failures WHERE receipt_no = ?", r.receiptNo());
+			int updated = jdbc.update("UPDATE dart_disclosure_summaries SET summary = ?, reason = ?, version = ?, model = ?, created_at = ? WHERE receipt_no = ? AND hidden = FALSE",
+					r.summary(), r.reason(), PlacementSummaries.VERSION, r.model(), now, r.receiptNo());
+			if (updated == 0 && jdbc.queryForObject("SELECT COUNT(*) FROM dart_disclosure_summaries WHERE receipt_no = ?", Integer.class, r.receiptNo()) == 0) {
+				jdbc.update("INSERT INTO dart_disclosure_summaries (receipt_no, summary, reason, version, model, hidden, created_at) VALUES (?, ?, ?, ?, ?, FALSE, ?)",
+						r.receiptNo(), r.summary(), r.reason(), PlacementSummaries.VERSION, r.model(), now);
+				updated = 1;
+			}
+			n += updated;
+		}
+		return n;
+	}
+
+	/** 원문 받기에 실패한 공시 → 마지막 실패 시각. 다음 실행에서 맨 뒤로 미룬다(V34) */
+	public Map<String, Instant> summaryFailures() {
+		Map<String, Instant> out = new HashMap<>();
+		jdbc.query("SELECT receipt_no, failed_at FROM dart_summary_failures", rs -> {
+			out.put(rs.getString(1), rs.getTimestamp(2).toInstant());
+		});
+		return out;
+	}
+
+	@Transactional
+	public void recordSummaryFailure(String receiptNo, String error) {
+		Timestamp now = Timestamp.from(clock.instant());
+		int n = jdbc.update("UPDATE dart_summary_failures SET attempts = attempts + 1, error = ?, failed_at = ? WHERE receipt_no = ?", cut(error, 300), now,
+				receiptNo);
+		if (n == 0) {
+			jdbc.update("INSERT INTO dart_summary_failures (receipt_no, attempts, error, failed_at) VALUES (?, 1, ?, ?)", receiptNo, cut(error, 300), now);
+		}
+	}
+
+	/** 접수번호 → 문제에 실을 요약(요약이 있고 숨기지 않은 것만, 작성 규칙 버전은 따지지 않는다). 출제할 때 뽑은 공시만 묻는다 */
+	public Map<String, String> summaries(java.util.Collection<String> receiptNos) {
+		Map<String, String> out = new HashMap<>();
+		if (receiptNos.isEmpty()) {
+			return out;
+		}
+		String marks = String.join(",", java.util.Collections.nCopies(receiptNos.size(), "?"));
+		jdbc.query("SELECT receipt_no, summary FROM dart_disclosure_summaries WHERE summary IS NOT NULL AND hidden = FALSE AND receipt_no IN (" + marks + ")",
+				rs -> {
+					out.put(rs.getString(1), rs.getString(2));
+				}, receiptNos.toArray());
+		return out;
+	}
+
 	// ───────── 룰셋 ─────────
 
 	@Transactional

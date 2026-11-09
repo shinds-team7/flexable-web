@@ -73,7 +73,7 @@ class VirtualSimContentJobTest {
 		return new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(), props.backfillYears(), props.recheckDays(),
 				false, props.kiwoom(), props.krx(), props.disclosureSource(), props.dart(), props.youth(),
 				new IngestProperties.Gemini(g.baseUrl(), g.apiKey(), g.model(), g.batchSize(), g.maxCalls(), Duration.ZERO), props.eventOverview(),
-				new IngestProperties.VirtualSim("gemini", null, null, batchSize, maxCalls, dailyCap, 2000));
+				new IngestProperties.VirtualSim("gemini", null, null, batchSize, maxCalls, dailyCap, 2000), props.placementSummary());
 	}
 
 	private VirtualSimContentJob job(VirtualSimWriter writer, DisclosureSource disclosures, IngestProperties p) {

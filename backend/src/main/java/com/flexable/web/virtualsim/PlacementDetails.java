@@ -42,7 +42,7 @@ public final class PlacementDetails {
 		if (category == null) {
 			return null;
 		}
-		String t = title.replaceAll("[\\s·ㆍ・/]", "");
+		String t = title.replaceAll("[\\s\\u00a0·ㆍ・/]", "");
 		// 종속회사·자회사의 주요경영사항은 그 회사가 낸 거래소 공시라 모회사 고유번호의 DS005에 없다
 		if (subsidiary(t)) {
 			return null;
@@ -67,7 +67,7 @@ public final class PlacementDetails {
 
 	/** 정정 공시를 같은 공시로 묶는 열쇠: 앞의 [기재정정] 같은 표시와 공백·가운뎃점을 지운 제목 */
 	public static String sameFilingKey(String title) {
-		return title == null ? null : title.replaceAll("^(\\[[^\\]]*\\]\\s*)+", "").replaceAll("[\\s·ㆍ・/]", "");
+		return title == null ? null : title.replaceAll("^(\\[[^\\]]*\\]\\s*)+", "").replaceAll("[\\s\\u00a0·ㆍ・/]", "");
 	}
 
 	/** DS005 한 행(칸 이름 → 값 글자) → 화면용 항목. 값이 빠진 항목은 내지 않는다 */
@@ -165,6 +165,11 @@ public final class PlacementDetails {
 	/** 1/10 % 단위 → "23.4%". null이면 null */
 	public static String percent(Long tenths) {
 		return tenths == null ? null : tenths / 10 + "." + tenths % 10 + "%";
+	}
+
+	/** 규모 구간 이름 전부(작은 구간부터). 배치고사 공시 AI 요약이 금액을 쓸 수 있는 유일한 꼴이다(PlacementSummaries) */
+	public static List<String> bucketNames() {
+		return List.of(BUCKET_NAME);
 	}
 
 	/** 금액(원) → 규모 구간 이름. 없거나 0 이하면 null */

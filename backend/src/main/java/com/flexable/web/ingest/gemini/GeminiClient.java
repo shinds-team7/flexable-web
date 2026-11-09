@@ -12,7 +12,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Gemini API(generateContent) 호출. 소식 요약(GeminiNewsSummarizer)과 사건 AI 개요(GeminiEventOverviewWriter)가 같이 쓴다.
+ * Gemini API(generateContent) 호출. 소식 요약(GeminiNewsSummarizer)·사건 AI 개요(GeminiEventOverviewWriter)·배치고사 공시 AI 요약(GeminiPlacementSummaryWriter) 등이 같이 쓴다.
  * 키는 헤더(x-goog-api-key)로 보내고, 오류 메시지에 키가 들어가면 ***로 가린다. 프롬프트·응답 본문은 로그에 남기지 않는다.
  */
 final class GeminiClient {

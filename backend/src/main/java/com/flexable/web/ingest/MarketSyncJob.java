@@ -81,7 +81,7 @@ public class MarketSyncJob implements ApplicationRunner {
 		runAll();
 	}
 
-	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료 → 가상 시뮬레이션 전체 공시·배치고사 공시 주요 내용·룰셋. 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
+	/** 시장 띠 → 시세 수집 → 사건 탐지·공시 근거 → 업종·시뮬레이션 자료 → 가상 시뮬레이션 전체 공시·배치고사 공시 주요 내용·룰셋(공시 AI 요약은 PlacementSummaryJob이 따로 돈다). 시장 띠가 실패해도 시세 수집은 하고, 시세가 일부 실패해도 받은 것으로 이어 간다. */
 	void runAll() {
 		try {
 			indexJob.runOnce();

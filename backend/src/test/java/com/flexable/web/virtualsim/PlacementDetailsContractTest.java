@@ -22,7 +22,7 @@ import com.flexable.web.virtualsim.VirtualContestDtos.Question;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 실제 공시 문제(DS005에서 만든 공시 주요 내용)가 계약(VirtualContestPlacement)과 맞는지, 회사·상대방 이름·날짜·절대 금액이 응답에 없는지 본다.
+ * 실제 공시 문제(DS005에서 만든 공시 주요 내용, 검사를 통과한 공시 AI 요약)가 계약(VirtualContestPlacement)과 맞는지, 회사·상대방 이름·날짜·절대 금액이 응답에 없는지 본다.
  * API 테스트는 예시 자료(VIRTUAL_SIM_SOURCE=fake)로 돌아 실제 공시 경로는 여기서 확인한다.
  */
 class PlacementDetailsContractTest {
@@ -51,8 +51,15 @@ class PlacementDetailsContractTest {
 			"주요사항보고서(유형자산양수결정)", Map.of("rcept_no", "20250408000004", "ast_sen", "토지 및 건물", "ast_nm", "서울시 중구 사옥", "inhdtl_inhprc", "98,765,432,100",
 					"inhdtl_tast", "1,987,654,321,000", "dlptn_cmpnm", "가람개발", "inh_prd_ctr_cnsd", "2025-04-08"));
 
+	/** 공급 계약 공시의 원문 표(가상 값)와 그 공시의 AI 요약 */
+	private static final String SOURCE = "1. 계약상대방 | 누리소재(주)\n2. 계약금액(원) | 12,345,678,900\n3. 최근 매출액 대비(%) | 8.57";
+	private static final String SUMMARY = "이 회사가 다른 회사와 설비 공급 계약을 맺었다고 알렸어요. 계약 금액은 100억~500억 원 규모로 최근 매출액의 8.5%에 해당해요.";
+
 	@Test
 	void 실제_공시_문제의_주요_내용이_계약과_맞고_단서가_없다() throws Exception {
+		java.util.Set<String> names = new java.util.HashSet<>(PlacementSummaries.names(SOURCE));
+		names.add("한빛전자");
+		assertThat(PlacementSummaries.check(SUMMARY, SOURCE, names).summary()).isEqualTo(SUMMARY);
 		List<LocalDate> dates = new ArrayList<>();
 		List<Long> closes = new ArrayList<>();
 		for (int i = 0; i < 12; i++) {
@@ -73,7 +80,9 @@ class PlacementDetailsContractTest {
 		List<Question> questions = new ArrayList<>();
 		for (int i = 0; i < 10; i++) {
 			VirtualContestQuestions.Past p = made.get(i % made.size());
-			questions.add(new Question("q" + (i + 1), p.industry(), p.category(), p.category().displayName(), p.title(), p.body(), p.details()));
+			// 공시 AI 요약: 검사를 통과한 요약이 있으면 싣는다(여기서는 공급 계약 공시)
+			String summary = p.category() == VirtualSimCategory.SUPPLY_CONTRACT ? SUMMARY : null;
+			questions.add(new Question("q" + (i + 1), p.industry(), p.category(), p.category().displayName(), p.title(), p.body(), p.details(), summary));
 		}
 		String body = JsonMapper.builder().build().writeValueAsString(new Placement("p1", "2026-11-06T12:30:00+09:00", questions));
 
@@ -87,9 +96,10 @@ class PlacementDetailsContractTest {
 		assertThat(made).allSatisfy(p -> assertThat(p.body()).isNull());
 		// 회사·상대방·주관사 이름, 날짜, 절대 금액·주식 수·가격·합병비율이 응답에 없다
 		for (String clue : List.of("한빛전자", "누리소재", "가람증권", "가람개발", "홍길동", "사옥", "2025", "1,234,567", "45,678,901", "33,333", "15,000", "23,450",
-				"123,456", "98,765", "0.3768421", "\"date\"", "\"company\"", "rcept")) {
+				"123,456", "98,765", "0.3768421", "12,345", "\"date\"", "\"company\"", "rcept")) {
 			assertThat(body).as(clue).doesNotContain(clue);
 		}
+		assertThat(body).contains(SUMMARY);
 		assertThat(body).contains("2.7%").contains("4.5%").contains("표면 1.0% · 만기 3.5%").contains("계열회사").contains("토지·건물").contains("4.9%");
 	}
 }

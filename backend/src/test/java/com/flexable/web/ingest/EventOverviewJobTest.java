@@ -222,7 +222,7 @@ class EventOverviewJobTest {
 		IngestProperties.EventOverview o = props.eventOverview();
 		IngestProperties capped = new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(),
 				props.backfillYears(), props.recheckDays(), props.runOnStart(), props.kiwoom(), props.krx(), props.disclosureSource(), props.dart(),
-				props.youth(), props.gemini(), new IngestProperties.EventOverview(o.source(), o.apiKey(), o.model(), 1, 100, cap), props.virtualSim());
+				props.youth(), props.gemini(), new IngestProperties.EventOverview(o.source(), o.apiKey(), o.model(), 1, 100, cap), props.virtualSim(), props.placementSummary());
 
 		EventOverviewJob.Run first = new EventOverviewJob(events, writer, usage, capped, runs, clock).runOnce(false);
 		assertThat(first.status()).isEqualTo("SUCCESS");
@@ -296,7 +296,7 @@ class EventOverviewJobTest {
 		IngestProperties.EventOverview o = props.eventOverview();
 		IngestProperties capped = new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(),
 				props.backfillYears(), props.recheckDays(), props.runOnStart(), props.kiwoom(), props.krx(), props.disclosureSource(), props.dart(),
-				props.youth(), props.gemini(), new IngestProperties.EventOverview(o.source(), o.apiKey(), o.model(), 10, 100, before), props.virtualSim());
+				props.youth(), props.gemini(), new IngestProperties.EventOverview(o.source(), o.apiKey(), o.model(), 10, 100, before), props.virtualSim(), props.placementSummary());
 
 		EventOverviewJob.Run run = new EventOverviewJob(events, new FakeEventOverviewWriter(), usage, capped, runs, clock).runOnce(false);
 		assertThat(run.status()).isEqualTo("SUCCESS");

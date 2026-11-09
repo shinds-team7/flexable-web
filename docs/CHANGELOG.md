@@ -6,6 +6,7 @@
 
 ## 2026-11-09
 
+- [Closes #349] 배치고사 공시 원문(OpenDART 공시서류원본파일)을 AI(Gemini)로 요약해 문제에 싣는다([결정](decisions/2026-11-09-placement-ai-summary.md), 대회 결정 2-2·2-6과 "11-06 #289"의 "원문 수집·AI 요약은 하지 않음"을 바꿈). 공시 사실과 사업 지표의 증감은 싣고 주가·평가·전망·과거 경향만 막는다(결정 2-2 해석, 사용자 결정). 원문은 저장하지 않고 자동 검사(2~5문장·400자, 금지 낱말, 숫자는 본문의 %·규모 구간·기간 길이만, 이름, 내용 없음)를 통과한 요약만 V33 `dart_disclosure_summaries`에 저장하며(걸리면 까닭을 붙여 한 번 다시 씀), 채점하면 문제 사본과 함께 지운다. policies §8-8 "공시 AI 요약", `virtual-contest.json` `placementSummary`, 계약 `VirtualContestPlacement.questions[].summary`(nullable, 필수 칸), worker `PlacementSummaryJob`(`PLACEMENT_SUMMARY_*`), 문제·결과 화면 공시 줄글, `privacy-web.md` "11-09"(`Privacy.tsx`는 바꾸지 않음) — 영향: 프론트(`npm run gen:api`)·백엔드·문서
 - [Closes #307] 목표 시나리오 저장을 플랜 전체로 바꿨다(policies §7-8, 계약 `SavedGoalScenario.alternatives` 추가, [결정](decisions/2026-10-29-goal-scenarios.md) "11-06 저장 범위"): 고른 플랜은 `scenario`로 먼저 보여 주고 나머지는 선택 칸에서 본다. 5개 한도는 저장 건 기준, 기존 저장본은 빈 배열, DB 스키마 변화 없음. 개인정보처리방침 제2조·`privacy-web.md` 수정 — 영향: 프론트(`npm run gen:api`)·백엔드
 
 ## 2026-11-08

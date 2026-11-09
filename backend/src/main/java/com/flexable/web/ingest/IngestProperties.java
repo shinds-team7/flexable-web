@@ -35,7 +35,7 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 		gemini = gemini == null ? new Gemini(null, null, null, null, null, null) : gemini;
 		eventOverview = eventOverview == null ? new EventOverview(null, null, null, null, null, null) : eventOverview;
 		virtualSim = virtualSim == null ? new VirtualSim(null, null, null, null, null, null, null) : virtualSim;
-		placementSummary = placementSummary == null ? new PlacementSummary(null, null, null, null, null, null) : placementSummary;
+		placementSummary = placementSummary == null ? new PlacementSummary(null, null, null, null, null, null, null) : placementSummary;
 	}
 
 	public record Kiwoom(String baseUrl, String appKey, String secretKey, Duration pageDelay) {
@@ -160,10 +160,12 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 	 * source: gemini(키가 없으면 꺼짐) | none(만들지 않음). apiKey·model: 전용 Gemini 키·모델. 비어 있으면 gemini 설정(공용 키·모델)을 쓴다. 호출 간격은 gemini.callDelay를 같이 쓴다.
 	 * 한 번 호출에 공시 batchSize건을 묶고 한 번 실행에 maxCalls번까지 부른다. 공시마다 OpenDART 공시서류원본파일을 한 번 받으므로 한 번 실행의 OpenDART 호출은 batchSize × maxCalls 이하다.
 	 * dailyCap: 하루(KST) Gemini 호출 상한(gemini_daily_usage, purpose placement-summary).
+	 * 평일 수집과 따로 자기 일정(cron, 기본 매일 21:00)으로 돌고, runOnStart면 worker가 켜질 때도 한 번 돈다(MARKET_SYNC_ON_START와 따로).
 	 */
-	public record PlacementSummary(String source, String apiKey, String model, Integer batchSize, Integer maxCalls, Integer dailyCap) {
+	public record PlacementSummary(String source, String apiKey, String model, Integer batchSize, Integer maxCalls, Integer dailyCap, Boolean runOnStart) {
 		public PlacementSummary {
 			source = source == null || source.isBlank() ? "gemini" : source;
+			runOnStart = runOnStart == null || runOnStart;
 			batchSize = batchSize == null ? 5 : batchSize;
 			maxCalls = maxCalls == null ? 40 : maxCalls;
 			dailyCap = dailyCap == null ? 40 : dailyCap;

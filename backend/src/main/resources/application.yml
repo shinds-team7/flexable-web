@@ -175,7 +175,8 @@ app:
       dart-max-calls: ${VIRTUAL_SIM_DART_MAX_CALLS:2000}
       cron: ${VIRTUAL_SIM_CRON:0 0 7 * * *}
     # 배치고사 공시 AI 요약(decisions/2026-11-09-placement-ai-summary). gemini | none. 전용 키·모델이 비어 있으면 위 gemini의 키·모델을 쓴다
-    # 평일 저녁 수집에서 공시 주요 내용 뒤에 돈다. 공시 batch-size건 × max-calls번(공시마다 OpenDART 원문 1번), 하루(KST) Gemini 호출 상한 daily-cap
+    # 평일 수집과 따로 cron(기본 매일 21:00, 주말 포함)에 돌고, run-on-start면 worker가 켜질 때도 한 번 돈다(시세 수집이 켜질 때 돌면 그 뒤에).
+    # 공시 batch-size건 × max-calls번(공시마다 OpenDART 원문 1번), 하루(KST) Gemini 호출 상한 daily-cap(DB에 세어 하루에 여러 번 돌아도 넘지 않는다)
     placement-summary:
       source: ${PLACEMENT_SUMMARY_SOURCE:gemini}
       api-key: ${PLACEMENT_SUMMARY_GEMINI_API_KEY:}
@@ -183,6 +184,8 @@ app:
       batch-size: ${PLACEMENT_SUMMARY_BATCH_SIZE:5}
       max-calls: ${PLACEMENT_SUMMARY_MAX_CALLS:40}
       daily-cap: ${PLACEMENT_SUMMARY_DAILY_CAP:40}
+      run-on-start: ${PLACEMENT_SUMMARY_ON_START:true}
+      cron: ${PLACEMENT_SUMMARY_CRON:0 0 21 * * *}
   applink:
     # http: 앱 서버 호출(운영), snapshot: 앱 서버 없이 고정 데이터(로컬 화면 확인·오프라인 시연)
     mode: ${APP_LINK_MODE:http}

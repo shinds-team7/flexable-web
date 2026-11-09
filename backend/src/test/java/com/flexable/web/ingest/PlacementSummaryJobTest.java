@@ -135,7 +135,7 @@ class PlacementSummaryJobTest {
 	private IngestProperties props(String source, int batchSize, int maxCalls, int dailyCap) {
 		return new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(), props.backfillYears(), props.recheckDays(), false,
 				props.kiwoom(), props.krx(), source, props.dart(), props.youth(), props.gemini(), props.eventOverview(), props.virtualSim(),
-				new IngestProperties.PlacementSummary("gemini", null, null, batchSize, maxCalls, dailyCap));
+				new IngestProperties.PlacementSummary("gemini", null, null, batchSize, maxCalls, dailyCap, false));
 	}
 
 	private PlacementSummaryJob job(Documents dart, Writer writer, IngestProperties p) {
@@ -144,7 +144,7 @@ class PlacementSummaryJobTest {
 
 	@BeforeEach
 	void clean() {
-		for (String t : List.of("dart_disclosure_summaries", "dart_disclosure_details", "dart_disclosure_archive", "dart_disclosures", "gemini_daily_usage")) {
+		for (String t : List.of("dart_disclosure_summaries", "dart_disclosure_details", "dart_disclosure_archive", "dart_disclosures", "gemini_daily_usage", "virtual_sim_rulesets")) {
 			jdbc.update("DELETE FROM " + t);
 		}
 	}
@@ -248,6 +248,19 @@ class PlacementSummaryJobTest {
 		assertThat(rows().get("20250101000003")).containsEntry("summary", OK).containsEntry("reason", null);
 		// 응답에서 빠진 공시(유상증자)는 저장하지 않아 다음 실행에 다시 한다
 		assertThat(rows()).doesNotContainKey("20250101000001");
+	}
+
+	@Test
+	void 지금_룰셋에서_경향이_뚜렷한_유형을_먼저_요약한다() {
+		Documents dart = seed();
+		// 유상증자가 뚜렷한 유형(DOWN)인 실제 룰셋. 배치고사 10문제 중 6문제가 이런 유형에서 나온다
+		store.saveRuleset(new com.flexable.web.virtualsim.VirtualSimRuleset(com.flexable.web.virtualsim.VirtualSimRuleset.VERSION, "2021-01-01", "2026-01-01", false,
+				List.of(), List.of(new com.flexable.web.virtualsim.VirtualSimRuleset.CategoryStats(VirtualSimCategory.NEW_SHARES, 100, 30, 70, 0,
+						new java.math.BigDecimal("0.3000"), -50, -300, 200, java.math.BigDecimal.ONE, "DOWN", List.of())),
+				List.of()));
+		var job = job(dart, new Writer(), props("dart", 1, 2, 10));
+		// 주요 내용이 있어도 뚜렷한 유형(유상증자)이 먼저, 그다음 주요 내용이 없는 공급 계약을 최근부터
+		assertThat(job.targets(10)).extracting(t -> t.disclosure().receiptNo()).containsExactly("20250101000001", "20250101000003", "20250101000002");
 	}
 
 	@Test

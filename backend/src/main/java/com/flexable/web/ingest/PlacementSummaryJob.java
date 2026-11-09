@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,10 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.flexable.web.ingest.dart.DartDisclosureSource.DartException;
@@ -21,14 +25,16 @@ import com.flexable.web.market.MarketDtos.StockRef;
 import com.flexable.web.market.MarketService;
 import com.flexable.web.virtualsim.PlacementSummaries;
 import com.flexable.web.virtualsim.VirtualSimCategory;
+import com.flexable.web.virtualsim.VirtualSimRuleset.CategoryStats;
 import com.flexable.web.virtualsim.VirtualSimStore;
 import com.flexable.web.virtualsim.VirtualSimStore.DisclosureRow;
 import com.flexable.web.virtualsim.VirtualSimStore.SummaryRow;
 
 /**
- * 배치고사 공시 AI 요약(worker, decisions/2026-11-09-placement-ai-summary, policies §8-8 "공시 AI 요약"). 공시 주요 내용 수집(DisclosureDetailJob) 뒤 돈다.
+ * 배치고사 공시 AI 요약(worker, decisions/2026-11-09-placement-ai-summary, policies §8-8 "공시 AI 요약"). 평일 수집과 따로 자기 일정(PLACEMENT_SUMMARY_CRON, 기본 매일 21:00)에 돌고,
+ * PLACEMENT_SUMMARY_ON_START면 worker가 켜질 때도 한 번 돈다(시세 수집이 켜질 때 돌면 그 뒤에 돈다). 하루 상한은 DB에 세므로 하루에 여러 번 돌아도 넘지 않는다.
  * 대상은 배치고사 후보가 될 수 있는 공시(공시 목록을 다 받은 종목의 최근 5년 공시 중 유형으로 분류되는 것)이고, 지금 작성 규칙 버전으로 만들지 않았고 숨기지 않은 것만이다.
- * 공시 주요 내용이 없는 공시를 먼저, 그 안에서는 최근 공시부터 batchSize건씩 묶는다. 묶음마다 OpenDART 공시서류원본파일을 공시마다 한 번 받아 본문 글을 뽑고,
+ * 배치고사 10문제 중 6문제가 지금 룰셋에서 경향이 뚜렷한 유형에서 나오므로 그 유형 공시를 먼저, 그다음 공시 주요 내용이 없는 공시를, 같으면 최근 공시부터 batchSize건씩 묶는다. 묶음마다 OpenDART 공시서류원본파일을 공시마다 한 번 받아 본문 글을 뽑고,
  * 부르기 전마다 하루(KST) Gemini 호출 상한(dailyCap, gemini_daily_usage)을 확인한 뒤 한 번 부른다. 한 번 실행에 maxCalls번까지다.
  * 검사에 걸린 요약은 까닭을 붙여 한 번 더 부르고(다시 쓰기, 하루 상한에 함께 센다), 그래도 걸리면 요약 없이 까닭만 남긴다. 원문이 없는 공시도 까닭만 남긴다.
  * 같은 입력(같은 작성 규칙 버전)은 다시 부르지 않는다. 검사를 통과한 요약만 저장하고 원문·본문 글은 저장하지 않는다.
@@ -68,8 +74,29 @@ public class PlacementSummaryJob {
 		this.clock = clock;
 	}
 
-	/** 요약할 공시 하나. company: 그 회사 이름(모르면 null), detailed: 공시 주요 내용이 있는지 */
-	record Target(DisclosureRow disclosure, String company, boolean detailed) {
+	/** 요약할 공시 하나. company: 그 회사 이름(모르면 null), clear: 지금 룰셋에서 경향이 뚜렷한 유형인지, detailed: 공시 주요 내용이 있는지 */
+	record Target(DisclosureRow disclosure, String company, boolean clear, boolean detailed) {
+	}
+
+	@EventListener(ApplicationReadyEvent.class)
+	void onStart() {
+		if (props.placementSummary().runOnStart()) {
+			runSafely();
+		}
+	}
+
+	@Scheduled(cron = "${app.ingest.placement-summary.cron:0 0 21 * * *}", zone = "Asia/Seoul")
+	void scheduled() {
+		runSafely();
+	}
+
+	private void runSafely() {
+		try {
+			runOnce();
+		}
+		catch (RuntimeException e) {
+			log.warn("배치고사 공시 AI 요약 실패: {}", e.getMessage());
+		}
 	}
 
 	public synchronized Run runOnce() {
@@ -224,24 +251,28 @@ public class PlacementSummaryJob {
 		return store.saveSummaries(results.stream().map(r -> new SummaryRow(r.id(), r.summary(), r.reject(), writer.model())).toList());
 	}
 
-	/** 대상 공시: 주요 내용이 없는 공시 먼저, 같으면 최근 접수부터 limit건 */
+	/** 대상 공시: 뚜렷한 유형(지금 실제 룰셋, 없으면 없음) 먼저, 그다음 주요 내용이 없는 공시, 같으면 최근 접수부터 limit건 */
 	List<Target> targets(int limit) {
 		LocalDate since = LocalDate.now(clock.withZone(IngestConfig.SEOUL)).minusYears(YEARS);
 		Map<String, String> companies = new HashMap<>();
 		for (StockRef s : market.rankedStocks()) {
 			companies.put(s.code(), s.name());
 		}
+		Set<VirtualSimCategory> clear = new HashSet<>();
+		store.latestStoredRuleset(false).ifPresent(r -> r.ruleset().categories().stream().filter(CategoryStats::clear).forEach(st -> clear.add(st.category())));
 		Set<String> done = store.summarizedReceipts();
 		List<Target> out = new ArrayList<>();
 		for (String stock : store.archivedStocks()) {
 			Set<String> detailed = store.details(stock).keySet();
 			for (DisclosureRow d : store.disclosures(stock)) {
-				if (!d.date().isBefore(since) && VirtualSimCategory.classify(d.title()) != null && !done.contains(d.receiptNo())) {
-					out.add(new Target(d, companies.get(stock), detailed.contains(d.receiptNo())));
+				VirtualSimCategory category = VirtualSimCategory.classify(d.title());
+				if (!d.date().isBefore(since) && category != null && !done.contains(d.receiptNo())) {
+					out.add(new Target(d, companies.get(stock), clear.contains(category), detailed.contains(d.receiptNo())));
 				}
 			}
 		}
-		out.sort(Comparator.comparing(Target::detailed).thenComparing((Target t) -> t.disclosure().receiptNo(), Comparator.reverseOrder()));
+		out.sort(Comparator.comparing((Target t) -> !t.clear()).thenComparing(Target::detailed)
+			.thenComparing((Target t) -> t.disclosure().receiptNo(), Comparator.reverseOrder()));
 		return out.size() > limit ? List.copyOf(out.subList(0, limit)) : out;
 	}
 

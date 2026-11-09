@@ -51,6 +51,24 @@ class CashCatalogTest {
         mvc.perform(post("/api/v1/cma/products")).andExpect(status().isUnauthorized());
     }
 
+    @Test void legacySnapshotWithoutCalculationFieldsCanBeReadAndRefreshed() throws Exception {
+        var p = product("legacy", "이전 상품", "BANK", null, "조건");
+        catalog.publish("parking", "legacy-source", "synthetic", List.of(p));
+        var snapshot = snapshots.findAll().getFirst();
+        var json = tools.jackson.databind.json.JsonMapper.builder().build();
+        var payload = json.readTree(snapshot.payload);
+        var item = (tools.jackson.databind.node.ObjectNode) payload.get(0);
+        for (String field : List.of("tags", "calculable", "calcReason", "calcMode", "tiers", "periods")) item.remove(field);
+        snapshot.payload = json.writeValueAsString(payload);
+        snapshots.saveAndFlush(snapshot);
+
+        assertThat(catalog.needsRefresh("parking", "legacy-source", p.verifiedAt().toInstant().minusSeconds(1))).isFalse();
+        assertThat(catalog.needsRefresh("parking", "legacy-source", p.verifiedAt().toInstant().plusSeconds(1))).isTrue();
+        mvc.perform(get("/api/v1/parking/products")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].calculable").value(true))
+                .andExpect(jsonPath("$.items[0].calcMode").value("BASE_RATE"));
+    }
+
     @Test void replacementIsPerSourceAndIdsRemainStable() {
         catalog.publish("parking", "source-a", "permission-test-a", List.of(product("one", "이전 상품", "BANK", null, "구간 조건")));
         String id = catalog.list("parking").items().getFirst().id();

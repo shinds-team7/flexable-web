@@ -181,6 +181,8 @@ export type CalcInput = {
   transactions: CalcTx[];
   savedSinceBalance: number;
   weights: number[];
+  /** 예정 지출(날짜·금액). 오늘 이상 ~ 수입일 전날만 쓴다(앱 정책 §2 예정 지출 반영) */
+  planned?: { date: string; amount: number }[];
 };
 
 export function compute(input: CalcInput, today: string) {
@@ -208,15 +210,21 @@ export function compute(input: CalcInput, today: string) {
   let reservedFixed = 0;
   for (const f of input.fixed) reservedFixed += f.amount * occurrences(f.day, addDays(today, 1), next);
 
-  const remaining = estimated - reservedFixed - input.cardUnpaid - input.protectedTotal;
-  const dayBudgets = split(Math.max(0, remaining + todaySpent), input.weights, today, next);
-  const dailyBudget = dayBudgets[dayIndex(today)];
+  const lastDay = addDays(next, -1);
+  const active = (input.planned ?? []).filter((p) => p.date >= today && p.date <= lastDay);
+  const plannedOn = (date: string) => active.filter((p) => p.date === date).reduce((a, p) => a + p.amount, 0);
+  const reservedPlanned = active.filter((p) => p.date > today).reduce((a, p) => a + p.amount, 0);
+  const todayPlanned = plannedOn(today);
+
+  const remaining = estimated - reservedFixed - input.cardUnpaid - input.protectedTotal - reservedPlanned;
+  const dayBudgets = split(Math.max(0, remaining + todaySpent - todayPlanned), input.weights, today, next);
+  const dailyBudget = dayBudgets[dayIndex(today)] + todayPlanned;
   const todayAvailable = dailyBudget - todaySpent;
   const shortage = remaining < 0 ? -remaining : Math.max(0, todaySpent - dailyBudget);
   const weekLast = weekEnd < next ? weekEnd : addDays(next, -1);
   const weekDaysLeft = Math.max(1, daysBetween(today, weekLast) + 1);
   let weekBudget = 0;
-  for (let d = today; d <= weekLast; d = addDays(d, 1)) weekBudget += dayBudgets[dayIndex(d)];
+  for (let d = today; d <= weekLast; d = addDays(d, 1)) weekBudget += dayBudgets[dayIndex(d)] + plannedOn(d);
   const weekAvailable = Math.max(0, weekBudget - todaySpent);
   return {
     date: today,
@@ -236,6 +244,10 @@ export function compute(input: CalcInput, today: string) {
     weekAvailable,
     cycleStart,
     dayBudgets,
+    reservedPlanned,
+    dayPlans: [...new Set(active.map((p) => p.date))]
+      .sort()
+      .map((date) => ({ date, planned: plannedOn(date), budget: dayBudgets[dayIndex(date)] + plannedOn(date) })),
   };
 }
 

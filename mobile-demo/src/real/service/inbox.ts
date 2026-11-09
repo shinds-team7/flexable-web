@@ -28,7 +28,8 @@ import { useWallet } from "./wallet";
 export type InboxItem = {
   key: string;
   at: number;
-  icon: ComponentProps<typeof Ionicons>["name"];
+  /** "coin"은 Ionicons에 없는 코인(🪙) 그림 */
+  icon: ComponentProps<typeof Ionicons>["name"] | "coin";
   color: string;
   title: string;
   detail: string;
@@ -49,7 +50,13 @@ function coinItem(e: CoinLedgerEntry): InboxItem {
   return {
     key: `coin:${e.id}`,
     at: time(e.createdAt),
-    icon: e.amount < 0 ? "bag-handle-outline" : "gift-outline",
+    // 예산 지킴 보너스·코인 모으기는 코인 그림, 나머지 받은 코인(가입 선물 등)은 선물 상자
+    icon:
+      e.amount < 0
+        ? "bag-handle-outline"
+        : e.reason === "BUDGET_BONUS" || e.reason === "PASSIVE"
+          ? "coin"
+          : "gift-outline",
     color: colors.brand,
     title: ledgerTitle(e),
     detail: ledgerDetail(e),

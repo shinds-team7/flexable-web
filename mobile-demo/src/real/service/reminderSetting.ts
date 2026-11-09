@@ -36,6 +36,10 @@ export const useSeedReminderSetting = deviceSetting(
 export const useEntryReminderSetting = deviceSetting(
   "flexable.service.entryReminder",
 );
+// Always-on "today's remaining budget" notification in the Android notification shade.
+export const useBudgetNotificationSetting = deviceSetting(
+  "flexable.service.budgetNotification",
+);
 
 // Time of day for the record reminder, "HH:MM". Null means automatic: 24 hours after the last record.
 let entryTime: string | null | undefined;

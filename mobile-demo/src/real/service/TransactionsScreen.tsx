@@ -109,9 +109,10 @@ export function TransactionsScreen() {
           onSelect={(date) =>
             router.push({
               pathname:
+                // 오늘·지난 날짜는 그 날짜가 채워진 거래 직접 기록으로 바로 간다
                 date > seoulDate()
                   ? "/scheduled-expenses"
-                  : "/transactions/day",
+                  : "/transactions/new",
               params: { date },
             })
           }

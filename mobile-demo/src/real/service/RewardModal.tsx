@@ -29,9 +29,17 @@ function bodyOf(r: CoinReward): string {
 /** 받은 코인 안내. 부르는 쪽이 rewards 를 한 개씩 넘기고, 닫을 때 ack 한다 */
 export function RewardModal({
   reward,
+  title,
+  body,
+  plain = false,
   onClose,
 }: {
   reward: CoinReward | null;
+  /** 사유별 기본 문구 대신 쓸 제목·본문(광고 보상 안내 등) */
+  title?: string;
+  body?: string;
+  /** 제목만 보이고 본문·"+N" 줄을 숨긴다(광고 보상: 제목에 이미 "+N 코인"이 있다) */
+  plain?: boolean;
   onClose: () => void;
 }) {
   return (
@@ -53,24 +61,28 @@ export function RewardModal({
               accessibilityRole="header"
               style={{ textAlign: "center", marginTop: 8 }}
             >
-              {TITLES[reward.reason] ?? "코인을 받았어요"}
+              {title ?? TITLES[reward.reason] ?? "코인을 받았어요"}
             </T>
-            <T
-              size={14}
-              color={colors.textSub}
-              style={{ textAlign: "center", marginTop: 8, lineHeight: 21 }}
-            >
-              {bodyOf(reward)}
-            </T>
-            <T
-              size={22}
-              weight="800"
-              color={colors.brandDark}
-              num
-              style={{ textAlign: "center", marginTop: 12 }}
-            >
-              +{reward.amount}
-            </T>
+            {!plain && (
+              <>
+                <T
+                  size={14}
+                  color={colors.textSub}
+                  style={{ textAlign: "center", marginTop: 8, lineHeight: 21 }}
+                >
+                  {body ?? bodyOf(reward)}
+                </T>
+                <T
+                  size={22}
+                  weight="800"
+                  color={colors.brandDark}
+                  num
+                  style={{ textAlign: "center", marginTop: 12 }}
+                >
+                  +{reward.amount}
+                </T>
+              </>
+            )}
             <Button label="확인" onPress={onClose} style={{ marginTop: 20 }} />
           </View>
         )}

@@ -6,7 +6,7 @@ import { adsSupported } from "./adReward";
 import type { CoinWallet } from "./types";
 import { money } from "./ui";
 
-/** 상점 맨 위: 코인 잔액과 [광고 보기]. 광고를 끝까지 보면 10코인, 하루 3번까지. */
+/** 상점 맨 위: 코인 잔액과 [광고 🪙]. 광고를 끝까지 보면 10코인, 오래 보면 15·20코인, 하루 3번까지. */
 export function AdRewardCard({
   balance,
   wallet,
@@ -47,7 +47,8 @@ export function AdRewardCard({
       </View>
       {ad && (
         <Button
-          label={`+${ad.reward} 코인`}
+          label="광고 🪙"
+          accessibilityLabel="광고 보고 코인 받기"
           disabled={busy || left <= 0 || !adsSupported}
           onPress={onWatch}
           style={{ minHeight: 44, paddingVertical: 8, paddingHorizontal: 18 }}

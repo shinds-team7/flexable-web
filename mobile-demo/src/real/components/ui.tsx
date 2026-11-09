@@ -1,6 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from 'react';
-import { AccessibilityInfo, Animated, Platform, Pressable, ScrollView, StyleSheet, Text as RNText, View, type PressableProps, type StyleProp, type TextProps, type ViewStyle } from "react-native";
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode, type RefObject } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  Keyboard,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text as RNText,
+  View,
+  type PressableProps,
+  type StyleProp,
+  type TextProps,
+  type ViewStyle,
+} from "react-native";
 import { Modal } from "@/components/PhoneModal";
 
 import { colors, elevation1, floating, fontStyle, motion, pressTransition, radius, touch } from '@/real/theme';
@@ -106,14 +120,16 @@ export function Screen({ children }: { children: ReactNode }) {
 
 type BtnProps = PressableProps & {
   label: string;
-  variant?: 'primary' | 'soft' | 'ghost';
+  /** soft는 11-06부터 primary와 같은 파랑 바탕·흰 글자. neutral은 취소용 옅은 회색 바탕 */
+  variant?: 'primary' | 'soft' | 'neutral' | 'ghost';
   icon?: ComponentProps<typeof Ionicons>['name'];
   style?: StyleProp<ViewStyle>;
 };
 
 export function Button({ label, variant = 'primary', icon, style, disabled, ...rest }: BtnProps) {
-  const bg = variant === 'primary' ? colors.brand : variant === 'soft' ? colors.brandSoft : 'transparent';
-  const fg = variant === 'primary' ? '#fff' : colors.brandDark;
+  const blue = variant === 'primary' || variant === 'soft';
+  const bg = blue ? colors.brand : variant === 'neutral' ? colors.sunken : 'transparent';
+  const fg = blue ? '#fff' : variant === 'neutral' ? colors.text : colors.brandDark;
   return (
     <Pressable
       accessibilityRole="button"
@@ -126,7 +142,7 @@ export function Button({ label, variant = 'primary', icon, style, disabled, ...r
         styles.btn,
         pressTransition,
         { backgroundColor: disabled ? colors.sunken : bg },
-        pressed && (variant === 'primary' ? styles.btnPrimaryPressed : styles.pressed),
+        pressed && (blue ? styles.btnPrimaryPressed : styles.pressed),
         style,
       ]}
     >
@@ -247,6 +263,51 @@ export function Row({
   );
 }
 
+/**
+ * 시트 안 입력칸을 누르면 키패드가 시트를 가리지 않게 시트를 키패드 위로 올린다.
+ * Android는 edge-to-edge라 모달 창이 줄어들지 않아(줄어드는 기기도 있다) 키패드 높이를 그대로 쓰지 않고,
+ * 시트 아래끝이 키패드 윗줄보다 얼마나 내려가 있는지 재서 그만큼만 올린다. 웹은 브라우저가 맡는다.
+ */
+function useKeyboardLift(active: boolean, ref: RefObject<View | null>) {
+  const [value, setValue] = useState(0);
+  const current = useRef(0);
+  // 떠 있는 키패드의 윗줄(화면 y). 닫혀 있으면 null
+  const keyboardTop = useRef<number | null>(null);
+  const set = useCallback((v: number) => {
+    current.current = v;
+    setValue(v);
+  }, []);
+  /** 시트 아래끝을 재서 키패드 윗줄과 겹치는 만큼(+여유 8)만 올린다. 키패드가 닫혀 있으면 아무것도 안 한다 */
+  const measure = useCallback(() => {
+    const top = keyboardTop.current;
+    if (top === null) return;
+    ref.current?.measureInWindow((_x, y, _w, h) => {
+      // 지금 올린 만큼을 빼고 원래 아래끝을 구한다
+      const bottom = y + h + current.current;
+      set(Math.max(0, Math.round(bottom - top + 8)));
+    });
+  }, [ref, set]);
+  useEffect(() => {
+    if (!active || Platform.OS === 'web') return;
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
+      keyboardTop.current = e.endCoordinates.screenY;
+      measure();
+    });
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => {
+      keyboardTop.current = null;
+      set(0);
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+      keyboardTop.current = null;
+      set(0);
+    };
+  }, [active, measure, set]);
+  // 시트가 올라오는 도중에 키패드가 뜨면(자동 포커스) 움직이는 위치로 재게 되므로, 다 올라온 뒤 다시 잰다
+  return [value, measure] as const;
+}
+
 /** 하단 시트 모달 — 바닥에서 ease-out으로 올라오고, 닫힐 땐 더 빠르게 내려간다 */
 export function Sheet({
   visible,
@@ -266,6 +327,8 @@ export function Sheet({
 }) {
   const reduced = useReducedMotion();
   const [mounted, setMounted] = useState(visible);
+  const sheetRef = useRef<View>(null);
+  const [lift, remeasure] = useKeyboardLift(mounted, sheetRef);
   // 열릴 때는 렌더 중에 바로 마운트하고, 닫힐 때는 애니메이션이 끝난 뒤 언마운트한다
   if (visible && !mounted) setMounted(true);
   const p = useAnimValue(0);
@@ -279,7 +342,7 @@ export function Sheet({
         duration: reduced ? 0 : motion.enter,
         easing: motion.easeOut,
         useNativeDriver: native,
-      }).start();
+      }).start(() => remeasure());
     } else if (mounted) {
       Animated.timing(p, {
         toValue: 0,
@@ -295,9 +358,9 @@ export function Sheet({
   return (
     <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.dimBg, { opacity: p }]} />
-      <View style={styles.dim}>
+      <View style={[styles.dim, { paddingBottom: lift }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" accessibilityRole="button" />
-        <Animated.View style={[styles.sheet, floating, { transform: [{ translateY }] }]}>
+        <Animated.View ref={sheetRef} style={[styles.sheet, floating, { transform: [{ translateY }] }]}>
           {/* 가로 화면처럼 낮은 창에서는 본문이 줄어들어, 안쪽 ScrollView가 스크롤된다 */}
           <View style={{ flexShrink: 1 }}>
             <View style={styles.grabber} />
@@ -359,7 +422,7 @@ export function ConfirmModal({
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 22 }}>
-            <Button label={cancelLabel} variant="soft" style={{ flex: 1, height: 48 }} onPress={onCancel} />
+            <Button label={cancelLabel} variant="neutral" style={{ flex: 1, height: 48 }} onPress={onCancel} />
             <Button label={confirmLabel} style={{ flex: 1, height: 48 }} onPress={onConfirm} />
           </View>
         </View>

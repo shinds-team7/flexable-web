@@ -4,8 +4,9 @@ import { api } from "./api/client";
 
 export const adsSupported = true;
 export type AdResult = "earned" | "closed" | "failed";
-export async function showRewardedAd(_userId: number): Promise<AdResult> {
+export type AdOutcome = { result: AdResult; seconds: number };
+export async function showRewardedAd(_userId: number): Promise<AdOutcome> {
   await new Promise((r) => setTimeout(r, 1500));
   await api("/coins/demo-ad", { method: "POST" });
-  return "earned";
+  return { result: "earned", seconds: 30 };
 }

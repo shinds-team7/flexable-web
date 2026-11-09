@@ -1004,6 +1004,7 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: {
+                    /** @description 재전송 중복 방지 키. 64자 이하(넘으면 400 VALIDATION_FAILED) */
                     "Idempotency-Key"?: string;
                 };
                 path?: never;
@@ -1378,6 +1379,65 @@ export interface paths {
                     };
                 };
                 401: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/coins/ad-bonus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 광고를 다 본 뒤 시청 시간 보너스(15~30초 +5, 30초 이상 +10)
+         * @description 시간은 앱이 잰 값을 믿는다. 오늘 받은 광고 보상(SSV 콜백) 수보다 보너스를 더 받을 수 없어서, 콜백이 아직 안 왔으면 409 AD_NOT_REWARDED이고 앱이 잠시 뒤 다시 부른다. 같은 requestId는 한 번만 지급하고 다시 불러도 같은 결과를 준다. 15초 미만은 보너스 0(기록하지 않음)
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description 앱이 광고마다 새로 만든 값 */
+                        requestId: string;
+                        /** @description 광고가 열린 뒤 닫힐 때까지 초(앱이 잼) */
+                        watchedSeconds: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description 이번 광고로 받은 코인과 지갑 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @description 광고 기본 코인(10, SSV 콜백이 지급) */
+                            reward: number;
+                            /** @description 시청 시간 보너스 0·5·10 */
+                            bonus: number;
+                            /** @description reward + bonus(10·15·20) */
+                            total: number;
+                            wallet: components["schemas"]["Wallet"];
+                        };
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                409: components["responses"]["Error"];
             };
         };
         delete?: never;
@@ -1854,6 +1914,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 앱이 겪은 오류 보고(오류 기록, 30일 보관)
+         * @description 로그인 없이도 보낼 수 있고 토큰이 맞으면 회원 번호를 함께 남긴다. 같은 날 같은 오류는 한 줄로 묶는다. 숫자(3자리 이상)·이메일은 서버가 가려 저장하고, 보낸 사람마다 10분에 30건까지만 저장한다(넘어도 204). 앱은 결과를 기다리지 않는다. 거래 제목·메모·요청 본문은 보내지 않는다
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description API 요청 실패, CRASH 화면 오류, JS 그 밖의 앱 오류
+                         * @enum {string}
+                         */
+                        kind: "API" | "CRASH" | "JS";
+                        message: string;
+                        stack?: string;
+                        /** @description 오류가 난 화면 경로 */
+                        screen?: string;
+                        /** @enum {string} */
+                        method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+                        /** @description API 경로. 쿼리는 서버가 버리고 숫자 id는 {id}로 묶는다 */
+                        path?: string;
+                        status?: number;
+                        /** @description 서버 오류 code */
+                        code?: string;
+                        appVersion?: string;
+                        /** @description 원격 업데이트 id */
+                        updateId?: string;
+                        /** @enum {string} */
+                        platform?: "android" | "ios" | "web";
+                    };
+                };
+            };
+            responses: {
+                /** @description 받음(한도를 넘어 버린 것 포함) */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1899,7 +2023,7 @@ export interface components {
     schemas: {
         Error: {
             /** @enum {string} */
-            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "BUDGET_NOT_SET" | "EMAIL_UNAVAILABLE" | "CATEGORY_DUPLICATE" | "CATEGORY_DEFAULT" | "SEED_NOT_PENDING" | "OUTFIT_NOT_FOR_SALE" | "OUTFIT_OWNED" | "OUTFIT_LOCKED" | "COINS_NOT_ENOUGH" | "REFERRAL_CODE_INVALID" | "REFERRAL_ALREADY" | "LINK_CODE_INVALID" | "LINK_NOT_FOUND" | "TOO_MANY_ATTEMPTS" | "CHAT_UNAVAILABLE" | "CHAT_FAILED" | "INTERNAL_ERROR";
+            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "BUDGET_NOT_SET" | "EMAIL_UNAVAILABLE" | "CATEGORY_DUPLICATE" | "CATEGORY_DEFAULT" | "SEED_NOT_PENDING" | "OUTFIT_NOT_FOR_SALE" | "OUTFIT_OWNED" | "OUTFIT_LOCKED" | "COINS_NOT_ENOUGH" | "REFERRAL_CODE_INVALID" | "REFERRAL_ALREADY" | "LINK_CODE_INVALID" | "LINK_NOT_FOUND" | "TOO_MANY_ATTEMPTS" | "AD_NOT_REWARDED" | "CHAT_UNAVAILABLE" | "CHAT_FAILED" | "INTERNAL_ERROR";
             message: string;
             /** @description VALIDATION_FAILED에서 필드별 문장 */
             fields?: {
@@ -2050,6 +2174,8 @@ export interface components {
          *         45230,
          *         45230
          *       ],
+         *       "reservedPlanned": 0,
+         *       "dayPlans": [],
          *       "characterPoints": 130,
          *       "characterDelta": 15
          *     }
@@ -2095,6 +2221,20 @@ export interface components {
             dayPreset: components["schemas"]["DayPreset"];
             /** @description 월~일 요일별 하루 예산(남은 생활비를 남은 날의 요일 비중 합으로 나눔, §5). dailyBudget = 오늘 요일 값 */
             dayBudgets: number[];
+            /**
+             * Format: int64
+             * @description 내일~수입일 전날 예정 지출 합(남은 생활비에서 이미 뺐다, §2 예정 지출 반영)
+             */
+            reservedPlanned: number;
+            /** @description 수입일 전날까지 예정 지출이 있는 날짜별 하루 예산(날짜 오름차순, 없으면 빈 배열). budget = 그 날짜 몫 + planned */
+            dayPlans: {
+                /** Format: date */
+                date: string;
+                /** Format: int64 */
+                planned: number;
+                /** Format: int64 */
+                budget: number;
+            }[];
             characterPoints: number;
             characterDelta: number;
         };
@@ -2397,6 +2537,18 @@ export interface components {
              * @enum {string}
              */
             mate?: "ANALYST" | "FRIEND" | "COACH";
+            /** @description 앱이 처리할 수 있는 제안 종류. SCHEDULE이 없으면 서버는 일정 제안(action.type SCHEDULE)을 하지 않는다(옛 앱 보호) */
+            accepts?: "SCHEDULE"[];
+            /** @description 직전에 제안한 일정. 사용자가 수정 의견을 줄 때 함께 보내면 서버가 이것을 바탕으로 다시 제안한다 */
+            pending?: {
+                title: string;
+                /** Format: date */
+                date: string;
+                /** Format: int64 */
+                categoryId: number;
+                /** Format: int64 */
+                amount?: number | null;
+            } | null;
         };
         /**
          * @example {
@@ -2411,17 +2563,66 @@ export interface components {
         ChatResponse: {
             /** @description 화면에 보여 줄 답변. **굵게** 표시가 들어갈 수 있다 */
             reply: string;
-            /** @description 확인이 필요한 변경 제안. 없으면 null. 확인 버튼을 누르면 앱이 PUT /budget/day-weights {preset}으로 저장한다 */
+            /**
+             * @description 확인이 필요한 변경 제안. 없으면 null. 서버는 저장하지 않는다.
+             *     DAY_PRESET: 확인하면 앱이 PUT /budget/day-weights {preset}으로 저장한다.
+             *     SCHEDULE: 확인하면 앱이 POST /scheduled-expenses {amount, categoryId, title, date}로 등록한 뒤 GET /budget/today를 다시 받는다.
+             */
             action: {
                 /** @enum {string} */
-                type: "DAY_PRESET";
+                type: "DAY_PRESET" | "SCHEDULE";
                 /**
-                 * @description CUSTOM은 제안하지 않는다. RECORD는 기록이 충분할 때만
+                 * @description DAY_PRESET일 때만. CUSTOM은 제안하지 않는다. RECORD는 기록이 충분할 때만
                  * @enum {string}
                  */
-                preset: "EVEN" | "RECORD" | "WEEKEND" | "WEEKDAY";
-                /** @description 프리셋 이름(기본 배분·내 기록 기준·주말 넉넉히·평일 넉넉히) */
-                label: string;
+                preset?: "EVEN" | "RECORD" | "WEEKEND" | "WEEKDAY";
+                /** @description DAY_PRESET일 때만. 프리셋 이름(기본 배분·내 기록 기준·주말 넉넉히·평일 넉넉히) */
+                label?: string;
+                /** @description SCHEDULE일 때만 */
+                schedule?: {
+                    title: string;
+                    /**
+                     * Format: date
+                     * @description 내일 ~ 90일 뒤
+                     */
+                    date: string;
+                    /** Format: int64 */
+                    categoryId: number;
+                    category: string;
+                    /**
+                     * Format: int64
+                     * @description 서버가 거래 기록으로 예측한 금액(100원 단위 내림). 기록이 적어 예측하지 못하면 null이고 reply가 금액을 되묻는다. 사용자가 말한 금액이면 그 값
+                     */
+                    amount: number | null;
+                    /** @description 예측 근거. 금액을 사용자가 말했거나 예측하지 못했으면 null */
+                    basis: {
+                        samples: number;
+                        /**
+                         * @description CATEGORY 카테고리 하루 합계 기준(samples는 기록 있는 날 수). SLOT은 11-06까지의 시간대 기준으로 지금은 오지 않는다
+                         * @enum {string}
+                         */
+                        scope: "SLOT" | "CATEGORY";
+                        days: number;
+                    } | null;
+                    /** @description 이 금액으로 등록했을 때 서버가 가정 계산한 예산. amount가 null이거나 날짜가 다음 수입일 이후라 이번 예산에 들어가지 않으면 null. 이미 같은 날짜 예정이 있으면 합산 */
+                    preview: {
+                        /**
+                         * Format: int64
+                         * @description 등록 후 그 날짜의 하루 예산
+                         */
+                        dayBudget: number;
+                        /**
+                         * Format: int64
+                         * @description 지금 오늘 하루 예산
+                         */
+                        dailyBudgetBefore: number;
+                        /**
+                         * Format: int64
+                         * @description 등록 후 오늘 하루 예산
+                         */
+                        dailyBudgetAfter: number;
+                    } | null;
+                };
             } | null;
         };
         Wallet: {
@@ -2433,7 +2634,7 @@ export interface components {
                 rewardedToday: number;
                 /** @description 하루 한도(3) */
                 dailyLimit: number;
-                /** @description 1회 코인(10) */
+                /** @description 1회 기본 코인(10). 시청 시간 보너스는 POST /coins/ad-bonus */
                 reward: number;
             };
             passive: {
@@ -2450,7 +2651,7 @@ export interface components {
             /** Format: int64 */
             id: number;
             /** @enum {string} */
-            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE" | "AD_REWARD";
+            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE" | "AD_REWARD" | "AD_BONUS";
             amount: number;
             /**
              * Format: date
@@ -2464,7 +2665,7 @@ export interface components {
             /** Format: int64 */
             id: number;
             /** @enum {string} */
-            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE" | "AD_REWARD";
+            reason: "SIGNUP_GIFT" | "BUDGET_BONUS" | "PASSIVE" | "REFERRAL_INVITEE" | "REFERRAL_INVITER" | "PURCHASE" | "REFUND" | "ATTENDANCE" | "AD_REWARD" | "AD_BONUS";
             /** @description 적립은 양수, 사용(PURCHASE)은 음수 */
             amount: number;
             /**
@@ -2486,7 +2687,7 @@ export interface components {
             /** @description 누적 출석 일수(오늘 했으면 오늘 포함). 빠진 날이 있어도 초기화하지 않는다 */
             total: number;
             checkedToday: boolean;
-            /** @description 오늘 출석하면(했으면) 받는 코인. 기본 5에, 누적 3일째와 8일째부터 7일 주기의 3·7번째 날은 보너스 50을 더해 55 */
+            /** @description 오늘 출석하면(했으면) 받는 코인. 기본 5에, 누적 7일 주기의 3번째 날(3·10·17…일째)은 보너스 20을 더해 25 */
             todayReward: number;
             /** @description 오늘 출석하면(했으면) 받는 코스튬 id. 누적 7일째에 한 번만, 아니면 null */
             todayOutfitId: string | null;

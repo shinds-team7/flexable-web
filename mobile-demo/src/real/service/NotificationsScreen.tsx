@@ -45,25 +45,18 @@ export function NotificationsScreen() {
           <Loading />
         ) : (
           items && (
-            <Card style={{ paddingVertical: 8 }}>
+            <Card
+              style={{ paddingTop: 0, paddingBottom: 8, overflow: "hidden" }}
+            >
               {groups.size === 0 && (
                 <T style={{ paddingVertical: 24, textAlign: "center" }}>
                   최근 30일 동안 온 알림이 없어요
                 </T>
               )}
               {[...groups].map(([date, list], i) => (
-                <View
-                  key={date}
-                  style={
-                    i > 0 && {
-                      borderTopWidth: 1,
-                      borderTopColor: colors.line,
-                      marginTop: 6,
-                    }
-                  }
-                >
+                <View key={date}>
                   <View style={styles.dateRow}>
-                    <T size={13} weight="700">
+                    <T size={13} weight="700" color={colors.onBrand}>
                       {date === seoulDate() ? "오늘" : date}
                     </T>
                     {i === 0 && (
@@ -78,7 +71,14 @@ export function NotificationsScreen() {
                             markInboxItemsRead(id, unread).catch(() => {});
                         }}
                       >
-                        <T size={12} color="#A9B0BF" style={styles.readAll}>
+                        <T
+                          size={12}
+                          color={colors.onBrand}
+                          style={[
+                            styles.readAll,
+                            unread.length === 0 && { opacity: 0.5 },
+                          ]}
+                        >
                           전체 확인
                         </T>
                       </Pressable>
@@ -146,7 +146,11 @@ function Row({
       style={[styles.row, fresh && styles.fresh]}
     >
       <View style={[styles.icon, { backgroundColor: item.color + "1F" }]}>
-        <Ionicons name={item.icon} size={20} color={item.color} />
+        {item.icon === "coin" ? (
+          <T size={18}>🪙</T>
+        ) : (
+          <Ionicons name={item.icon} size={20} color={item.color} />
+        )}
       </View>
       <View style={{ flex: 1, gap: 3 }}>
         <T weight="700" num numberOfLines={1}>
@@ -166,12 +170,15 @@ function Row({
 }
 
 const styles = StyleSheet.create({
+  // 날짜 줄은 카드 양 끝까지 닿는 파란 띠(흰 글씨)로 날짜를 구분한다(구분선 대신).
   dateRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 14,
-    paddingBottom: 6,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.brand,
   },
   readAll: { textDecorationLine: "underline" },
   // The unread background and the swipe area span the card edge to edge (card padding 20) without moving the text.

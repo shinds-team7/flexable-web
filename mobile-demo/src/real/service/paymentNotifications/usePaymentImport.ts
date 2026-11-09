@@ -10,6 +10,7 @@ import {
 } from "./native";
 import {
   importPaymentNotices,
+  paymentIdempotencyKey,
   type PaymentBody,
   type PaymentProblem,
 } from "./process";
@@ -37,6 +38,7 @@ function update(next: Partial<State>) {
 let queue: Promise<unknown> = Promise.resolve();
 let refresh: (() => void) | undefined;
 let importRevision = 0;
+let rejected = new Map<string, string>();
 export function interruptPaymentImport() {
   importRevision++;
 }
@@ -66,6 +68,7 @@ export function useAutomaticPaymentImport() {
       });
       return;
     }
+    rejected = new Map();
     let alive = true;
     let requested = false;
     const generation = sessionGeneration();
@@ -119,11 +122,12 @@ export function useAutomaticPaymentImport() {
           save: async (id, body) => {
             await api("/transactions", {
               method: "POST",
-              key: `shinhan-${id}`,
+              key: paymentIdempotencyKey(id),
               body,
             });
             if (current()) session.invalidate();
           },
+          rejected,
           acknowledge: async (id) => {
             await mutatePaymentCollection(
               () => native.acknowledge(owner, id),

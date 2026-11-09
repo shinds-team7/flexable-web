@@ -7,6 +7,7 @@ import { AppHeaderView, BottomTabBar } from "@/real/components/AppHeaderView";
 import { colors, pressTransition } from "@/real/theme";
 import { AddTransactionSheet } from "./AddTransactionSheet";
 import { useInbox } from "./inbox";
+import { useGuideTarget } from "@/real/components/guideTargets";
 import { useServerExtensions } from "./serverExtensions";
 const tabs = [
   {
@@ -56,8 +57,10 @@ export function ServiceHeader() {
 }
 /** AI 메이트(챗봇)로 간다. 처음이면 메이트 스타일 선택부터 뜬다 */
 function ChatbotButton() {
+  const guide = useGuideTarget("ai");
   return (
     <Pressable
+      ref={guide}
       accessibilityRole="button"
       accessibilityLabel="AI 메이트"
       onPress={() => router.push("/chatbot")}
@@ -69,7 +72,7 @@ function ChatbotButton() {
   );
 }
 /** AI 메이트 버튼의 로봇 아이콘(테두리는 글자색, 얼굴 화면은 브랜드색) */
-function RobotIcon({ size }: { size: number }) {
+export function RobotIcon({ size }: { size: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx={12} cy={2.8} r={1.2} stroke={colors.text} strokeWidth={1.5} />
@@ -112,8 +115,10 @@ function RobotIcon({ size }: { size: number }) {
 /** 알림함으로 간다. 안 읽은 알림이 있으면 점을 찍는다 */
 function InboxButton() {
   const { unread } = useInbox();
+  const guide = useGuideTarget("inbox");
   return (
     <Pressable
+      ref={guide}
       accessibilityRole="button"
       accessibilityLabel={unread ? "알림함, 새 알림 있음" : "알림함"}
       onPress={() => router.push("/notifications")}
@@ -134,9 +139,11 @@ export function ServiceTabBar() {
 /** Sits between 내역 and 분석 on every tab, so recording is one tap from anywhere. It opens the choice of image upload or manual entry. */
 function RecordButton() {
   const [open, setOpen] = useState(false);
+  const guide = useGuideTarget("record");
   return (
     <>
       <Pressable
+        ref={guide}
         accessibilityRole="button"
         accessibilityLabel="거래 추가"
         onPress={() => setOpen(true)}

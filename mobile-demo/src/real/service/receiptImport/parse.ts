@@ -26,6 +26,8 @@ const PAY_BARE_AMOUNT = /^([+\-−–])\s*(\d{1,3}(?:,\d{3})*|\d+)$/;
 const BANK_LOOSE_AMOUNT =
   /^([+\-−–])?\s*(\d{1,3}(?:,\d{3})*|\d+)\s*[가-힣a-zA-Z]{0,2}$/;
 const BANK_AMOUNT_SHAPE = /^[+\-−–]?\s*[\d,]+\s*[가-힣a-zA-Z]{0,2}$/;
+// 원 없이 숫자만 읽힌 금액. Play 서비스 인식은 토스 금액 열의 원을 자주 빠뜨린다.
+const BARE_AMOUNT = /^[+\-−–]?\s*[\d,]+$/;
 const TIME = /^\d{1,2}:\d{2}$/;
 const DATE_DOT = /^(\d{1,2})\s*\.\s*(\d{1,2})\s*\.?$/;
 const DATE_KOR = /^(\d{1,2})\s*월\s*(\d{1,2})\s*일$/;
@@ -220,7 +222,6 @@ function finish(source: ImportSource, raws: Raw[]): ImportCandidate[] {
   // 화면은 최신순이다. 다음 항목(더 오래된 거래)의 잔액과 비교하면 부호를 확인할 수 있다.
   return raws.map((r, i) => {
     const review: string[] = [];
-    if (r.amountReview) review.push("금액의 원 표시를 정확히 읽지 못했어요");
     let type: ImportCandidate["type"] = null;
     const next = raws[i + 1];
     if (r.sign) type = r.sign === "+" ? "INCOME" : "EXPENSE";
@@ -228,11 +229,15 @@ function finish(source: ImportSource, raws: Raw[]): ImportCandidate[] {
       type = r.balance - next.balance === r.amount ? "INCOME" : "EXPENSE";
     else if (REFUND.test(r.sub) || /입금|급여/.test(r.sub)) type = "INCOME";
     if (type === null) review.push(REVIEW_TYPE);
+    let balanceOk = false;
     if (r.balance != null && next?.balance != null && type) {
       const delta = type === "INCOME" ? r.amount : -r.amount;
-      if (r.balance - next.balance !== delta)
-        review.push("잔액과 금액이 맞지 않아요");
+      balanceOk = r.balance - next.balance === delta;
+      if (!balanceOk) review.push("잔액과 금액이 맞지 않아요");
     }
+    // 원 자리가 다른 글자로 읽힌 금액은 잔액으로 맞는지 확인될 때만 확인 없이 가져온다.
+    if (r.amountReview && !balanceOk)
+      review.unshift("금액의 원 표시를 정확히 읽지 못했어요");
     const refund = REFUND.test(r.sub) || REFUND.test(r.title);
     return {
       date: r.date,
@@ -297,7 +302,7 @@ function parseBalanceStyle(rows: OcrLine[][], today: string): Raw[] {
       amount: won(am),
       sign: am[1] ? (am[1] === "+" ? "+" : "-") : null,
       balance: bm ? won(bm) : null,
-      amountReview: !exactAmount,
+      amountReview: !exactAmount && !BARE_AMOUNT.test(amountLine.text),
     });
     if (bm || bankColumns) i++;
   }

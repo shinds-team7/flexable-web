@@ -1,6 +1,7 @@
 // Coin, costume and referral endpoints (docs/API.md "코인·코스튬"). Screens call these instead of api() directly.
 import { api } from "./api/client";
 import type {
+  AdBonus,
   Attendance,
   AttendResult,
   CheckIn,
@@ -16,6 +17,12 @@ export const checkIn = () => api<CheckIn>("/coins/check-in", { method: "POST" })
 export const ackRewards = (ids: number[]) =>
   api<void>("/coins/rewards/ack", { method: "POST", body: { ids } });
 export const getWallet = () => api<CoinWallet>("/coins");
+/** 광고를 다 본 뒤 시청 시간 보너스. SSV 콜백이 아직 안 왔으면 409 AD_NOT_REWARDED */
+export const claimAdBonus = (requestId: string, watchedSeconds: number) =>
+  api<AdBonus>("/coins/ad-bonus", {
+    method: "POST",
+    body: { requestId, watchedSeconds },
+  });
 export const collectCoins = () => api<CollectResult>("/coins/collect", { method: "POST" });
 export const getAttendance = () => api<Attendance>("/coins/attendance");
 /** Pays today's attendance once; calling again returns rewarded 0. */

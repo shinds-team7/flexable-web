@@ -3,6 +3,7 @@ import { router, type Href } from "expo-router";
 import { Fragment, type ComponentProps, type ReactNode } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import { colors } from "@/real/theme";
+import { useGuideTarget } from "./guideTargets";
 import { T } from "./ui";
 export function Logo({ size = 30 }: { size?: number }) {
   return (
@@ -33,14 +34,6 @@ export function AppHeaderView({
           <T size={18} weight="800">
             텅장관리
           </T>
-          <T
-            size={12}
-            weight="700"
-            color={colors.brand}
-            style={{ marginTop: 2 }}
-          >
-            flex-able
-          </T>
         </Pressable>
         {right}
       </View>
@@ -70,29 +63,8 @@ export function BottomTabBar({
   return (
     <View style={styles.bottom} accessibilityRole="tablist">
       {tabs.map((t, i) => {
-        const on = t.match(pathname);
         const tab = (
-          <Pressable
-            key={t.label}
-            style={styles.bottomTab}
-            accessibilityRole="tab"
-            accessibilityLabel={t.label}
-            accessibilityState={{ selected: on }}
-            onPress={() => router.navigate(t.href)}
-          >
-            <Ionicons
-              name={on ? t.activeIcon : t.icon}
-              size={24}
-              color={on ? colors.brand : colors.textMuted}
-            />
-            <T
-              size={12}
-              weight={on ? "700" : "500"}
-              color={on ? colors.brand : colors.textMuted}
-            >
-              {t.label}
-            </T>
-          </Pressable>
+          <BottomTab key={t.label} tab={t} on={t.match(pathname)} />
         );
         return i === half - 1 && middle ? (
           <Fragment key={t.label}>
@@ -104,6 +76,40 @@ export function BottomTabBar({
         );
       })}
     </View>
+  );
+}
+
+/** 탭 하나. 사용 가이드가 "tab:내역"처럼 라벨로 가리킨다 */
+function BottomTab({
+  tab: t,
+  on,
+}: {
+  tab: { href: Href; label: string; icon: IconName; activeIcon: IconName };
+  on: boolean;
+}) {
+  const guide = useGuideTarget(`tab:${t.label}`);
+  return (
+    <Pressable
+      ref={guide}
+      style={styles.bottomTab}
+      accessibilityRole="tab"
+      accessibilityLabel={t.label}
+      accessibilityState={{ selected: on }}
+      onPress={() => router.navigate(t.href)}
+    >
+      <Ionicons
+        name={on ? t.activeIcon : t.icon}
+        size={24}
+        color={on ? colors.brand : colors.textMuted}
+      />
+      <T
+        size={12}
+        weight={on ? "700" : "500"}
+        color={on ? colors.brand : colors.textMuted}
+      >
+        {t.label}
+      </T>
+    </Pressable>
   );
 }
 
@@ -127,13 +133,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.line,
     paddingHorizontal: 8,
+    // 시스템 내비게이션 바를 숨겨 화면 맨 아래에 붙으므로 아래쪽에 손가락 여백을 둔다(11-08)
+    paddingTop: 4,
+    paddingBottom: 12,
   },
   bottomTab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
-    minHeight: 60,
-    paddingVertical: 6,
+    gap: 4,
+    minHeight: 64,
+    paddingVertical: 8,
   },
 });

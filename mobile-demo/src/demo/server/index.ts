@@ -213,6 +213,7 @@ function calc(s: State, date: string, goal = protectedTotal(s)) {
       })),
       savedSinceBalance: savedSince(s, s.settings.balanceAt),
       weights: weights(s),
+      planned: s.scheduled.map((x) => ({ date: x.date, amount: x.amount })),
     },
     date,
   );
@@ -647,6 +648,13 @@ export function handle(method: string, url: string, body: unknown, key?: string)
       post(s, 'AD_REWARD', AD_REWARD);
     }
     return wallet(s);
+  }
+  // 시연: 광고 보상(기본 10)은 demo-ad가 주고, 시청 시간 보너스(15초 +5, 30초 이상 +10)는 여기서 준다
+  if (route === 'POST /coins/ad-bonus') {
+    const seconds = Number(r.body.watchedSeconds ?? 0);
+    const bonus = seconds >= 30 ? 10 : seconds >= 15 ? 5 : 0;
+    if (bonus > 0) post(s, 'AD_BONUS', bonus);
+    return { reward: AD_REWARD, bonus, total: AD_REWARD + bonus, wallet: wallet(s) };
   }
   if (route === 'GET /coins/ledger') {
     const before = r.query.get('before');

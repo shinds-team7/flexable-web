@@ -17,6 +17,7 @@ import { ApiError, api, sessionGeneration } from "./api/client";
 import { getReferral, registerReferral } from "./coinApi";
 import { APP_VERSION, SUPPORT_EMAIL } from "./config";
 import {
+  useBudgetNotificationSetting,
   useEntryReminderSetting,
   useEntryReminderTime,
   useSeedReminderSetting,
@@ -25,6 +26,7 @@ import {
   EntryReminderTimeSheet,
   reminderTimeText,
 } from "./EntryReminderTimeSheet";
+import { markHomeGuidePending } from "./HomeGuide";
 import { useSession } from "./Session";
 import { ErrorNotice, Field } from "./ui";
 import { PROVIDER_NAME } from "./oauth";
@@ -173,6 +175,8 @@ export function MyScreen() {
   const [remind, setRemind] = useSeedReminderSetting();
   // Same for the reminder to record; the service layout reschedules it.
   const [remindEntry, setRemindEntry] = useEntryReminderSetting();
+  // 알림창 상시 알림. 끄면 지우고, 켜면 서비스 레이아웃이 다시 띄운다.
+  const [showBudget, setShowBudget] = useBudgetNotificationSetting();
   const [entryTime, setEntryTime] = useEntryReminderTime();
   const [timeSheet, setTimeSheet] = useState(false);
   // 시트를 열 때마다 새로 만들어 저장하지 않은 선택이 남지 않게 한다
@@ -236,6 +240,15 @@ export function MyScreen() {
             onPress={() => setRemind(!remind)}
           />
           <Row
+            label="알림창에 오늘 남은 예산"
+            caption="알림창을 내리면 남은 예산을 볼 수 있어요"
+            accessibilityRole="switch"
+            accessibilityState={{ checked: showBudget }}
+            aria-checked={showBudget}
+            right={<SwitchMark on={showBudget} />}
+            onPress={() => setShowBudget(!showBudget)}
+          />
+          <Row
             label="기록 알림"
             caption="24시간 동안 기록이 없으면 알려 드려요"
             accessibilityRole="switch"
@@ -258,12 +271,20 @@ export function MyScreen() {
               }}
             />
           )}
+          {/* 신한카드 자동 기록은 알림 설정과 같은 카드, 기록 알림 시간 아래 */}
+          {Platform.OS === "android" && (
+            <Row
+              label="신한카드 자동 기록"
+              caption="결제 알림을 읽어 지출로 기록해요"
+              onPress={() => router.push("/payment-notifications")}
+            />
+          )}
         </Card>
       )}
       <Card style={styles.group}>
         {(
           [
-            ["예산 설정 바꾸기", "/budget-settings"],
+            ["예산 설정 바꾸기", "/budget/settings"],
             ["카테고리 관리", "/categories"],
             ["웹사이트 연동", "/web-links"],
             ["고객지원", "/support"],
@@ -278,6 +299,17 @@ export function MyScreen() {
             onPress={() => router.push(href)}
           />
         ))}
+        {session.user && (
+          <Row
+            label="사용 가이드 다시 보기"
+            onPress={() => {
+              const id = session.user?.id;
+              if (id === undefined) return;
+              // 홈이 다시 보일 때 가이드를 연다(service/HomeGuide)
+              void markHomeGuidePending(id).then(() => router.navigate("/home"));
+            }}
+          />
+        )}
       </Card>
       <View style={{ gap: 4, paddingHorizontal: 4 }}>
         <T size={13} color={colors.textMuted}>
@@ -331,7 +363,7 @@ const styles = StyleSheet.create({
   },
   group: { padding: 0, overflow: "hidden" },
   referral: { gap: 8, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 20 },
-  // 로그아웃 버튼과 같은 크기의 짙은 회색 박스
+  // 로그아웃 버튼(파랑 박스·흰 글자)과 같은 크기의 짙은 회색 박스
   deleteAccount: { backgroundColor: "#4B5563" },
   groupHead: {
     flexDirection: "row",

@@ -80,7 +80,12 @@ export function SeedMoneyCard({
               ["매달 저축액", seed.monthlyGoal],
             ] as const
           ).map(([label, value], i) => (
-            <View key={label} style={[styles.stat, i > 0 && styles.statLine]}>
+            <View
+              key={label}
+              accessible
+              accessibilityLabel={`${label} ${money(value)}원`}
+              style={[styles.stat, i > 0 && styles.statLine]}
+            >
               <T size={12} color={colors.onBrandSub}>
                 {label}
               </T>
@@ -93,7 +98,7 @@ export function SeedMoneyCard({
                 adjustsFontSizeToFit
                 minimumFontScale={0.7}
               >
-                {money(value)}원
+                {money(value)}
               </T>
             </View>
           ))}
@@ -304,7 +309,7 @@ function AmountModal({
             <View style={{ flexDirection: "row", gap: 8 }}>
               <Button
                 label="취소"
-                variant="soft"
+                variant="neutral"
                 disabled={busy}
                 style={{ flex: 1 }}
                 onPress={onClose}

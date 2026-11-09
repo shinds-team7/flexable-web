@@ -36,18 +36,14 @@ export function LevelGuide() {
 
       <View style={{ gap: 8 }}>
         <T weight="700">단계는 이렇게 올라가요</T>
-        {/* 6단계는 한 줄에 안 들어가서 3개씩 두 줄로 보여 준다 */}
+        {/* 6단계는 한 줄에 안 들어가서 3개씩 두 줄로 보여 준다. 칸에는 아이콘만 두고 이름·점수 구간은 화면 읽기 라벨로만 말한다(11-08) */}
         {[[1, 2, 3], [4, 5, 6]].map((row) => (
           <View key={row[0]} style={styles.levels}>
             {row.map((n, i) => (
               <View key={n} style={styles.levelWrap}>
                 {i > 0 && <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />}
-                <View style={styles.level}>
+                <View style={styles.level} accessible accessibilityLabel={`${LEVELS[n].name}, ${LEVELS[n].range}`}>
                   <LevelIcon level={n} size={32} />
-                  <T weight="700">{LEVELS[n].name}</T>
-                  <T size={12} color={colors.textMuted}>
-                    {LEVELS[n].range}
-                  </T>
                 </View>
               </View>
             ))}

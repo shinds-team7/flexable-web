@@ -68,7 +68,7 @@
 .gp-product-pct{font-weight:700;min-width:44px;text-align:right}
 /* 줄 전체(색 점·이름·월 금액·비중)가 버튼이다. 칸 나눔은 .gp-products li와 같다. */
 .gp-product-toggle{grid-column:1/-1;display:grid;grid-template-columns:12px 1fr auto auto;align-items:center;gap:calc(var(--density-gap)/2);min-width:0;margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:var(--radius-xs)}
-.gp-product-toggle:focus-visible{outline:2px solid var(--color-brand-primary);outline-offset:2px}
+.gp-product-toggle:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
 .gp-product-toggle:hover .gp-product-name{color:var(--color-brand-text)}
 .gp-product-toggle .gp-product-name{display:inline-flex;align-items:center;gap:calc(var(--density-gap)/4);min-width:0}
 .gp-chevron{flex:none;width:14px;height:14px;color:var(--color-text-tertiary);transition:transform 200ms var(--ease)}

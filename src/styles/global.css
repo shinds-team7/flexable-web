@@ -1469,6 +1469,15 @@ a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-un
 .news-faq{margin:0;display:flex;flex-direction:column;gap:16px}
 .news-faq dt{font-weight:700}
 .news-faq dd{margin:4px 0 0;color:var(--text-sub)}
+/* 「공시 읽는 법」(/simulation/guide) 규모 구간 칩·유형별 확인할 것 */
+.sim-guide-bands{display:flex;flex-wrap:wrap;gap:calc(var(--density-gap)/4);margin-top:calc(var(--density-gap)/3)}
+.sim-guide-types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(var(--density-gap)/2)}
+.sim-guide-type{border:1px solid var(--line);border-radius:var(--radius-soft-sm);padding:calc(var(--density-gap)*2/3);display:flex;flex-direction:column;gap:calc(var(--density-gap)/3);line-height:1.6}
+.sim-guide-type h3{font-size:16px;font-weight:700;margin:0}
+.sim-guide-type-desc{margin:0;font-size:14px;color:var(--text-sub)}
+.sim-guide-type dl{margin:0;display:flex;flex-direction:column;gap:calc(var(--density-gap)/3);font-size:14px}
+.sim-guide-type dt{font-weight:600}
+.sim-guide-type dd{margin:calc(var(--density-gap)/12) 0 0;color:var(--text-sub)}
 @media (max-width:1023px){
   .news-quick,.news-analysis{grid-template-columns:minmax(0,1fr)}
   .news-guide-art{min-height:160px}
@@ -1482,6 +1491,7 @@ a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-un
   .news-topic-ico{width:56px;height:56px}
   .news-bars li{grid-template-columns:60px minmax(0,1fr) 44px}
   .news-article-title{font-size:23px;line-height:32px}
+  .sim-guide-types{grid-template-columns:minmax(0,1fr)}
 }
 
 /* 점이 도는 로딩 */

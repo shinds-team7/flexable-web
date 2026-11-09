@@ -17,6 +17,7 @@ import Login from '@/pages/Login';
 import Me from '@/pages/Me';
 import News from '@/pages/News';
 import NewsGuide from '@/pages/NewsGuide';
+import SimulationGuide from '@/pages/SimulationGuide';
 import OAuthCallback from '@/pages/OAuthCallback';
 import Placeholder from '@/pages/Placeholder';
 import Plus from '@/pages/Plus';
@@ -47,6 +48,8 @@ export const router = createBrowserRouter([
       { path: '/diversify', element: <Diversify /> },
       { path: '/invest', element: <Invest /> },
       { path: '/simulation', element: <Simulation /> },
+      // 투자 시뮬레이션 아래 단독 글 「공시 읽는 법」(Issue #367). 금융 가이드(/guide)와 다른 화면
+      { path: '/simulation/guide', element: <SimulationGuide /> },
       { path: '/savings', element: <Savings /> },
       { path: '/deposit', element: <Deposit /> },
       { path: '/parking', element: <Parking /> },

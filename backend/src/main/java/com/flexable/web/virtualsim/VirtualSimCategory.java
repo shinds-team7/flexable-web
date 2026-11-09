@@ -3,7 +3,7 @@ package com.flexable.web.virtualsim;
 import java.util.List;
 
 /**
- * 가상 사건 유형(vsim-types-v2, decisions/2026-11-04-virtual-simulation 1-1). DART 공시 제목 분류 순서가 곧 선언 순서다.
+ * 가상 사건 유형(vsim-types-v3, decisions/2026-11-04-virtual-simulation 1-1). DART 공시 제목 분류 순서가 곧 선언 순서다.
  * titles: 화면에 보일 공시 제목(서버 고정, 실제 DART 보고서명 형식), keywords: 제목 낱말, typeWords: 사건 본문 필수 낱말(자동 검사 TYPE_WORD).
  */
 public enum VirtualSimCategory {
@@ -25,9 +25,15 @@ public enum VirtualSimCategory {
 			List.of("소송", "횡령", "배임", "사고", "재해", "영업정지")),
 	OWNERSHIP("최대주주 변경", List.of("최대주주변경"), List.of("최대주주변경"), List.of("최대주주"));
 
-	public static final String TYPES_VERSION = "vsim-types-v2";
+	/** v3(11-09 #349 사용자 결정): 증권발행실적보고서·실적공시예고는 "실적"이 들어 있어도 회사 실적 공시가 아니라 분류하지 않는다 */
+	public static final String TYPES_VERSION = "vsim-types-v3";
 	/** 뜻이 반대라 분류하지 않는 낱말 */
 	private static final List<String> REVERSED = List.of("해지", "철회", "취소");
+	/**
+	 * 유형 낱말이 들어 있어도 그 유형 공시가 아닌 제목. 증권발행실적보고서는 증권(주로 증권사의 파생결합증권)을 발행한 결과 서류이고(로컬 DB 최근 5년 "실적" 제목의 63%),
+	 * 실적공시예고는 실적 발표 일정 안내라 내용이 없다
+	 */
+	private static final List<String> NOT_EVENTS = List.of("증권발행실적보고서", "실적공시예고");
 
 	private final String displayName;
 	private final List<String> titles;
@@ -54,15 +60,15 @@ public enum VirtualSimCategory {
 	}
 
 	/**
-	 * 공시 제목 → 유형. 공백·가운뎃점(·ㆍ・/)을 지우고 선언 순서대로 처음 맞는 낱말의 유형이다.
-	 * 해지·철회·취소가 있으면, 또는 시설·지분 투자에 처분이 있으면 분류하지 않는다(null).
+	 * 공시 제목 → 유형. 공백(줄바꿈 없는 공백 U+00A0 포함)·가운뎃점(·ㆍ・/)을 지우고 선언 순서대로 처음 맞는 낱말의 유형이다.
+	 * 해지·철회·취소가 있으면, 유형 공시가 아닌 제목(NOT_EVENTS)이면, 또는 시설·지분 투자에 처분이 있으면 분류하지 않는다(null).
 	 */
 	public static VirtualSimCategory classify(String title) {
 		if (title == null) {
 			return null;
 		}
-		String t = title.replaceAll("[\\s·ㆍ・/]", "");
-		if (REVERSED.stream().anyMatch(t::contains)) {
+		String t = title.replaceAll("[\\s\\u00a0·ㆍ・/]", "");
+		if (REVERSED.stream().anyMatch(t::contains) || NOT_EVENTS.stream().anyMatch(t::contains)) {
 			return null;
 		}
 		for (VirtualSimCategory c : values()) {

@@ -282,8 +282,13 @@ class VirtualContestApiTest {
 		List<Map<String, Object>> qs = JsonPath.read(placement, "$.questions");
 		assertThat(qs).allSatisfy(q -> assertThat(q.get("details") != null).as(q.toString())
 			.isEqualTo(Set.of("NEW_SHARES", "BUYBACK_ACQUIRE").contains((String) q.get("category"))));
-		// 채점 전 문제 사본에는 주요 내용이 있다
-		assertThat(jdbc.queryForObject("SELECT questions FROM virtual_contest_placements WHERE id = ?", String.class, id)).contains("\"details\":[");
+		// 공시 AI 요약: 예시 자료는 주요 내용이 없는 유형(공급 계약·실적·배당)에 예시 요약을 싣고, 있는 유형은 null
+		assertThat(qs).allSatisfy(q -> assertThat((String) q.get("summary")).as(q.toString())
+			.isEqualTo(VirtualSimSample.summary(VirtualSimCategory.valueOf((String) q.get("category")))));
+		// 채점 전 문제 사본에는 주요 내용과 요약이 있다
+		String copy = jdbc.queryForObject("SELECT questions FROM virtual_contest_placements WHERE id = ?", String.class, id);
+		assertThat(copy).contains("\"details\":[");
+		qs.stream().map(q -> (String) q.get("summary")).filter(java.util.Objects::nonNull).forEach(t -> assertThat(copy).contains(t));
 		// 진행 중이면 같은 문제를 다시 준다
 		assertThat((String) JsonPath.read(body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), a), 200)), "$.placementId")).isEqualTo(id);
 		// 문제 id가 맞지 않으면 400, 남의 배치고사·없는 배치고사는 404
@@ -305,9 +310,11 @@ class VirtualContestApiTest {
 		String again = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), allUp(placement)), a), 200));
 		assertThat((Integer) JsonPath.read(again, "$.correct")).isEqualTo(correct);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_entries WHERE user_id = ?", Integer.class, userId(a))).isEqualTo(1);
-		// 채점하면 문제 사본은 주요 내용까지 지우고, 결과에는 주요 내용을 다시 남기지 않는다
+		// 채점하면 문제 사본은 주요 내용·요약까지 지우고, 결과에는 주요 내용·요약을 다시 남기지 않는다
 		assertThat(jdbc.queryForObject("SELECT questions FROM virtual_contest_placements WHERE id = ?", String.class, id)).isNull();
-		assertThat(jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = ?", String.class, id)).doesNotContain("details").doesNotContain("label");
+		assertThat(jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = ?", String.class, id)).doesNotContain("details").doesNotContain("label")
+			.doesNotContain("summary");
+		assertThat(result).doesNotContain("\"summary\"");
 		// 다시 시작은 409
 		assertThat(body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), a), 409))).contains("CONTEST_ALREADY_JOINED");
 

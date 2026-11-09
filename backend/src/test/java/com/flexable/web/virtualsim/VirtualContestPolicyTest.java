@@ -301,4 +301,27 @@ class VirtualContestPolicyTest {
 			assertThat(PlacementDetails.api(c.get("title").asString())).as(c.toString()).isEqualTo(textOrNull(c.get("api")));
 		}
 	}
+
+	@Test
+	void placement_summary() throws Exception {
+		JsonNode p = root().get("placementSummary");
+		assertThat(PlacementSummaries.VERSION).isEqualTo(p.get("version").asString());
+		assertThat(PlacementSummaries.MAX_CHARS).isEqualTo(p.get("maxChars").asInt());
+		assertThat(PlacementSummaries.MIN_SENTENCES).isEqualTo(p.get("minSentences").asInt());
+		assertThat(PlacementSummaries.MAX_SENTENCES).isEqualTo(p.get("maxSentences").asInt());
+		String source = p.get("source").asString();
+		java.util.Set<String> names = new java.util.LinkedHashSet<>(PlacementSummaries.names(source));
+		names.add(p.get("company").asString());
+		for (JsonNode c : p.get("checks")) {
+			PlacementSummaries.Verdict v = PlacementSummaries.check(c.get("text").asString(), source, names);
+			assertThat(v.ok() ? "OK" : v.reject().name()).as(c.get("case").asString()).isEqualTo(c.get("expected").asString());
+			if (v.ok()) {
+				assertThat(v.summary()).isEqualTo(c.get("text").asString().strip().replaceAll("\\s+", " "));
+			}
+		}
+		for (JsonNode c : p.get("names")) {
+			assertThat(PlacementSummaries.names(c.get("source").asString())).as(c.toString())
+				.containsExactlyElementsOf(c.get("expected").valueStream().map(JsonNode::asString).toList());
+		}
+	}
 }

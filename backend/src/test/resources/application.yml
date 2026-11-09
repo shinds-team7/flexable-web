@@ -53,6 +53,9 @@ app:
     # 가상 시뮬레이션: 예시 회사·예시 룰셋(키 없음). api도 이 값을 읽어 예시 자료만 쓴다
     virtual-sim:
       source: fake
+    # 배치고사 공시 AI 요약: 키가 없어 꺼져 있고, 켜질 때 돌지 않는다
+    placement-summary:
+      run-on-start: false
   applink:
     # 테스트는 AppApiClient를 바꿔 끼운다. 암호화 키는 실행마다 임의 값.
     mode: http

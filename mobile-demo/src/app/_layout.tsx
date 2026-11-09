@@ -16,6 +16,7 @@ import { ToastProvider as RealToastProvider } from "@/real/components/Toast";
 import { BudgetDraftProvider } from "@/real/service/BudgetDraft";
 import { SessionProvider } from "@/real/service/Session";
 import { colors } from "@/theme";
+import "@/theme/webFont";
 
 export default function DemoLayout() {
   // 모달이 폰 틀 안에서 열리도록 틀의 DOM 요소를 모달에 넘긴다

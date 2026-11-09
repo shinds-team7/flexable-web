@@ -153,4 +153,18 @@ public final class VirtualSimSample {
 		};
 		return items.isEmpty() ? null : items;
 	}
+
+	/**
+	 * 예시 자료의 배치고사 공시 AI 요약(유형별 고정 예시 글, isSample). 예시 회사의 사건 글(companies의 bodies)에 있는 사실만 담는다(#361 리뷰: 본문에 없는 수치를
+	 * 공시 내용으로 보이지 않게). 예시 사건 글이 있고 공시 주요 내용이 없는 유형(실적·공급 계약·배당)에만 두고, 그 밖은 null.
+	 * 실제 요약과 같은 검사(PlacementSummaries.check)를 통과하는 글이다(PlacementGuideTextTest)
+	 */
+	public static String summary(VirtualSimCategory category) {
+		return switch (category) {
+			case EARNINGS -> "이 회사가 지난 분기 잠정 실적을 알렸어요. 매출과 영업이익 같은 분기 실적 항목을 밝혔고, 확정 실적은 감사를 거쳐 정기 보고서로 다시 알릴 계획이에요.";
+			case SUPPLY_CONTRACT -> "이 회사가 국내 업체와 제품 공급 계약을 맺었어요. 계약에 따라 거래처 공장에 제품을 정해진 일정대로 나누어 납품해요.";
+			case DIVIDEND -> "이 회사가 이사회에서 결산 배당을 결정했어요. 배당은 정기 주주총회의 승인을 거쳐 주주에게 지급되고, 배당 기준일과 지급 절차도 함께 밝혔어요.";
+			default -> null;
+		};
+	}
 }

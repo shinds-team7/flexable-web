@@ -23,6 +23,7 @@ import com.flexable.web.ingest.fake.FakeVirtualSimWriter;
 import com.flexable.web.ingest.fake.FakeYouthPolicySource;
 import com.flexable.web.ingest.gemini.GeminiEventOverviewWriter;
 import com.flexable.web.ingest.gemini.GeminiNewsSummarizer;
+import com.flexable.web.ingest.gemini.GeminiPlacementSummaryWriter;
 import com.flexable.web.ingest.gemini.GeminiVirtualSimWriter;
 import com.flexable.web.ingest.kiwoom.KiwoomIndexSource;
 import com.flexable.web.ingest.kiwoom.KiwoomInstrumentSource;
@@ -159,6 +160,21 @@ public class IngestConfig {
 			case "fake" -> new FakeVirtualSimWriter();
 			case "none" -> new GeminiVirtualSimWriter(gemini, g.baseUrl(), null, v.modelOr(g)); // 키 없음 = 꺼짐
 			default -> throw new IllegalArgumentException("알 수 없는 VIRTUAL_SIM_SOURCE: " + v.source());
+		};
+	}
+
+	/**
+	 * 배치고사 공시 AI 요약. gemini는 전용 키(PLACEMENT_SUMMARY_GEMINI_API_KEY)가 있으면 그것을, 없으면 공용 Gemini 키를 쓴다.
+	 * 둘 다 없거나 none이면 꺼진 채로 만들어진다(문제는 공시 주요 내용·유형 설명으로 나간다).
+	 */
+	@Bean
+	PlacementSummaryWriter placementSummaryWriter(IngestProperties props) {
+		IngestProperties.Gemini g = props.gemini();
+		IngestProperties.PlacementSummary p = props.placementSummary();
+		return switch (p.source()) {
+			case "gemini" -> new GeminiPlacementSummaryWriter(gemini, g.baseUrl(), p.apiKeyOr(g), p.modelOr(g));
+			case "none" -> new GeminiPlacementSummaryWriter(gemini, g.baseUrl(), null, p.modelOr(g)); // 키 없음 = 꺼짐
+			default -> throw new IllegalArgumentException("알 수 없는 PLACEMENT_SUMMARY_SOURCE: " + p.source());
 		};
 	}
 

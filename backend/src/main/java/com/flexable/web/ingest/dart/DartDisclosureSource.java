@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import javax.xml.stream.XMLInputFactory;
@@ -30,7 +32,7 @@ import com.flexable.web.ingest.DisclosureSource;
 
 /**
  * OpenDART(금융감독원 전자공시) Open API. 고유번호는 corpCode.xml(ZIP 안 XML), 공시 목록은 list.json(공시검색),
- * 배치고사 공시 주요 내용은 주요사항보고서 주요정보(DS005, piicDecsn.json 등)로 받는다.
+ * 배치고사 공시 주요 내용은 주요사항보고서 주요정보(DS005, piicDecsn.json 등), 배치고사 공시 AI 요약의 본문 글은 공시서류원본파일(document.xml)로 받는다.
  * 인증키는 쿼리 파라미터(crtfc_key)라 오류 메시지에서 지우고 다시 던진다(로그·ingest_runs에 키가 남지 않게).
  * 한도는 하루 20,000건이고 분당 1,000회를 넘으면 막힐 수 있어 호출마다 callDelay만큼 쉰다.
  */
@@ -276,6 +278,227 @@ public class DartDisclosureSource implements DisclosureSource {
 		return out;
 	}
 
+	/** 공시서류원본파일 ZIP에서 읽을 크기 상한(공시 하나). 넘는 뒤쪽은 버린다 */
+	static final int MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
+	/** 원문 파일이 없음 */
+	static final String NO_FILE = "014";
+
+	/**
+	 * 공시서류원본파일(document.xml) 한 번 호출. ZIP 안의 본문 파일(접수번호.xml, 없으면 첫 XML)을 읽어 bodyText로 글만 남긴다.
+	 * 오류면 ZIP 대신 <result><status>…</status></result>가 온다. 자료 없음(013)·파일 없음(014)은 null, 그 밖은 DartException
+	 */
+	@Override
+	public String documentText(String receiptNo) {
+		if (receiptNo == null || !receiptNo.matches("\\d{14}")) {
+			throw new IllegalArgumentException("접수번호가 아니에요: " + receiptNo);
+		}
+		pause();
+		byte[] body;
+		try {
+			body = http.get().uri(baseUrl + "/api/document.xml?crtfc_key={key}&rcept_no={no}", apiKey, receiptNo).retrieve().body(byte[].class);
+		}
+		catch (RestClientException e) {
+			throw hideKey(e);
+		}
+		if (body == null || body.length < 2 || body[0] != 'P' || body[1] != 'K') {
+			String text = body == null ? "" : new String(body, StandardCharsets.UTF_8);
+			String status = tag(text, "status");
+			if (NO_DATA.equals(status) || NO_FILE.equals(status)) {
+				return null;
+			}
+			throw new DartException(status, tag(text, "message"));
+		}
+		try {
+			byte[] xml = mainEntry(body, receiptNo);
+			return xml == null ? null : bodyText(decode(xml));
+		}
+		catch (IOException e) {
+			throw new IllegalStateException("DART 공시서류원본파일을 읽지 못했어요: " + e.getMessage(), e);
+		}
+	}
+
+	/** ZIP에서 접수번호.xml(없으면 첫 .xml) 바이트. XML이 없으면 null */
+	static byte[] mainEntry(byte[] zipBytes, String receiptNo) throws IOException {
+		byte[] first = null;
+		try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(zipBytes), StandardCharsets.UTF_8)) {
+			ZipEntry e;
+			while ((e = zip.getNextEntry()) != null) {
+				String name = e.getName().toLowerCase(Locale.ROOT);
+				if (!name.endsWith(".xml")) {
+					continue;
+				}
+				byte[] bytes = zip.readNBytes(MAX_DOCUMENT_BYTES);
+				if (name.equals(receiptNo + ".xml")) {
+					return bytes;
+				}
+				if (first == null) {
+					first = bytes;
+				}
+			}
+		}
+		catch (IllegalArgumentException e) {
+			// 항목 이름이 UTF-8이 아니면(오래된 ZIP) 이름을 볼 수 없다. 첫 항목만 다시 읽는다
+			try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(zipBytes), java.nio.charset.Charset.forName("MS949"))) {
+				return zip.getNextEntry() == null ? null : zip.readNBytes(MAX_DOCUMENT_BYTES);
+			}
+		}
+		return first;
+	}
+
+	/** XML 선언의 encoding(없으면 UTF-8)으로 읽는다. 모르는 인코딩이면 UTF-8 */
+	static String decode(byte[] xml) {
+		String head = new String(xml, 0, Math.min(xml.length, 200), StandardCharsets.ISO_8859_1);
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("encoding=[\"']([A-Za-z0-9_\\-]+)[\"']").matcher(head);
+		java.nio.charset.Charset cs = StandardCharsets.UTF_8;
+		if (m.find()) {
+			try {
+				String name = m.group(1).equalsIgnoreCase("euc-kr") ? "MS949" : m.group(1);
+				cs = java.nio.charset.Charset.forName(name);
+			}
+			catch (RuntimeException e) {
+				cs = StandardCharsets.UTF_8;
+			}
+		}
+		return new String(xml, cs);
+	}
+
+	/** 본문 글에서 빼는 요소: 표지(대표이사 이름·주소·전화번호), 회사 이름·문서 이름, 요약 정보, 그림 */
+	private static final List<String> DROP = List.of("COVER", "COMPANY-NAME", "DOCUMENT-NAME", "FORMULA-VERSION", "SUMMARY", "IMAGE", "IMG", "LIBRARY-INFO");
+
+	/**
+	 * DART 공시서류 XML → 본문 글. DROP 요소를 빼고 원본 공백을 하나로 고른 뒤, 표 칸(TD·TH·TE·TU)은 " | "로, 줄(TR)·문단(P)·제목은 줄바꿈으로 바꾸고 태그를 지운다
+	 * (표 행 안의 문단은 공백). 엔터티를 풀고 빈 줄은 버린다. 같은 꼴 표 행이 MAX_RUN개 넘게 이어지면 앞뒤 KEEP개만 남긴다
+	 */
+	public static String bodyText(String xml) {
+		String s = xml;
+		for (String tag : DROP) {
+			s = dropElement(s, tag);
+		}
+		// 원본 XML의 줄바꿈·들여쓰기는 뜻이 없다(칸 사이 줄바꿈이 줄로 남으면 행이 흩어진다). 공백을 하나로 고른 뒤 아래 구조 태그로만 줄을 나눈다
+		s = flattenRows(s.replaceAll("\\s+", " "));
+		s = s.replaceAll("(?i)</(TD|TH|TE|TU)\\s*>", " | ");
+		s = s.replaceAll("(?i)</(TR|P|TITLE|TABLE|SECTION-\\d+|PGBRK)\\s*>|(?i)<(BR|PGBRK)\\b[^>]*/?>", "\n");
+		s = s.replaceAll("<[^>]*>", " ");
+		s = unescape(s);
+		List<String> lines = new ArrayList<>();
+		for (String line : s.split("\n")) {
+			String t = line.replace('\u00a0', ' ').replaceAll("[ \t\r\f]+", " ").replaceAll("(\\s*\\|\\s*)+$", "").replaceAll("^(\\s*\\|\\s*)+", "").strip();
+			if (!t.isEmpty() && !t.matches("[|\\s-]+")) {
+				lines.add(t);
+			}
+		}
+		return String.join("\n", shortenRuns(lines));
+	}
+
+	/** 표 행 안의 문단·줄바꿈(<P>·<BR>)은 공백으로 바꾼다. 칸 안 문단 때문에 한 행이 여러 줄로 흩어져 칸 이름과 값의 짝이 깨지지 않게 한다 */
+	private static final java.util.regex.Pattern ROW_OPEN = java.util.regex.Pattern.compile("(?i)<TR\\b");
+	private static final java.util.regex.Pattern ROW_CLOSE = java.util.regex.Pattern.compile("(?i)</TR\\s*>");
+
+	static String flattenRows(String s) {
+		StringBuilder out = new StringBuilder();
+		java.util.regex.Matcher open = ROW_OPEN.matcher(s), close = ROW_CLOSE.matcher(s);
+		int from = 0;
+		while (open.find(from)) {
+			if (!close.find(open.end())) {
+				break;
+			}
+			out.append(s, from, open.start());
+			out.append(s.substring(open.start(), close.end()).replaceAll("(?i)</?P\\b[^>]*>|<BR\\b[^>]*/?>", " "));
+			from = close.end();
+		}
+		return out.append(s.substring(from)).toString();
+	}
+
+	/** 같은 꼴(칸 수가 같은) 표 행이 이만큼 넘게 이어지면 앞뒤만 남긴다(일자별 매매 표가 보낼 글 상한을 다 쓰지 않게, 합계 행은 보통 맨 뒤라 남는다) */
+	static final int MAX_RUN = 12;
+	static final int KEEP = 3;
+
+	static List<String> shortenRuns(List<String> lines) {
+		List<String> out = new ArrayList<>();
+		int i = 0;
+		while (i < lines.size()) {
+			int cells = cells(lines.get(i));
+			int j = i + 1;
+			while (cells >= 3 && j < lines.size() && cells(lines.get(j)) == cells) {
+				j++;
+			}
+			if (cells >= 3 && j - i > MAX_RUN) {
+				out.addAll(lines.subList(i, i + KEEP));
+				out.add("(같은 꼴의 행 " + (j - i - 2 * KEEP) + "개 생략)");
+				out.addAll(lines.subList(j - KEEP, j));
+			}
+			else {
+				out.addAll(lines.subList(i, j));
+			}
+			i = j;
+		}
+		return out;
+	}
+
+	private static int cells(String line) {
+		return line.split(" \\| ", -1).length;
+	}
+
+	/** <TAG …>…</TAG>를 모두 지운다(대문자 태그, 정규식 되추적 없이). 닫는 태그가 없으면 여는 태그부터 끝까지 지운다. 스스로 닫는 태그(<TAG/>)는 태그만 지운다 */
+	static String dropElement(String s, String tag) {
+		StringBuilder out = new StringBuilder();
+		String open = "<" + tag, close = "</" + tag + ">";
+		int from = 0;
+		while (true) {
+			int a = s.indexOf(open, from);
+			while (a >= 0 && a + open.length() < s.length() && !isTagEnd(s.charAt(a + open.length()))) {
+				a = s.indexOf(open, a + 1);
+			}
+			if (a < 0) {
+				out.append(s, from, s.length());
+				return out.toString();
+			}
+			out.append(s, from, a).append(' ');
+			int gt = s.indexOf('>', a);
+			if (gt > 0 && s.charAt(gt - 1) == '/') {
+				from = gt + 1;
+				continue;
+			}
+			int b = s.indexOf(close, a);
+			if (b < 0) {
+				return out.toString();
+			}
+			from = b + close.length();
+		}
+	}
+
+	private static boolean isTagEnd(char c) {
+		return c == '>' || c == '/' || Character.isWhitespace(c);
+	}
+
+	private static String unescape(String s) {
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("&(#x[0-9a-fA-F]+|#\\d+|amp|lt|gt|quot|apos|nbsp);").matcher(s);
+		StringBuilder out = new StringBuilder();
+		while (m.find()) {
+			String e = m.group(1);
+			String r = switch (e) {
+				case "amp" -> "&";
+				case "lt" -> "<";
+				case "gt" -> ">";
+				case "quot" -> "\"";
+				case "apos" -> "'";
+				case "nbsp" -> " ";
+				default -> {
+					try {
+						int cp = e.startsWith("#x") ? Integer.parseInt(e.substring(2), 16) : Integer.parseInt(e.substring(1));
+						yield Character.isValidCodePoint(cp) ? new String(Character.toChars(cp)) : " ";
+					}
+					catch (NumberFormatException ex) {
+						yield " ";
+					}
+				}
+			};
+			m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(r));
+		}
+		m.appendTail(out);
+		return out.toString();
+	}
+
 	/** HTTP 429(요청 한도 초과)는 JSON 020과 같이 실행을 멈추는 DartException으로, 그 밖은 키를 가린 IllegalStateException으로 바꾼다 */
 	private RuntimeException hideKey(RestClientException e) {
 		if (e instanceof HttpStatusCodeException h && h.getStatusCode().value() == 429) {
@@ -312,7 +535,7 @@ public class DartDisclosureSource implements DisclosureSource {
 
 		private final String status;
 
-		DartException(String status, String message) {
+		public DartException(String status, String message) {
 			super("DART " + status + ": " + message);
 			this.status = status;
 		}

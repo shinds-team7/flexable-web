@@ -4,6 +4,11 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-11-09
+
+- [Closes #349] 배치고사 공시 원문(OpenDART 공시서류원본파일)을 AI(Gemini)로 요약해 문제에 싣는다([결정](decisions/2026-11-09-placement-ai-summary.md), 대회 결정 2-2·2-6과 "11-06 #289"의 "원문 수집·AI 요약은 하지 않음"을 바꿈). 공시 사실과 사업 지표의 증감은 싣고 주가·평가·전망·과거 경향만 막는다(결정 2-2 해석, 사용자 결정). 원문은 저장하지 않고 자동 검사(2~5문장·400자, 금지 낱말, 숫자는 본문의 %·규모 구간·기간 길이만, 이름, 내용 없음)를 통과한 요약만 V33 `dart_disclosure_summaries`에 저장하며(걸리면 까닭을 붙여 한 번 다시 씀), 채점하면 문제 사본과 함께 지운다. policies §8-8 "공시 AI 요약", `virtual-contest.json` `placementSummary`, 계약 `VirtualContestPlacement.questions[].summary`(nullable, 필수 칸), worker `PlacementSummaryJob`(`PLACEMENT_SUMMARY_*`, 평일 수집과 따로 매일 21:00, 뚜렷한 유형 공시 먼저, 원문 받기 실패는 V34 `dart_summary_failures`로 다음 실행에서 뒤로), 문제·결과 화면 공시 줄글, `privacy-web.md` "11-09"(`Privacy.tsx`는 바꾸지 않음). 같은 PR에서 사건 유형 분류를 `vsim-types-v3`로 올려 `증권발행실적보고서`(최근 5년 "실적" 제목의 63%, 대부분 증권사 파생결합증권 발행 결과)·`실적공시예고`를 실적 발표에서 뺐다([가상 시뮬레이션 결정](decisions/2026-11-04-virtual-simulation.md) 1-1·변경 기록 11-09, policies §8, `virtual-simulation.json` `classification`). 룰셋 실적 발표 통계와 배치고사 후보·요약 대상에서 함께 빠진다 — 영향: 프론트(`npm run gen:api`)·백엔드·문서
+- [Closes #307] 목표 시나리오 저장을 플랜 전체로 바꿨다(policies §7-8, 계약 `SavedGoalScenario.alternatives` 추가, [결정](decisions/2026-10-29-goal-scenarios.md) "11-06 저장 범위"): 고른 플랜은 `scenario`로 먼저 보여 주고 나머지는 선택 칸에서 본다. 5개 한도는 저장 건 기준, 기존 저장본은 빈 배열, DB 스키마 변화 없음. 개인정보처리방침 제2조·`privacy-web.md` 수정 — 영향: 프론트(`npm run gen:api`)·백엔드
+
 ## 2026-11-08
 
 - [#348, Closes #308] 가상 시뮬레이션 대회 점수를 100점 단위로 바꿨다(사용자 결정, [결정 기록](decisions/2026-11-05-virtual-sim-contest.md) 4-2·4-4·"변경 기록 11-06 #308"): 하루 +100·0·−100, 주 ≥ +400 승급·≤ −400 강등. 판 점수·주 점수·4주차 기록(`finalWeek`)은 하루 점수의 합이라 함께 바뀌고 판정 조건·결과는 그대로다. policies §8-8 본문·예시, `virtual-contest.json` `weeklyPromoteAt`·`weeklyDemoteAt`·`dailyScore`·`weekly`·`ranking`, 계약 `VirtualContestRules`·`VirtualContestEntry` 설명과 `scoredDays[].points` 범위(−100~100), V32(저장된 점수 ×100, 다시 돌려도 같음). 배치고사 화면: 푸는 동안 대회 배너·문제 번호 이동·[다음 문제]·[지금 제출하기]·[나중에 이어 풀기] 없음, 답을 고르면 다음 문제로, 결과는 맨 위에서 시작·[대회 화면으로]를 요약 아래로·결과 문제마다 회사·날짜·공시 주요 내용·5거래일 움직임을 이은 공시 줄글(`disclosureStory.ts`, 문제 화면은 회사·날짜·움직임을 뺀 줄글). 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드

@@ -100,10 +100,23 @@ function PlanDetail({ plan, products, targetAmount, years, demo }: {
       </div>
     </div>
     <div className="gp-card gp-ai">
-      <h3 className="gp-h3">{demo ? '조합 해설' : 'AI 해설'} {demo && <span className="gp-badge gp-badge-muted">예시 문구</span>}</h3>
+      <h3 className="gp-h3">{demo ? '조합 해설' : <span className="gp-ai-title"><AiBotIcon />AI 해설</span>} {demo && <span className="gp-badge gp-badge-muted">예시 문구</span>}</h3>
       <p>{plan.explanation}</p>
     </div>
   </>;
+}
+
+/** AI 해설 제목 앞 봇 아이콘. 테두리는 글자색, 눈 화면은 브랜드 색을 따라 다크 테마에서도 보인다. */
+function AiBotIcon() {
+  return <svg className="gp-ai-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <line x1="12" y1="2.6" x2="12" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    <circle cx="12" cy="2.2" r="1.3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    <rect x="4" y="5" width="16" height="11" rx="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    <rect x="6.6" y="7.6" width="10.8" height="5.8" rx="2.9" fill="var(--color-brand-primary)" />
+    <rect x="9.3" y="9.4" width="1.5" height="2.2" rx="0.75" fill="var(--color-on-brand)" />
+    <rect x="13.2" y="9.4" width="1.5" height="2.2" rx="0.75" fill="var(--color-on-brand)" />
+    <path d="M7.5 22v-1.5a4.5 4.5 0 0 1 9 0V22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>;
 }
 
 function Assumptions({ paths, returnsFrom, returnsTo, assumptions, notice }: { paths: number; returnsFrom: string; returnsTo: string; assumptions: string[]; notice: string }) {

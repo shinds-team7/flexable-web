@@ -303,6 +303,14 @@ class VirtualContestApiTest {
 		List<String> moves = JsonPath.read(result, "$.items[*].movement");
 		assertThat(correct).isEqualTo((int) moves.stream().filter("UP"::equals).count());
 		assertThat((List<String>) JsonPath.read(result, "$.items[*].company")).allSatisfy(n -> assertThat(n).isNotBlank());
+		// 반응 창 채점: 공시 직후·그다음 주 등락이 있고 5거래일 등락은 null. 정답 방향 = 공시 직후 등락의 부호
+		List<Map<String, Object>> graded = JsonPath.read(result, "$.items");
+		assertThat(graded).allSatisfy(it -> {
+			assertThat(it.get("basis")).isEqualTo("REACTION");
+			assertThat(it.get("subsequentReturnRate")).isNull();
+			assertThat(it.get("nextWeekReturnRate")).isNotNull();
+			assertThat(((Number) it.get("reactionReturnRate")).doubleValue() > 0).as(it.toString()).isEqualTo("UP".equals(it.get("movement")));
+		});
 		String board = JsonPath.read(result, "$.board");
 		assertThat(board).isEqualTo(VirtualContestRules.placementBoard(correct).name());
 		assertThat(((Number) JsonPath.read(result, "$.entry.balance")).longValue()).isEqualTo(VirtualContestBoard.valueOf(board).seedMoney());
@@ -518,6 +526,29 @@ class VirtualContestApiTest {
 				now, java.sql.Timestamp.from(CLOCK.now.plusSeconds(1800)));
 		join(d);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_placements WHERE id = 'legacy-1'", Integer.class)).isZero();
+		// 반응 창 규칙 전에 만든(basis 없는) 풀던 중인 배치고사는 시작할 때의 5거래일 기준으로 채점한다(decisions/2026-11-09-placement-reaction-window)
+		String g = signup();
+		StringBuilder five = new StringBuilder("[");
+		for (int i = 1; i <= 10; i++) {
+			five.append(i == 1 ? "" : ",").append("{\"id\":\"q").append(i)
+				.append("\",\"company\":\"해솔소재\",\"industry\":\"2차전지 소재\",\"category\":\"NEW_SHARES\",\"title\":\"t\",\"body\":\"b\",\"date\":\"2025-03-04\",\"up\":")
+				.append(i <= 3).append(",\"returnRate\":").append(i <= 3 ? "0.0123" : "-0.0045").append(",\"trend\":\"DOWN\",\"upShare\":0.4,\"downShare\":0.6,\"paths\":300}");
+		}
+		// 별명은 배치고사를 시작할 때 붙으므로 시작한 배치고사처럼 함께 넣는다
+		jdbc.update("INSERT INTO virtual_contest_aliases (user_id, alias, version, created_at) VALUES (?, '느긋한수달0001', 'vsim-alias-v1', ?)", userId(g), now);
+		jdbc.update("INSERT INTO virtual_contest_placements (id, contest_id, user_id, questions, started_at, expires_at) VALUES ('fiveday-1', '2026-11', ?, ?, ?, ?)",
+				userId(g), five.append("]").toString(), now, java.sql.Timestamp.from(CLOCK.now.plusSeconds(1800)));
+		String fiveDay = join(g);
+		assertThat((Integer) JsonPath.read(fiveDay, "$.correct")).isEqualTo(3);
+		assertThat((List<String>) JsonPath.read(fiveDay, "$.items[*].basis")).containsOnly("FIVE_DAY");
+		assertThat((List<Object>) JsonPath.read(fiveDay, "$.items[*].reactionReturnRate")).containsOnly((Object) null);
+		assertThat(((Number) JsonPath.read(fiveDay, "$.items[0].subsequentReturnRate")).doubleValue()).isEqualTo(0.0123);
+		// 이 규칙 전에 채점해 basis 없이 저장된 결과도 5거래일 기준으로 돌려준다
+		jdbc.update("UPDATE virtual_contest_placements SET result = REPLACE(result, '\"basis\":\"FIVE_DAY\",', '') WHERE id = 'fiveday-1'");
+		assertThat(jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = 'fiveday-1'", String.class)).doesNotContain("basis");
+		String resent = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), "{\"placementId\":\"fiveday-1\",\"answers\":["
+				+ String.join(",", java.util.stream.IntStream.rangeClosed(1, 10).mapToObj(i -> "{\"questionId\":\"q" + i + "\",\"prediction\":\"POSITIVE\"}").toList()) + "]}"), g), 200));
+		assertThat((List<String>) JsonPath.read(resent, "$.items[*].basis")).containsOnly("FIVE_DAY");
 		long entry = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, user);
 		// 1일에 참가해 1~4일 하루 10판씩 유지보다 +6% 더 벌었다(5~7일은 판 없음): 1주 합 +400 → B10M에서 B50M으로 승급, 잔액은 새 판 시드머니
 		Instant joined = ZonedDateTime.of(2026, 11, 1, 9, 0, 0, 0, SEOUL).toInstant();

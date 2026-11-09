@@ -96,26 +96,37 @@ class VirtualContestPolicyTest {
 		for (JsonNode c : p.get("cases")) {
 			assertThat(VirtualContestRules.placementBoard(c.get("correct").asInt())).as(c.toString()).isEqualTo(VirtualContestBoard.valueOf(c.get("expected").asString()));
 		}
-		assertThat(VirtualContestQuestions.CLEAR).isEqualTo(p.get("composition").get("clear").asInt());
-		assertThat(VirtualContestQuestions.CLEAR + VirtualContestQuestions.ANY).isEqualTo(VirtualContestRules.PLACEMENT_QUESTIONS);
+		assertThat(VirtualContestQuestions.EVIDENCE).isEqualTo(p.get("composition").get("evidence").asInt());
+		assertThat(VirtualContestQuestions.ANY).isEqualTo(p.get("composition").get("any").asInt());
+		assertThat(VirtualContestQuestions.EVIDENCE + VirtualContestQuestions.ANY).isEqualTo(VirtualContestRules.PLACEMENT_QUESTIONS);
+		assertThat(VirtualContestQuestions.EVIDENCE_TYPES.stream().map(Enum::name).sorted().toList())
+			.isEqualTo(p.get("evidenceTypes").valueStream().map(JsonNode::asString).sorted().toList());
+		// 정답 = 공시 직후(전날 종가 → 다음 거래일 종가) 방향, 그다음 주(다음 거래일 종가 → 5번째 후속 거래일 종가)는 결과에만
 		for (JsonNode c : p.get("grading")) {
 			Prediction pr = c.get("prediction").isNull() ? null : Prediction.valueOf(c.get("prediction").asString());
-			boolean up = c.get("afterClose").asLong() > c.get("baseClose").asLong();
-			assertThat(VirtualContestRules.placementCorrect(up, pr)).as(c.toString()).isEqualTo(c.get("correct").asBoolean());
+			var q = new VirtualContestQuestions.Past("k", "회사", "업종", VirtualSimCategory.SUPPLY_CONTRACT, "t", null, null, null, c.get("prevClose").asLong(),
+					c.get("nextClose").asLong(), c.get("afterClose").asLong());
+			assertThat(VirtualContestRules.placementCorrect(q.up(), pr)).as(c.toString()).isEqualTo(c.get("correct").asBoolean());
+			assertThat(q.reactionRate()).as(c.toString()).isEqualByComparingTo(c.get("reactionReturnRate").asString());
+			assertThat(q.nextWeekRate()).as(c.toString()).isEqualByComparingTo(c.get("nextWeekReturnRate").asString());
 		}
-		// 보합 공시는 문제로 쓰지 않는다. 분류되지 않는 제목·후속 5거래일이 없는 공시도 뺀다
+		// 공시 직후가 보합인 공시는 문제로 쓰지 않는다(5거래일 뒤가 달라도). 분류되지 않는 제목·기준 봉 전날이나 후속 5거래일이 없는 공시도 뺀다
 		JsonNode flat = p.get("flatExcluded");
 		List<LocalDate> dates = new ArrayList<>();
 		List<Long> closes = new ArrayList<>();
-		for (int i = 0; i < 7; i++) {
+		for (int i = 0; i < 9; i++) {
 			dates.add(LocalDate.of(2026, 3, 2).plusDays(i));
-			closes.add(i == 5 ? flat.get("afterClose").asLong() : flat.get("baseClose").asLong());
+			closes.add(i == 6 ? flat.get("afterClose").asLong() : i == 2 ? flat.get("nextClose").asLong() : flat.get("prevClose").asLong());
 		}
-		var made = VirtualContestQuestions.fromFilings("회사", "업종", List.of(new VirtualContestQuestions.Filing("1", "주요사항보고서(유상증자결정)", dates.get(0)),
-				new VirtualContestQuestions.Filing("2", "주요사항보고서(유상증자결정)", dates.get(1)), new VirtualContestQuestions.Filing("3", "임원ㆍ주요주주특정증권등소유상황보고서", dates.get(1)),
-				new VirtualContestQuestions.Filing("4", "주요사항보고서(유상증자결정)", dates.get(3))), dates, closes);
-		// 1번(기준 → 5번째가 10,000 → 10,000)·2번(같음)은 보합이라 빠지고, 3번은 분류되지 않는 제목, 4번은 후속 5거래일이 없다
-		assertThat(made).extracting(VirtualContestQuestions.Past::key).doesNotContain("1", "3", "4");
+		closes.set(4, flat.get("prevClose").asLong() + 100);
+		var made = VirtualContestQuestions.fromFilings("회사", "업종", List.of(new VirtualContestQuestions.Filing("1", "주요사항보고서(유상증자결정)", dates.get(1)),
+				new VirtualContestQuestions.Filing("2", "주요사항보고서(유상증자결정)", dates.get(0)), new VirtualContestQuestions.Filing("3", "임원ㆍ주요주주특정증권등소유상황보고서", dates.get(3)),
+				new VirtualContestQuestions.Filing("4", "주요사항보고서(유상증자결정)", dates.get(4)), new VirtualContestQuestions.Filing("5", "주요사항보고서(유상증자결정)", dates.get(3))),
+				dates, closes);
+		// 1번(전날 → 다음 거래일이 10,000 → 10,000, 5번째 뒤는 10,300)은 보합이라 빠지고, 2번은 전날 봉이 없고, 3번은 분류되지 않는 제목, 4번은 후속 5거래일이 없다.
+		// 5번(전날 10,000 → 다음 거래일 10,100)만 남는다
+		assertThat(made).extracting(VirtualContestQuestions.Past::key).containsExactly("5");
+		assertThat(made.get(0).up()).isTrue();
 	}
 
 	@Test

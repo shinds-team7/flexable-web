@@ -86,13 +86,15 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 	}
 
 	/**
-	 * 배치고사 문제 사본(채점하면 주요 내용·AI 요약까지 함께 지운다). 실제 과거 공시 하나와 그 뒤 5거래일 실제 방향(up)·등락(returnRate). company·date는 풀 때 숨기고 결과에서 공개한다.
+	 * 배치고사 문제 사본(채점하면 주요 내용·AI 요약까지 함께 지운다). 실제 과거 공시 하나와 정답 방향(up). company·date는 풀 때 숨기고 결과에서 공개한다.
+	 * basis: 채점 기준. REACTION(반응 창, 11-09 결정)이면 up = 공시 직후 방향이고 reactionRate·nextWeekRate가 있다. null이면 이 규칙 전에 만든 사본이라
+	 * 5거래일 기준(up·returnRate = 기준 봉 종가 → 5번째 후속 거래일 종가)으로 채점한다.
 	 * details: 공시 주요 내용(없으면 null), summary: 공시 AI 요약(없으면 null, 채점하면 주요 내용과 함께 지운다).
 	 * trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null)
 	 */
 	record StoredQuestion(String id, String company, String industry, VirtualSimCategory category, String title, String body,
 			List<PlacementDetails.Detail> details, String date, Boolean up, BigDecimal returnRate, String trend, BigDecimal upShare, BigDecimal downShare,
-			Integer paths, String summary) {
+			Integer paths, String summary, String basis, BigDecimal reactionRate, BigDecimal nextWeekRate) {
 	}
 
 	/** 실제 공시 문제 풀(6시간마다 다시 만든다). 예시 자료면 쓰지 않는다 */
@@ -255,10 +257,8 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				return placement(p);
 			}
 			Rules rules = rules().orElseThrow(() -> new ApiException(ErrorCode.PRACTICE_UNAVAILABLE));
-			// 실제 과거 공시 10개: 지금 룰셋에서 경향이 뚜렷한 유형 6개 + 유형 상관없이 4개(결정 기록 2, 11-05 구현 PR 사용자 결정)
-			Set<VirtualSimCategory> clear = new HashSet<>();
-			rules.rules().categories().stream().filter(CategoryStats::clear).forEach(st -> clear.add(st.category()));
-			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool(rules.rules()), clear, random);
+			// 실제 과거 공시 10개: 반응 창 근거 유형 4개 + 유형 상관없이 6개(decisions/2026-11-09-placement-reaction-window)
+			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool(rules.rules()), random);
 			if (drawn.isEmpty()) {
 				throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
 			}
@@ -269,10 +269,11 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				VirtualContestQuestions.Past q = drawn.get(k);
 				Optional<CategoryStats> st = rules.rules().stats(q.category());
 				questions.add(new StoredQuestion("q" + (k + 1), q.company(), q.industry(), q.category(), q.title(), q.body(), q.details(),
-						q.date() == null ? null : q.date().toString(), q.up(), VirtualContestRules.rate(q.afterClose(), q.baseClose()),
+						q.date() == null ? null : q.date().toString(), q.up(), null,
 						st.map(CategoryStats::trend).orElse(null), st.map(CategoryStats::upShare).orElse(null),
 						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null),
-						sim.sample() ? VirtualSimSample.summary(q.category()) : summaries.get(q.key())));
+						sim.sample() ? VirtualSimSample.summary(q.category()) : summaries.get(q.key()), VirtualContestQuestions.REACTION, q.reactionRate(),
+						q.nextWeekRate()));
 			}
 			String id = UUID.randomUUID().toString();
 			Instant started = now();
@@ -309,13 +310,18 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 		return new Placement(p.id(), format(p.expiresAt()), qs);
 	}
 
-	/** 그 공시 뒤 실제 5거래일 방향으로 채점하고 참가시킨다(한 번만). answers에 없는 문제는 틀림 */
+	/**
+	 * 사본의 정답 방향(up)으로 채점하고 참가시킨다(한 번만). answers에 없는 문제는 틀림. 반응 창 사본은 공시 직후 방향, 이 규칙 전에 만든 사본(basis 없음)은
+	 * 5거래일 방향이다(11-09 결정: 배포 전에 시작한 배치고사는 시작할 때의 기준으로 채점)
+	 */
 	private void grade(PlacementRow p, Map<String, Prediction> answers) {
 		List<GradedItem> items = new ArrayList<>();
 		for (StoredQuestion q : questions(p)) {
 			Prediction pr = answers.get(q.id());
-			items.add(new GradedItem(q.id(), pr, q.company(), q.date(), q.up() ? "UP" : "DOWN", q.returnRate(), VirtualContestRules.placementCorrect(q.up(), pr),
-					q.trend(), q.upShare(), q.downShare(), q.paths()));
+			boolean reaction = VirtualContestQuestions.REACTION.equals(q.basis());
+			items.add(new GradedItem(q.id(), pr, q.company(), q.date(), reaction ? VirtualContestQuestions.REACTION : VirtualContestQuestions.FIVE_DAY,
+					q.up() ? "UP" : "DOWN", reaction ? q.reactionRate() : null, reaction ? q.nextWeekRate() : null, reaction ? null : q.returnRate(),
+					VirtualContestRules.placementCorrect(q.up(), pr), q.trend(), q.upShare(), q.downShare(), q.paths()));
 		}
 		int correct = (int) items.stream().filter(GradedItem::correct).count();
 		VirtualContestBoard board = VirtualContestRules.placementBoard(correct);
@@ -363,8 +369,9 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				}
 				p = db.placementById(p.id()).orElseThrow();
 			}
+			// 이 규칙 전에 채점한 결과(basis 없음)는 5거래일 기준이다
 			List<GradedItem> items = json.readValue(p.result(), new TypeReference<List<GradedItem>>() {
-			});
+			}).stream().map(i -> i.basis() != null ? i : i.withBasis(VirtualContestQuestions.FIVE_DAY)).toList();
 			EntryRow e = db.entry(p.contestId(), userId).orElseThrow();
 			return new PlacementResult(p.id(), p.correct(), VirtualContestRules.PLACEMENT_QUESTIONS, VirtualContestBoard.valueOf(p.board()), items, entry(e));
 		});

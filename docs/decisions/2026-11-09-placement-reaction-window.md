@@ -14,7 +14,8 @@
 6. **결과의 유형 통계(경향·상승 비율·경로 수)는 그대로 룰셋의 5거래일 통계**다. 화면 문장에 "5거래일 뒤로 보면"을 붙여 채점 구간과 다름을 밝힌다.
 7. **가상 시뮬레이션의 "사건 뒤 5거래일" 문구와 가격 생성(룰셋)은 이번에 바꾸지 않는다**(사용자). 가상 시세가 지금도 룰셋의 5거래일 경로로 움직여, 문구만 바꾸면 설명과 동작이 어긋난다. 룰셋을 다시 정할 때 함께 고친다.
 8. **「공시 읽는 법」**에 유형과 상관없이 확인할 것(원래 공시인지 정정인지, 누가 결정했는지, 결정인지 결과인지, 회사 몸집에 견준 크기, 이미 알려진 내용인지, 같은 날 함께 나온 공시, 언제 알려졌는지)과 "공시 직후·그다음 주" 두 구간 설명, 유형별 항목 몇 개(유상증자 배정 상대, 공급 계약 상대, 자기주식 취득 기간)를 더한다. 방향·평가·경향은 적지 않고 `PlacementGuideTextTest` 금지 표현 검사는 그대로다.
-9. **예시 자료**(`VIRTUAL_SIM_SOURCE=fake`, 개발): 룰셋 경로에는 기준 봉 당일 등락이 없어 전날 종가 = 기준 봉 종가(10,000)로 두고, 경로 첫째 날까지를 공시 직후, 둘째~다섯째 날을 그다음 주로 쓴다.
+10. **설명이 있는 공시를 먼저 출제한다**(11-09 확인 뒤 추가). 근거 유형 중 공급 계약·시설·지분 투자는 거래소 수시공시라 공시 주요 내용(DS005)이 거의 없고(측정 v2: 시설·지분 투자 6%), AI 요약은 룰셋의 뚜렷한 유형부터 만들어져 있어 "제목과 유형 설명만" 남는 문제가 자주 나왔다. 그래서 ① 근거 유형 4개·나머지 6개 묶음마다 AI 요약(숨기지 않은 것)·공시 주요 내용이 있는 공시를 먼저 무작위로 고르고, 모자라면 설명이 없는 공시로 채운다(모자라도 503이 되지 않게 필수로 두지 않음). ② AI 요약 작업 순서를 "룰셋의 뚜렷한 유형 먼저"에서 **반응 창 근거 유형 먼저**로 바꾼다([AI 요약 결정](2026-11-09-placement-ai-summary.md) 4). 하루 상한(기본 호출 40번 × 5건)으로 근거 유형 원공시(약 2,800건)를 채우는 데 2주 남짓 걸리므로, 빨리 채우려면 운영에서 `PLACEMENT_SUMMARY_DAILY_CAP`·`PLACEMENT_SUMMARY_MAX_CALLS`를 잠시 올린다.
+11. **예시 자료**(`VIRTUAL_SIM_SOURCE=fake`, 개발): 룰셋 경로에는 기준 봉 당일 등락이 없어 전날 종가 = 기준 봉 종가(10,000)로 두고, 경로 첫째 날까지를 공시 직후, 둘째~다섯째 날을 그다음 주로 쓴다.
 
 ## 이유
 
@@ -33,8 +34,8 @@
 
 | 무엇 | 어디 |
 |---|---|
-| 출제·채점 | `virtualsim.VirtualContestQuestions`(`EVIDENCE`·`ANY`·`EVIDENCE_TYPES`, `Past`의 전날·다음 거래일·5번째 종가), `VirtualContestService`(문제 사본 `basis`·`reactionRate`·`nextWeekRate`, 이전 사본·결과는 `FIVE_DAY`) |
+| 출제·채점 | `virtualsim.VirtualContestQuestions`(`EVIDENCE`·`ANY`·`EVIDENCE_TYPES`, `Past`의 전날·다음 거래일·5번째 종가, `described` 먼저 고르기), `VirtualSimStore.visibleSummaryReceipts`, worker `PlacementSummaryJob` 요약 순서, `VirtualContestService`(문제 사본 `basis`·`reactionRate`·`nextWeekRate`, 이전 사본·결과는 `FIVE_DAY`) |
 | 계약 | [web-api.yaml](../contracts/web-api.yaml) `VirtualContestPlacementResult.items[]`에 `basis`·`reactionReturnRate`·`nextWeekReturnRate` 추가, `subsequentReturnRate`는 nullable(`FIVE_DAY`만), 배치고사 시작·제출 설명 |
-| 정책·테스트 | [policies](../policies.md) §8-8 배치고사 행·채점 표, §8-6 경향 쓰임, `tests/policy/virtual-contest.json` `placement`, `VirtualContestPolicyTest`·`VirtualContestApiTest`·`PlacementDetailsContractTest` |
+| 정책·테스트 | [policies](../policies.md) §8-8 배치고사 행·채점 표, §8-6 경향 쓰임, `tests/policy/virtual-contest.json` `placement`, `VirtualContestPolicyTest`·`VirtualContestApiTest`·`PlacementDetailsContractTest`·`PlacementSummaryJobTest`, [AI 요약 결정](2026-11-09-placement-ai-summary.md) 4, `backend/README.md` |
 | 화면 | `src/pages/VirtualContest.tsx`(규칙·문제 안내·결과 두 숫자), `src/data/disclosureStory.ts`(결과 줄글), `src/pages/SimulationGuide.tsx`·`src/data/simulationGuide.ts`(공통 확인 항목·두 구간) |
 | 개인정보 | 변화 없음(배치고사 문제 사본에 공개 시세 등락 두 값이 더해질 뿐, 회원 정보·보관·외부 전송 그대로) |

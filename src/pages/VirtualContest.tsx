@@ -45,7 +45,7 @@ function Rules({ info }: { info: ContestInfo }) {
     <summary>대회 규칙 자세히 보기</summary>
     <ul>
       <li>매달 1일 00시에 열고 다음 달 1일 00시에 마감해요. 시즌마다 배치고사 {r.placementQuestions}문제로 시작 판을 정해요(맞힌 수 {r.placementCuts.B50M}개 이상 5천만 판, {r.placementCuts.B100M}개 이상 1억 판, 그 아래 1천만 판).</li>
-      <li>배치고사는 실제 과거 공시 10개(경향이 뚜렷한 유형 6개 + 나머지 4개)를 보고 그 뒤 5거래일 동안 오를지 내릴지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜는 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
+      <li>배치고사는 실제 과거 공시 10개를 보고 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 올랐을지 내렸을지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜, 그다음 주(다음 거래일 종가 → 5번째 거래일 종가) 움직임은 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
       <li>한 판은 지금 대회 잔액 전부로 시작하고 120거래일 동안 사건 {r.eventsPerRound}개를 만나요. 판이 끝난 총자산이 다음 판의 잔액이 되고, 대회 판은 채점하지 않아요.</li>
       <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 {points(-day)}이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 {points(day)}, 덜 했으면 0점이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
       <li>주(1~7일, 8~14일, 15~21일, 22일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 승급, {points(r.weeklyDemoteAt)} 이하면 한 단계 강등이에요. 판이 바뀌면 잔액은 새 판의 대회 시드머니로 다시 시작해요.</li>
@@ -328,7 +328,7 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
           <span aria-hidden="true">⏱</span>{left > 0 ? `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '시간 종료'}
         </span>}
       </div>
-      <p className="practice-muted">실제 과거 공시를 보고, 그 뒤 5거래일 동안 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요. 회사 이름과 날짜는 제출한 뒤 공개해요.</p>
+      <p className="practice-muted">실제 과거 공시를 보고, 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요. 회사 이름과 날짜는 제출한 뒤 공개해요.</p>
       {left === 0 && <p role="status" className="contest-timer-over">제한 시간이 지났어요. 제출하면 고른 답 없이 채점된 결과를 보여 줘요.</p>}
     </div>
     <div className="contest-progress" aria-label="배치고사 진행">
@@ -358,6 +358,18 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
   </form>;
 }
 
+/**
+ * 결과 문제 머리의 등락. 반응 창 채점(REACTION)은 공시 직후(채점)와 그다음 주 두 숫자, 이 규칙 전에 시작한 배치고사(FIVE_DAY)는 5거래일 등락 하나.
+ * 값은 서버 값 그대로(ADR-3)
+ */
+function Moves({ it }: { it: ContestPlacementResult['items'][number] }) {
+  if (it.basis === 'REACTION' && it.reactionReturnRate != null && it.nextWeekReturnRate != null) {
+    return <>공시 직후 <b className={tone(it.reactionReturnRate)}>{percent(it.reactionReturnRate)}</b> · 그다음 주 <b className={tone(it.nextWeekReturnRate)}>{percent(it.nextWeekReturnRate)}</b></>;
+  }
+  const r = it.subsequentReturnRate ?? 0;
+  return <>5거래일 뒤 <b className={tone(r)}>{percent(r)}</b></>;
+}
+
 function PlacementDone({ result, questions, sample, onStart }: { result: ContestPlacementResult; questions: PlacementQuestion[]; sample: boolean | null; onStart: () => void }) {
   // 결과에는 주요 내용을 다시 싣지 않아(채점하면 문제 사본을 지움) 풀 때 받은 문제와 questionId로 잇는다
   const byId = new Map(questions.map(q => [q.id, q]));
@@ -370,18 +382,19 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
   return <section className="contest-card contest-result" aria-labelledby="contestResultTitle">
     <h2 id="contestResultTitle" ref={heading} tabIndex={-1}>배치고사 결과</h2>
     <p className="contest-big">{result.total}문제 중 <b>{result.correct}개</b> 맞혔어요 → <b>{BOARD_LABEL[result.board]}</b>에서 시작해요</p>
-    <p className="practice-muted">시작 잔액은 {money(result.entry.seedMoney)}이에요. 공시 하나 뒤의 5거래일은 같은 유형이어도 방향이 자주 갈려서, 배치고사는 시작 판을 정하는 가벼운 퀴즈예요. 실력은 주간 점수로 겨뤄요.</p>
+    <p className="practice-muted">시작 잔액은 {money(result.entry.seedMoney)}이에요. 공시 하나의 움직임은 같은 유형이어도 방향이 자주 갈려서, 배치고사는 시작 판을 정하는 가벼운 퀴즈예요. 실력은 주간 점수로 겨뤄요.</p>
+    {result.items.some(it => it.basis === 'REACTION') && <p className="practice-muted">문제마다 두 숫자를 보여 줘요. <b>공시 직후</b>는 공시 전날 종가에서 다음 거래일 종가까지, <b>그다음 주</b>는 다음 거래일 종가에서 5번째 거래일 종가까지예요. 채점은 공시 직후로만 했어요. 공시를 읽고 다음 날 샀다면 겪는 몫이 그다음 주예요.</p>}
     <button className="btn btn-primary contest-result-start" type="button" onClick={onStart}>대회 화면으로</button>
     <ol className="contest-graded">
       {result.items.map((it, i) => { const q = byId.get(it.questionId); return <li key={it.questionId} className={it.correct ? 'ok' : 'no'}>
         <p className="contest-graded-head">
           <span className="contest-q-no">{i + 1}</span>
-          <span>{it.correct ? '맞음' : '틀림'} · <b>{it.company}</b>{it.date ? ` · ${it.date}` : ''} · 5거래일 뒤 <b className={tone(it.subsequentReturnRate)}>{percent(it.subsequentReturnRate)}</b> · 내 답 {it.prediction === 'POSITIVE' ? '오른다' : it.prediction === 'NEGATIVE' ? '내린다' : '고르지 않음'}</span>
+          <span>{it.correct ? '맞음' : '틀림'} · <b>{it.company}</b>{it.date ? ` · ${it.date}` : ''} · <Moves it={it} /> · 내 답 {it.prediction === 'POSITIVE' ? '오른다' : it.prediction === 'NEGATIVE' ? '내린다' : '고르지 않음'}</span>
         </p>
         {q && (() => { const t = cleanTitle(q.title); return <div className="contest-graded-question">
           <p className="contest-q-meta">{q.industry} 회사<span className="contest-chip">{q.categoryName}</span>{sample && <span className="tag-ex">예시</span>}</p>
           <h3 className="contest-q-title">{t.main}</h3>
-          {/* 공시 줄글: 서버 값(회사·날짜·AI 요약 또는 주요 내용·5거래일 등락·유형 통계)을 문장으로 잇기만 한다 */}
+          {/* 공시 줄글: 서버 값(회사·날짜·AI 요약 또는 주요 내용·공시 직후와 그다음 주 등락·유형 통계)을 문장으로 잇기만 한다 */}
           <div className="contest-q-story">{disclosureStory(q, it, t.main, t.subsidiary, sample).map((p, k) => <p key={k}>{p}</p>)}</div>
           <p className="contest-q-guide"><b>이런 공시예요</b> {CATEGORY_GUIDE[q.category]}</p>
         </div>; })()}
@@ -783,7 +796,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
         <Reveal order={1}><Participation info={info} entry={null} /></Reveal>
         <Reveal order={2}><JoinCard info={info} title="회원만 참가할 수 있어요" text="로그인하면 배치고사로 시작 판을 정하고 판별 순위로 겨뤄요. 랭킹도 회원만 볼 수 있어요." /></Reveal></>
       : !entry ? <>
-        <JoinCard info={info} title="배치고사로 시작해요" text="실제 과거 공시를 보고 그 뒤 5거래일 동안 주가가 오를지 내릴지 골라요. 맞힌 수로 시작 판이 정해져요."
+        <JoinCard info={info} title="배치고사로 시작해요" text="실제 과거 공시를 보고 공시 직후에 주가가 올랐을지 내렸을지 골라요. 맞힌 수로 시작 판이 정해져요."
           action={<button className="btn btn-primary" type="button" onClick={() => void beginPlacement()} disabled={busy}>{busy ? '문제 준비 중…' : '배치고사 보기'}</button>} />
         <Reveal><Participation info={info} entry={null} /></Reveal>
         <Reveal order={1}><ContestGuide info={info} joined={false} /></Reveal>

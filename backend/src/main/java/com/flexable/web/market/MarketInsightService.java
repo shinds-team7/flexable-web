@@ -235,6 +235,12 @@ public class MarketInsightService {
 		return indices.findLatestTradeDate(key, source);
 	}
 
+	/** 이 제공처가 넣은 첫 거래일(과거 채움 판단용). */
+	@Transactional(readOnly = true)
+	public Optional<LocalDate> earliestIndexDate(IndexKey key, String source) {
+		return indices.findEarliestTradeDate(key, source);
+	}
+
 	/** 소스가 없어 건너뛴 칸의 가짜 값(이름이 SAMPLE_SOURCE_PREFIX로 시작)을 지운다. 실제 제공처 값은 마지막 성공 값으로 둔다. 지운 줄 수. */
 	@Transactional
 	public long deleteSampleIndex(IndexKey key) {

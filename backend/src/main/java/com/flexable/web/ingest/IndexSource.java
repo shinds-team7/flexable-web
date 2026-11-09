@@ -21,4 +21,12 @@ public interface IndexSource {
 
 	/** from~to(포함) 일별 값. 순서는 상관없다. */
 	List<IndexValue> daily(IndexKey key, LocalDate from, LocalDate to);
+
+	/**
+	 * 오늘부터 이 일수 전까지의 과거 값을 쌓는다(공시 반응 측정의 시장 조정용, Issue #371). 0이면 최근 값만 받는다(IndexSyncJob.INITIAL_DAYS).
+	 * 날짜별로 부르는 소스는 호출이 많아지므로 페이지로 과거를 이어 받을 수 있는 소스만 쓴다.
+	 */
+	default int historyDays() {
+		return 0;
+	}
 }

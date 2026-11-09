@@ -1,0 +1,95 @@
+import type { components } from '@/lib/api-schema';
+
+// 배치고사 문제·결과 화면의 공시 줄글(Issue #308). 서버가 준 값(공시 주요 내용의 비율·규모 구간·정해 둔 이름, 결과의 회사·날짜·5거래일 등락·유형 통계)을
+// 문장으로 잇기만 하고 새로 계산하지 않는다(ADR-3). 공시 원문은 서버에 없다(2-6).
+// 문제 화면(questionStory)은 회사·날짜·방향·과거 경향을 말하지 않는다(2-2). 그 문장은 "문제 화면에도 쓰는 문구" 구간에 두고
+// backend PlacementGuideTextTest가 금지 표현을 검사한다. 회사·날짜·5거래일 움직임·유형 통계는 결과 화면(disclosureStory)에서만 붙인다.
+type Question = components['schemas']['VirtualContestPlacement']['questions'][number];
+type Item = components['schemas']['VirtualContestPlacementResult']['items'][number];
+
+/** 마지막 글자에 받침이 있으면 a, 없으면 b. %는 "퍼센트"로 읽어 받침 없음, 한글이 아니면 받침 없음으로 본다 */
+function josa(word: string, a: string, b: string) {
+  const t = word.replace(/['")\]\s]+$/, '');
+  const c = t.charCodeAt(t.length - 1) - 0xac00;
+  return c >= 0 && c <= 11171 && c % 28 !== 0 ? a : b;
+}
+const is = (v: string) => `${v}${josa(v, '이에요', '예요')}`;
+
+// 문제 화면에도 쓰는 문구:start
+/** 항목 이름 → 문장. 정해 두지 않은 항목은 "이름은 값이에요"로 쓴다 */
+const SENTENCE: Record<string, (v: string, q: Question) => string> = {
+  '새 주식 수(기존 대비)': (v, q) => q.category === 'BONUS_SHARES'
+    ? `기존 주주에게 지금 주식 수의 ${v}만큼 새 주식을 나눠 주기로 했어요. 회사로 들어오는 돈은 없고 주식 수만 늘어요.`
+    : `지금 발행된 주식의 ${v}에 해당하는 새 주식을 발행하기로 했어요.`,
+  '조달 규모': v => `이번 증자로 모으려는 돈은 ${is(v)}.`,
+  '자금 용도': v => `모은 돈은 ${v}의 비중으로 쓰겠다고 밝혔어요.`,
+  '증자 방식': v => `새 주식은 '${v}' 방식으로 팔아요.`,
+  '사채 종류': v => `${v}를 발행해 돈을 빌리기로 했어요.`,
+  '발행 규모': v => `빌리는 돈(권면총액)은 ${is(v)}.`,
+  '전환되면 늘어날 주식': v => `사채가 모두 주식으로 바뀌면 발행 주식의 ${v}만큼 주식이 늘어날 수 있어요.`,
+  '권리 행사로 늘어날 주식': v => `붙어 있는 권리를 모두 행사하면 발행 주식의 ${v}만큼 새 주식이 생길 수 있어요.`,
+  '교환 대상 주식': v => `사채와 바꿔 줄 주식은 발행 주식의 ${is(v)}.`,
+  '이자율': v => `이자율은 ${v}로 정했어요.`,
+  '취득 예정 규모': v => `사들일 자기주식은 ${v} 규모예요.`,
+  '계약 규모': v => `신탁 계약 규모는 ${is(v)}.`,
+  '취득 방법': v => `'${v}' 방식으로 사들여요.`,
+  '취득 목적': v => `밝힌 목적은 '${v}'${josa(v, '이에요', '예요')}.`,
+  '계약 목적': v => `밝힌 목적은 '${v}'${josa(v, '이에요', '예요')}.`,
+  '처분 예정 규모': v => `처분할 자기주식은 ${v} 규모예요.`,
+  '처분 방법': v => `처분 방법별 몫은 ${is(v)}.`,
+  '처분 목적': v => `밝힌 목적은 '${v}'${josa(v, '이에요', '예요')}.`,
+  '합병 형태': v => `합병 형태는 '${v}'${josa(v, '이에요', '예요')}.`,
+  '상대 회사와의 관계': v => v === '관계 없음' ? '합병 상대는 원래 관계가 없던 회사예요.' : `합병 상대는 이 회사의 ${is(v)}.`,
+  '상대 회사 자산 규모': v => `상대 회사의 자산은 ${v} 규모예요.`,
+  '분할 방법': v => `'${v}' 방식으로 회사를 나눠요.`,
+  '떼어 내는 자산 비중': v => `나눈 뒤 두 회사 자산을 합친 것 가운데 새 회사로 떼어 내는 몫은 ${is(v)}.`,
+  '새 회사 자산 규모': v => `새로 생기는 회사의 자산은 ${v} 규모예요.`,
+  '자산 종류': v => `사들이는 자산은 ${is(v)}.`,
+  '양수 규모': v => `사들이는 금액은 ${v} 규모예요.`,
+  '자산총액 대비': v => `회사 자산총액에 견주면 ${v}에 해당해요.`,
+  '자기자본 대비': v => `회사 자기자본에 견주면 ${v}에 해당해요.`,
+  '양수 뒤 지분율': v => `사들인 뒤 그 회사 지분을 ${v} 갖게 돼요.`,
+  '대상 회사와의 관계': v => v === '관계 없음' ? '대상 회사는 원래 관계가 없던 회사예요.' : `대상 회사는 이 회사의 ${is(v)}.`,
+};
+const MASKED = '회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 기존 대비 %로만 보여 줘요.';
+const NO_DETAILS_QUESTION = '이 유형은 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
+// 문제 화면에도 쓰는 문구:end
+
+/** 공시 주요 내용 → 줄글. 항목이 없으면 null */
+function detailsStory(q: Question): string | null {
+  const details = q.details ?? [];
+  if (!details.length) return null;
+  return details.map(d => (SENTENCE[d.label] ?? (v => `${d.label}${josa(d.label, '은', '는')} ${is(v)}.`))(d.value, q)).join(' ') + ' ' + MASKED;
+}
+
+/** 문제 화면의 공시 줄글: 업종·제목과 공시 주요 내용만(회사·날짜·방향·과거 경향 없음). 예시 글(body)은 카드에 따로 보이므로 주요 내용이 없으면 안내 문장을 뺀다 */
+export function questionStory(q: Question, title: string): string[] {
+  const body = detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
+  return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
+}
+
+// 대회 화면(VirtualContest.tsx)과 같은 표시: 등락은 소수 2자리, 비율은 소수 1자리 내림. 방향은 문장(올랐어요·내렸어요)으로 말한다
+const percent = (r: number) => `${Math.abs(r * 100).toFixed(2)}%`;
+const share = (r: number) => (Math.floor(r * 1000) / 10).toFixed(1);
+
+/**
+ * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 주요 내용(있을 때) ③ 그 뒤 5거래일 실제 움직임과 같은 유형 통계.
+ * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true
+ */
+export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean): string[] {
+  const when = it.date ? `${it.date.slice(0, 4)}년 ${Number(it.date.slice(5, 7))}월 ${Number(it.date.slice(8, 10))}일` : null;
+  const who = `${q.industry} 회사 ${it.company}`;
+  const intro = `${who}${josa(it.company, '이', '가')} ${when ? `${when}에 ` : ''}낸 '${title}' 공시예요.`
+    + (subsidiary ? ' 이 회사가 직접 내린 결정이 아니라 종속회사(자회사)가 내린 결정을 알린 공시예요.' : '');
+  const body = detailsStory(q)
+    ?? (q.body
+      ? q.body
+      : '이 유형은 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
+  const r = it.subsequentReturnRate;
+  let after = `공시 뒤 5거래일 동안 주가는 ${percent(r)} ${it.movement === 'UP' ? '올랐어요' : '내렸어요'}(기준일 종가 → 5번째 거래일 종가).`;
+  if (it.categorySampleCount != null && it.categoryUpShare != null && it.categoryDownShare != null) {
+    after += ` 같은 유형 공시 ${it.categorySampleCount.toLocaleString('ko-KR')}건을 보면 ${share(it.categoryUpShare)}%는 올랐고 ${share(it.categoryDownShare)}%는 내렸어요`
+      + (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.');
+  }
+  return [intro, body, after];
+}

@@ -512,7 +512,7 @@ class VirtualContestApiTest {
 		join(d);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_placements WHERE id = 'legacy-1'", Integer.class)).isZero();
 		long entry = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, user);
-		// 1일에 참가해 1~4일 하루 10판씩 유지보다 +6% 더 벌었다(5~7일은 판 없음): 1주 합 +4 → B10M에서 B50M으로 승급, 잔액은 새 판 시드머니
+		// 1일에 참가해 1~4일 하루 10판씩 유지보다 +6% 더 벌었다(5~7일은 판 없음): 1주 합 +400 → B10M에서 B50M으로 승급, 잔액은 새 판 시드머니
 		Instant joined = ZonedDateTime.of(2026, 11, 1, 9, 0, 0, 0, SEOUL).toInstant();
 		jdbc.update("UPDATE virtual_contest_entries SET board = 'B10M', highest_board = 'B10M', balance = 12624770, joined_at = ?, reached_at = ? WHERE id = ?",
 				java.sql.Timestamp.from(joined), java.sql.Timestamp.from(joined), entry);
@@ -535,7 +535,7 @@ class VirtualContestApiTest {
 		assertThat(((Number) JsonPath.read(me, "$.current.balance")).longValue()).isEqualTo(50_000_000L);
 		assertThat((Integer) JsonPath.read(me, "$.current.boardPoints")).isZero();
 		assertThat((String) JsonPath.read(me, "$.current.lastBoardChange.from")).isEqualTo("B10M");
-		assertThat((Integer) JsonPath.read(me, "$.current.lastBoardChange.weekPoints")).isEqualTo(4);
+		assertThat((Integer) JsonPath.read(me, "$.current.lastBoardChange.weekPoints")).isEqualTo(4 * VirtualContestRules.DAY_POINTS);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_weeks WHERE entry_id = ?", Integer.class, entry)).isEqualTo(1);
 		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM virtual_contest_days WHERE entry_id = ?", Integer.class, entry)).isEqualTo(10);
 		contest.tick();
@@ -577,7 +577,7 @@ class VirtualContestApiTest {
 		long entryA = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, userId(a));
 		String boardA = jdbc.queryForObject("SELECT board FROM virtual_contest_entries WHERE id = ?", String.class, entryA);
 		String highestA = jdbc.queryForObject("SELECT highest_board FROM virtual_contest_entries WHERE id = ?", String.class, entryA);
-		int push = "B100M".equals(boardA) ? -1 : 1;
+		int push = "B100M".equals(boardA) ? -VirtualContestRules.DAY_POINTS : VirtualContestRules.DAY_POINTS;
 		assertThat(jdbc.update("UPDATE virtual_contest_days SET points = ? WHERE entry_id = ? AND on_date BETWEEN ? AND ?", push, entryA, LocalDate.of(2026, 11, 22),
 				LocalDate.of(2026, 11, 29))).isEqualTo(8);
 

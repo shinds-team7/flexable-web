@@ -48,7 +48,8 @@ function Moved({ r, sample }: { r: VirtualSimDecision; sample: boolean }) {
  * 대회 판으로 쓸 때. board: 지금 판, today: 오늘 매매 성과(가만히 있었을 때 대비) 평균·목표(서버 값, 판이 끝나면 onSettled로 다시 불러옴),
  * onSettled: 판이 끝나 잔액이 바뀌었을 수 있을 때, onExit: 대회 화면으로 돌아가기
  */
-export type ContestPlay = { board: ContestBoard; today?: { returnRate: number | null; targetRate: number; rounds: number }; onSettled: () => void; onExit: () => void };
+/** dayPoints: 하루 점수 한 칸(서버 규칙에서 고른 값, #308부터 100·이전 서버 1) */
+export type ContestPlay = { board: ContestBoard; today?: { returnRate: number | null; targetRate: number; rounds: number }; dayPoints: number; onSettled: () => void; onExit: () => void };
 
 /** 일반 세션의 판정 뒤: 유형 통계(근거)와 이번 결과. 채점은 없다 */
 function Judged({ r, sample }: { r: VirtualSimDecision; sample: boolean }) {
@@ -320,7 +321,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
               <div><dt>오늘 매매 성과 평균</dt><dd>{contest.today.returnRate == null ? '계산 중' : <b className={tone(contest.today.returnRate)}>{pp(contest.today.returnRate)}</b>}</dd></div>
               <div><dt>목표</dt><dd>{pp(contest.today.targetRate)} 이상</dd></div>
             </dl>
-            <small>매매 성과 = 내 판 수익률 − 사건마다 가만히 있었을 때의 수익률이에요. 오늘 {contest.today.rounds}/10판 · +1점은 10판을 모두 해야 받고, 목표에 못 미치면 판 수와 상관없이 −1점이에요.</small>
+            <small>매매 성과 = 내 판 수익률 − 사건마다 가만히 있었을 때의 수익률이에요. 오늘 {contest.today.rounds}/10판 · +{contest.dayPoints}점은 10판을 모두 해야 받고, 목표에 못 미치면 판 수와 상관없이 −{contest.dayPoints}점이에요.</small>
           </div>}
           <p className="vsim-intro"><Written sample={sample} /> {snapshot.company.intro}</p>
           <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
@@ -328,7 +329,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           {contest && finished && <button className="btn btn-primary practice-start" type="button" onClick={nextRound} disabled={busy || noRoundsLeft}>{noRoundsLeft ? '오늘 판을 모두 했어요' : '다음 판 시작'}</button>}
           <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
         </section>}
-        {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 1%p 이상 높으면(매매 성과) 10판을 모두 했을 때 하루 점수 +1, 덜 했으면 0이에요. 못 미치면 −1이에요.</li></ol></div>
+        {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 1%p 이상 높으면(매매 성과) 10판을 모두 했을 때 하루 점수 +{contest.dayPoints}점, 덜 했으면 0점이에요. 못 미치면 −{contest.dayPoints}점이에요.</li></ol></div>
           : <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>가상 종목의 120~250거래일 구간을 재생하고, 가상 사건을 3번 이상 만나요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>채점은 없어요. 사건마다 이후 5거래일 가상 등락과 그 유형 공시의 과거 통계를 보여 줘요.</li></ol></div>}
       </aside>
       <main className="practice-market">

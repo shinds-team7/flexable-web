@@ -84,7 +84,7 @@ public class IngestConfig {
 	@Bean
 	List<IndexSource> indexSources(IngestProperties props, MarketIndexProperties indices, KiwoomTokenClient tokens) {
 		return switch (props.priceSource()) {
-			case "kiwoom" -> List.of(new KiwoomIndexSource(http, props.kiwoom().baseUrl(), tokens),
+			case "kiwoom" -> List.of(new KiwoomIndexSource(http, props.kiwoom().baseUrl(), tokens, props.kiwoom().pageDelay()),
 					new KrxMarketIndexSource(http, props.krx().baseUrl(), props.krx().authKey(), indices.krxBondIndexName(), indices.krxGoldIsuCd(),
 							indices.callDelay()),
 					new KoreaEximFxSource(http, indices.koreaeximBaseUrl(), indices.koreaeximAuthKey(), indices.callDelay()));

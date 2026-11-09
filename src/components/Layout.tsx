@@ -44,7 +44,7 @@ const NAV: NavItem[] = [
       { to: '/cma', label: 'CMA' },
     ],
   },
-  { to: '/goal', label: 'AI 계획' },
+  { to: '/goal', label: 'AI 목표달성' },
   { to: '/news', label: '청년소식' },
 ];
 

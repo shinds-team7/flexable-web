@@ -306,7 +306,7 @@ export function InvestorTypeDetail() {
     { to: '/invest', title: '투자 인사이트', desc: '시장 흐름과 종목의 지난 주가를 보고, 그때 무슨 일이 있었는지 사건으로 짚어 봐요.' },
     { to: '/diversify', title: '분산 투자', desc: '가진 종목이 어느 업종·자산에 몰려 있는지, 같이 덜 움직인 쪽은 어디인지 봐요.' },
     ...(SIMULATION_PATH ? [{ to: SIMULATION_PATH, title: '투자 시뮬레이션', desc: '시간이 흐르며 생기는 사건마다 직접 판단하고, 내 돈이 어떻게 바뀌는지 봐요.' }] : []),
-    { to: '/goal', title: 'AI 계획', desc: '목표 금액과 기한을 정하면 조합 2~3개의 달성 가능성과 위험을 견줘 봐요. 추정치이고 달성을 보장하지 않아요.' },
+    { to: '/goal', title: 'AI 목표달성', desc: '목표 금액과 기한을 정하면 조합 2~3개의 달성 가능성과 위험을 견줘 봐요. 추정치이고 달성을 보장하지 않아요.' },
   ];
 
   return (

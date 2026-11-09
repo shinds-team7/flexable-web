@@ -56,7 +56,7 @@
 .gp-plan-stats>span{font-size:12px;color:var(--color-text-tertiary)}
 .gp-plan-stats b{display:block;font-size:15px;color:var(--color-text-primary)}
 
-.gp-detail{display:grid;grid-template-columns:1.1fr 1fr;gap:calc(var(--density-gap)*7/12);margin-top:calc(var(--density-gap)*7/12)}
+.gp-detail{display:grid;grid-template-columns:1.1fr 1fr;align-items:start;gap:calc(var(--density-gap)*7/12);margin-top:calc(var(--density-gap)*7/12)}
 .gp-bar{height:14px;border-radius:var(--radius-xs);margin:calc(var(--density-gap)*7/12) 0 calc(var(--density-gap)*3/4)}
 .gp-products{list-style:none;margin:0;padding:0}
 .gp-products li{display:grid;grid-template-columns:12px 1fr auto auto;gap:calc(var(--density-gap)/2);align-items:center;padding:calc(var(--density-gap)/2) 0;border-top:1px solid var(--color-border)}
@@ -66,6 +66,28 @@
 .gp-product-name small{display:block;font-weight:400;font-size:12px;color:var(--color-text-tertiary)}
 .gp-product-amt{font-size:14px;color:var(--color-text-secondary);text-align:right}
 .gp-product-pct{font-weight:700;min-width:44px;text-align:right}
+/* 줄 전체(색 점·이름·월 금액·비중)가 버튼이다. 칸 나눔은 .gp-products li와 같다. */
+.gp-product-toggle{grid-column:1/-1;display:grid;grid-template-columns:12px 1fr auto auto;align-items:center;gap:calc(var(--density-gap)/2);min-width:0;margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:var(--radius-xs)}
+.gp-product-toggle:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+.gp-product-toggle:hover .gp-product-name{color:var(--color-brand-text)}
+.gp-product-toggle .gp-product-name{display:inline-flex;align-items:center;gap:calc(var(--density-gap)/4);min-width:0}
+.gp-chevron{flex:none;width:14px;height:14px;color:var(--color-text-tertiary);transition:transform 200ms var(--ease)}
+.gp-product-toggle[aria-expanded="true"] .gp-chevron{transform:rotate(180deg)}
+/* 세부 상품 펼침: 높이를 0fr→1fr로 부드럽게 바꾸고, 닫힘 애니메이션이 끝난 뒤 visibility로 숨겨 Tab·화면 읽기에서 뺀다. */
+.gp-subwrap{grid-column:2/-1;display:grid;grid-template-rows:0fr;visibility:hidden;transition:grid-template-rows 200ms var(--ease),visibility 0s linear 200ms}
+.gp-subwrap.is-open{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows 200ms var(--ease),visibility 0s}
+.gp-subwrap>.gp-subproducts{min-height:0;overflow:hidden}
+/* 접혔을 때 빈 줄 간격이 남지 않게 줄 간격은 접히는 칸 안쪽(첫 줄 위 여백)으로 옮긴다. */
+.gp-products>li{row-gap:0}
+.gp-products .gp-subproducts>li:first-child{margin-top:calc(var(--density-gap)/3)}
+@media (prefers-reduced-motion:reduce){.gp-subwrap,.gp-subwrap.is-open,.gp-chevron{transition:none}}
+.gp-products .gp-subproducts{list-style:none;margin:0;padding:0;display:grid;gap:calc(var(--density-gap)/6)}
+.gp-products .gp-subproducts li{display:flex;flex-wrap:wrap;align-items:center;gap:calc(var(--density-gap)/6) calc(var(--density-gap)/3);padding:0;border:0;font-size:13px;color:var(--color-text-secondary);min-width:0}
+.gp-subproducts li::before{content:'·';color:var(--color-text-tertiary)}
+.gp-subproduct-name{overflow-wrap:anywhere}
+.gp-subproduct-meta{font-size:12px;color:var(--color-text-tertiary)}
+.gp-products .gp-subproducts .gp-subproduct-note{font-size:12px;color:var(--color-text-tertiary)}
+.gp-subproducts .gp-subproduct-note::before{content:none}
 
 .gp-range{position:relative;height:72px;margin:calc(var(--density-gap)*5/6) 0 calc(var(--density-gap)/4)}
 .gp-range-track,.gp-range-fill{position:absolute;top:30px;height:10px;border-radius:var(--radius-xs)}

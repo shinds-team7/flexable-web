@@ -31,7 +31,9 @@ import com.flexable.web.virtualsim.VirtualSimStore.DisclosureRow;
  * 배치고사 공시 AI 요약(decisions/2026-11-09-placement-ai-summary): 대상·순서, 원문이 없는 공시, 검사에 걸린 요약, 같은 입력을 다시 부르지 않음,
  * 한 번 실행 상한·하루 상한, 키가 없거나 호출이 실패할 때, 운영자 숨김을 본다(외부 호출 없음, 작성기는 가짜이고 검사는 실제 PlacementSummaries.check).
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = "spring.datasource.url=jdbc:h2:mem:placement-summary;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1")
+// 빈 cron(.env.example을 복사하고 PLACEMENT_SUMMARY_CRON을 비워 둠)이어도 일정 등록이 실패하지 않고 기본 21:00으로 켜져야 한다(#361 리뷰)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = { "spring.datasource.url=jdbc:h2:mem:placement-summary;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+		"app.ingest.placement-summary.cron=" })
 @ActiveProfiles("worker")
 class PlacementSummaryJobTest {
 
@@ -54,6 +56,8 @@ class PlacementSummaryJobTest {
 	static class Documents implements DisclosureSource {
 		final List<String> calls = new ArrayList<>();
 		final Map<String, String> texts = new HashMap<>();
+		/** 원문 받기가 늘 실패하는 공시(그 공시만의 문제) */
+		final Set<String> broken = new java.util.HashSet<>();
 		RuntimeException fail;
 
 		@Override
@@ -82,6 +86,9 @@ class PlacementSummaryJobTest {
 			if (fail != null) {
 				throw fail;
 			}
+			if (broken.contains(receiptNo)) {
+				throw new IllegalStateException("DART 공시서류원본파일을 읽지 못했어요");
+			}
 			return texts.get(receiptNo);
 		}
 
@@ -99,6 +106,8 @@ class PlacementSummaryJobTest {
 		final Map<String, String> rewrites = new HashMap<>();
 		final List<List<Input>> calls = new ArrayList<>();
 		final List<List<Retry>> retried = new ArrayList<>();
+		/** 다시 쓰기 응답에서 빠지는 공시 */
+		final Set<String> dropOnRewrite = new java.util.HashSet<>();
 
 		@Override
 		public boolean enabled() {
@@ -123,7 +132,8 @@ class PlacementSummaryJobTest {
 		@Override
 		public List<Result> rewrite(List<Retry> retries) {
 			retried.add(retries);
-			return retries.stream().map(r -> result(r.input(), rewrites.getOrDefault(r.input().id(), replies.get(r.input().id())))).toList();
+			return retries.stream().filter(r -> !dropOnRewrite.contains(r.input().id()))
+				.map(r -> result(r.input(), rewrites.getOrDefault(r.input().id(), replies.get(r.input().id())))).toList();
 		}
 
 		private static Result result(Input in, String text) {
@@ -144,7 +154,7 @@ class PlacementSummaryJobTest {
 
 	@BeforeEach
 	void clean() {
-		for (String t : List.of("dart_disclosure_summaries", "dart_disclosure_details", "dart_disclosure_archive", "dart_disclosures", "gemini_daily_usage", "virtual_sim_rulesets")) {
+		for (String t : List.of("dart_disclosure_summaries", "dart_disclosure_details", "dart_disclosure_archive", "dart_disclosures", "gemini_daily_usage", "virtual_sim_rulesets", "dart_summary_failures")) {
 			jdbc.update("DELETE FROM " + t);
 		}
 	}
@@ -261,6 +271,51 @@ class PlacementSummaryJobTest {
 		var job = job(dart, new Writer(), props("dart", 1, 2, 10));
 		// 주요 내용이 있어도 뚜렷한 유형(유상증자)이 먼저, 그다음 주요 내용이 없는 공급 계약을 최근부터
 		assertThat(job.targets(10)).extracting(t -> t.disclosure().receiptNo()).containsExactly("20250101000001", "20250101000003", "20250101000002");
+	}
+
+	@Test
+	void 원문_받기에_실패한_공시는_다음_실행에서_뒤로_미루고_성공으로_기록하지_않는다() {
+		Documents dart = seed();
+		dart.broken.add("20250101000003");
+		Writer writer = new Writer();
+		writer.replies.put("20250101000003", OK);
+		writer.replies.put("20250101000001", "이 회사가 제3자배정 유상증자를 결정했어요. 새 주식은 보통주식으로 발행해요."); // 본문에 수치가 있는데 요약에 없음
+
+		// 대상 1건(묶음 1 × 1번): 가장 앞의 공급 계약 원문이 실패한다. 아무것도 못 했으니 FAILED로 남는다
+		var first = job(dart, writer, props("dart", 1, 1, 10)).runOnce();
+		assertThat(first.status()).isEqualTo("FAILED");
+		assertThat(writer.calls).isEmpty();
+		assertThat(runs.findFirstByJobOrderByIdDesc(PlacementSummaryJob.JOB).orElseThrow().getError()).contains("원문 받기 1건 실패");
+		assertThat(store.summaryFailures()).containsOnlyKeys("20250101000003");
+
+		// 다음 실행: 실패한 공시는 맨 뒤로 가서 다른 후보(원문 없는 공급 계약)를 먼저 한다
+		dart.calls.clear();
+		job(dart, writer, props("dart", 1, 1, 10)).runOnce();
+		assertThat(dart.calls).containsExactly("20250101000002");
+		assertThat(job(dart, writer, props("dart", 1, 1, 10)).targets(10)).extracting(t -> t.disclosure().receiptNo()).last().isEqualTo("20250101000003");
+
+		// 원문을 받게 되면 요약을 저장하고 실패 기록을 지운다
+		dart.broken.clear();
+		jdbc.update("DELETE FROM dart_disclosure_summaries WHERE receipt_no = '20250101000002'");
+		var later = job(dart, writer, props("dart", 5, 2, 10)).runOnce();
+		assertThat(later.status()).isEqualTo("SUCCESS");
+		assertThat(rows().get("20250101000003")).containsEntry("summary", OK);
+		assertThat(store.summaryFailures()).isEmpty();
+	}
+
+	@Test
+	void 다시_쓰기_응답에서_빠진_공시는_처음_탈락_결과도_저장하지_않는다() {
+		Documents dart = seed();
+		Writer writer = new Writer();
+		writer.replies.put("20250101000003", "이 회사가 공급 계약을 맺었어요. 계약 수치가 담긴 내용이 공개되었어요.");
+		writer.dropOnRewrite.add("20250101000003");
+
+		var run = job(dart, writer, props("dart", 5, 2, 10)).runOnce();
+		assertThat(run.calls()).isEqualTo(2);
+		assertThat(writer.retried).hasSize(1);
+		// 저장하지 않아 같은 규칙 버전에서도 다음 실행에 다시 한다
+		assertThat(rows()).doesNotContainKey("20250101000003");
+		assertThat(store.summarizedReceipts()).doesNotContain("20250101000003");
 	}
 
 	@Test

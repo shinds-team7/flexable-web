@@ -38,7 +38,8 @@ import com.flexable.web.virtualsim.VirtualSimStore.SummaryRow;
  * 부르기 전마다 하루(KST) Gemini 호출 상한(dailyCap, gemini_daily_usage)을 확인한 뒤 한 번 부른다. 한 번 실행에 maxCalls번까지다.
  * 검사에 걸린 요약은 까닭을 붙여 한 번 더 부르고(다시 쓰기, 하루 상한에 함께 센다), 그래도 걸리면 요약 없이 까닭만 남긴다. 원문이 없는 공시도 까닭만 남긴다.
  * 같은 입력(같은 작성 규칙 버전)은 다시 부르지 않는다. 검사를 통과한 요약만 저장하고 원문·본문 글은 저장하지 않는다.
- * 키가 없거나 호출이 실패하면 거기서 멈추고 남은 공시는 다음 실행에 한다. 출제·채점은 요약 없이 그대로다.
+ * 그 공시만의 원문 받기 실패는 dart_summary_failures(V34)에 남겨 다음 실행에서 맨 뒤로 미루고, 실패가 있으면 실행을 SUCCESS로 기록하지 않는다(PARTIAL·FAILED).
+ * 키가 없거나 호출이 실패하면 거기서 멈추고 남은 공시는 다음 실행에 한다. 다시 쓰기 응답에서 빠진 공시는 저장하지 않는다. 출제·채점은 요약 없이 그대로다.
  * 로그·ingest_runs에는 건수와 오류 구분, 검사 탈락 까닭(걸린 낱말·숫자 토막, 이름은 까닭 이름만)만 남기고 본문·프롬프트·응답은 남기지 않는다.
  */
 @Component
@@ -85,7 +86,8 @@ public class PlacementSummaryJob {
 		}
 	}
 
-	@Scheduled(cron = "${app.ingest.placement-summary.cron:0 0 21 * * *}", zone = "Asia/Seoul")
+	/** 빈 값(.env.example을 복사하고 비워 둔 PLACEMENT_SUMMARY_CRON)도 기본 21:00으로 본다. 빈 cron은 일정 등록이 실패해 worker가 켜지지 않는다 */
+	@Scheduled(cron = "#{'${app.ingest.placement-summary.cron:}'.isBlank() ? '0 0 21 * * *' : '${app.ingest.placement-summary.cron:}'}", zone = "Asia/Seoul")
 	void scheduled() {
 		runSafely();
 	}
@@ -116,6 +118,7 @@ public class PlacementSummaryJob {
 		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
 		IngestRun run = runs.save(new IngestRun(JOB, today, clock.instant()));
 		int calls = 0, ok = 0, saved = 0, rejected = 0, done = 0;
+		extractFailures = 0;
 		String error = null;
 		boolean failed = false, capped = false, completed = false;
 		String status;
@@ -136,12 +139,12 @@ public class PlacementSummaryJob {
 						if (e.stopsRun()) {
 							throw e;
 						}
-						// 그 공시만의 문제. 저장하지 않아 다음 실행에 다시 받는다
-						log.warn("배치고사 공시 원문 받기 실패 {}: {}", no, e.getMessage());
+						// 그 공시만의 문제. 요약은 저장하지 않고 실패를 남겨 다음 실행에서 맨 뒤로 미룬다
+						extractFailed(no, e);
 						continue;
 					}
 					catch (RuntimeException e) {
-						log.warn("배치고사 공시 원문 받기 실패 {}: {}", no, e.getMessage());
+						extractFailed(no, e);
 						continue;
 					}
 					if (text == null || text.isBlank()) {
@@ -206,9 +209,12 @@ public class PlacementSummaryJob {
 						saved += save(results.stream().filter(r -> r.summary() != null).toList());
 						break;
 					}
+					// 다시 쓰기 응답에서 빠진 공시는 처음 탈락 결과도 저장하지 않는다(같은 규칙 버전에서 다시 시도되지 않으면 요약 없이 남는다). 다음 실행에 처음부터 한다
+					Set<String> retried = new HashSet<>();
+					retries.forEach(r -> retried.add(r.input().id()));
 					Map<String, PlacementSummaryWriter.Result> merged = new java.util.LinkedHashMap<>();
-					results.forEach(r -> merged.put(r.id(), r));
-					again.forEach(r -> merged.put(r.id(), r));
+					results.stream().filter(r -> !retried.contains(r.id())).forEach(r -> merged.put(r.id(), r));
+					again.stream().filter(r -> retried.contains(r.id())).forEach(r -> merged.put(r.id(), r));
 					results = List.copyOf(merged.values());
 				}
 				saved += save(results);
@@ -230,8 +236,13 @@ public class PlacementSummaryJob {
 				failed = true;
 				error = "요약 단계가 중간에 멈췄어요";
 			}
-			status = failed ? (ok == 0 ? "FAILED" : "PARTIAL") : capped && calls == 0 ? "SKIPPED" : "SUCCESS";
-			String note = failed ? error
+			// 원문 받기 실패가 있으면 성공으로 기록하지 않는다: 아무것도 저장하지 못했으면 FAILED, 일부라도 했으면 PARTIAL
+			boolean extractErrors = extractFailures > 0;
+			status = failed ? (ok == 0 ? "FAILED" : "PARTIAL")
+					: extractErrors ? (ok == 0 && saved == 0 ? "FAILED" : "PARTIAL") : capped && calls == 0 ? "SKIPPED" : "SUCCESS";
+			String extractNote = extractErrors ? "원문 받기 " + extractFailures + "건 실패(다음 실행에서 뒤로 미뤄요)" : null;
+			String note = failed ? (extractNote == null ? error : error + " / " + extractNote)
+					: extractNote != null ? extractNote
 					: capped ? "하루 호출 상한 " + o.dailyCap() + "번에 닿아 남은 " + (targets.size() - done) + "건은 다음 날 실행에 만들어요" : null;
 			run.finish(status, saved, note, clock.instant());
 			runs.save(run);
@@ -239,6 +250,16 @@ public class PlacementSummaryJob {
 		log.info("배치고사 공시 AI 요약 끝 {} (대상 {}건, 호출 {}번, 저장 {}건 중 요약 없음 {}건, 오늘 호출 {}/{}번)", status, targets.size(), calls, saved, rejected,
 				usage.used(JOB), o.dailyCap());
 		return new Run(status, targets.size(), calls, saved, rejected, error, capped);
+	}
+
+	/** 이번 실행에서 원문 받기에 실패한 공시 수(runOnce는 synchronized라 실행마다 0부터 센다) */
+	private int extractFailures;
+
+	/** 원문 받기 실패: 로그와 실패 기록(V34)을 남겨 다음 실행에서 맨 뒤로 미룬다 */
+	private void extractFailed(String receiptNo, RuntimeException e) {
+		extractFailures++;
+		log.warn("배치고사 공시 원문 받기 실패 {}: {}", receiptNo, e.getMessage());
+		store.recordSummaryFailure(receiptNo, message(e));
 	}
 
 	/** 결과를 저장한다. 검사에 걸린 공시는 까닭을 로그에 남긴다(이름에 걸린 것은 까닭 이름만, 요약 글은 남기지 않는다) */
@@ -251,7 +272,7 @@ public class PlacementSummaryJob {
 		return store.saveSummaries(results.stream().map(r -> new SummaryRow(r.id(), r.summary(), r.reject(), writer.model())).toList());
 	}
 
-	/** 대상 공시: 뚜렷한 유형(지금 실제 룰셋, 없으면 없음) 먼저, 그다음 주요 내용이 없는 공시, 같으면 최근 접수부터 limit건 */
+	/** 대상 공시: 원문 받기에 실패한 적 없는 공시 중 뚜렷한 유형(지금 실제 룰셋, 없으면 없음) 먼저, 그다음 주요 내용이 없는 공시, 같으면 최근 접수부터. 실패한 공시는 맨 뒤. limit건 */
 	List<Target> targets(int limit) {
 		LocalDate since = LocalDate.now(clock.withZone(IngestConfig.SEOUL)).minusYears(YEARS);
 		Map<String, String> companies = new HashMap<>();
@@ -261,6 +282,7 @@ public class PlacementSummaryJob {
 		Set<VirtualSimCategory> clear = new HashSet<>();
 		store.latestStoredRuleset(false).ifPresent(r -> r.ruleset().categories().stream().filter(CategoryStats::clear).forEach(st -> clear.add(st.category())));
 		Set<String> done = store.summarizedReceipts();
+		Map<String, java.time.Instant> failed = store.summaryFailures();
 		List<Target> out = new ArrayList<>();
 		for (String stock : store.archivedStocks()) {
 			Set<String> detailed = store.details(stock).keySet();
@@ -271,7 +293,10 @@ public class PlacementSummaryJob {
 				}
 			}
 		}
-		out.sort(Comparator.comparing((Target t) -> !t.clear()).thenComparing(Target::detailed)
+		// 원문 받기에 실패한 적 있는 공시는 맨 뒤로(오래 전에 실패한 순). 같은 공시가 계속 실패해도 뒤의 정상 공시가 막히지 않는다
+		out.sort(Comparator.comparing((Target t) -> failed.containsKey(t.disclosure().receiptNo()))
+			.thenComparing((Target t) -> failed.getOrDefault(t.disclosure().receiptNo(), java.time.Instant.EPOCH))
+			.thenComparing((Target t) -> !t.clear()).thenComparing(Target::detailed)
 			.thenComparing((Target t) -> t.disclosure().receiptNo(), Comparator.reverseOrder()));
 		return out.size() > limit ? List.copyOf(out.subList(0, limit)) : out;
 	}

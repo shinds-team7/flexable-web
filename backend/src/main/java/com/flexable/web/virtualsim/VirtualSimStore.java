@@ -190,12 +190,13 @@ public class VirtualSimStore {
 				PlacementSummaries.VERSION));
 	}
 
-	/** 접수번호마다 지금 작성 규칙 버전으로 덮어쓴다. 숨긴 행은 바꾸지 않는다. 넣거나 바꾼 수를 돌려준다 */
+	/** 접수번호마다 지금 작성 규칙 버전으로 덮어쓴다. 숨긴 행은 바꾸지 않는다. 원문 받기 실패 기록(V34)은 지운다. 넣거나 바꾼 수를 돌려준다 */
 	@Transactional
 	public int saveSummaries(List<SummaryRow> rows) {
 		Timestamp now = Timestamp.from(clock.instant());
 		int n = 0;
 		for (SummaryRow r : rows) {
+			jdbc.update("DELETE FROM dart_summary_failures WHERE receipt_no = ?", r.receiptNo());
 			int updated = jdbc.update("UPDATE dart_disclosure_summaries SET summary = ?, reason = ?, version = ?, model = ?, created_at = ? WHERE receipt_no = ? AND hidden = FALSE",
 					r.summary(), r.reason(), PlacementSummaries.VERSION, r.model(), now, r.receiptNo());
 			if (updated == 0 && jdbc.queryForObject("SELECT COUNT(*) FROM dart_disclosure_summaries WHERE receipt_no = ?", Integer.class, r.receiptNo()) == 0) {
@@ -206,6 +207,25 @@ public class VirtualSimStore {
 			n += updated;
 		}
 		return n;
+	}
+
+	/** 원문 받기에 실패한 공시 → 마지막 실패 시각. 다음 실행에서 맨 뒤로 미룬다(V34) */
+	public Map<String, Instant> summaryFailures() {
+		Map<String, Instant> out = new HashMap<>();
+		jdbc.query("SELECT receipt_no, failed_at FROM dart_summary_failures", rs -> {
+			out.put(rs.getString(1), rs.getTimestamp(2).toInstant());
+		});
+		return out;
+	}
+
+	@Transactional
+	public void recordSummaryFailure(String receiptNo, String error) {
+		Timestamp now = Timestamp.from(clock.instant());
+		int n = jdbc.update("UPDATE dart_summary_failures SET attempts = attempts + 1, error = ?, failed_at = ? WHERE receipt_no = ?", cut(error, 300), now,
+				receiptNo);
+		if (n == 0) {
+			jdbc.update("INSERT INTO dart_summary_failures (receipt_no, attempts, error, failed_at) VALUES (?, 1, ?, ?)", receiptNo, cut(error, 300), now);
+		}
 	}
 
 	/** 접수번호 → 문제에 실을 요약(요약이 있고 숨기지 않은 것만, 작성 규칙 버전은 따지지 않는다). 출제할 때 뽑은 공시만 묻는다 */

@@ -82,6 +82,8 @@
 .gp-fixed b{display:block;font-size:18px;color:var(--color-text-primary)}
 
 .gp-ai{margin-top:calc(var(--density-gap)*7/12);background:var(--color-notice-bg);border-color:var(--color-notice-line)}
+.gp-ai-title{display:inline-flex;align-items:center;gap:calc(var(--density-gap)/3)}
+.gp-ai-icon{width:20px;height:20px;flex:none}
 .gp-ai p{margin:calc(var(--density-gap)/2) 0 calc(var(--density-gap)/3);color:var(--color-text-secondary);font-size:15px;white-space:pre-line}
 .gp-ai ul{margin:0;padding-left:calc(var(--density-gap)*3/4);color:var(--color-text-secondary);font-size:14px}
 

@@ -13,11 +13,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * - gemini: 소식 카드 요약(Gemini API). apiKey가 비어 있으면 요약하지 않는다(게시는 그대로)
  * - eventOverview: 사건 AI 개요. source: gemini | fake | none. 전용 키·모델이 비어 있으면 gemini 설정을 같이 쓴다
  * - virtualSim: 가상 시뮬레이션 회사·사건 글 생성과 전체 공시 수집. source: gemini | fake | none
+ * - placementSummary: 배치고사 공시 AI 요약. source: gemini | none
  */
 @ConfigurationProperties("app.ingest")
 public record IngestProperties(String priceSource, String instrumentSource, String instrumentFallback, Integer backfillYears,
 		Integer recheckDays, Boolean runOnStart, Kiwoom kiwoom, Krx krx, String disclosureSource, Dart dart, Youth youth, Gemini gemini,
-		EventOverview eventOverview, VirtualSim virtualSim) {
+		EventOverview eventOverview, VirtualSim virtualSim, PlacementSummary placementSummary) {
 
 	public IngestProperties {
 		priceSource = priceSource == null ? "kiwoom" : priceSource;
@@ -34,6 +35,7 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 		gemini = gemini == null ? new Gemini(null, null, null, null, null, null) : gemini;
 		eventOverview = eventOverview == null ? new EventOverview(null, null, null, null, null, null) : eventOverview;
 		virtualSim = virtualSim == null ? new VirtualSim(null, null, null, null, null, null, null) : virtualSim;
+		placementSummary = placementSummary == null ? new PlacementSummary(null, null, null, null, null, null) : placementSummary;
 	}
 
 	public record Kiwoom(String baseUrl, String appKey, String secretKey, Duration pageDelay) {
@@ -136,10 +138,38 @@ public record IngestProperties(String priceSource, String instrumentSource, Stri
 			atLeastOne("VIRTUAL_SIM_DART_MAX_CALLS", dartMaxCalls);
 		}
 
-		private static void atLeastOne(String name, int value) {
+		static void atLeastOne(String name, int value) {
 			if (value < 1) {
 				throw new IllegalArgumentException(name + "는 1 이상이어야 해요: " + value);
 			}
+		}
+
+		/** 전용 키, 없으면 공용 Gemini 키 */
+		public String apiKeyOr(Gemini shared) {
+			return apiKey == null || apiKey.isBlank() ? shared.apiKey() : apiKey;
+		}
+
+		/** 전용 모델, 없으면 공용 Gemini 모델 */
+		public String modelOr(Gemini shared) {
+			return model == null || model.isBlank() ? shared.model() : model;
+		}
+	}
+
+	/**
+	 * 배치고사 공시 AI 요약(decisions/2026-11-09-placement-ai-summary).
+	 * source: gemini(키가 없으면 꺼짐) | none(만들지 않음). apiKey·model: 전용 Gemini 키·모델. 비어 있으면 gemini 설정(공용 키·모델)을 쓴다. 호출 간격은 gemini.callDelay를 같이 쓴다.
+	 * 한 번 호출에 공시 batchSize건을 묶고 한 번 실행에 maxCalls번까지 부른다. 공시마다 OpenDART 공시서류원본파일을 한 번 받으므로 한 번 실행의 OpenDART 호출은 batchSize × maxCalls 이하다.
+	 * dailyCap: 하루(KST) Gemini 호출 상한(gemini_daily_usage, purpose placement-summary).
+	 */
+	public record PlacementSummary(String source, String apiKey, String model, Integer batchSize, Integer maxCalls, Integer dailyCap) {
+		public PlacementSummary {
+			source = source == null || source.isBlank() ? "gemini" : source;
+			batchSize = batchSize == null ? 5 : batchSize;
+			maxCalls = maxCalls == null ? 40 : maxCalls;
+			dailyCap = dailyCap == null ? 40 : dailyCap;
+			VirtualSim.atLeastOne("PLACEMENT_SUMMARY_BATCH_SIZE", batchSize);
+			VirtualSim.atLeastOne("PLACEMENT_SUMMARY_MAX_CALLS", maxCalls);
+			VirtualSim.atLeastOne("PLACEMENT_SUMMARY_DAILY_CAP", dailyCap);
 		}
 
 		/** 전용 키, 없으면 공용 Gemini 키 */

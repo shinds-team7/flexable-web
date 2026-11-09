@@ -167,6 +167,11 @@ public final class PlacementDetails {
 		return tenths == null ? null : tenths / 10 + "." + tenths % 10 + "%";
 	}
 
+	/** 규모 구간 이름 전부(작은 구간부터). 배치고사 공시 AI 요약이 금액을 쓸 수 있는 유일한 꼴이다(PlacementSummaries) */
+	public static List<String> bucketNames() {
+		return List.of(BUCKET_NAME);
+	}
+
 	/** 금액(원) → 규모 구간 이름. 없거나 0 이하면 null */
 	public static String bucket(Long won) {
 		if (won == null || won <= 0) {

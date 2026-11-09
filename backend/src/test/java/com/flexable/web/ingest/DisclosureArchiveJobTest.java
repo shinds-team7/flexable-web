@@ -90,7 +90,7 @@ class DisclosureArchiveJobTest {
 		var v = props.virtualSim();
 		return new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(), props.backfillYears(), props.recheckDays(),
 				false, props.kiwoom(), props.krx(), source, props.dart(), props.youth(), props.gemini(), props.eventOverview(),
-				new IngestProperties.VirtualSim(v.source(), null, null, v.batchSize(), v.maxCalls(), v.dailyCap(), cap));
+				new IngestProperties.VirtualSim(v.source(), null, null, v.batchSize(), v.maxCalls(), v.dailyCap(), cap), props.placementSummary());
 	}
 
 	@Test

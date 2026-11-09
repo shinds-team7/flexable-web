@@ -85,7 +85,7 @@ class DisclosureDetailJobTest {
 
 	private IngestProperties props(String source) {
 		return new IngestProperties(props.priceSource(), props.instrumentSource(), props.instrumentFallback(), props.backfillYears(), props.recheckDays(),
-				false, props.kiwoom(), props.krx(), source, props.dart(), props.youth(), props.gemini(), props.eventOverview(), props.virtualSim());
+				false, props.kiwoom(), props.krx(), source, props.dart(), props.youth(), props.gemini(), props.eventOverview(), props.virtualSim(), props.placementSummary());
 	}
 
 	/** 테스트끼리 같은 메모리 DB를 쓰므로 순서와 상관없게 비운다 */

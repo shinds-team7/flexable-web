@@ -105,7 +105,7 @@ class PracticeSyncJobTest {
 		when(events.eventsBetween(eq(List.of("000001")), any(), any())).thenReturn(events("000001", history, 50, 77, 104, 260));
 		// 나: 150·210·265번째 봉으로 넓게 퍼져 120거래일에는 3개가 안 됨 → 136번째 봉부터 135거래일
 		when(events.eventsBetween(eq(List.of("000002")), any(), any())).thenReturn(events("000002", history, 150, 210, 265));
-		var props = new IngestProperties("kiwoom", null, null, null, null, null, null, null, null, null, null, null, null, null);
+		var props = new IngestProperties("kiwoom", null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		var clock = Clock.fixed(TODAY.atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant(), ZoneId.of("Asia/Seoul"));
 
 		new PracticeSyncJob(market, events, store, prices, props, clock, industries).runOnce();
@@ -141,7 +141,7 @@ class PracticeSyncJobTest {
 		EventService events = mock(EventService.class);
 		// 출제할 수 있는 공시가 2개뿐이다(5·197번째는 시작 14거래일·사건 뒤 5거래일을 채우지 못한다)
 		when(events.eventsBetween(eq(List.of("000009")), any(), any())).thenReturn(events("000009", history, 5, 40, 120, 197));
-		var props = new IngestProperties("kiwoom", null, null, null, null, null, null, null, null, null, null, null, null, null);
+		var props = new IngestProperties("kiwoom", null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 		var clock = Clock.fixed(TODAY.atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant(), ZoneId.of("Asia/Seoul"));
 
 		new PracticeSyncJob(market, events, store, prices, props, clock, industries).runOnce();

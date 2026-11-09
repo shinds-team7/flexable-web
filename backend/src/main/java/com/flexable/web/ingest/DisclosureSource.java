@@ -43,6 +43,14 @@ public interface DisclosureSource {
 		throw new IllegalStateException("주요사항보고서 주요정보를 받을 수 없는 공시 소스예요");
 	}
 
+	/**
+	 * 공시서류원본파일(OpenDART document.xml) 한 번 호출 → 본문 글. 표지(대표이사 이름·주소·전화번호)·요약 정보는 빼고, 표는 칸을 " | "로 줄마다 잇는다.
+	 * 배치고사 공시 AI 요약(PlacementSummaryJob)이 부르고, 원문·본문 글은 저장하지 않는다. 원문 파일이 없으면 null. 받을 수 없는 소스면 예외
+	 */
+	default String documentText(String receiptNo) {
+		throw new IllegalStateException("공시서류원본파일을 받을 수 없는 공시 소스예요");
+	}
+
 	/** 실제 상장사 이름(종목코드가 있는 회사). 가상 회사 글 검사(REAL_COMPANY)에 쓴다. 받을 수 없으면 예외 */
 	default Set<String> listedNames() {
 		throw new IllegalStateException("상장사 이름 목록을 받을 수 없는 공시 소스예요");

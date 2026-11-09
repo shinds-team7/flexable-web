@@ -177,4 +177,80 @@ class DartDisclosureSourceTest {
 		}
 		server.verify();
 	}
+
+	/** DART 공시서류 XML 꼴(표지·요약 정보·표)의 예시. 회사·사람 이름은 가상 값이다 */
+	static final String DOCUMENT = """
+			<?xml version="1.0" encoding="utf-8"?>
+			<DOCUMENT>
+			<DOCUMENT-NAME ACODE="11302">주요사항보고서(자기주식취득결정)</DOCUMENT-NAME>
+			<FORMULA-VERSION ADATE="20140101">5.4</FORMULA-VERSION>
+			<COMPANY-NAME AREGCIK="00000001">한빛전자</COMPANY-NAME>
+			<SUMMARY><EXTRACTION ACODE="CORP_NAME">한빛전자</EXTRACTION></SUMMARY>
+			<BODY>
+			<COVER><COVER-TITLE>주요사항보고서</COVER-TITLE><TABLE><TBODY><TR><TD>대표이사</TD><TD>홍길동</TD></TR><TR><TD>본점 소재지</TD><TD>서울시 중구</TD></TR></TBODY></TABLE></COVER>
+			<SECTION-1><TITLE>자기주식 취득 결정</TITLE>
+			<TABLE><TBODY>
+			<TR><TD>1. 취득예정주식(주)</TD><TE>보통주식</TE><TE>1,000,000</TE></TR>
+			<TR><TD>2. 취득예정금액(원)</TD><TE>보통주식</TE><TE>5,000,000,000</TE></TR>
+			<TR><TD>3. 취득목적</TD><TE COLSPAN="2">주주가치 제고 &amp; 주가안정</TE></TR>
+			<TR><TD>4. 위탁투자중개업자</TD><TE COLSPAN="2">가람증권(주)</TE></TR>
+			</TBODY></TABLE>
+			<P>취득 후 발행주식총수 대비 비중은 2.34%입니다.<IMAGE><IMG>a.jpg</IMG></IMAGE></P>
+			</SECTION-1>
+			</BODY>
+			</DOCUMENT>
+			""";
+
+	private static byte[] zip(String... nameAndXml) throws IOException {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+			for (int i = 0; i < nameAndXml.length; i += 2) {
+				zip.putNextEntry(new ZipEntry(nameAndXml[i]));
+				zip.write(nameAndXml[i + 1].getBytes(StandardCharsets.UTF_8));
+				zip.closeEntry();
+			}
+		}
+		return bytes.toByteArray();
+	}
+
+	@Test
+	void 공시서류원본파일에서_표지를_빼고_본문_글만_뽑는다() throws IOException {
+		String no = "20250408000123";
+		server.expect(requestTo("https://dart.test/api/document.xml?crtfc_key=" + KEY + "&rcept_no=" + no))
+			.andRespond(withSuccess(zip(no + "_00760.xml", "<DOCUMENT><BODY><P>첨부 서류</P></BODY></DOCUMENT>", no + ".xml", DOCUMENT),
+					MediaType.APPLICATION_OCTET_STREAM));
+
+		String text = dart.documentText(no);
+		server.verify();
+		// 본문 파일(접수번호.xml)을 읽고, 표는 칸을 " | "로 잇는다
+		assertThat(text).isEqualTo("""
+				자기주식 취득 결정
+				1. 취득예정주식(주) | 보통주식 | 1,000,000
+				2. 취득예정금액(원) | 보통주식 | 5,000,000,000
+				3. 취득목적 | 주주가치 제고 & 주가안정
+				4. 위탁투자중개업자 | 가람증권(주)
+				취득 후 발행주식총수 대비 비중은 2.34%입니다.""");
+		// 표지(대표이사 이름·주소)·회사 이름·요약 정보·그림은 보내지 않는다
+		assertThat(text).doesNotContain("홍길동").doesNotContain("서울시").doesNotContain("한빛전자").doesNotContain("a.jpg").doesNotContain("첨부");
+	}
+
+	@Test
+	void 원문_파일이_없으면_null이고_키_문제는_실행을_멈춘다() {
+		server.expect(requestTo("https://dart.test/api/document.xml?crtfc_key=" + KEY + "&rcept_no=20250408000001")).andRespond(withSuccess(
+				"<result><status>014</status><message>파일이 존재하지 않습니다.</message></result>", MediaType.APPLICATION_XML));
+		server.expect(requestTo("https://dart.test/api/document.xml?crtfc_key=" + KEY + "&rcept_no=20250408000002")).andRespond(withSuccess(
+				"<result><status>020</status><message>요청 제한을 초과하였습니다.</message></result>", MediaType.APPLICATION_XML));
+		assertThat(dart.documentText("20250408000001")).isNull();
+		assertThatThrownBy(() -> dart.documentText("20250408000002"))
+			.isInstanceOfSatisfying(DartDisclosureSource.DartException.class, e -> assertThat(e.stopsRun()).isTrue());
+		assertThatThrownBy(() -> dart.documentText("../etc")).isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void 선언한_인코딩으로_읽는다() {
+		byte[] euc = "<?xml version=\"1.0\" encoding=\"euc-kr\"?><P>공시</P>".getBytes(java.nio.charset.Charset.forName("MS949"));
+		assertThat(DartDisclosureSource.bodyText(DartDisclosureSource.decode(euc))).isEqualTo("공시");
+		// 닫는 태그가 없는 표지는 끝까지 지운다
+		assertThat(DartDisclosureSource.bodyText("<P>앞</P><COVER><P>대표이사 홍길동</P>")).isEqualTo("앞");
+	}
 }

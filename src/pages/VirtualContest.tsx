@@ -272,7 +272,7 @@ function useRemaining(until: string | null) {
 
 type PlacementQuestion = ContestPlacement['questions'][number];
 
-/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 줄글(업종·제목·주요 내용, 회사·날짜·방향 없음). 결과 화면은 회사·날짜·움직임까지 붙인 줄글(disclosureStory)로 보인다 */
+/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 줄글(업종·제목·AI 요약 또는 주요 내용, 회사·날짜·방향 없음). 결과 화면은 회사·날짜·움직임까지 붙인 줄글(disclosureStory)로 보인다 */
 function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
   const t = cleanTitle(q.title);
   return <>
@@ -283,7 +283,7 @@ function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuesti
     {q.body && <p className="contest-q-body">{q.body}</p>}
     <div className="contest-q-details">
       <p className="contest-q-details-title">공시 내용{sample && <span className="tag-ex">예시</span>}</p>
-      <div className="contest-q-story">{questionStory(q, t.main).map((p, k) => <p key={k}>{p}</p>)}</div>
+      <div className="contest-q-story">{questionStory(q, t.main, sample).map((p, k) => <p key={k}>{p}</p>)}</div>
     </div>
   </>;
 }
@@ -378,8 +378,8 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
         {q && (() => { const t = cleanTitle(q.title); return <div className="contest-graded-question">
           <p className="contest-q-meta">{q.industry} 회사<span className="contest-chip">{q.categoryName}</span>{sample && <span className="tag-ex">예시</span>}</p>
           <h3 className="contest-q-title">{t.main}</h3>
-          {/* 공시 줄글: 서버 값(회사·날짜·주요 내용·5거래일 등락·유형 통계)을 문장으로 잇기만 한다 */}
-          <div className="contest-q-story">{disclosureStory(q, it, t.main, t.subsidiary).map((p, k) => <p key={k}>{p}</p>)}</div>
+          {/* 공시 줄글: 서버 값(회사·날짜·AI 요약 또는 주요 내용·5거래일 등락·유형 통계)을 문장으로 잇기만 한다 */}
+          <div className="contest-q-story">{disclosureStory(q, it, t.main, t.subsidiary, sample).map((p, k) => <p key={k}>{p}</p>)}</div>
           <p className="contest-q-guide"><b>이런 공시예요</b> {CATEGORY_GUIDE[q.category]}</p>
         </div>; })()}
       </li>; })}

@@ -153,4 +153,19 @@ public final class VirtualSimSample {
 		};
 		return items.isEmpty() ? null : items;
 	}
+
+	/**
+	 * 예시 자료의 배치고사 공시 AI 요약(유형별 고정 예시 글, isSample). 실제 공시처럼 공시 주요 내용이 없는 유형에만 두고, 있는 유형은 null.
+	 * 실제 요약과 같은 검사(PlacementSummaries.check)를 통과하는 글이다(VirtualContestPolicyTest)
+	 */
+	public static String summary(VirtualSimCategory category) {
+		return switch (category) {
+			case EARNINGS -> "이 회사가 지난 분기 잠정 실적을 알렸어요. 매출액은 전년 같은 분기보다 12.4% 늘었고 영업이익은 3.1% 줄었어요. 감사를 받기 전 숫자라 나중에 바뀔 수 있어요.";
+			case SUPPLY_CONTRACT -> "이 회사가 국내 회사와 설비 공급 계약을 맺었다고 알렸어요. 계약 금액은 100억~500억 원 규모로 최근 매출액의 8.5%에 해당해요. 계약 기간 동안 나눠서 납품해요.";
+			case DIVIDEND -> "이 회사가 보통주 한 주마다 현금을 나눠 주는 결산 배당을 결정했어요. 배당금 총액은 100억~500억 원 규모이고 시가배당률은 2.1%예요.";
+			case LEGAL -> "이 회사를 상대로 한 손해배상 청구 소송이 제기됐다고 알렸어요. 청구 금액은 10억~50억 원 규모로 자기자본의 1.2%에 해당해요. 회사는 소송 대리인을 정해 대응하겠다고 밝혔어요.";
+			case OWNERSHIP -> "이 회사의 최대주주가 바뀌었다고 알렸어요. 기존 최대주주가 가진 주식을 한 회사가 사들여 새 최대주주가 됐고, 새 최대주주의 지분은 32.5%예요.";
+			default -> null;
+		};
+	}
 }

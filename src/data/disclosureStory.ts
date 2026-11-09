@@ -1,7 +1,7 @@
 import type { components } from '@/lib/api-schema';
 
 // 배치고사 문제·결과 화면의 공시 줄글(Issue #308). 서버가 준 값(공시 주요 내용의 비율·규모 구간·정해 둔 이름, 결과의 회사·날짜·5거래일 등락·유형 통계)을
-// 문장으로 잇기만 하고 새로 계산하지 않는다(ADR-3). 공시 원문은 서버에 없다(2-6).
+// 문장으로 잇기만 하고 새로 계산하지 않는다(ADR-3). 공시 원문은 서버에 없다(2-6). 서버가 공시 AI 요약(summary, #349)을 주면 주요 내용 줄글 대신 그 글을 쓴다.
 // 문제 화면(questionStory)은 회사·날짜·방향·과거 경향을 말하지 않는다(2-2). 그 문장은 "문제 화면에도 쓰는 문구" 구간에 두고
 // backend PlacementGuideTextTest가 금지 표현을 검사한다. 회사·날짜·5거래일 움직임·유형 통계는 결과 화면(disclosureStory)에서만 붙인다.
 type Question = components['schemas']['VirtualContestPlacement']['questions'][number];
@@ -53,7 +53,14 @@ const SENTENCE: Record<string, (v: string, q: Question) => string> = {
 };
 const MASKED = '회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 기존 대비 %로만 보여 줘요.';
 const NO_DETAILS_QUESTION = '이 유형은 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
+const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜·금액은 뺐어요.';
+const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
+
+/** 공시 AI 요약 → 줄글(요약 + 출처 안내). 요약이 없으면 null */
+function summaryStory(q: Question, sample: boolean): string | null {
+  return q.summary ? `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}` : null;
+}
 
 /** 공시 주요 내용 → 줄글. 항목이 없으면 null */
 function detailsStory(q: Question): string | null {
@@ -62,9 +69,12 @@ function detailsStory(q: Question): string | null {
   return details.map(d => (SENTENCE[d.label] ?? (v => `${d.label}${josa(d.label, '은', '는')} ${is(v)}.`))(d.value, q)).join(' ') + ' ' + MASKED;
 }
 
-/** 문제 화면의 공시 줄글: 업종·제목과 공시 주요 내용만(회사·날짜·방향·과거 경향 없음). 예시 글(body)은 카드에 따로 보이므로 주요 내용이 없으면 안내 문장을 뺀다 */
-export function questionStory(q: Question, title: string): string[] {
-  const body = detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
+/**
+ * 문제 화면의 공시 줄글: 업종·제목과 공시 AI 요약(있으면) 또는 공시 주요 내용만(회사·날짜·방향·과거 경향 없음).
+ * 예시 글(body)은 카드에 따로 보이므로 요약·주요 내용이 없으면 안내 문장을 뺀다. sample: 예시 자료면 true
+ */
+export function questionStory(q: Question, title: string, sample = false): string[] {
+  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
   return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
 }
 
@@ -73,15 +83,16 @@ const percent = (r: number) => `${Math.abs(r * 100).toFixed(2)}%`;
 const share = (r: number) => (Math.floor(r * 1000) / 10).toFixed(1);
 
 /**
- * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 주요 내용(있을 때) ③ 그 뒤 5거래일 실제 움직임과 같은 유형 통계.
- * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true
+ * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 AI 요약 또는 공시 주요 내용(있을 때) ③ 그 뒤 5거래일 실제 움직임과 같은 유형 통계.
+ * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true, sample: 예시 자료면 true
  */
-export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean): string[] {
+export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean, sample = false): string[] {
   const when = it.date ? `${it.date.slice(0, 4)}년 ${Number(it.date.slice(5, 7))}월 ${Number(it.date.slice(8, 10))}일` : null;
   const who = `${q.industry} 회사 ${it.company}`;
   const intro = `${who}${josa(it.company, '이', '가')} ${when ? `${when}에 ` : ''}낸 '${title}' 공시예요.`
     + (subsidiary ? ' 이 회사가 직접 내린 결정이 아니라 종속회사(자회사)가 내린 결정을 알린 공시예요.' : '');
-  const body = detailsStory(q)
+  const body = summaryStory(q, sample)
+    ?? detailsStory(q)
     ?? (q.body
       ? q.body
       : '이 유형은 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');

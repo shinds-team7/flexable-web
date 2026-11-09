@@ -86,12 +86,13 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 	}
 
 	/**
-	 * 배치고사 문제 사본(채점하면 주요 내용까지 함께 지운다). 실제 과거 공시 하나와 그 뒤 5거래일 실제 방향(up)·등락(returnRate). company·date는 풀 때 숨기고 결과에서 공개한다.
-	 * details: 공시 주요 내용(없으면 null). trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null)
+	 * 배치고사 문제 사본(채점하면 주요 내용·AI 요약까지 함께 지운다). 실제 과거 공시 하나와 그 뒤 5거래일 실제 방향(up)·등락(returnRate). company·date는 풀 때 숨기고 결과에서 공개한다.
+	 * details: 공시 주요 내용(없으면 null), summary: 공시 AI 요약(없으면 null, 채점하면 주요 내용과 함께 지운다).
+	 * trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null)
 	 */
 	record StoredQuestion(String id, String company, String industry, VirtualSimCategory category, String title, String body,
 			List<PlacementDetails.Detail> details, String date, Boolean up, BigDecimal returnRate, String trend, BigDecimal upShare, BigDecimal downShare,
-			Integer paths) {
+			Integer paths, String summary) {
 	}
 
 	/** 실제 공시 문제 풀(6시간마다 다시 만든다). 예시 자료면 쓰지 않는다 */
@@ -261,6 +262,8 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 			if (drawn.isEmpty()) {
 				throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
 			}
+			// 공시 AI 요약: 실제 공시는 뽑은 공시의 접수번호로 지금 저장된 요약(숨기지 않은 것)을 붙이고, 예시 자료는 유형별 예시 글
+			Map<String, String> summaries = sim.sample() ? Map.of() : sims.summaries(drawn.stream().map(VirtualContestQuestions.Past::key).toList());
 			List<StoredQuestion> questions = new ArrayList<>();
 			for (int k = 0; k < drawn.size(); k++) {
 				VirtualContestQuestions.Past q = drawn.get(k);
@@ -268,7 +271,8 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				questions.add(new StoredQuestion("q" + (k + 1), q.company(), q.industry(), q.category(), q.title(), q.body(), q.details(),
 						q.date() == null ? null : q.date().toString(), q.up(), VirtualContestRules.rate(q.afterClose(), q.baseClose()),
 						st.map(CategoryStats::trend).orElse(null), st.map(CategoryStats::upShare).orElse(null),
-						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null)));
+						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null),
+						sim.sample() ? VirtualSimSample.summary(q.category()) : summaries.get(q.key())));
 			}
 			String id = UUID.randomUUID().toString();
 			Instant started = now();
@@ -300,7 +304,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 
 	private Placement placement(PlacementRow p) {
 		List<Question> qs = questions(p).stream()
-			.map(q -> new Question(q.id(), q.industry(), q.category(), q.category().displayName(), q.title(), q.body(), q.details()))
+			.map(q -> new Question(q.id(), q.industry(), q.category(), q.category().displayName(), q.title(), q.body(), q.details(), q.summary()))
 			.toList();
 		return new Placement(p.id(), format(p.expiresAt()), qs);
 	}

@@ -31,7 +31,7 @@ export function BudgetSettingsScreen() {
   const res = useResource<Saved>("/budget/settings");
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <SubHeader title="예산 설정" fallback="/my" />
+      <SubHeader title="예산 설정" fallback="/profile" />
       {res.loading && !res.data && <Loading />}
       {!res.data && <ErrorNotice error={res.error} retry={res.retry} />}
       {/* 불러온 값으로 한 번만 채운다. 저장 뒤 다시 들어오면 서버 값을 새로 읽는다 */}
@@ -81,7 +81,7 @@ function Form({ initial }: { initial: Saved }) {
       await api("/budget/settings", { method: "PUT", body: v });
       session.invalidate();
       toast("예산 설정을 저장했어요", undefined, "top");
-      goBack("/my");
+      goBack("/profile");
     } catch (e) {
       lock.current = false;
       setBusy(false);

@@ -178,12 +178,12 @@ function Content({ step }: { step: Step }) {
         total={8}
         title={title}
         subtitle={subtitle}
-        backFallback={editing ? "/my" : "/"}
+        backFallback={editing ? "/profile" : "/"}
         onCancel={
           editing
             ? async () => {
                 await state.reset();
-                router.dismissTo("/my");
+                router.dismissTo("/profile");
               }
             : undefined
         }

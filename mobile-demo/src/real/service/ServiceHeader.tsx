@@ -32,11 +32,11 @@ const tabs = [
     match: (p: string) => p === "/analysis",
   },
   {
-    href: "/my" as const,
+    href: "/profile" as const,
     label: "마이",
     icon: "person-outline" as const,
     activeIcon: "person" as const,
-    match: (p: string) => p === "/my",
+    match: (p: string) => p === "/profile",
   },
 ];
 // Tabs live in the bottom icon bar for every home style; the header keeps the logo row and the inbox bell.

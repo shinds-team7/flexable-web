@@ -134,7 +134,7 @@ export function WebLinksScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <SubHeader title="웹사이트 연동" fallback="/my" />
+      <SubHeader title="웹사이트 연동" fallback="/profile" />
       <View style={{ flex: 1 }}>
         <WebLinksContent
           code={code}

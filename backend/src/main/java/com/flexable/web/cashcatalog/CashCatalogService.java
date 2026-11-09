@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.DeserializationFeature;
 
 import com.flexable.web.cashcatalog.CashCatalogDtos.Product;
 import com.flexable.web.cashcatalog.CashCatalogDtos.CmaSimulation;
@@ -27,6 +28,8 @@ import com.flexable.web.common.ErrorCode;
 @Service
 public class CashCatalogService {
     private static final JsonMapper JSON = JsonMapper.builder()
+            // 계산 필드 추가 전 저장본에는 calculable이 없다. 공개할 때 현재 규칙으로 다시 판정한다.
+            .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
             .disable(DateTimeFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE).build();
     private final CashSnapshotRepository snapshots;
 

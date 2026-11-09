@@ -366,26 +366,77 @@ public class DartDisclosureSource implements DisclosureSource {
 	private static final List<String> DROP = List.of("COVER", "COMPANY-NAME", "DOCUMENT-NAME", "FORMULA-VERSION", "SUMMARY", "IMAGE", "IMG", "LIBRARY-INFO");
 
 	/**
-	 * DART 공시서류 XML → 본문 글. DROP 요소를 빼고, 표 칸(TD·TH·TE·TU)은 " | "로, 줄(TR)·문단(P)·제목은 줄바꿈으로 바꾼 뒤 태그를 지운다.
-	 * 엔터티를 풀고 줄마다 공백을 고르며 빈 줄은 버린다
+	 * DART 공시서류 XML → 본문 글. DROP 요소를 빼고 원본 공백을 하나로 고른 뒤, 표 칸(TD·TH·TE·TU)은 " | "로, 줄(TR)·문단(P)·제목은 줄바꿈으로 바꾸고 태그를 지운다
+	 * (표 행 안의 문단은 공백). 엔터티를 풀고 빈 줄은 버린다. 같은 꼴 표 행이 MAX_RUN개 넘게 이어지면 앞뒤 KEEP개만 남긴다
 	 */
 	public static String bodyText(String xml) {
 		String s = xml;
 		for (String tag : DROP) {
 			s = dropElement(s, tag);
 		}
+		// 원본 XML의 줄바꿈·들여쓰기는 뜻이 없다(칸 사이 줄바꿈이 줄로 남으면 행이 흩어진다). 공백을 하나로 고른 뒤 아래 구조 태그로만 줄을 나눈다
+		s = flattenRows(s.replaceAll("\\s+", " "));
 		s = s.replaceAll("(?i)</(TD|TH|TE|TU)\\s*>", " | ");
 		s = s.replaceAll("(?i)</(TR|P|TITLE|TABLE|SECTION-\\d+|PGBRK)\\s*>|(?i)<(BR|PGBRK)\\b[^>]*/?>", "\n");
 		s = s.replaceAll("<[^>]*>", " ");
 		s = unescape(s);
-		StringBuilder out = new StringBuilder();
+		List<String> lines = new ArrayList<>();
 		for (String line : s.split("\n")) {
 			String t = line.replace('\u00a0', ' ').replaceAll("[ \t\r\f]+", " ").replaceAll("(\\s*\\|\\s*)+$", "").replaceAll("^(\\s*\\|\\s*)+", "").strip();
 			if (!t.isEmpty() && !t.matches("[|\\s-]+")) {
-				out.append(t).append('\n');
+				lines.add(t);
 			}
 		}
-		return out.toString().strip();
+		return String.join("\n", shortenRuns(lines));
+	}
+
+	/** 표 행 안의 문단·줄바꿈(<P>·<BR>)은 공백으로 바꾼다. 칸 안 문단 때문에 한 행이 여러 줄로 흩어져 칸 이름과 값의 짝이 깨지지 않게 한다 */
+	private static final java.util.regex.Pattern ROW_OPEN = java.util.regex.Pattern.compile("(?i)<TR\\b");
+	private static final java.util.regex.Pattern ROW_CLOSE = java.util.regex.Pattern.compile("(?i)</TR\\s*>");
+
+	static String flattenRows(String s) {
+		StringBuilder out = new StringBuilder();
+		java.util.regex.Matcher open = ROW_OPEN.matcher(s), close = ROW_CLOSE.matcher(s);
+		int from = 0;
+		while (open.find(from)) {
+			if (!close.find(open.end())) {
+				break;
+			}
+			out.append(s, from, open.start());
+			out.append(s.substring(open.start(), close.end()).replaceAll("(?i)</?P\\b[^>]*>|<BR\\b[^>]*/?>", " "));
+			from = close.end();
+		}
+		return out.append(s.substring(from)).toString();
+	}
+
+	/** 같은 꼴(칸 수가 같은) 표 행이 이만큼 넘게 이어지면 앞뒤만 남긴다(일자별 매매 표가 보낼 글 상한을 다 쓰지 않게, 합계 행은 보통 맨 뒤라 남는다) */
+	static final int MAX_RUN = 12;
+	static final int KEEP = 3;
+
+	static List<String> shortenRuns(List<String> lines) {
+		List<String> out = new ArrayList<>();
+		int i = 0;
+		while (i < lines.size()) {
+			int cells = cells(lines.get(i));
+			int j = i + 1;
+			while (cells >= 3 && j < lines.size() && cells(lines.get(j)) == cells) {
+				j++;
+			}
+			if (cells >= 3 && j - i > MAX_RUN) {
+				out.addAll(lines.subList(i, i + KEEP));
+				out.add("(같은 꼴의 행 " + (j - i - 2 * KEEP) + "개 생략)");
+				out.addAll(lines.subList(j - KEEP, j));
+			}
+			else {
+				out.addAll(lines.subList(i, j));
+			}
+			i = j;
+		}
+		return out;
+	}
+
+	private static int cells(String line) {
+		return line.split(" \\| ", -1).length;
 	}
 
 	/** <TAG …>…</TAG>를 모두 지운다(대문자 태그, 정규식 되추적 없이). 닫는 태그가 없으면 여는 태그부터 끝까지 지운다. 스스로 닫는 태그(<TAG/>)는 태그만 지운다 */

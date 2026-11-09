@@ -253,4 +253,23 @@ class DartDisclosureSourceTest {
 		// 닫는 태그가 없는 표지는 끝까지 지운다
 		assertThat(DartDisclosureSource.bodyText("<P>앞</P><COVER><P>대표이사 홍길동</P>")).isEqualTo("앞");
 	}
+
+	@Test
+	void 칸마다_줄이_나뉜_표도_한_행을_한_줄로_읽고_긴_표는_앞뒤만_남긴다() {
+		StringBuilder rows = new StringBuilder();
+		for (int i = 1; i <= 20; i++) {
+			rows.append("<TR>\n<TU>2026.09.").append(i).append("</TU>\n<TE>60,000</TE>\n<TE>178,651</TE>\n</TR>\n");
+		}
+		String xml = "<TABLE><TR>\n<TH>일 자</TH>\n<TH>수 량</TH>\n<TH>단가</TH>\n</TR>\n" + rows
+				+ "<TR><TU>계</TU><TE><P>1,200,000</P></TE><TE>-</TE></TR></TABLE>\n<TABLE><TR>\n<TD>비율</TD>\n<TE>3.47</TE>\n</TR></TABLE>";
+		assertThat(DartDisclosureSource.bodyText(xml)).isEqualTo("""
+				일 자 | 수 량 | 단가
+				2026.09.1 | 60,000 | 178,651
+				2026.09.2 | 60,000 | 178,651
+				(같은 꼴의 행 16개 생략)
+				2026.09.19 | 60,000 | 178,651
+				2026.09.20 | 60,000 | 178,651
+				계 | 1,200,000 | -
+				비율 | 3.47""");
+	}
 }

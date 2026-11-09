@@ -66,8 +66,8 @@ public final class PlacementSummaries {
 	 * "최대주주가"처럼 주주 뒤에 조사 "가"가 붙은 꼴, "결정을 내렸다"
 	 */
 	static final List<String> ALLOWED_PHRASES = List.of("보통주", "주주가치", "주가 안정", "주가안정", "주주가", "결정을 내", "결정을 내린", "내린 결정");
-	/** 내용 없는 요약의 말(수치 없이 "공개됐다"만 하는 글) */
-	static final List<String> VAGUE_PHRASES = List.of("공개되었", "공개됐", "안내되었", "안내됐", "수치가 담", "내역이 담", "수치를 밝혔", "내용을 밝혔");
+	/** 내용 없는 요약의 말(수치 없이 "공개됐다"만 하는 글, 값을 비워 둔 "몇 %") */
+	static final List<String> VAGUE_PHRASES = List.of("공개되었", "공개됐", "안내되었", "안내됐", "수치가 담", "내역이 담", "수치를 밝혔", "내용을 밝혔", "몇 %", "몇%");
 	/** 허용하는 기간 길이(18개월, 2년간, 3년 동안, 90일간). 연도(4자리)·날짜는 아니다 */
 	private static final Pattern DURATION = Pattern.compile("(?<![\\d.,])\\d{1,3}\\s*(개월|년간|년 동안|일간|일 동안)");
 	/** 본문에 비율·금액 수치가 있는지(그러면 요약에 % 값이나 규모 구간이 하나는 있어야 한다) */

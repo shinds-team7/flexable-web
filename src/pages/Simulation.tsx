@@ -202,7 +202,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
           <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
           <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
         </section>}
-        <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 재생해요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol></div>
+        <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>종목마다 공시 문제를 3개 이상 만나는 120거래일 이상 구간을 재생해요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>이후 5거래일의 움직임을 확인해요.</li></ol><Link className="practice-guide-link" to="/simulation/guide">공시가 처음이면: 공시 읽는 법 ›</Link></div>
       </aside>
       <main className="practice-market">
         <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.instrument.categoryName : '나의 투자 연습'}</span><h2>{snapshot?.instrument.name ?? '다음 장면은 아직 몰라요'}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '연습 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
@@ -273,7 +273,11 @@ export default function Simulation() {
     e.preventDefault(); select(MODES[to].id);
   };
   return <div className="page practice-page">
-    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{inContest ? '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' : MODES.find(m => m.id === mode)!.lead}</p></div><Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link></header>
+    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{inContest ? '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' : MODES.find(m => m.id === mode)!.lead}</p></div><div className="practice-heading-links">
+      {/* 대회 화면(배치고사·대회 판 포함)에서는 두지 않는다. 대회는 배치고사 시작 전 안내에만 링크가 있다(Issue #367) */}
+      {!inContest && <Link className="btn btn-soft btn-sm practice-guide-btn" to="/simulation/guide"><span aria-hidden="true">?</span>공시 읽는 법</Link>}
+      <Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link>
+    </div></header>
     {!inContest && <div className="practice-modes-bar"><div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
       {MODES.map((m, i) => <button key={m.id} ref={el => { tabs.current[m.id] = el; }} type="button" role="tab" id={`practice-tab-${m.id}`} aria-controls={`practice-panel-${m.id}`}
         aria-selected={mode === m.id} tabIndex={mode === m.id ? 0 : -1} onClick={() => go(m.id)} onKeyDown={e => onKey(e, i)}>

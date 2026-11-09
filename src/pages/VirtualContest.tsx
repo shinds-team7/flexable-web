@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { useLoginModal } from '@/components/LoginModal';
 import {
@@ -77,6 +77,8 @@ function JoinCard({ info, title, text, action }: { info: ContestInfo; title: str
       <ul className="contest-join-facts" aria-label="배치고사 요약"><li>{r.placementQuestions}문제</li><li>30분</li><li>시즌마다 1번</li></ul>
       <h2 id="contestJoinTitle">{title}</h2>
       <p className="practice-muted">{text}</p>
+      {/* 시작 전 안내에만 둔다. 배치고사·대회 판을 하는 동안에는 가이드를 볼 수 없다(Issue #367) */}
+      <p className="contest-join-guide"><Link to="/simulation/guide">공시가 처음이면 「공시 읽는 법」을 먼저 읽어 보세요 ›</Link></p>
       {action}
     </div>
     <PlacementBoards info={info} />

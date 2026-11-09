@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CandleChart, type EventBand } from '@/charts/CandleChart';
 import { Icon } from '@/components/Icons';
 import { PlaybackSpeed, segmentMs, segmentSeconds, type Speed } from '@/components/PlaybackSpeed';
@@ -330,7 +331,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
         </section>}
         {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 1%p 이상 높으면(매매 성과) 10판을 모두 했을 때 하루 점수 +{contest.dayPoints}점, 덜 했으면 0점이에요. 못 미치면 −{contest.dayPoints}점이에요.</li></ol></div>
-          : <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>가상 종목의 120~250거래일 구간을 재생하고, 가상 사건을 3번 이상 만나요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>채점은 없어요. 사건마다 이후 5거래일 가상 등락과 그 유형 공시의 과거 통계를 보여 줘요.</li></ol></div>}
+          : <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>가상 종목의 120~250거래일 구간을 재생하고, 가상 사건을 3번 이상 만나요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>채점은 없어요. 사건마다 이후 5거래일 가상 등락과 그 유형 공시의 과거 통계를 보여 줘요.</li></ol><Link className="practice-guide-link" to="/simulation/guide">공시가 처음이면: 공시 읽는 법 ›</Link></div>}
       </aside>
       <main className="practice-market">
         <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.company.industry : '가상 시뮬레이션'}</span><h2>{snapshot?.company.name ?? '다음 장면은 아직 몰라요'}{snapshot && <> <Written sample={sample} /></>}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '시뮬레이션 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>

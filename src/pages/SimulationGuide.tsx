@@ -185,7 +185,7 @@ function GuideBody() {
       </ul>
 
       <h2>유형별로 확인할 것</h2>
-      <p>배치고사와 시뮬레이션의 사건은 아래 12개 유형으로 나눠요. 유형마다 공시가 무엇인지와 판단 재료가 되는 항목을 적었어요.</p>
+      <p>유형마다 공시가 무엇인지와 판단 재료가 되는 항목을 적었어요.</p>
       <div className="sim-guide-types">
         {TYPE_CHECKS.map((t) => (
           <section key={t.category} className="sim-guide-type" aria-labelledby={`sim-guide-${t.category}`}>

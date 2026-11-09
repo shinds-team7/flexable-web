@@ -61,6 +61,8 @@
       { "title": "주권매매거래정지", "expected": null },
       { "title": "증권발행실적보고서", "expected": null, "note": "증권(주로 파생결합증권) 발행 결과 서류라 실적 발표가 아니다(vsim-types-v3)" },
       { "title": "[기재정정]증권발행실적보고서", "expected": null },
+      { "title": "증권발행\u00a0실적보고서", "expected": null, "note": "줄바꿈 없는 공백(U+00A0)도 지우고 본다" },
+      { "title": "연결재무제표기준영업(잠정)\u00a0실적(공정공시)", "expected": "EARNINGS" },
       { "title": "결산실적공시예고(안내공시)", "expected": null, "note": "실적 발표 일정 안내라 분류하지 않는다(vsim-types-v3)" },
       { "title": "연결재무제표기준영업실적등에대한전망(공정공시)", "expected": "EARNINGS" }
     ],

@@ -42,7 +42,7 @@ public final class PlacementDetails {
 		if (category == null) {
 			return null;
 		}
-		String t = title.replaceAll("[\\s·ㆍ・/]", "");
+		String t = title.replaceAll("[\\s\\u00a0·ㆍ・/]", "");
 		// 종속회사·자회사의 주요경영사항은 그 회사가 낸 거래소 공시라 모회사 고유번호의 DS005에 없다
 		if (subsidiary(t)) {
 			return null;
@@ -67,7 +67,7 @@ public final class PlacementDetails {
 
 	/** 정정 공시를 같은 공시로 묶는 열쇠: 앞의 [기재정정] 같은 표시와 공백·가운뎃점을 지운 제목 */
 	public static String sameFilingKey(String title) {
-		return title == null ? null : title.replaceAll("^(\\[[^\\]]*\\]\\s*)+", "").replaceAll("[\\s·ㆍ・/]", "");
+		return title == null ? null : title.replaceAll("^(\\[[^\\]]*\\]\\s*)+", "").replaceAll("[\\s\\u00a0·ㆍ・/]", "");
 	}
 
 	/** DS005 한 행(칸 이름 → 값 글자) → 화면용 항목. 값이 빠진 항목은 내지 않는다 */

@@ -60,14 +60,14 @@ public enum VirtualSimCategory {
 	}
 
 	/**
-	 * 공시 제목 → 유형. 공백·가운뎃점(·ㆍ・/)을 지우고 선언 순서대로 처음 맞는 낱말의 유형이다.
-	 * 해지·철회·취소가 있으면, 또는 시설·지분 투자에 처분이 있으면 분류하지 않는다(null).
+	 * 공시 제목 → 유형. 공백(줄바꿈 없는 공백 U+00A0 포함)·가운뎃점(·ㆍ・/)을 지우고 선언 순서대로 처음 맞는 낱말의 유형이다.
+	 * 해지·철회·취소가 있으면, 유형 공시가 아닌 제목(NOT_EVENTS)이면, 또는 시설·지분 투자에 처분이 있으면 분류하지 않는다(null).
 	 */
 	public static VirtualSimCategory classify(String title) {
 		if (title == null) {
 			return null;
 		}
-		String t = title.replaceAll("[\\s·ㆍ・/]", "");
+		String t = title.replaceAll("[\\s\\u00a0·ㆍ・/]", "");
 		if (REVERSED.stream().anyMatch(t::contains) || NOT_EVENTS.stream().anyMatch(t::contains)) {
 			return null;
 		}

@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-11-09
+
+- [Closes #307] 목표 시나리오 저장을 플랜 전체로 바꿨다(policies §7-8, 계약 `SavedGoalScenario.alternatives` 추가, [결정](decisions/2026-10-29-goal-scenarios.md) "11-06 저장 범위"): 고른 플랜은 `scenario`로 먼저 보여 주고 나머지는 선택 칸에서 본다. 5개 한도는 저장 건 기준, 기존 저장본은 빈 배열, DB 스키마 변화 없음. 개인정보처리방침 제2조·`privacy-web.md` 수정 — 영향: 프론트(`npm run gen:api`)·백엔드
+
 ## 2026-11-08
 
 - [#348, Closes #308] 가상 시뮬레이션 대회 점수를 100점 단위로 바꿨다(사용자 결정, [결정 기록](decisions/2026-11-05-virtual-sim-contest.md) 4-2·4-4·"변경 기록 11-06 #308"): 하루 +100·0·−100, 주 ≥ +400 승급·≤ −400 강등. 판 점수·주 점수·4주차 기록(`finalWeek`)은 하루 점수의 합이라 함께 바뀌고 판정 조건·결과는 그대로다. policies §8-8 본문·예시, `virtual-contest.json` `weeklyPromoteAt`·`weeklyDemoteAt`·`dailyScore`·`weekly`·`ranking`, 계약 `VirtualContestRules`·`VirtualContestEntry` 설명과 `scoredDays[].points` 범위(−100~100), V32(저장된 점수 ×100, 다시 돌려도 같음). 배치고사 화면: 푸는 동안 대회 배너·문제 번호 이동·[다음 문제]·[지금 제출하기]·[나중에 이어 풀기] 없음, 답을 고르면 다음 문제로, 결과는 맨 위에서 시작·[대회 화면으로]를 요약 아래로·결과 문제마다 회사·날짜·공시 주요 내용·5거래일 움직임을 이은 공시 줄글(`disclosureStory.ts`, 문제 화면은 회사·날짜·움직임을 뺀 줄글). 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드

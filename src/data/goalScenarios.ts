@@ -1,6 +1,6 @@
 // F7 v2 목표 달성 시나리오(POST /goal/scenarios, docs/policies.md §7). 금액·확률·비중은 모두 서버 계산 결과를 그대로 쓴다(ADR-3).
 // 조합은 로그인한 회원이면 AI(OpenAI)가 정하고, 비회원·횟수 초과·실패 때는 서버가 데모 조합을 돌려준다(proposer=DEMO, §7-6).
-// 회원은 고른 시나리오를 그때 결과 그대로 최대 5개 저장한다(policies §7-8, /me/goal/scenarios). 저장은 resultId(서버 30분 보관)로만 한다.
+// 회원은 계산 결과의 플랜 전체를 그때 값 그대로 최대 5개 저장한다(policies §7-8, /me/goal/scenarios). 저장은 resultId(서버 30분 보관)로만 한다.
 import { api } from '@/lib/api';
 
 export type ScenarioProductType = 'SAVINGS' | 'CMA' | 'KR_INDEX_ETF' | 'US_INDEX_ETF' | 'KOSPI_TOP5';
@@ -103,7 +103,10 @@ export type SavedGoalScenario = {
   paths: number;
   reachShare: number;
   products: ScenarioProduct[];
+  /** 저장할 때 고른 플랜. 다시 볼 때 먼저 보여 준다 */
   scenario: GoalScenario;
+  /** 같은 결과의 나머지 플랜. 플랜 하나만 저장하던 때의 저장본은 빈 배열 */
+  alternatives: GoalScenario[];
   assumptions: string[];
   notice: string;
   isSample: boolean;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -31,19 +31,27 @@ const pct = (bp: number) => `${Math.floor(bp / 100)}%`;
 const digits = (s: string) => s.replace(/[^0-9]/g, '');
 const savedDate = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
 
-function productName(p: ScenarioProduct | undefined, type: ScenarioProductType) {
-  if (!p) return { name: TYPE_LABEL[type], kind: '' };
-  if (type === 'KOSPI_TOP5') return { name: TYPE_LABEL[type], kind: `${p.items.slice(0, 2).map((i) => i.name).join('·')} 등 같은 금액` };
-  if (type === 'SAVINGS') return { name: p.items[0].name, kind: `적금 · ${p.items[0].company ?? ''} · 기본금리 연 ${p.ratePercent}%` };
-  if (type === 'CMA') return { name: 'CMA', kind: `수시 입출금 · 연 ${p.ratePercent}% (예시 금리)` };
-  return { name: p.items[0].name, kind: TYPE_LABEL[type] };
+type SubProduct = { key: string; name: string; meta: string | null; basis: boolean };
+/** 세부 상품 목록을 처음부터 펼쳐 둘 카테고리. */
+const DEFAULT_OPEN: ScenarioProductType[] = ['SAVINGS'];
+
+/** 적금 회사·기본금리 설명. 값이 없는 칸은 뺀다. */
+function savingsMeta(company: string | null, ratePercent: string | null) {
+  return [company, ratePercent ? `기본금리 연 ${ratePercent}%` : null].filter(Boolean).join(' · ') || null;
 }
 
-/** 함께 볼 상품 한 줄. 없으면 null. 금액은 대표 상품으로 계산한다(policies §7-2). */
-function alternativesText(p: ScenarioProduct | undefined) {
-  if (!p || p.alternatives.length === 0) return null;
-  const names = p.alternatives.map((a) => a.ratePercent ? `${a.name}(${a.company ?? ''} 연 ${a.ratePercent}%)` : a.name);
-  return `함께 볼 상품: ${names.join(' · ')} · 금액은 위 상품으로 계산했어요`;
+/** 카테고리 아래에 나열할 세부 상품. 적금·지수 ETF는 대표 상품 + 함께 볼 상품이고,
+ *  금액·확률은 대표 상품으로만 계산하므로(policies §7-2) 함께 볼 상품이 있으면 대표 상품에 계산 기준 표시를 붙인다. */
+function subProducts(p: ScenarioProduct | undefined, type: ScenarioProductType): SubProduct[] {
+  if (!p) return [];
+  if (type === 'CMA') return [{ key: 'cma', name: '수시 입출금', meta: p.ratePercent ? `연 ${p.ratePercent}%${p.isSample ? ' (예시 금리)' : ''}` : null, basis: false }];
+  if (type === 'KOSPI_TOP5') return p.items.map((i, n) => ({ key: i.code ?? `${n}`, name: i.name, meta: null, basis: false }));
+  const lead = p.items[0];
+  const hasMore = p.alternatives.length > 0;
+  return [
+    { key: lead.code ?? 'lead', name: lead.name, meta: type === 'SAVINGS' ? savingsMeta(lead.company, p.ratePercent) : null, basis: hasMore },
+    ...p.alternatives.map((a) => ({ key: a.code, name: a.name, meta: type === 'SAVINGS' ? savingsMeta(a.company, a.ratePercent) : null, basis: false })),
+  ];
 }
 
 function RangeBar({ low, median, high, target }: { low: number; median: number; high: number; target: number }) {
@@ -59,26 +67,49 @@ function RangeBar({ low, median, high, target }: { low: number; median: number; 
 }
 
 /** 시나리오 하나의 상품 배분·예상 금액·해설. 방금 계산한 결과와 저장한 결과가 같이 쓴다. */
-function PlanDetail({ plan, products, targetAmount, years, demo }: {
-  plan: GoalScenario; products: ScenarioProduct[]; targetAmount: number; years: number; demo: boolean;
+function PlanDetail({ resultKey, plan, products, targetAmount, years, demo }: {
+  resultKey: string; plan: GoalScenario; products: ScenarioProduct[]; targetAmount: number; years: number; demo: boolean;
 }) {
   const productOf = (t: ScenarioProductType) => products.find((p) => p.type === t);
+  const listId = useId();
+  // 카테고리별 세부 상품 펼침. 처음엔 적금만 열고, 다른 플랜을 고르거나 다시 계산하면(결과가 바뀌면) 그 상태로 되돌린다.
+  // 바뀐 렌더에서 바로 되돌려(이펙트가 아니라) 이전 상태가 한 번 그려졌다가 움직이지 않게 한다.
+  const foldKey = `${resultKey}:${plan.id}`;
+  const [fold, setFold] = useState<{ key: string; open: ScenarioProductType[] }>({ key: foldKey, open: DEFAULT_OPEN });
+  if (fold.key !== foldKey) setFold({ key: foldKey, open: DEFAULT_OPEN });
+  const open = fold.key === foldKey ? fold.open : DEFAULT_OPEN;
+  const toggle = (t: ScenarioProductType) => setFold((cur) => ({ ...cur, open: cur.open.includes(t) ? cur.open.filter((x) => x !== t) : [...cur.open, t] }));
   return <>
     <div className="gp-detail">
       <div className="gp-card">
         <h3 className="gp-h3">어떤 상품에, 매달 얼마씩? <span className="gp-badge gp-badge-muted">{demo ? '예시 비중' : 'AI 제안 비중'}</span></h3>
-        <div className="gp-bar" role="img" aria-label={plan.mix.map((m) => `${productName(productOf(m.type), m.type).name} ${m.ratioPercent}%`).join(', ')}>
+        <div className="gp-bar" role="img" aria-label={plan.mix.map((m) => `${TYPE_LABEL[m.type]} ${m.ratioPercent}%`).join(', ')}>
           {plan.mix.map((m) => <span key={m.type} style={{ width: `${m.ratioPercent}%`, background: COLORS[m.type] }} />)}
         </div>
         <ul className="gp-products">
           {plan.mix.map((m) => {
-            const p = productName(productOf(m.type), m.type);
-            const more = alternativesText(productOf(m.type));
+            const subs = subProducts(productOf(m.type), m.type);
+            const isOpen = open.includes(m.type);
+            const subId = `${listId}-${m.type}`;
+            const dot = <span className="gp-dot" style={{ background: COLORS[m.type] }} />;
+            const amt = <span className="gp-product-amt num">{m.monthly !== null ? `월 ${won(m.monthly)}원` : '-'}</span>;
+            const ratio = <span className="gp-product-pct num">{m.ratioPercent}%</span>;
             return <li key={m.type}>
-              <span className="gp-dot" style={{ background: COLORS[m.type] }} />
-              <span className="gp-product-name">{p.name}<small>{p.kind}</small>{more && <small>{more}</small>}</span>
-              <span className="gp-product-amt num">{m.monthly !== null ? `월 ${won(m.monthly)}원` : '-'}</span>
-              <span className="gp-product-pct num">{m.ratioPercent}%</span>
+              {subs.length > 0
+                ? <button type="button" className="gp-product-toggle" aria-expanded={isOpen} aria-controls={subId} onClick={() => toggle(m.type)}>
+                  {dot}
+                  <span className="gp-product-name">{TYPE_LABEL[m.type]}<svg className="gp-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+                  {amt}{ratio}
+                </button>
+                : <>{dot}<span className="gp-product-name">{TYPE_LABEL[m.type]}</span>{amt}{ratio}</>}
+              {subs.length > 0 && <div id={subId} className={`gp-subwrap${isOpen ? ' is-open' : ''}`}><ul className="gp-subproducts" aria-label={`${TYPE_LABEL[m.type]} 세부 상품`}>
+                {subs.map((s) => <li key={s.key}>
+                  <span className="gp-subproduct-name">{s.name}</span>
+                  {s.meta && <span className="gp-subproduct-meta">{s.meta}</span>}
+                  {s.basis && <span className="gp-badge gp-badge-muted">금액 계산 기준</span>}
+                </li>)}
+                {m.type === 'KOSPI_TOP5' && <li className="gp-subproduct-note">5종목에 같은 금액으로 나눠 넣어요</li>}
+              </ul></div>}
             </li>;
           })}
         </ul>
@@ -166,7 +197,7 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
       {viewing.scenario.reachable && viewing.scenario.monthly !== null && <p className="gp-insight">
         그때 계산으로는 매달 <b className="num">{won(viewing.scenario.monthly)}원</b>을 넣으면 {viewing.scenario.outcome?.kind === 'FIXED' ? '목표에 닿아요(확정).' : '10번 중 8번은 목표에 닿았어요.'}
       </p>}
-      <PlanDetail plan={viewing.scenario} products={viewing.products} targetAmount={viewing.targetAmount} years={viewing.years} demo={viewing.proposer === 'DEMO'} />
+      <PlanDetail resultKey={`saved-${viewing.id}`} plan={viewing.scenario} products={viewing.products} targetAmount={viewing.targetAmount} years={viewing.years} demo={viewing.proposer === 'DEMO'} />
       <Assumptions paths={viewing.paths} returnsFrom={viewing.returnsFrom} returnsTo={viewing.returnsTo} assumptions={viewing.assumptions} notice={viewing.notice} />
       <div className="gp-view-actions">
         <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>
@@ -404,7 +435,7 @@ export default function GoalScenarios() {
             </button>)}
           </div>
 
-          <PlanDetail plan={plan} products={result.products} targetAmount={result.targetAmount} years={result.years} demo={demo} />
+          <PlanDetail resultKey={result.resultId} plan={plan} products={result.products} targetAmount={result.targetAmount} years={result.years} demo={demo} />
 
           <div className="gp-save-row">
             <button type="button" className="gp-secondary" onClick={save} disabled={saving || savedIds[plan.id] || (member && full)}>

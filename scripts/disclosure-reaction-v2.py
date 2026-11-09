@@ -4,7 +4,7 @@
   - 정정공시는 같은 종목·같은 보고서명의 가장 가까운 앞 원공시 한 건으로 합친다(원공시 접수일 기준).
   - 시장 조정은 실제 KOSPI·KOSDAQ 지수(index.csv)를 쓰고, 지수가 모자라면 수집 종목 동일가중 지수로 대신한다(둘 다 표시).
   - 창 두 개: 반응 창 R = 전날 종가 → t+1 종가, 체결 가능 창 T = t+1 종가 → t+5 종가(사용자는 공시를 본 다음 날 체결).
-    시가가 있는 구간(ohlc.csv, 최근 약 7개월)에서는 T의 시가 판(t+1 시가 → t+5 종가)도 비교한다.
+    시가가 있는 봉(ohlc.csv, practice_datasets)에서는 T의 시가 판(t+1 시가 → t+5 종가)도 비교한다.
   - 회귀: 모든 종목·거래일을 행으로 두고(공시 없는 날 = 기준선) 공시 칸 더미 + 겹친 공시 수를 넣는다.
     초과수익은 OLS, 오름 여부는 로지스틱이고 표준오차는 날짜·종목 2중 클러스터다. 겹친 표본을 버리지 않는다.
   - 다중 비교: 판정 대상 칸 전체에 Benjamini-Hochberg(FDR 10%)와 Bonferroni.
@@ -369,7 +369,9 @@ def pv(x):
 
 
 def label(r):
-    return NAME[r["cat"]] if r["cell"] is None else f"{NAME[r['cat']]} · {r['cell']}"
+    if r["cell"] is None:
+        return NAME[r["cat"]]
+    return f"{NAME[r['cat']]} · {r['cell']}" + (f"({r['family']} 묶음)" if r["cell"] == "상세 없음" else "")
 
 
 P(f"- 공시 {n_titles:,}건 중 분류된 원공시 {merge['원공시']:,}건(정정 {merge['정정: 원공시에 합침']:,}건은 원공시에 합침, 앞 원공시가 없는 정정 {merge['정정: 앞 원공시 없음(버림)']:,}건은 버림)")

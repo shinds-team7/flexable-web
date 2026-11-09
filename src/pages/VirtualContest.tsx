@@ -27,8 +27,11 @@ const percent = (n: number) => `${n > 0 ? '▲ ' : n < 0 ? '▼ ' : ''}${Math.ab
 const pp = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n * 100).toFixed(2)}%p`;
 const tone = (n: number) => n > 0 ? 'practice-rise' : n < 0 ? 'practice-fall' : '';
 const points = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmt.format(Math.abs(n))}점`;
-/** 하루 점수 한 칸(policies §8-8: +100·0·−100). 안내 문구와 주 점수 칸 간격에만 쓰고 점수는 서버 값을 그대로 보인다 */
-const DAY = 100;
+/**
+ * 하루 점수 한 칸(policies §8-8: #308부터 +100·0·−100, 이전 서버는 +1·0·−1). 안내 문구와 주 점수 칸 간격에만 쓰고 점수는 서버 값을 그대로 보인다.
+ * 화면과 서버가 섞여 배포돼도 맞게, 서버가 준 승급 기준(이전 4, #308부터 400)으로 단위를 고른다
+ */
+const dayPoints = (r: { weeklyPromoteAt: number }) => r.weeklyPromoteAt >= 100 && r.weeklyPromoteAt % 100 === 0 ? 100 : 1;
 const contestName = (id: string) => `${id.slice(0, 4)}년 ${Number(id.slice(5))}월 대회`;
 const dateText = (iso: string) => { const [, m, d] = iso.slice(0, 10).split('-'); return `${Number(m)}월 ${Number(d)}일`; };
 
@@ -36,14 +39,14 @@ type View = 'home' | 'placement' | 'result' | 'play';
 
 /** 대회 안내·규칙(누구나) */
 function Rules({ info }: { info: ContestInfo }) {
-  const r = info.rules;
+  const r = info.rules, day = dayPoints(r);
   return <details className="contest-rules">
     <summary>대회 규칙 자세히 보기</summary>
     <ul>
       <li>매달 1일 00시에 열고 다음 달 1일 00시에 마감해요. 시즌마다 배치고사 {r.placementQuestions}문제로 시작 판을 정해요(맞힌 수 {r.placementCuts.B50M}개 이상 5천만 판, {r.placementCuts.B100M}개 이상 1억 판, 그 아래 1천만 판).</li>
       <li>배치고사는 실제 과거 공시 10개(경향이 뚜렷한 유형 6개 + 나머지 4개)를 보고 그 뒤 5거래일 동안 오를지 내릴지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜는 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
       <li>한 판은 지금 대회 잔액 전부로 시작하고 120거래일 동안 사건 {r.eventsPerRound}개를 만나요. 판이 끝난 총자산이 다음 판의 잔액이 되고, 대회 판은 채점하지 않아요.</li>
-      <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 {points(-DAY)}이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 {points(DAY)}, 덜 했으면 0점이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
+      <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 {points(-day)}이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 {points(day)}, 덜 했으면 0점이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
       <li>주(1~7일, 8~14일, 15~21일, 22일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 승급, {points(r.weeklyDemoteAt)} 이하면 한 단계 강등이에요. 판이 바뀌면 잔액은 새 판의 대회 시드머니로 다시 시작해요.</li>
       <li>4주차(22일~말일)는 보너스 주예요. 대회 마지막 날 판정해 결과를 지난 대회 기록에 남기고, 판은 바꾸지 않아요. 최종 순위는 4주차를 보낸 판에서 매겨요.</li>
       <li>판이 끝난 뒤 잔액이 {money(r.liquidationBelow)} 미만이면 이번 시즌은 청산되어 더 할 수 없어요.</li>
@@ -81,10 +84,10 @@ function JoinCard({ info, title, text, action }: { info: ContestInfo; title: str
 
 /** 대회 핵심 규칙 3줄(규칙 접기 위). 값은 서버 규칙 */
 function RulesSummary({ info }: { info: ContestInfo }) {
-  const r = info.rules;
+  const r = info.rules, day = dayPoints(r);
   return <ul className="contest-rules-summary" aria-label="핵심 규칙">
     <li><b>하루 {r.roundsPerDay}판</b>까지 할 수 있어요</li>
-    <li>그날 매매 성과 평균이 <b>목표 {pp(r.dailyTargetRate)}</b> 이상이면 {points(DAY)}(10판을 모두 한 날), 못 미치면 {points(-DAY)}</li>
+    <li>그날 매매 성과 평균이 <b>목표 {pp(r.dailyTargetRate)}</b> 이상이면 {points(day)}(10판을 모두 한 날), 못 미치면 {points(-day)}</li>
     <li>주 점수 <b>{points(r.weeklyPromoteAt)} 이상 승급 · {points(r.weeklyDemoteAt)} 이하 강등</b></li>
   </ul>;
 }
@@ -239,7 +242,7 @@ const saveGuide = (v: 'open' | 'closed') => { try { localStorage.setItem(GUIDE_K
 function ContestGuide({ info, joined }: { info: ContestInfo; joined: boolean }) {
   const [stored, setStored] = useState(readGuide);
   const open = joined ? stored === 'open' : true;
-  const r = info.rules;
+  const r = info.rules, day = dayPoints(r);
   return <details className="contest-card contest-fold contest-guide" open={open} onToggle={e => {
     const now = e.currentTarget.open;
     if (!joined || now === open) return;
@@ -249,7 +252,7 @@ function ContestGuide({ info, joined }: { info: ContestInfo; joined: boolean }) 
     <summary><h2>대회는 이렇게 진행돼요</h2><span>{open ? '접기' : '펼쳐 보기'}</span></summary>
     <ol className="contest-steps">
       <li><span className="contest-step-no" aria-hidden="true">1</span><b>배치고사</b><small>실제 과거 공시 {r.placementQuestions}문제로 1천만·5천만·1억 판 중 시작 판을 정해요</small></li>
-      <li><span className="contest-step-no" aria-hidden="true">2</span><b>하루 {r.roundsPerDay}판</b><small>가상 종목을 매매해 그날 매매 성과 평균이 {pp(r.dailyTargetRate)} 이상이면 {points(DAY)}, 못 미치면 {points(-DAY)}</small></li>
+      <li><span className="contest-step-no" aria-hidden="true">2</span><b>하루 {r.roundsPerDay}판</b><small>가상 종목을 매매해 그날 매매 성과 평균이 {pp(r.dailyTargetRate)} 이상이면 {points(day)}, 못 미치면 {points(-day)}</small></li>
       <li><span className="contest-step-no" aria-hidden="true">3</span><b>주 점수로 승급·강등</b><small>주 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 위로, {points(r.weeklyDemoteAt)} 이하면 한 단계 아래로</small></li>
     </ol>
   </details>;
@@ -445,13 +448,13 @@ function weekGap(entry: ContestEntry, rules: ContestInfo['rules'], finalWeek: bo
 
 function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean; prevRank?: number | null }) {
   const mounted = useMounted();
-  const t = entry.today, w = entry.week, change = entry.lastBoardChange, rules = info.rules;
+  const t = entry.today, w = entry.week, change = entry.lastBoardChange, rules = info.rules, day = dayPoints(rules);
   const up = change ? BOARDS.indexOf(change.to) > BOARDS.indexOf(change.from) : false;
   const rate = t.returnRate;
   const meter = rate == null ? 0 : Math.min(1, Math.abs(rate) / t.targetRate);
   const clamped = Math.max(rules.weeklyDemoteAt, Math.min(rules.weeklyPromoteAt, w.points));
-  // 주 점수 칸은 하루 점수 한 칸(DAY) 간격. 지금 칸은 주 점수에 가장 가까운 칸
-  const cells = Array.from({ length: Math.floor((rules.weeklyPromoteAt - rules.weeklyDemoteAt) / DAY) + 1 }, (_, i) => rules.weeklyDemoteAt + i * DAY);
+  // 주 점수 칸은 하루 점수 한 칸(day) 간격. 지금 칸은 주 점수에 가장 가까운 칸
+  const cells = Array.from({ length: Math.floor((rules.weeklyPromoteAt - rules.weeklyDemoteAt) / day) + 1 }, (_, i) => rules.weeklyDemoteAt + i * day);
   const nowCell = cells.reduce((best, n) => Math.abs(n - clamped) < Math.abs(best - clamped) ? n : best, cells[0]);
   const nextStart = dateText(info.endsAt);
   return <>
@@ -472,7 +475,7 @@ function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo;
         {rate != null && <p className={`contest-meter-note ${rate < 0 ? 'practice-fall' : rate >= t.targetRate ? 'practice-rise' : ''}`}>
           {rate >= t.targetRate ? '오늘 목표 이상이에요' : rate < 0 ? `▼ 가만히 있었을 때보다 ${pp(Math.abs(rate)).slice(1)} 낮아요. 목표까지 ${pp(t.targetRate - rate)}` : `목표까지 ${pp(t.targetRate - rate)}`}
         </p>}
-        <p className="practice-muted">{`그날 평균이 ${pp(t.targetRate)}에 못 미치면 ${points(-DAY)}, 목표 이상이면 ${rules.roundsForDailyScore}판을 모두 했을 때 ${points(DAY)}(덜 했으면 0점)이에요. 판을 안 한 날은 0점이에요.`}</p>
+        <p className="practice-muted">{`그날 평균이 ${pp(t.targetRate)}에 못 미치면 ${points(-day)}, 목표 이상이면 ${rules.roundsForDailyScore}판을 모두 했을 때 ${points(day)}(덜 했으면 0점)이에요. 판을 안 한 날은 0점이에요.`}</p>
         {entry.liquidated ? <div className="contest-cta-done"><b>이번 대회는 청산으로 끝났어요</b><span>다음 대회는 {nextStart} 00시에 배치고사로 시작해요.</span></div>
           : t.roundsLeft === 0 ? <div className="contest-cta-done"><b>오늘 {rules.roundsPerDay}판을 모두 했어요</b><span>내일 00시에 다시 할 수 있어요. 이번 대회는 {nextStart} 00시에 마감하고 다음 대회가 시작해요.</span></div>
           : <div className="contest-play">
@@ -488,7 +491,7 @@ function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo;
           {cells.map(n => {
             const filled = mounted && (w.points > 0 ? n > 0 && n <= nowCell : w.points < 0 ? n < 0 && n >= nowCell : false);
             return <span key={n} className={[n === nowCell ? 'now' : '', filled ? (n > 0 ? 'fill up' : 'fill down') : '', n === rules.weeklyPromoteAt ? 'promote' : n === rules.weeklyDemoteAt ? 'demote' : ''].filter(Boolean).join(' ')}
-              style={{ transitionDelay: `${Math.abs(n / DAY) * 60}ms` }}>{fmt.format(n)}</span>;
+              style={{ transitionDelay: `${Math.abs(n / day) * 60}ms` }}>{fmt.format(n)}</span>;
           })}
         </div>
         <ScoredDaysBars days={entry.scoredDays} />
@@ -715,7 +718,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
 
   const entry = mine?.current ?? null;
   if (view === 'play' && entry) {
-    return <VirtualSimulation active={active} onGoPast={exit} contest={{ board: entry.board, today: entry.today, onSettled: settled, onExit: exit }} />;
+    return <VirtualSimulation active={active} onGoPast={exit} contest={{ board: entry.board, today: entry.today, dayPoints: dayPoints(info.rules), onSettled: settled, onExit: exit }} />;
   }
   const play = () => { beforePlay.current = entry; setToast(''); setPrevRank(null); setView('play'); };
   const tabKey = (e: KeyboardEvent<HTMLButtonElement>) => {

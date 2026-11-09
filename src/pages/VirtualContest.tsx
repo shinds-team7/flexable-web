@@ -290,7 +290,8 @@ function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuesti
 
 /**
  * 배치고사: 한 화면에 한 문제. 오른다/내린다를 고르면 바로 다음 문제로 넘어가고, [이전 문제]로 돌아갈 수 있다.
- * 돌아온 문제에서 고른 답을 다시 누르면 취소(넘어가지 않음). 마지막 문제에서는 넘어가지 않고 제출한다. 채점은 제출 때 서버가 한다
+ * 돌아온 문제에서 고른 답을 다시 누르면 그 답을 그대로 두고 넘어가고, 다른 답을 누르면 바꿔서 넘어간다(취소는 없다).
+ * 마지막 문제에서는 넘어가지 않고 제출한다. 채점은 제출 때 서버가 한다
  */
 function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement: ContestPlacement; sample: boolean; busy: boolean; error: string;
   onSubmit: (answers: Record<string, Prediction>) => void }) {
@@ -311,9 +312,8 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
   }, [index]);
   const go = (i: number) => { if (i < 0 || i >= total || i === index) return; moved.current = true; setIndex(i); };
   const choose = (v: Exclude<Prediction, null>) => {
-    const cancel = answers[q.id] === v;
-    setAnswers(a => ({ ...a, [q.id]: cancel ? null : v }));
-    if (!cancel && !last) go(index + 1);
+    setAnswers(a => ({ ...a, [q.id]: v }));
+    if (!last) go(index + 1);
   };
   const submit = (e: FormEvent) => { e.preventDefault(); onSubmit(answers); };
   return <form className="contest-placement" onSubmit={submit}>
@@ -342,7 +342,7 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
           aria-pressed={answers[q.id] === v} onClick={() => choose(v)}>
           <span className="contest-answer-mark" aria-hidden="true">{answers[q.id] === v ? '✓' : v === 'POSITIVE' ? '▲' : '▼'}</span>{v === 'POSITIVE' ? '오른다' : '내린다'}</button>)}
       </div>
-      <p className="contest-q-tip practice-muted">{answers[q.id] ? '고른 답을 다시 누르면 취소돼요. 다른 답을 누르면 바꿔요.' : last ? '답을 고른 뒤 제출해요. 고르지 않은 문제는 틀린 것으로 채점해요.' : '답을 고르면 다음 문제로 넘어가요.'}</p>
+      <p className="contest-q-tip practice-muted">{answers[q.id] ? (last ? '다른 답을 누르면 바꿔요.' : '고른 답을 다시 누르면 그대로 두고 다음 문제로 넘어가요. 다른 답을 누르면 바꿔서 넘어가요.') : last ? '답을 고른 뒤 제출해요. 고르지 않은 문제는 틀린 것으로 채점해요.' : '답을 고르면 다음 문제로 넘어가요.'}</p>
       <div className="contest-q-nav">
         <button type="button" className="btn contest-q-prev" onClick={() => go(index - 1)} disabled={index === 0}>← 이전 문제</button>
         {last && <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '채점 중…' : '제출하고 시작 판 보기'}</button>}

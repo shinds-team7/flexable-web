@@ -3633,7 +3633,7 @@ export interface components {
             sources: string[];
         };
         /**
-         * @description 가상 사건 유형(vsim-types-v2, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
+         * @description 가상 사건 유형(vsim-types-v3, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
          * @enum {string}
          */
         VirtualSimCategory: "EARNINGS" | "SUPPLY_CONTRACT" | "NEW_SHARES" | "BONUS_SHARES" | "BONDS" | "BUYBACK_ACQUIRE" | "BUYBACK_DISPOSE" | "DIVIDEND" | "RESTRUCTURE" | "FACILITY" | "LEGAL" | "OWNERSHIP";

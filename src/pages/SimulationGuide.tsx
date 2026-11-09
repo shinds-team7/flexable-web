@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { CATEGORY_GUIDE } from '@/data/placementGuide';
 import { placementInProgress } from '@/data/placementMark';
-import { TYPE_CHECKS } from '@/data/simulationGuide';
+import { COMMON_CHECKS, TYPE_CHECKS } from '@/data/simulationGuide';
 import { getMyContests } from '@/data/virtualContest';
 
 const SIZE_BANDS = ['10억 원 미만', '10억~50억 원', '50억~100억 원', '100억~500억 원', '500억~1천억 원', '1천억~5천억 원', '5천억~1조 원', '1조 원 이상'];
@@ -184,6 +184,31 @@ function GuideBody() {
         </li>
       </ul>
 
+      <h2>어느 유형이든 확인할 것</h2>
+      <p>유형과 상관없이 공시 하나를 읽을 때 먼저 볼 것이에요.</p>
+      <section className="sim-guide-type" aria-label="어느 유형이든 확인할 것">
+        <dl>
+          {COMMON_CHECKS.map((c) => (
+            <div key={c.item}>
+              <dt>{c.item}</dt>
+              <dd>{c.meaning}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <h2>시세는 두 구간으로 나눠 봐요</h2>
+      <ul>
+        <li>
+          <b>공시 직후</b>: 공시 전날 종가에서 공시 다음 거래일 종가까지예요. 공시가 장중에 나왔는지 장이 끝난 뒤 나왔는지와 상관없이, 공시가 처음 시세에 반영되는 날을 모두 담으려고
+          다음 거래일까지 봐요.
+        </li>
+        <li>
+          <b>그다음 주</b>: 공시 다음 거래일 종가에서 5번째 거래일 종가까지예요. 공시를 읽고 다음 날 사거나 판 사람이 겪는 구간이에요.
+        </li>
+        <li>두 구간의 움직임은 서로 다를 수 있어요. 배치고사는 공시 직후로 채점하고, 결과에서 두 구간을 함께 보여 줘요.</li>
+      </ul>
+
       <h2>유형별로 확인할 것</h2>
       <p>유형마다 공시가 무엇인지와 판단 재료가 되는 항목을 적었어요.</p>
       <div className="sim-guide-types">
@@ -223,7 +248,7 @@ function GuideBody() {
           <b>공시 주요 내용</b>: 주요사항보고서에 담긴 주요 정보에서 서버가 만든 % 값·규모 구간·정해 둔 분류 이름이에요(최대 4개). 요약이 없을 때 보여요. 둘 다 없으면 유형 설명만 보여요.
         </li>
         <li>
-          <b>배치고사 결과</b>: 문제마다 회사 이름·접수일과 그 뒤 5거래일 실제 움직임을 보여 줘요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.
+          <b>배치고사 결과</b>: 문제마다 회사 이름·접수일과 공시 직후·그다음 주 실제 움직임을 보여 줘요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.
         </li>
       </ul>
       <p className="meta">

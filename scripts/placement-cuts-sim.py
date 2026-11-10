@@ -19,7 +19,10 @@
     call csvwrite('<DIR>/details.csv','select receipt_no, items from dart_disclosure_details');
     call csvwrite('<DIR>/summaries.csv','select receipt_no from dart_disclosure_summaries where summary is not null and hidden = false')"
   details.csv·summaries.csv가 없으면 "설명 먼저"를 반영하지 않고 모두 설명 없는 공시로 본다(보고서에 적는다).
-  쉼표 CSV와 탭 구분(mysql --batch 출력) 둘 다 읽는다.
+  쉼표 CSV와 탭 구분(mysql --batch 출력) 둘 다 읽는다. 운영 MySQL(deploy/vm)에서는 같은 SELECT를 db 컨테이너의 mysql로 파일마다 내보낸다.
+  --default-character-set=utf8mb4가 없으면 클라이언트 기본 문자셋 때문에 한글(공시 제목·회사명)이 "?"로 저장돼 분류할 수 없다.
+    docker compose exec -T db sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" exec mysql --batch --default-character-set=utf8mb4 -u"$MYSQL_USER" "$MYSQL_DATABASE"' \
+      <<< "<SELECT>" > <DIR>/<파일>.csv
 실행: python3 scripts/placement-cuts-sim.py sim <DIR> [--trials 20000] [--seed 376] [--asof YYYY-MM-DD] > report.md
 한계: 서버의 수집 종목은 상위 목록(topLimit) 안 종목이라 stocks.csv(cap_rank 있는 수집 종목)와 조금 다를 수 있다. 풀 캐시(POOL_TTL) 시점 차이도 무시한다.
 

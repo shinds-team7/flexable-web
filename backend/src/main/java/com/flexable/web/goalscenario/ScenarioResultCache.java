@@ -42,7 +42,7 @@ class ScenarioResultCache {
 				.ifPresent(e -> entries.remove(e.getKey()));
 		}
 		String id = UUID.randomUUID().toString();
-		Result withId = new Result(id, r.name(), r.targetAmount(), r.months(), r.proposer(), r.fallbackReason(), r.asOf(),
+		Result withId = new Result(id, r.name(), r.targetAmount(), r.months(), r.monthlyBudget(), r.proposer(), r.fallbackReason(), r.asOf(),
 				r.returnsFrom(), r.returnsTo(), r.paths(), r.seed(), r.reachShare(), r.products(), r.scenarios(), r.assumptions(), r.notice(),
 				r.isSample(), r.aiUsage(), r.aiReused());
 		entries.put(id, new Entry(withId, now.plus(TTL)));

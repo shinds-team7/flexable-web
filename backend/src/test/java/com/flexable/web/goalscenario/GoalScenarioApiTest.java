@@ -62,6 +62,7 @@ class GoalScenarioApiTest {
 
 	private static final OpenApiInteractionValidator VALIDATOR = validator();
 	private static final String BODY = "{\"name\":\"%s\",\"targetAmount\":%d,\"months\":%d}";
+	private static final String BUDGET_BODY = "{\"name\":\"%s\",\"targetAmount\":%d,\"months\":%d,\"monthlyBudget\":%d}";
 
 	@Autowired
 	MockMvc mvc;
@@ -787,5 +788,126 @@ class GoalScenarioApiTest {
 		assertThat(status).isEqualTo(204);
 		member(BODY.formatted("목돈", 15_000_000, 12), token, 401);
 		verify(proposer, times(0)).propose(any());
+	}
+
+	/** 월 납입 가능액(policies §7-1·7-5, #399). 적금 100%·3.50%·1년·목표 1,500만 원의 필요 월 금액은 1,231,000원(정책 예시). */
+	@Test
+	void 가능액을_넣지_않으면_비교하지_않고_대안_문장도_없다() throws Exception {
+		String body = call(BODY.formatted("목돈", 15_000_000, 12), 200);
+		assertThat((Object) JsonPath.read(body, "$.monthlyBudget")).isNull();
+		assertThat((List<Object>) JsonPath.read(body, "$.scenarios[*].withinBudget")).containsOnlyNulls();
+		assertThat((List<Object>) JsonPath.read(body, "$.scenarios[*].overBudgetBy")).containsOnlyNulls();
+		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].explanation")).noneMatch(e -> e.contains(ScenarioBudget.OVER));
+	}
+
+	@Test
+	void 필요_월_금액이_가능액_이하면_안이고_넘으면_차이와_대안_문장을_붙인다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(PARTS);
+		String token = signup();
+		String same = member(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 1_231_000), token, 200);
+		assertThat(((Number) JsonPath.read(same, "$.monthlyBudget")).longValue()).isEqualTo(1_231_000);
+		assertThat((Integer) JsonPath.read(same, "$.scenarios[0].monthly")).isEqualTo(1_231_000);
+		assertThat((Boolean) JsonPath.read(same, "$.scenarios[0].withinBudget")).isTrue();
+		assertThat((Object) JsonPath.read(same, "$.scenarios[0].overBudgetBy")).isNull();
+		assertThat((String) JsonPath.read(same, "$.scenarios[0].explanationParts.fit")).isEqualTo("안정을 원할 때 맞아요.");
+
+		String over = member(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 1_230_000), token, 200);
+		// 필요 월 금액 계산은 그대로이고 비교만 한다
+		assertThat((Integer) JsonPath.read(over, "$.scenarios[0].monthly")).isEqualTo(1_231_000);
+		assertThat((Boolean) JsonPath.read(over, "$.scenarios[0].withinBudget")).isFalse();
+		assertThat((Integer) JsonPath.read(over, "$.scenarios[0].overBudgetBy")).isEqualTo(1_000);
+		assertThat((String) JsonPath.read(over, "$.scenarios[0].explanationParts.fit")).isEqualTo("안정을 원할 때 맞아요. " + ScenarioBudget.OVER);
+		assertThat((String) JsonPath.read(over, "$.scenarios[0].explanation")).endsWith("안정을 원할 때 맞아요. " + ScenarioBudget.OVER);
+		assertThat((String) JsonPath.read(over, "$.scenarios[0].explanationParts.reason")).isEqualTo("기한이 짧아요.");
+		// 가능액이 다르면 다시 부른다
+		assertThat((Boolean) JsonPath.read(over, "$.aiReused")).isFalse();
+		verify(proposer, times(2)).propose(any());
+	}
+
+	@Test
+	void 데모_조합에도_가능액_비교와_대안_문장을_붙인다() throws Exception {
+		String body = call(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 10_000), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("DEMO");
+		assertThat((List<Boolean>) JsonPath.read(body, "$.scenarios[*].withinBudget")).containsExactly(false, false, false);
+		for (int i = 0; i < 3; i++) {
+			String at = "$.scenarios[" + i + "]";
+			assertThat((String) JsonPath.read(body, at + ".explanationParts.fit")).endsWith(ScenarioBudget.OVER);
+			assertThat((String) JsonPath.read(body, at + ".explanation")).endsWith(ScenarioBudget.OVER);
+			if ((Boolean) JsonPath.read(body, at + ".reachable")) {
+				long monthly = ((Number) JsonPath.read(body, at + ".monthly")).longValue();
+				assertThat(((Number) JsonPath.read(body, at + ".overBudgetBy")).longValue()).isEqualTo(monthly - 10_000);
+			}
+			else {
+				assertThat((Object) JsonPath.read(body, at + ".overBudgetBy")).isNull();
+			}
+		}
+	}
+
+	@Test
+	void 가능액이_범위를_벗어나거나_천_원_단위가_아니면_400() throws Exception {
+		for (long budget : new long[] { 9_000, 15_001_000, 500_500 }) {
+			String body = call(BUDGET_BODY.formatted("목돈", 15_000_000, 12, budget), 400);
+			assertThat((Object) JsonPath.read(body, "$.fields.monthlyBudget")).as("가능액 %d", budget).isNotNull();
+		}
+		call(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 10_000), 200);
+		call(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 15_000_000), 200);
+		call("{\"name\":\"목돈\",\"targetAmount\":15000000,\"months\":12,\"monthlyBudget\":null}", 200);
+	}
+
+	@Test
+	void AI에_가능액을_보내고_같은_가능액이면_재사용한다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		String token = signup();
+		member(BUDGET_BODY.formatted("비밀 목표", 15_000_000, 12, 500_000), token, 200);
+		org.mockito.ArgumentCaptor<ScenarioProposer.Input> sent = org.mockito.ArgumentCaptor.forClass(ScenarioProposer.Input.class);
+		verify(proposer).propose(sent.capture());
+		assertThat(sent.getValue().monthlyBudget()).isEqualTo(500_000L);
+		assertThat(sent.getValue().toString()).doesNotContain("비밀 목표");
+		String again = member(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 500_000), token, 200);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		// 가능액 없음은 다른 조건이다
+		String none = member(BODY.formatted("목돈", 15_000_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(none, "$.aiReused")).isFalse();
+		verify(proposer, times(2)).propose(any());
+		assertThat(jdbc.queryForList("select monthly_budget from goal_scenario_ai_cache where target_amount = ? order by monthly_budget", Long.class,
+				15_000_000L)).contains(0L, 500_000L);
+	}
+
+	@Test
+	void 해설에_보낸_가능액은_쓸_수_있고_다른_금액은_지운다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(List.of(
+				new Proposals.Draft("a", "저축만", "적금 위주", new Proposals.Parts("매달 50만 원으로 해 볼 수 있게 짰어요.", "적금으로 모아요.",
+						"매달 60만 원이 필요해요. 가장 덜 흔들려요.", "안정을 원할 때 맞아요."), Map.of("SAVINGS", 100)),
+				GOOD.get(1), THIRD));
+		String token = signup();
+		String body = member(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 500_000), token, 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanationParts.reason")).isEqualTo("매달 50만 원으로 해 볼 수 있게 짰어요.");
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanationParts.comparison")).isEqualTo("가장 덜 흔들려요.");
+	}
+
+	@Test
+	void 저장본에_가능액과_비교_결과를_그대로_남기고_옛_저장본은_null로_읽는다() throws Exception {
+		String token = signup();
+		String result = call(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 10_000), 200);
+		long id = ((Number) JsonPath.read(save(token, JsonPath.read(result, "$.resultId"), "steady", 201), "$.id")).longValue();
+		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat(((Number) JsonPath.read(saved, "$.monthlyBudget")).longValue()).isEqualTo(10_000);
+		assertThat((Boolean) JsonPath.read(saved, "$.scenario.withinBudget")).isFalse();
+		assertThat((String) JsonPath.read(saved, "$.scenario.explanation")).endsWith(ScenarioBudget.OVER);
+		assertThat((List<Boolean>) JsonPath.read(saved, "$.alternatives[*].withinBudget")).containsExactly(false, false);
+
+		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
+		String old = JsonPath.parse(snapshot).delete("$.monthlyBudget").delete("$.scenario.withinBudget").delete("$.scenario.overBudgetBy")
+			.delete("$.alternatives[*].withinBudget").delete("$.alternatives[*].overBudgetBy").jsonString();
+		assertThat(old).doesNotContain("Budget");
+		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
+		String read = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat((Object) JsonPath.read(read, "$.monthlyBudget")).isNull();
+		assertThat((Object) JsonPath.read(read, "$.scenario.withinBudget")).isNull();
+		assertThat((Object) JsonPath.read(read, "$.scenario.overBudgetBy")).isNull();
 	}
 }

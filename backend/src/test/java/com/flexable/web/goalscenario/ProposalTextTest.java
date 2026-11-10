@@ -173,4 +173,15 @@ class ProposalTextTest {
 		assertThat(ProposalText.problem("1,500만 원을 모아요.", ProposalText.Facts.NONE, List.of())).isEqualTo("TEXT_NUMBER");
 		assertThat(ProposalText.problem("적금 50%예요.", ProposalText.Facts.NONE, List.of())).isEqualTo("TEXT_NUMBER");
 	}
+
+	/** AI에게 보낸 월 납입 가능액과 같은 금액은 쓸 수 있다(#399). 보내지 않았거나 다른 금액이면 막는다. */
+	@Test
+	void 보낸_월_납입_가능액과_같은_금액만_통과() {
+		ProposalText.Facts budget = new ProposalText.Facts(FACTS.targetAmount(), 500_000L, FACTS.months(), FACTS.names(), FACTS.percents(), Map.of());
+		assertThat(ProposalText.problem("매달 50만 원이면 충분해요.", FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+		assertThat(ProposalText.problem("매달 50만 원으로 해 볼 수 있어요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("월 500,000원 안에서 나눴어요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("1,500만 원 목표예요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("매달 60만 원이 필요해요.", budget, MIX)).isEqualTo("TEXT_NUMBER");
+	}
 }

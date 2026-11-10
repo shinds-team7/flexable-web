@@ -103,6 +103,7 @@ public class GoalScenarioService {
 		String name = validate(req);
 		long target = req.targetAmount();
 		int months = req.months();
+		Long budget = req.monthlyBudget();
 
 		// 기준일 = 수집된 마지막 거래일. 수익률은 그 직전 달까지 60개월
 		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
@@ -114,15 +115,15 @@ public class GoalScenarioService {
 			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws, months)));
 		}
 
-		Chosen chosen = choose(target, months, asOf, userId, picked);
+		Chosen chosen = choose(target, months, budget, asOf, userId, picked);
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Plan plan : chosen.plans()) {
-			scenarios.add(scenario(plan, target, months, picked, factors));
+			scenarios.add(scenario(plan, target, months, picked, factors).withBudget(budget));
 		}
 		List<String> assumptions = picked.savingTerm() < months
 				? java.util.stream.Stream.concat(ASSUMPTIONS.stream(), java.util.stream.Stream.of(AFTER_MATURITY)).toList()
 				: ASSUMPTIONS;
-		Result result = new Result(null, name, target, months, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
+		Result result = new Result(null, name, target, months, budget, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
 				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, new BigDecimal("0.8"),
 				products(picked), scenarios, assumptions, NOTICE, true, chosen.aiUsage(), chosen.reused());
 		return results.remember(result);
@@ -140,15 +141,16 @@ public class GoalScenarioService {
 		if (req.months() == null || req.months() < MIN_MONTHS || req.months() > MAX_MONTHS) {
 			throw ApiException.invalid("months", "기한은 6개월부터 3년까지 정할 수 있어요");
 		}
+		ScenarioBudget.validate(req.monthlyBudget(), req.targetAmount());
 		return name;
 	}
 
 	/**
 	 * 제안기(AI) 결과를 검증해 쓰고, 쓸 수 없으면 데모 조합(§7-6).
-	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 금액·기한·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
+	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 금액·기한·월 납입 가능액·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
 	 * → 호출 실패(AI_FAILED)·규칙 위반(AI_REJECTED). 결과를 못 받으면 회원 횟수는 되돌리고 전체 횟수는 그대로 둔다.
 	 */
-	private Chosen choose(long target, int months, LocalDate asOf, Long userId, Picked picked) {
+	private Chosen choose(long target, int months, Long budget, LocalDate asOf, Long userId, Picked picked) {
 		ScenarioProposer p = proposer.getIfAvailable();
 		String reason;
 		if (p == null || !p.enabled()) {
@@ -158,8 +160,8 @@ public class GoalScenarioService {
 			reason = "GUEST";
 		}
 		else {
-			ProposalText.Facts facts = facts(target, months, picked);
-			Optional<List<Plan>> reused = quota.cached(userId, target, months, asOf).map(d -> Proposals.check(d, facts).plans());
+			ProposalText.Facts facts = facts(target, months, budget, picked);
+			Optional<List<Plan>> reused = quota.cached(userId, target, months, budget, asOf).map(d -> Proposals.check(d, facts).plans());
 			if (reused.isPresent()) {
 				return new Chosen(reused.get(), null, usage(userId), true);
 			}
@@ -170,11 +172,11 @@ public class GoalScenarioService {
 			}
 			if (r == ScenarioAiQuota.Reserve.OK) {
 				try {
-					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, months, stats(picked, months)));
+					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, months, budget, stats(picked, months)));
 					Proposals.Checked checked = Proposals.check(drafts, facts);
 					if (checked.plans() != null) {
 						checked.removed().forEach(n -> log.warn("goal scenario AI sentence removed: {}", n.logLine(aiProps.logRejected())));
-						quota.cache(userId, target, months, asOf, drafts, "openai");
+						quota.cache(userId, target, months, budget, asOf, drafts, "openai");
 						return new Chosen(checked.plans(), null, usage(userId), false);
 					}
 					// 어긴 규칙·위치만 남긴다. 옵션을 켜면 걸린 칸의 문구도 남긴다(목표 이름·회원 번호는 남기지 않음)
@@ -195,8 +197,11 @@ public class GoalScenarioService {
 				userId == null ? null : usage(userId), false);
 	}
 
-	/** AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름(함께 볼 상품 포함)·목표 금액·기한·적금·CMA 금리·세율 15.4%·통계. */
-	private static ProposalText.Facts facts(long target, int months, Picked picked) {
+	/**
+	 * AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름(함께 볼 상품 포함)·목표 금액·월 납입 가능액·기한·적금·CMA 금리·
+	 * 세율 15.4%·통계.
+	 */
+	private static ProposalText.Facts facts(long target, int months, Long budget, Picked picked) {
 		java.util.Set<String> names = new java.util.HashSet<>();
 		names.add(picked.saving().name());
 		names.add(picked.saving().company());
@@ -210,7 +215,7 @@ public class GoalScenarioService {
 		}
 		names.remove(null);
 		List<ScenarioProposer.TypeStat> sent = stats(picked, months);
-		return new ProposalText.Facts(target, months, names, percents,
+		return new ProposalText.Facts(target, budget == null ? 0 : budget, months, names, percents,
 				java.util.Map.of(ProposalText.StatKind.MEAN, statPercents(sent, ScenarioProposer.TypeStat::meanMonthlyReturn, ScenarioProposer.AltStat::meanMonthlyReturn),
 						ProposalText.StatKind.VOLATILITY, statPercents(sent, ScenarioProposer.TypeStat::monthlyVolatility, ScenarioProposer.AltStat::monthlyVolatility),
 						ProposalText.StatKind.DRAWDOWN, statPercents(sent, ScenarioProposer.TypeStat::maxDrawdown, ScenarioProposer.AltStat::maxDrawdown)));
@@ -525,12 +530,12 @@ public class GoalScenarioService {
 		if (c == null) {
 			List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), null)).toList();
 			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), plan.parts(), ScenarioResultText.of(false, null, null, months),
-					mix, false, null, null, null);
+					mix, false, null, null, null, null, null);
 		}
 		Map<ProductType, Long> alloc = ScenarioMath.allocate(c.monthly(), plan.mix());
 		List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), alloc.get(e.getKey()))).toList();
 		return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), plan.parts(),
-				ScenarioResultText.of(true, c.monthly(), c.outcome(), months), mix, true, c.monthly(), c.paid(), c.outcome());
+				ScenarioResultText.of(true, c.monthly(), c.outcome(), months), mix, true, c.monthly(), c.paid(), c.outcome(), null, null);
 	}
 
 	private static List<Product> products(Picked picked) {

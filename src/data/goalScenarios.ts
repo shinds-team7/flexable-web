@@ -5,8 +5,11 @@ import { api } from '@/lib/api';
 
 export type ScenarioProductType = 'SAVINGS' | 'CMA' | 'KR_INDEX_ETF' | 'US_INDEX_ETF' | 'KOSPI_TOP5';
 
-/** months는 기한(개월, 6~36). 화면은 연·월로 받아 개월로 보낸다(policies §7-1). */
-export type GoalScenarioRequest = { name: string; targetAmount: number; months: number };
+/**
+ * months는 기한(개월, 6~36). 화면은 연·월로 받아 개월로 보낸다(policies §7-1).
+ * monthlyBudget은 월 납입 가능액(선택, 천 원 단위, 1만 원~목표 금액). 비우면 보내지 않는다.
+ */
+export type GoalScenarioRequest = { name: string; targetAmount: number; months: number; monthlyBudget?: number | null };
 
 export type ScenarioProduct = {
   type: ScenarioProductType;
@@ -46,6 +49,10 @@ export type GoalScenario = {
   monthly: number | null;
   paid: number | null;
   outcome: ScenarioOutcome | null;
+  /** 필요 월 금액이 월 납입 가능액 이하면 true, 넘거나 월 금액을 찾지 못했으면 false. 가능액이 없거나 옛 저장본이면 null(policies §7-5). */
+  withinBudget: boolean | null;
+  /** 필요 월 금액 − 가능액(가능액을 넘고 월 금액을 찾았을 때만). */
+  overBudgetBy: number | null;
 };
 
 export type GoalScenarioResult = {
@@ -53,6 +60,8 @@ export type GoalScenarioResult = {
   name: string;
   targetAmount: number;
   months: number;
+  /** 입력한 월 납입 가능액. 넣지 않았으면 null */
+  monthlyBudget: number | null;
   proposer: 'AI' | 'DEMO';
   fallbackReason: ScenarioFallbackReason | null;
   asOf: string;
@@ -104,6 +113,8 @@ export type SavedGoalScenario = {
   name: string;
   targetAmount: number;
   months: number;
+  /** 저장할 때 넣은 월 납입 가능액. 넣지 않았거나 옛 저장본이면 null */
+  monthlyBudget: number | null;
   proposer: 'AI' | 'DEMO';
   asOf: string;
   returnsFrom: string;
@@ -146,7 +157,7 @@ export const GOAL_PRESETS: { id: string; chip: string; name: string; amount: num
   { id: 'y3', chip: '3년 · 5,000만 원', name: '3년 뒤 5,000만 원', amount: 50_000_000, months: 36 },
 ];
 
-export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000, monthsMin: 6, monthsMax: 36 };
+export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000, monthsMin: 6, monthsMax: 36, budgetMin: 10_000, budgetUnit: 1_000 };
 
 /** 개월 수를 "6개월"·"1년 6개월"·"2년"으로. */
 export function periodText(months: number) {

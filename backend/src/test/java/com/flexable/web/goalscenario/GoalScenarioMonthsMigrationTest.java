@@ -22,7 +22,8 @@ class GoalScenarioMonthsMigrationTest {
 		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, years, as_of, drafts, model, created_at) VALUES (1, 15000000, 1, '2026-11-09', '[\"초안\"]', 'openai', NOW())");
 		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, years, as_of, drafts, model, created_at) VALUES (1, 15000000, 3, '2026-11-09', '[\"3년 초안\"]', 'openai', NOW())");
 
-		Flyway.configure().dataSource(ds).load().migrate();
+		// V37(월 납입 가능액)이 재사용 키를 다시 바꾸므로 V35까지만 본다(V37은 GoalScenarioMonthlyBudgetMigrationTest)
+		Flyway.configure().dataSource(ds).target("35").load().migrate();
 
 		assertThat(jdbc.queryForObject("SELECT months FROM goal_scenarios WHERE id = 5", Integer.class)).isEqualTo(24);
 		assertThat(jdbc.queryForList("SELECT months FROM goal_scenario_ai_cache ORDER BY months", Integer.class)).containsExactly(12, 36);

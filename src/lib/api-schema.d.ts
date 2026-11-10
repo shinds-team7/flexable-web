@@ -1902,11 +1902,12 @@ export interface paths {
         /**
          * F7 v2 목표 달성 시나리오(로그인 없이도 씀, 회원이면 AI 조합). 조합은 제안기(AI 또는 데모), 숫자는 서버 계산. docs/policies.md §7
          * @description - 계산 결과는 DB에 저장하지 않고, 저장(`POST /me/goal/scenarios`)을 위해 30분 동안 서버 메모리에만 둔다(resultId). 목표 이름은 계산에 쓰지 않고 그대로 돌려주며 로그에 남기지 않는다.
-         *     - 로그인 토큰이 있으면 회원으로 보고 AI(OpenAI) 조합을 준다(하루 횟수·서비스 상한). 회원이 받은 AI 조합(유형·비중·문구)은 목표 금액·기한·자료 기준일과 함께 그 회원의 재사용용으로 DB에 두고, 같은 조건이면 다시 부르지 않는다(aiReused). 7일 뒤 삭제, 탈퇴하면 즉시 삭제(§7-6). 토큰이 없으면 데모 조합(GUEST). 토큰이 잘못됐거나 탈퇴한 회원이면 401.
+         *     - 로그인 토큰이 있으면 회원으로 보고 AI(OpenAI) 조합을 준다(하루 횟수·서비스 상한). 회원이 받은 AI 조합(유형·비중·문구)은 목표 금액·기한·월 납입 가능액·자료 기준일과 함께 그 회원의 재사용용으로 DB에 두고, 같은 조건이면 다시 부르지 않는다(aiReused). 7일 뒤 삭제, 탈퇴하면 즉시 삭제(§7-6). 토큰이 없으면 데모 조합(GUEST). 토큰이 잘못됐거나 탈퇴한 회원이면 401.
          *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
          *     - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
          *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
          *     - 기한은 개월 수(6~36)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
+         *     - 월 납입 가능액(monthlyBudget)은 선택이다. 필요 월 금액 계산은 바꾸지 않고 시나리오마다 비교만 한다(withinBudget·overBudgetBy). 가능액 밖인 시나리오는 서버가 정해 둔 대안 문장을 해설 fit 칸 끝과 explanation 끝에 붙인다(§7-5). 회원이면 AI에도 보낸다(§7-6).
          */
         post: {
             parameters: {
@@ -1924,6 +1925,11 @@ export interface paths {
                         targetAmount: number;
                         /** @description 기한(개월). 화면은 연·월로 받아 개월로 보낸다 */
                         months: number;
+                        /**
+                         * Format: int64
+                         * @description 월 납입 가능액(선택, 천 원 단위, 1만 원~목표 금액). 빼거나 null이면 지금과 같이 계산한다. 목표 금액보다 크면 400 monthlyBudget(policies §7-1)
+                         */
+                        monthlyBudget?: number | null;
                     };
                 };
             };
@@ -4301,6 +4307,11 @@ export interface components {
             /** @description 기한(개월, 6~36) */
             months: number;
             /**
+             * Format: int64
+             * @description 요청의 월 납입 가능액. 넣지 않았으면 null
+             */
+            monthlyBudget: number | null;
+            /**
              * @description DEMO면 화면에 "AI 연결 전 예시 조합" 표시
              * @enum {string}
              */
@@ -4339,7 +4350,7 @@ export interface components {
                 limitPerDay: number;
                 remainingToday: number;
             } | null;
-            /** @description 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false */
+            /** @description 같은 회원이 같은 목표 금액·기한·월 납입 가능액(없음끼리 같음)·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false */
             aiReused: boolean;
         };
         SavedGoalScenarioSummary: {
@@ -4376,6 +4387,11 @@ export interface components {
             targetAmount: number;
             /** @description 기한(개월) */
             months: number;
+            /**
+             * Format: int64
+             * @description 저장할 때 넣은 월 납입 가능액. 넣지 않았거나 #399 전 저장본이면 null
+             */
+            monthlyBudget: number | null;
             /** @enum {string} */
             proposer: "AI" | "DEMO";
             /** Format: date */
@@ -4465,6 +4481,13 @@ export interface components {
                 /** @description 기한 말 금액 < 넣은 돈인 경로 비율(만분율, 내림) */
                 lossBp: number;
             } | null;
+            /** @description 필요 월 금액이 월 납입 가능액 이하면 true, 넘거나 월 금액을 찾지 못했으면(reachable=false) false. 가능액을 넣지 않았거나 #399 전 저장본이면 null(policies §7-5) */
+            withinBudget: boolean | null;
+            /**
+             * Format: int64
+             * @description 필요 월 금액 − 월 납입 가능액(withinBudget=false이고 reachable=true일 때만, 천 원 단위). 그 밖에는 null
+             */
+            overBudgetBy: number | null;
         };
         Error: {
             /** @enum {string} */

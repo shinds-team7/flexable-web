@@ -35,9 +35,13 @@ public class SavedScenarioService implements UserWithdrawalListener {
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	/** snapshot 칸에 넣는 JSON. 목록·상세에 필요한 값을 모두 담는다. scenario는 고른 플랜, alternatives는 나머지 플랜이고 예전 저장본에는 없다(null). */
+	/**
+	 * snapshot 칸에 넣는 JSON. 목록·상세에 필요한 값을 모두 담는다. scenario는 고른 플랜, alternatives는 나머지 플랜이고 예전 저장본에는 없다(null).
+	 * monthlyBudget은 저장할 때 넣은 월 납입 가능액이고, 넣지 않았거나 #399 전 저장본이면 null이다(가능액 비교와 대안 문장도 플랜에 그대로 저장한다).
+	 */
 	record Snapshot(int months, String proposer, String asOf, String returnsFrom, String returnsTo, int paths, BigDecimal reachShare,
-			List<Product> products, Scenario scenario, List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample) {
+			List<Product> products, Scenario scenario, List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample,
+			Long monthlyBudget) {
 	}
 
 	private final SavedScenarioRepository saved;
@@ -77,7 +81,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		// 결과 문장은 저장하지 않고 조회할 때 저장된 숫자로 만든다(policies §7-8)
 		Snapshot snap = new Snapshot(r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.reachShare(),
 				r.products(), s.withResultText(null), r.scenarios().stream().filter(x -> !x.id().equals(s.id())).map(x -> x.withResultText(null)).toList(),
-				r.assumptions(), r.notice(), r.isSample());
+				r.assumptions(), r.notice(), r.isSample(), r.monthlyBudget());
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS); // DB(DATETIME(6))와 같은 정밀도로 돌려준다
 		SavedScenario row = saved.save(new SavedScenario(userId, now, r.name(), r.targetAmount(), r.months(), JSON.writeValueAsString(snap)));
 		// 동시에 저장해 5개를 넘겼으면 이번 저장을 되돌린다
@@ -124,7 +128,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 
 	private static Saved detail(SavedScenario row) {
 		Snapshot s = read(row);
-		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), s.proposer(),
+		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), s.monthlyBudget(), s.proposer(),
 				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), products(s), withText(s.scenario(), s.months()),
 				s.alternatives() == null ? List.of() : s.alternatives().stream().map(x -> withText(x, s.months())).toList(), s.assumptions(), s.notice(),
 				s.isSample());

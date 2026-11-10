@@ -13,8 +13,10 @@
 .gp-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-soft);padding:var(--density-gap)}
 .gp-page section{margin-bottom:var(--density-pad)}
 
-.gp-form{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:calc(var(--density-gap)*2/3);align-items:end}
+.gp-form{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:calc(var(--density-gap)*2/3);align-items:end}
 .gp-field label{display:block;font-size:13px;font-weight:600;color:var(--color-text-secondary);margin-bottom:calc(var(--density-gap)/4)}
+.gp-field label small{font-weight:500;color:var(--color-text-tertiary)}
+.gp-plan-budget{align-self:flex-start;white-space:normal;margin:0 0 calc(var(--density-gap)/2)}
 .gp-field input,.gp-field select{width:100%;height:var(--density-control);border:1px solid var(--color-border-strong);border-radius:var(--radius-soft-sm);padding:0 calc(var(--density-gap)*7/12);font:inherit;font-size:var(--font-size-body);background:var(--color-surface);color:var(--color-text-primary)}
 .gp-field input:focus-visible,.gp-field select:focus-visible,.gp-chip:focus-visible,.gp-plan:focus-visible,.gp-primary:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
 .gp-period{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--density-gap)/3)}
@@ -119,7 +121,7 @@
 
 @media (max-width:820px){
   .gp-form{grid-template-columns:1fr 1fr}
-  .gp-field-name,.gp-primary{grid-column:1/-1}
+  .gp-field-name,.gp-field-budget,.gp-primary{grid-column:1/-1}
   .gp-plans,.gp-detail{grid-template-columns:1fr}
   .gp-title{font-size:24px}
 }

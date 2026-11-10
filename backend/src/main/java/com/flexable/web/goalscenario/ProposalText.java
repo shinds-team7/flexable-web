@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 
 /**
  * 제안 문구(제목·요약·해설)의 숫자·보장 표현 검사(policies §7-6).
- * 숫자는 서버가 확인할 수 있는 것만 허용한다: 상품·지수 이름 속 숫자, 기한 안의 기간, AI에게 보낸 목표 금액·금리·세율·유형별 통계와
+ * 숫자는 서버가 확인할 수 있는 것만 허용한다: 상품·지수 이름 속 숫자, 기한 안의 기간, AI에게 보낸 목표 금액·월 납입 가능액·금리·세율·유형별 통계와
  * 통계 기간("지난 60개월"), 그 시나리오의 비중과 같은 %, 합쳤다는 말과 함께 쓴 비중의 합, 다섯 이하의 종목·가지 수. 그 밖의 금액·%·배수·횟수는 AI가 새로 만든 숫자로 보고 막는다.
  * 보장 표현은 단정만 막고 부정문("보장되지 않아요")은 허용한다.
  */
@@ -22,11 +22,23 @@ final class ProposalText {
 	 * AI에게 보낸 사실. 문구 속 숫자를 이 값과 대조한다.
 	 * percents는 표기한 값과 같아야 한다. stats(유형별 통계를 %로 바꾼 절댓값)는 문맥까지 본다(allowedStat).
 	 */
-	record Facts(long targetAmount, int months, Set<String> names, List<BigDecimal> percents, Map<StatKind, List<BigDecimal>> stats) {
+	record Facts(long targetAmount, long monthlyBudget, int months, Set<String> names, List<BigDecimal> percents,
+			Map<StatKind, List<BigDecimal>> stats) {
 		static final Facts NONE = new Facts(0, 0, Set.of(), List.of());
+
+		/** monthlyBudget은 AI에게 보낸 월 납입 가능액, 보내지 않았으면 0. */
+		Facts(long targetAmount, int months, Set<String> names, List<BigDecimal> percents, Map<StatKind, List<BigDecimal>> stats) {
+			this(targetAmount, 0, months, names, percents, stats);
+		}
 
 		Facts(long targetAmount, int months, Set<String> names, List<BigDecimal> percents) {
 			this(targetAmount, months, names, percents, Map.of());
+		}
+
+		/** AI에게 보낸 금액(목표 금액·월 납입 가능액)과 같은지. */
+		boolean sentAmount(BigDecimal won) {
+			return (targetAmount != 0 && won.compareTo(BigDecimal.valueOf(targetAmount)) == 0)
+					|| (monthlyBudget != 0 && won.compareTo(BigDecimal.valueOf(monthlyBudget)) == 0);
 		}
 	}
 
@@ -161,7 +173,7 @@ final class ProposalText {
 			else if (MONEY_UNIT.matcher(rest).find()) {
 				int[] end = { m.start() };
 				BigDecimal won = money(t, end);
-				if (won == null || won.compareTo(BigDecimal.valueOf(facts.targetAmount())) != 0 || facts.targetAmount() == 0) {
+				if (won == null || !facts.sentAmount(won)) {
 					return false;
 				}
 				from = end[0];

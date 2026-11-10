@@ -12,13 +12,13 @@ interface ScenarioProposer {
 	boolean enabled();
 
 	/**
-	 * 목표 금액·기한과 유형별 통계에 맞춘 시나리오 3개. 실패하면 Failed를 던진다.
+	 * 목표 금액·기한·월 납입 가능액과 유형별 통계에 맞춘 시나리오 3개. 실패하면 Failed를 던진다.
 	 * 목표 이름·회원 식별자는 넘기지 않는다(외부 전송 항목을 줄인다).
 	 */
 	List<Proposals.Draft> propose(Input input);
 
-	/** AI에게 보내는 값 전부. */
-	record Input(long targetAmount, int months, List<TypeStat> stats) {
+	/** AI에게 보내는 값 전부. monthlyBudget은 사용자가 넣은 월 납입 가능액이고 넣지 않았으면 null이다. */
+	record Input(long targetAmount, int months, Long monthlyBudget, List<TypeStat> stats) {
 	}
 
 	/**

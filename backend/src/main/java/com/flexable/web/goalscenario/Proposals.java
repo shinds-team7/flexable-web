@@ -157,7 +157,7 @@ final class Proposals {
 			}
 			String[][] fields = { { "title", d.title(), "20" }, { "summary", d.summary(), "40" } };
 			for (String[] f : fields) {
-				String problem = text(f[1], Integer.parseInt(f[2]), facts, mix.values());
+				String problem = text(f[1], Integer.parseInt(f[2]), facts, mix);
 				if (problem != null) {
 					return Checked.fail(problem + " " + at + "." + f[0], f[1]);
 				}
@@ -173,7 +173,7 @@ final class Proposals {
 			List<String> kept = new ArrayList<>();
 			List<ProposalText.Removed> gone = new ArrayList<>();
 			for (String t : texts) {
-				ProposalText.Cleaned cleaned = ProposalText.clean(t, facts, mix.values());
+				ProposalText.Cleaned cleaned = ProposalText.clean(t, facts, mix);
 				kept.add(cleaned.text());
 				gone.addAll(cleaned.removed());
 			}
@@ -189,7 +189,7 @@ final class Proposals {
 	}
 
 	/** 문구 규칙을 어기면 이유 코드, 지키면 null. */
-	private static String text(String s, int max, ProposalText.Facts facts, java.util.Collection<Integer> mix) {
+	private static String text(String s, int max, ProposalText.Facts facts, Map<ProductType, Integer> mix) {
 		if (s == null || s.strip().isEmpty()) {
 			return "TEXT_EMPTY";
 		}

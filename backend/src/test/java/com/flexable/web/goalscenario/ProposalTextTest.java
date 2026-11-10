@@ -139,6 +139,124 @@ class ProposalTextTest {
 		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_NUMBER");
 	}
 
+	/** 정수로 반올림한 통계(#398): 23.45 → 23, 4.56 → 5, 1.23 → 1. 종류 단어가 숫자 바로 앞에 있어야 한다. */
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"지난 60개월 최대 하락 23%를 고려했어요.",
+			"최대 하락은 약 23%예요.",
+			"월 변동폭 5% 안팎이에요.",
+			"월 평균 1%였어요." })
+	void 정수로_반올림한_통계는_통과(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"최대 하락은 24%였어요.",
+			"연 23% 수익을 노려요.",
+			"하락 구간이 길었던 미국 지수 쪽은 23%예요.",
+			"최대 하락 23%라는 전망이에요.",
+			"월 평균 1% 수익이 예상돼요.",
+			"23% 정도 하락한 적이 있어요.",
+			"최대 하락은 연 23%예요." })
+	void 정수_통계를_다른_뜻으로_쓰거나_멀리_쓰면_막힘(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	/** 유형별 비중: 적금 50·CMA 10·국내 15·미국 25. 적금·CMA 60, 국내·미국 40. */
+	static final Map<ProductType, Integer> TYPED = Map.of(ProductType.SAVINGS, 50, ProductType.CMA, 10, ProductType.KR_INDEX_ETF, 15,
+			ProductType.US_INDEX_ETF, 25);
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"적금·CMA 60%로 바닥을 만들어요.",
+			"적금과 CMA 60%는 값이 크게 흔들리지 않아요.",
+			"국내·미국 지수 ETF 40%가 흔들릴 수 있어요.",
+			"지수 ETF 40%는 시장 따라 오르내려요.",
+			"국내 ETF와 미국 ETF 40%를 나눠 담아요.",
+			"CMA·적금 60%와 지수 ETF 40%로 나눴어요." })
+	void 유형_이름을_나열한_비중_합은_통과(String text) {
+		assertThat(ProposalText.problem(text, FACTS, TYPED)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"적금·CMA 70%로 나눴어요.",
+			"적금 60%예요.",
+			"적금·CMA 연 60%예요.",
+			"적금·CMA 60% 수익이 나요.",
+			"지수 ETF 기대 수익 40%예요.",
+			"코스피 대형주와 적금 60%예요." })
+	void 유형_비중_합과_다르거나_다른_뜻이면_막힘(String text) {
+		assertThat(ProposalText.problem(text, FACTS, TYPED)).isEqualTo("TEXT_NUMBER");
+	}
+
+	@Test
+	void 유형을_모르면_이름_나열_합은_막힘() {
+		assertThat(ProposalText.problem("적금·CMA 60%로 바닥을 만들어요.", FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "1금융권 적금이에요.", "제1금융권 은행 적금이라 금리가 정해져 있어요.", "2금융권 상품보다 금리가 낮아요.", "제2 금융권은 쓰지 않았어요." })
+	void 금융권_구분은_통과(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "3금융권 상품이에요.", "12금융권이에요." })
+	void 없는_금융권_숫자는_막힘(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "투자 몫은 수익을 보장받지 못해요.", "수익을 보장받지 않아요.", "원금을 보장받을 수 없어요.", "누구도 수익을 보장해 주지 않아요.",
+			"결과를 보장할 수는 없어요.", "수익이 보장될 수는 없어요.", "원금이 보장된 게 아니에요.", "보장된 것이 아니에요.", "보장되는 것이 아니에요.",
+			"수익이 보장되지도 않아요.", "아무도 보장하지도 않아요.", "수익은 보장은 되지 않아요.", "원금 보장도 없어요.", "원금이 보장되는 상품이 아니에요.",
+			"원금 보장형 상품이 아니에요.", "오른다고 확실하다고 할 수 없어요.", "확실하다고 볼 수 없어요.", "확실하지도 않아요." })
+	void 늘린_보장_부정문은_통과(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "원금 보장형 상품이에요.", "원금이 보장돼서 손해가 없어요.", "수익을 보장받아요.", "확실하게 올라요.", "원금 보장 상품이라 걱정 없어요." })
+	void 늘린_목록에도_단정은_막힘(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_ASSERTION");
+	}
+
+	/** 숫자 없는 전망은 허용한다(#398, 사용자 결정). 위험 문장을 뒤에 쓰는지는 검사하지 않는다. */
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"AI 서버와 데이터센터가 늘면서 반도체 수요가 커지면 국내 반도체 기업의 실적 개선이 기대돼요.",
+			"저평가된 국내 기업이 재평가되면 지수에 도움이 될 수 있어요.",
+			"AI 투자가 이어지면 미국 대형 기술 기업의 이익 성장이 기대돼요.",
+			"금리가 내려가는 흐름이면 지금 금리를 만기까지 묶어 두는 장점이 있어요.",
+			"다만 업황이 꺾이면 함께 흔들려 줄어들 수 있어요." })
+	void 숫자_없는_전망은_통과(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"월 평균 1.23%를 보면 앞으로도 수익이 기대돼요.",
+			"반도체 수요가 커지면 연 10% 수익이 기대돼요.",
+			"실적 개선으로 2배 오를 전망이에요.",
+			"반도체 업황이 좋아 확실히 올라요." })
+	void 전망에_숫자나_단정을_쓰면_지움(String text) {
+		assertThat(ProposalText.problem(text, STAT_FACTS, MIX)).isNotNull();
+	}
+
+	@Test
+	void 유형별_근거_예시_문장은_보낸_통계와_같으면_통과() {
+		ProposalText.Facts facts = new ProposalText.Facts(FACTS.targetAmount(), FACTS.months(), FACTS.names(), FACTS.percents(),
+				Map.of(ProposalText.StatKind.MEAN, List.of(new BigDecimal("2.1072")), ProposalText.StatKind.VOLATILITY, List.of(new BigDecimal("10.5281"))));
+		Map<ProductType, Integer> mix = Map.of(ProductType.SAVINGS, 50, ProductType.CMA, 20, ProductType.KR_INDEX_ETF, 30);
+		String text = "국내 대표 지수 ETF는 30%로, 월 평균 수익률이 2.11%이고 월 변동폭은 10.53%예요. 시장 상황에 따라 수익이 줄어들 수 있어요. 다른 ETF와 비교해 비슷한 수익률을 보여요.";
+		assertThat(ProposalText.clean(text, facts, mix).removed()).isEmpty();
+		ProposalText.Facts other = new ProposalText.Facts(FACTS.targetAmount(), FACTS.months(), FACTS.names(), FACTS.percents(),
+				Map.of(ProposalText.StatKind.MEAN, List.of(new BigDecimal("1.50")), ProposalText.StatKind.VOLATILITY, List.of(new BigDecimal("10.5281"))));
+		assertThat(ProposalText.clean(text, other, mix).removed()).extracting(ProposalText.Removed::problem).containsExactly("TEXT_NUMBER");
+	}
+
 	@Test
 	void 비중_하나뿐인_시나리오는_합이_없다() {
 		assertThat(ProposalText.problem("나머지 200%예요.", FACTS, List.of(100))).isEqualTo("TEXT_NUMBER");

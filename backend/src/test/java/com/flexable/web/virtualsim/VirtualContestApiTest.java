@@ -276,6 +276,8 @@ class VirtualContestApiTest {
 		// 풀 때는 정답·경향·회사명이 없다
 		assertThat(placement).doesNotContain("trend").doesNotContain("upShare").doesNotContain("movement").doesNotContain("\"company\"");
 		assertThat((List<?>) JsonPath.read(placement, "$.questions")).hasSize(10);
+		// 새 배치고사는 공시 직후 기준이라고 알려 준다
+		assertThat((String) JsonPath.read(placement, "$.basis")).isEqualTo("REACTION");
 		String id = JsonPath.read(placement, "$.placementId");
 		assertNoLeak(placement);
 		// 공시 주요 내용: 구조화 자료가 있는 유형(예시 룰셋의 유상증자·자기주식 취득)은 항목이, 없는 유형(공급 계약·실적·배당)은 null
@@ -538,6 +540,8 @@ class VirtualContestApiTest {
 		jdbc.update("INSERT INTO virtual_contest_aliases (user_id, alias, version, created_at) VALUES (?, '느긋한수달0001', 'vsim-alias-v1', ?)", userId(g), now);
 		jdbc.update("INSERT INTO virtual_contest_placements (id, contest_id, user_id, questions, started_at, expires_at) VALUES ('fiveday-1', '2026-11', ?, ?, ?, ?)",
 				userId(g), five.append("]").toString(), now, java.sql.Timestamp.from(CLOCK.now.plusSeconds(1800)));
+		// 다시 열면 5거래일 기준이라고 알려 화면이 맞는 기간을 안내한다
+		assertThat((String) JsonPath.read(body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), g), 200)), "$.basis")).isEqualTo("FIVE_DAY");
 		String fiveDay = join(g);
 		assertThat((Integer) JsonPath.read(fiveDay, "$.correct")).isEqualTo(3);
 		assertThat((List<String>) JsonPath.read(fiveDay, "$.items[*].basis")).containsOnly("FIVE_DAY");

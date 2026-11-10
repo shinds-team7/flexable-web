@@ -839,6 +839,7 @@ export interface paths {
                          * @example {
                          *       "placementId": "3f0c1d2e-7a4b-4c5d-9e8f-0a1b2c3d4e5f",
                          *       "expiresAt": "2026-11-06T12:30:00+09:00",
+                         *       "basis": "REACTION",
                          *       "questions": [
                          *         {
                          *           "id": "q1",
@@ -3889,6 +3890,11 @@ export interface components {
              * @description 시작 후 30분. 지나면 안 고른 문제를 틀림으로 서버가 채점
              */
             expiresAt: string;
+            /**
+             * @description 이 배치고사의 채점 기준(결과 items[].basis와 같음). REACTION = 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가). FIVE_DAY = 11-09 반응 창 규칙 전에 시작해 저장된 배치고사의 5거래일(기준 봉 종가 → 5번째 후속 거래일 종가). 화면은 이 값으로 고를 기간을 안내한다
+             * @enum {string}
+             */
+            basis: "REACTION" | "FIVE_DAY";
             questions: {
                 id: string;
                 /** @description 그 회사의 업종(회사명은 결과에서 공개) */

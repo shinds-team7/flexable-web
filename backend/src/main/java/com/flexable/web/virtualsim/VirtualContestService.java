@@ -304,10 +304,14 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 	}
 
 	private Placement placement(PlacementRow p) {
-		List<Question> qs = questions(p).stream()
+		List<StoredQuestion> stored = questions(p);
+		// 반응 창 규칙 전에 만든 사본(basis 없음)은 5거래일로 채점하므로 그 기준을 알려 화면이 맞는 기간을 안내하게 한다
+		String basis = stored.stream().allMatch(q -> VirtualContestQuestions.REACTION.equals(q.basis())) ? VirtualContestQuestions.REACTION
+				: VirtualContestQuestions.FIVE_DAY;
+		List<Question> qs = stored.stream()
 			.map(q -> new Question(q.id(), q.industry(), q.category(), q.category().displayName(), q.title(), q.body(), q.details(), q.summary()))
 			.toList();
-		return new Placement(p.id(), format(p.expiresAt()), qs);
+		return new Placement(p.id(), format(p.expiresAt()), basis, qs);
 	}
 
 	/**

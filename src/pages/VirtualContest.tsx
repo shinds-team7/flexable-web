@@ -328,7 +328,10 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
           <span aria-hidden="true">⏱</span>{left > 0 ? `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '시간 종료'}
         </span>}
       </div>
-      <p className="practice-muted">실제 과거 공시를 보고, 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요. 회사 이름과 날짜는 제출한 뒤 공개해요.</p>
+      {/* 채점 기준은 서버가 준다(basis). 반응 창 규칙 전에 시작해 저장된 배치고사는 5거래일로 채점하므로 그 기간을 안내한다 */}
+      <p className="practice-muted">{placement.basis === 'FIVE_DAY'
+        ? '실제 과거 공시를 보고, 그 뒤 5거래일 동안(공시일 종가 → 5번째 거래일 종가) 주가가 올랐을지 내렸을지 골라요. 이 배치고사는 채점 규칙이 바뀌기 전에 시작해서 5거래일 기준으로 채점해요. 회사 이름과 날짜는 제출한 뒤 공개해요.'
+        : '실제 과거 공시를 보고, 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요. 회사 이름과 날짜는 제출한 뒤 공개해요.'}</p>
       {left === 0 && <p role="status" className="contest-timer-over">제한 시간이 지났어요. 제출하면 고른 답 없이 채점된 결과를 보여 줘요.</p>}
     </div>
     <div className="contest-progress" aria-label="배치고사 진행">

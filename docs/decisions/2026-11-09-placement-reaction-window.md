@@ -10,7 +10,7 @@
 2. **보합**: 공시 직후(전날 종가 = 다음 거래일 종가)가 같으면 문제로 쓰지 않는다. 기준 봉 전날 봉과 5번째 후속 거래일 봉이 모두 있어야 후보다(그다음 주를 보여 주려고).
 3. **결과에 두 숫자**를 보인다: **공시 직후**(전날 종가 → 다음 거래일 종가, 채점 기준)와 **그다음 주**(다음 거래일 종가 → 5번째 후속 거래일 종가, 채점에 쓰지 않음). 그다음 주는 **다음 거래일 종가에 체결했다고 가정한 비교**다. 다음 날 시가에 체결하면(과거 시장 연습·가상 시뮬레이션의 체결 방식) 그날 시가와 종가가 다른 만큼 실제 수익률은 이 값과 다르다. 결과 화면과 「공시 읽는 법」에 같은 설명을 쓴다. 둘 다 소수 4자리 내림(음수는 더 작은 쪽)이고 서버가 계산한다.
 4. **출제: 반응 창 근거 유형 4개 + 유형 상관없이 6개**(사용자). 근거 유형은 측정 v2에서 반응 창 "근거 있음"(BH q<0.10, 앞·뒤 기간 모두 같은 부호 p<0.05)인 **공급 계약·자기주식 취득·시설·지분 투자**이고, 룰셋과 상관없이 이 기록에 고정한다. 유형 상관없이 뽑는 6개에도 근거 유형이 들어갈 수 있다. 근거 유형이 4개 미만이거나 전체가 10개 미만이면 `503 PRACTICE_UNAVAILABLE`이다. 기존의 "지금 룰셋에서 경향이 뚜렷한 유형 6개"는 없앤다(#369 진단에서 그 유형들의 5거래일 경향이 시장 조정·기간 분할을 견디지 못함).
-5. **시즌 호환: 배포 뒤 새로 시작하는 배치고사부터**(사용자). 이미 채점된 결과·판은 그대로 둔다. 배포 전에 시작해 풀고 있던 배치고사는 시작할 때 저장한 문제 사본의 기준(5거래일)으로 채점한다. 그래서 같은 시즌 안에서 두 기준이 섞인다. 결과 응답의 `basis`(`REACTION`·`FIVE_DAY`)로 구분하고, 화면은 `FIVE_DAY`면 지금처럼 5거래일 등락 하나를 보인다.
+5. **시즌 호환: 배포 뒤 새로 시작하는 배치고사부터**(사용자). 이미 채점된 결과·판은 그대로 둔다. 배포 전에 시작해 풀고 있던 배치고사는 시작할 때 저장한 문제 사본의 기준(5거래일)으로 채점한다. 그래서 같은 시즌 안에서 두 기준이 섞인다. 배치고사 응답과 결과 응답의 `basis`(`REACTION`·`FIVE_DAY`)로 구분한다. 문제 화면은 `FIVE_DAY`면 5거래일 동안의 방향을 고르라고 안내하고(같은 공시라도 두 방향이 다를 수 있어 안내와 채점이 어긋나지 않게), 결과 화면은 `FIVE_DAY`면 지금처럼 5거래일 등락 하나를 보인다.
 6. **결과의 유형 통계(경향·상승 비율·경로 수)는 그대로 룰셋의 5거래일 통계**다. 화면 문장에 "5거래일 뒤로 보면"을 붙여 채점 구간과 다름을 밝힌다.
 7. **가상 시뮬레이션의 "사건 뒤 5거래일" 문구와 가격 생성(룰셋)은 이번에 바꾸지 않는다**(사용자). 가상 시세가 지금도 룰셋의 5거래일 경로로 움직여, 문구만 바꾸면 설명과 동작이 어긋난다. 룰셋을 다시 정할 때 함께 고친다.
 8. **「공시 읽는 법」**에 유형과 상관없이 확인할 것(원래 공시인지 정정인지, 누가 결정했는지, 결정인지 결과인지, 회사 몸집에 견준 크기, 이미 알려진 내용인지, 같은 날 함께 나온 공시, 언제 알려졌는지)과 "공시 직후·그다음 주" 두 구간 설명, 유형별 항목 몇 개(유상증자 배정 상대, 공급 계약 상대, 자기주식 취득 기간)를 더한다. 방향·평가·경향은 적지 않고 `PlacementGuideTextTest` 금지 표현 검사는 그대로다.
@@ -35,7 +35,7 @@
 | 무엇 | 어디 |
 |---|---|
 | 출제·채점 | `virtualsim.VirtualContestQuestions`(`EVIDENCE`·`ANY`·`EVIDENCE_TYPES`, `Past`의 전날·다음 거래일·5번째 종가, `described` 먼저 고르기), `VirtualSimStore.visibleSummaryReceipts`, worker `PlacementSummaryJob` 요약 순서, `VirtualContestService`(문제 사본 `basis`·`reactionRate`·`nextWeekRate`, 이전 사본·결과는 `FIVE_DAY`) |
-| 계약 | [web-api.yaml](../contracts/web-api.yaml) `VirtualContestPlacementResult.items[]`에 `basis`·`reactionReturnRate`·`nextWeekReturnRate` 추가, `subsequentReturnRate`는 nullable(`FIVE_DAY`만), 배치고사 시작·제출 설명 |
+| 계약 | [web-api.yaml](../contracts/web-api.yaml) `VirtualContestPlacement.basis` 추가, `VirtualContestPlacementResult.items[]`에 `basis`·`reactionReturnRate`·`nextWeekReturnRate` 추가, `subsequentReturnRate`는 nullable(`FIVE_DAY`만), 배치고사 시작·제출 설명 |
 | 정책·테스트 | [policies](../policies.md) §8-8 배치고사 행·채점 표, §8-6 경향 쓰임, `tests/policy/virtual-contest.json` `placement`, `VirtualContestPolicyTest`·`VirtualContestApiTest`·`PlacementDetailsContractTest`·`PlacementSummaryJobTest`, [AI 요약 결정](2026-11-09-placement-ai-summary.md) 4, `backend/README.md` |
 | 화면 | `src/pages/VirtualContest.tsx`(규칙·문제 안내·결과 두 숫자), `src/data/disclosureStory.ts`(결과 줄글), `src/pages/SimulationGuide.tsx`·`src/data/simulationGuide.ts`(공통 확인 항목·두 구간) |
 | 개인정보 | 변화 없음(배치고사 문제 사본에 공개 시세 등락 두 값이 더해질 뿐, 회원 정보·보관·외부 전송 그대로) |

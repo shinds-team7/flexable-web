@@ -84,7 +84,7 @@ class PlacementDetailsContractTest {
 			String summary = p.category() == VirtualSimCategory.SUPPLY_CONTRACT ? SUMMARY : null;
 			questions.add(new Question("q" + (i + 1), p.industry(), p.category(), p.category().displayName(), p.title(), p.body(), p.details(), summary));
 		}
-		String body = JsonMapper.builder().build().writeValueAsString(new Placement("p1", "2026-11-06T12:30:00+09:00", questions));
+		String body = JsonMapper.builder().build().writeValueAsString(new Placement("p1", "2026-11-06T12:30:00+09:00", VirtualContestQuestions.REACTION, questions));
 
 		ValidationReport report = VALIDATOR.validateResponse("/api/v1/virtual-sim/contests/current/placement", Request.Method.POST,
 				SimpleResponse.Builder.status(200).withContentType("application/json").withBody(body).build());

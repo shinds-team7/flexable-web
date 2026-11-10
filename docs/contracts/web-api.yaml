@@ -408,6 +408,7 @@ paths:
               example:
                 placementId: 3f0c1d2e-7a4b-4c5d-9e8f-0a1b2c3d4e5f
                 expiresAt: '2026-11-06T12:30:00+09:00'
+                basis: REACTION
                 questions:
                   - id: q1
                     industry: 반도체
@@ -2037,10 +2038,11 @@ components:
       type: object
       additionalProperties: false
       description: '배치고사 문제(실제 과거 공시, 예시 자료면 예시 글). 회사명·날짜·정답·경향·가격·절대 금액·상대방 이름은 없다(회사명·날짜·정답·경향은 결과에서 공개). 결과(VirtualContestPlacementResult)에는 주요 내용·AI 요약을 다시 싣지 않으니 화면은 이 응답의 문제와 questionId로 잇는다'
-      required: [placementId, expiresAt, questions]
+      required: [placementId, expiresAt, basis, questions]
       properties:
         placementId: { type: string }
         expiresAt: { type: string, format: date-time, description: '시작 후 30분. 지나면 안 고른 문제를 틀림으로 서버가 채점' }
+        basis: { type: string, enum: [REACTION, FIVE_DAY], description: '이 배치고사의 채점 기준(결과 items[].basis와 같음). REACTION = 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가). FIVE_DAY = 11-09 반응 창 규칙 전에 시작해 저장된 배치고사의 5거래일(기준 봉 종가 → 5번째 후속 거래일 종가). 화면은 이 값으로 고를 기간을 안내한다' }
         questions:
           type: array
           minItems: 10

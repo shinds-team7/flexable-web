@@ -47,7 +47,8 @@ public final class VirtualContestDtos {
 			List<PlacementDetails.Detail> details, String summary) {
 	}
 
-	public record Placement(String placementId, String expiresAt, List<Question> questions) {
+	/** basis: 이 배치고사의 채점 기준(REACTION 공시 직후, FIVE_DAY 반응 창 규칙 전에 시작한 배치고사의 5거래일). 화면이 고를 기간을 이 값으로 안내한다 */
+	public record Placement(String placementId, String expiresAt, String basis, List<Question> questions) {
 	}
 
 	public record Answer(@NotBlank String questionId, Prediction prediction) {

@@ -144,8 +144,8 @@ components:
         provider: { type: string, enum: [email, kakao, google] }
     SeedChoice:
       type: string
-      enum: [GOAL, ALL, MANUAL, EXTRA]
-      description: 'EXTRA는 앱에서 수입일과 상관없이 지금 예산에서 바로 옮긴 돈(cycleEnd는 옮긴 날짜)'
+      enum: [GOAL, ALL, MANUAL, EXTRA, ADJUSTMENT]
+      description: 'EXTRA는 지금 예산에서 바로 옮긴 돈, ADJUSTMENT는 생활비와 별개인 시드머니 총액 정정(음수 가능). cycleEnd는 각각 옮긴 날짜·정정 날짜. ADJUSTMENT도 totalAfter에 포함한다'
     SeedMoney:
       type: object
       required: [total, base, monthlyGoal, lastEntry, updatedAt, startedOn, entries]

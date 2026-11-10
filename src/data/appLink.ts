@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 
 export type AppProvider = 'email' | 'kakao' | 'google';
 /** EXTRA: 앱에서 수입일과 상관없이 지금 예산에서 바로 옮긴 돈. 이때 cycleEnd는 옮긴 날짜이고 하루에 여러 번 올 수 있다. */
-export type SeedChoice = 'GOAL' | 'ALL' | 'MANUAL' | 'EXTRA';
+export type SeedChoice = 'GOAL' | 'ALL' | 'MANUAL' | 'EXTRA' | 'ADJUSTMENT';
 
 /** available: 금액 있음, budget_not_set: 앱에서 예산 설정 전, not_received: 아직 한 번도 받지 못함. 금액은 available일 때만 있다. */
 export type AppSeedMoney =

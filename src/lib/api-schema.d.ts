@@ -818,7 +818,7 @@ export interface paths {
         put?: never;
         /**
          * 이번 시즌 배치고사 시작(회원, 요청 본문 없음). 실제 과거 공시 10개, 정답 없음
-         * @description no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시): 지금 룰셋에서 경향이 뚜렷한 유형(UP·DOWN) 6개 + 유형 상관없이 4개. 업종·유형·공시 제목과 공시 주요 내용(details, 구조화 자료가 있는 유형만, 비율·규모 구간)만 보이고 회사명·날짜·절대 금액·상대방 이름은 없다. 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계·예시 주요 내용). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8
+         * @description no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시): 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자) 4개 + 유형 상관없이 6개(decisions/2026-11-09-placement-reaction-window). 업종·유형·공시 제목과 공시 주요 내용(details, 구조화 자료가 있는 유형만, 비율·규모 구간)만 보이고 회사명·날짜·절대 금액·상대방 이름은 없다. 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계·예시 주요 내용). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8
          */
         post: {
             parameters: {
@@ -839,6 +839,7 @@ export interface paths {
                          * @example {
                          *       "placementId": "3f0c1d2e-7a4b-4c5d-9e8f-0a1b2c3d4e5f",
                          *       "expiresAt": "2026-11-06T12:30:00+09:00",
+                         *       "basis": "REACTION",
                          *       "questions": [
                          *         {
                          *           "id": "q1",
@@ -1032,7 +1033,7 @@ export interface paths {
         put?: never;
         /**
          * 배치고사 제출·채점·참가(회원). 맞힌 수로 시작 판, 잔액 = 그 판의 대회 시드머니
-         * @description 그 공시 뒤 5거래일 실제 방향으로 채점(올랐으면 POSITIVE, 내렸으면 NEGATIVE가 맞음, null은 틀림). 맞힌 수 0~6 B10M, 7~8 B50M, 9~10 B100M. 같은 placementId를 다시 보내거나 30분이 지난 뒤 보내면 처음(또는 서버가 매긴) 결과 그대로 200. 없는 placementId·남의 것은 404, 문제 id가 맞지 않으면 400
+         * @description 공시 직후 실제 방향(반응 창: 기준 봉 전날 종가 → 다음 거래일 종가)으로 채점(올랐으면 POSITIVE, 내렸으면 NEGATIVE가 맞음, null은 틀림). 이 규칙 전에 시작한 배치고사는 시작할 때의 기준(5거래일)으로 채점하고 items[].basis로 구분한다. 맞힌 수 0~6 B10M, 7~8 B50M, 9~10 B100M. 같은 placementId를 다시 보내거나 30분이 지난 뒤 보내면 처음(또는 서버가 매긴) 결과 그대로 200. 없는 placementId·남의 것은 404, 문제 id가 맞지 않으면 400
          */
         post: {
             parameters: {
@@ -3889,6 +3890,11 @@ export interface components {
              * @description 시작 후 30분. 지나면 안 고른 문제를 틀림으로 서버가 채점
              */
             expiresAt: string;
+            /**
+             * @description 이 배치고사의 채점 기준(결과 items[].basis와 같음). REACTION = 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가). FIVE_DAY = 11-09 반응 창 규칙 전에 시작해 저장된 배치고사의 5거래일(기준 봉 종가 → 5번째 후속 거래일 종가). 화면은 이 값으로 고를 기간을 안내한다
+             * @enum {string}
+             */
+            basis: "REACTION" | "FIVE_DAY";
             questions: {
                 id: string;
                 /** @description 그 회사의 업종(회사명은 결과에서 공개) */
@@ -3929,16 +3935,25 @@ export interface components {
                  */
                 date: string | null;
                 /**
-                 * @description 그 공시 뒤 5거래일 실제 방향(기준 봉 종가 → 5번째 후속 거래일 종가). 정답
+                 * @description 채점 기준. REACTION = 반응 창(공시 직후, decisions/2026-11-09-placement-reaction-window). FIVE_DAY = 이 규칙 전에 시작한 배치고사의 5거래일 기준
+                 * @enum {string}
+                 */
+                basis: "REACTION" | "FIVE_DAY";
+                /**
+                 * @description 정답 방향. REACTION이면 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가), FIVE_DAY면 5거래일(기준 봉 종가 → 5번째 후속 거래일 종가)
                  * @enum {string}
                  */
                 movement: "UP" | "DOWN";
-                /** @description 그 5거래일 실제 등락(소수 4자리 내림) */
-                subsequentReturnRate: number;
+                /** @description 공시 직후 실제 등락(기준 봉 전날 종가 → 다음 거래일 종가, 소수 4자리 내림). REACTION만, FIVE_DAY면 null */
+                reactionReturnRate: number | null;
+                /** @description 그다음 주 실제 등락(다음 거래일 종가 → 5번째 후속 거래일 종가, 소수 4자리 내림). 채점에 쓰지 않는다. REACTION만, FIVE_DAY면 null */
+                nextWeekReturnRate: number | null;
+                /** @description 5거래일 실제 등락(기준 봉 종가 → 5번째 후속 거래일 종가, 소수 4자리 내림). FIVE_DAY만, REACTION이면 null */
+                subsequentReturnRate: number | null;
                 /** @description movement가 UP이면 POSITIVE, DOWN이면 NEGATIVE가 맞음. null은 틀림 */
                 correct: boolean;
                 /**
-                 * @description 그 유형의 과거 경향(지금 룰셋, 룰셋에 없는 유형이면 null). 채점에는 쓰지 않는다
+                 * @description 그 유형의 과거 경향(지금 룰셋의 5거래일 통계, 룰셋에 없는 유형이면 null). 채점에는 쓰지 않는다
                  * @enum {string|null}
                  */
                 trend: "UP" | "DOWN" | "MIXED" | null;

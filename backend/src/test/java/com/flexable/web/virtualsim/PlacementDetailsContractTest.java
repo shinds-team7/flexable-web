@@ -62,7 +62,7 @@ class PlacementDetailsContractTest {
 		assertThat(PlacementSummaries.check(SUMMARY, SOURCE, names).summary()).isEqualTo(SUMMARY);
 		List<LocalDate> dates = new ArrayList<>();
 		List<Long> closes = new ArrayList<>();
-		for (int i = 0; i < 12; i++) {
+		for (int i = 0; i < 20; i++) {
 			dates.add(LocalDate.of(2025, 4, 1).plusDays(i));
 			closes.add(10_000L + i * 10);
 		}
@@ -72,7 +72,7 @@ class PlacementDetailsContractTest {
 		for (int i = 0; i < titles.size(); i++) {
 			String title = titles.get(i);
 			String api = PlacementDetails.api(title);
-			filings.add(new VirtualContestQuestions.Filing("r" + i, title, dates.get(i), api == null ? null : PlacementDetails.items(api, ROWS.get(title))));
+			filings.add(new VirtualContestQuestions.Filing("r" + i, title, dates.get(i + 1), api == null ? null : PlacementDetails.items(api, ROWS.get(title))));
 		}
 		List<VirtualContestQuestions.Past> made = VirtualContestQuestions.fromFilings("한빛전자", "전자 부품", filings, dates, closes);
 		assertThat(made).hasSize(titles.size());
@@ -84,7 +84,7 @@ class PlacementDetailsContractTest {
 			String summary = p.category() == VirtualSimCategory.SUPPLY_CONTRACT ? SUMMARY : null;
 			questions.add(new Question("q" + (i + 1), p.industry(), p.category(), p.category().displayName(), p.title(), p.body(), p.details(), summary));
 		}
-		String body = JsonMapper.builder().build().writeValueAsString(new Placement("p1", "2026-11-06T12:30:00+09:00", questions));
+		String body = JsonMapper.builder().build().writeValueAsString(new Placement("p1", "2026-11-06T12:30:00+09:00", VirtualContestQuestions.REACTION, questions));
 
 		ValidationReport report = VALIDATOR.validateResponse("/api/v1/virtual-sim/contests/current/placement", Request.Method.POST,
 				SimpleResponse.Builder.status(200).withContentType("application/json").withBody(body).build());

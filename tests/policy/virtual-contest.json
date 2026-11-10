@@ -87,11 +87,16 @@
     "roundsForDailyScore": 10
   },
   "placement": {
-    "note": "실제 과거 공시 10개(뚜렷한 유형 6 + 나머지 4). 정답 = 기준 봉 종가 → 5번째 후속 거래일 종가가 올랐으면 POSITIVE, 내렸으면 NEGATIVE. 보합 공시는 내지 않음. 맞힌 수 0~6 B10M, 7~8 B50M, 9~10 B100M. 안 고른 문제는 틀림",
+    "note": "실제 과거 공시 10개(반응 창 근거 유형 4 + 유형 상관없이 6, decisions/2026-11-09-placement-reaction-window). 묶음마다 공시 AI 요약·주요 내용이 있는 공시를 먼저 고르고 모자라면 설명 없는 공시로 채움. 정답 = 반응 창: 기준 봉 전날 종가 → 다음 거래일 종가가 올랐으면 POSITIVE, 내렸으면 NEGATIVE. 그다음 주(다음 거래일 종가 → 5번째 후속 거래일 종가)는 결과에만 보이고 채점에 쓰지 않음. 등락은 소수 4자리 내림(음수는 더 작은 쪽). 공시 직후가 보합인 공시는 내지 않음. 맞힌 수 0~6 B10M, 7~8 B50M, 9~10 B100M. 안 고른 문제는 틀림",
     "composition": {
-      "clear": 6,
-      "any": 4
+      "evidence": 4,
+      "any": 6
     },
+    "evidenceTypes": [
+      "SUPPLY_CONTRACT",
+      "BUYBACK_ACQUIRE",
+      "FACILITY"
+    ],
     "cases": [
       {
         "correct": 0,
@@ -120,33 +125,56 @@
     ],
     "grading": [
       {
-        "baseClose": 10000,
-        "afterClose": 10300,
+        "prevClose": 10000,
+        "nextClose": 10300,
+        "afterClose": 10100,
         "prediction": "POSITIVE",
-        "correct": true
+        "correct": true,
+        "reactionReturnRate": 0.03,
+        "nextWeekReturnRate": -0.0195
       },
       {
-        "baseClose": 10000,
-        "afterClose": 10300,
+        "prevClose": 10000,
+        "nextClose": 10300,
+        "afterClose": 10100,
         "prediction": "NEGATIVE",
-        "correct": false
+        "correct": false,
+        "reactionReturnRate": 0.03,
+        "nextWeekReturnRate": -0.0195
       },
       {
-        "baseClose": 10000,
-        "afterClose": 9800,
+        "prevClose": 10000,
+        "nextClose": 9800,
+        "afterClose": 9900,
         "prediction": "NEGATIVE",
-        "correct": true
+        "correct": true,
+        "reactionReturnRate": -0.02,
+        "nextWeekReturnRate": 0.0102
       },
       {
-        "baseClose": 10000,
-        "afterClose": 9800,
+        "prevClose": 10000,
+        "nextClose": 9800,
+        "afterClose": 9900,
         "prediction": null,
-        "correct": false
+        "correct": false,
+        "reactionReturnRate": -0.02,
+        "nextWeekReturnRate": 0.0102
+      },
+      {
+        "note": "5거래일로는 올랐어도 공시 직후 내렸으면 내린다가 맞음",
+        "prevClose": 10000,
+        "nextClose": 9900,
+        "afterClose": 10400,
+        "prediction": "POSITIVE",
+        "correct": false,
+        "reactionReturnRate": -0.01,
+        "nextWeekReturnRate": 0.0505
       }
     ],
     "flatExcluded": {
-      "baseClose": 10000,
-      "afterClose": 10000
+      "prevClose": 10000,
+      "nextClose": 10000,
+      "afterClose": 10300
     }
   },
   "candidates": {

@@ -13,14 +13,19 @@ import java.util.Map;
  * OpenDART 주요사항보고서 주요정보(DS005) 한 행에서 화면용 항목(이름·값, 최대 4개)을 만든다. 금액은 서버가 원 단위 정수로 계산하고 나눗셈은 내림이다.
  * 회사를 찾아낼 수 없게 절대 금액 대신 비율(소수 1자리 내림)·규모 구간만 내고, 회사·상대방 이름·날짜 칸은 읽지 않는다.
  * 글 칸(증자 방식·목적 등)은 정해 둔 낱말이 있을 때만 정해 둔 이름으로 바꿔 내고 원문은 내지 않는다. 방향·경향을 말하는 항목은 없다.
+ * 공급 계약(단일판매·공급계약체결)은 DS005가 없어 공시서류원본파일 본문 글에서 매출액 대비(%)와 계약 기간 길이만 뽑는다(supplyContract, Issue #375). 원문은 저장하지 않는다.
  */
 public final class PlacementDetails {
 
 	private PlacementDetails() {
 	}
 
-	/** 항목 규칙 버전. 규칙을 바꾸면 올리고, 수집 작업이 이전 버전 행을 다시 받는다 */
-	public static final String VERSION = "vsim-details-v2";
+	/** 항목 규칙 버전. 규칙을 바꾸면 올리고, 수집 작업이 이전 버전 행을 다시 받는다. v3(11-10 #375): 공급 계약 원문 항목 추가 */
+	public static final String VERSION = "vsim-details-v3";
+	/** 문제에 실을 수 있는 버전: v2 행은 DS005 항목 규칙이 v3과 같아(공급 계약만 더함) 다시 받기 전까지 그대로 보인다 */
+	public static final List<String> READABLE = List.of(VERSION, "vsim-details-v2");
+	/** 원문에서 항목을 뽑는 묶음 이름(DS005 API 이름 자리, dart_detail_failures.api) */
+	public static final String DOCUMENT = "document";
 	public static final int MAX_ITEMS = 4;
 
 	/** 화면에 보이는 항목 하나 */
@@ -58,6 +63,72 @@ public final class PlacementDetails {
 			case FACILITY -> t.contains("유형자산양수결정") ? "tgastInhDecsn" : t.contains("타법인주식및출자증권양수결정") ? "otcprStkInvscrInhDecsn" : null;
 			default -> null;
 		};
+	}
+
+	/**
+	 * 원문(공시서류원본파일)에서 항목을 뽑는 공시인지: 공급 계약으로 분류되는 "단일판매·공급계약체결"(자율공시 포함). 종속회사·자회사의 주요경영사항은
+	 * 매출액 대비가 그 회사 매출 기준이라 뺀다
+	 */
+	public static boolean fromDocument(String title) {
+		if (VirtualSimCategory.classify(title) != VirtualSimCategory.SUPPLY_CONTRACT) {
+			return false;
+		}
+		String t = title.replaceAll("[\\s\\u00a0·ㆍ・/]", "");
+		return t.contains("단일판매공급계약체결") && !subsidiary(t);
+	}
+
+	/** 원문 칸: "매출액대비(%) | 12.34"(공백을 지운 글). 정정 공시는 앞의 정정 표에 정정 전 값이 먼저 나오므로 마지막 것을 쓴다 */
+	private static final java.util.regex.Pattern SALES_RATIO = java.util.regex.Pattern.compile("매출액대비(?:\\(%\\))?\\|*(-?[\\d,]+(?:\\.\\d+)?)");
+	private static final String DAY = "(\\d{4})[-.년](\\d{1,2})[-.월](\\d{1,2})일?";
+	/** 원문 칸: "계약기간 | 시작일 | 2024-01-02" 다음 줄 "종료일 | 2025-06-30"(날짜는 2024.01.02·2024년 01월 02일 꼴도) */
+	private static final java.util.regex.Pattern CONTRACT_PERIOD = java.util.regex.Pattern.compile("계약기간\\|*시작일\\|*" + DAY + "\\|*종료일\\|*" + DAY);
+
+	/**
+	 * 공급 계약 원문 본문 글 → 항목: 매출액 대비(공시에 적힌 %, 소수 1자리 내림) · 계약 기간(길이만). 칸이 없거나 값이 맞지 않으면 그 항목은 없다.
+	 * 계약 금액·상대방·날짜는 내지 않는다
+	 */
+	public static List<Detail> supplyContract(String text) {
+		List<Detail> out = new ArrayList<>();
+		if (text == null) {
+			return out;
+		}
+		String t = text.replaceAll("[\\s\\u00a0]", "");
+		add(out, "매출액 대비", percent(reported(last(SALES_RATIO.matcher(t), 1))));
+		java.util.regex.Matcher m = CONTRACT_PERIOD.matcher(t);
+		String period = null;
+		while (m.find()) {
+			period = duration(day(m.group(1), m.group(2), m.group(3)), day(m.group(4), m.group(5), m.group(6)));
+		}
+		add(out, "계약 기간", period);
+		return List.copyOf(out);
+	}
+
+	private static String last(java.util.regex.Matcher m, int group) {
+		String v = null;
+		while (m.find()) {
+			v = m.group(group);
+		}
+		return v;
+	}
+
+	private static java.time.LocalDate day(String y, String mo, String d) {
+		try {
+			return java.time.LocalDate.of(Integer.parseInt(y), Integer.parseInt(mo), Integer.parseInt(d));
+		}
+		catch (RuntimeException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * 계약 기간 길이(시작일·종료일 포함): 시작일부터 종료일 다음 날까지 다 찬 달 수가 1 이상이면 "N개월", 아니면 "N일". 날짜가 없거나 종료일이 시작일보다 앞이면 null
+	 */
+	public static String duration(java.time.LocalDate from, java.time.LocalDate to) {
+		if (from == null || to == null || to.isBefore(from)) {
+			return null;
+		}
+		long months = java.time.Period.between(from, to.plusDays(1)).toTotalMonths();
+		return months >= 1 ? months + "개월" : (java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1) + "일";
 	}
 
 	/** 종속회사·자회사의 주요경영사항 공시인지(공백을 지운 제목) */

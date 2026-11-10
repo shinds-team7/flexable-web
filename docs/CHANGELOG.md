@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-11-10
+
+- [#379, Closes #375] 배치고사 문제 재료를 정리했다([결정](decisions/2026-11-10-placement-question-cleanup.md)). ① 사건 유형 분류를 `vsim-types-v4`로 올려 `영업실적등에대한전망`(로컬 DB 5년 217건)·`실적발표일정`·`소액공모실적보고서`를 실적 발표에서 뺐다(룰셋 실적 발표 통계도 다음 수집에서 바뀜, [가상 시뮬레이션 결정](decisions/2026-11-04-virtual-simulation.md) 1-1·변경 기록 11-10). ② 정정 공시(`[기재정정]` 등)는 문제로 내지 않고 180일 안의 가장 가까운 앞 원공시에 합치며, 짝이 없으면 버린다. 주요 내용·AI 요약은 원공시 것 먼저, 없으면 정정 공시 것. AI 요약은 정정 공시를 원공시 뒤로 미룬다. ③ 공급 계약(자회사 공시 제외)은 worker가 원공시 원문에서 매출액 대비(%)·계약 기간 길이만 뽑아 공시 주요 내용으로 싣는다(`vsim-details-v3`, 원문 저장 안 함, v2 행은 그대로 읽음). 후보 15,423 → 11,551건, 근거 유형 5,164 → 3,014건. policies §8 분류·§8-8("공시 주요 내용"·"정정 공시"·"공시 AI 요약"), `virtual-contest.json` `placement.corrections`·`placementDetails.supplyContract`, `virtual-simulation.json` `classification`, 계약은 설명만(`details`·`title`·배치고사 시작·`VirtualSimCategory`, 스키마 변화 없음), 결과·문제 줄글 문장 추가. 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+
 ## 2026-11-09
 
 - [#374] 배치고사 채점을 5거래일 방향에서 **공시 직후(반응 창: 기준 봉 전날 종가 → 다음 거래일 종가, 원 가격)** 방향으로 바꾸고, 출제를 "룰셋에서 경향이 뚜렷한 유형 6 + 나머지 4"에서 **반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자) 4 + 유형 상관없이 6**으로 바꿨다([결정](decisions/2026-11-09-placement-reaction-window.md), 근거 [공시 반응 측정 v2](reference/disclosure-reaction-v2-2026-11-09.md), 대회 결정 2-2·2-3 "변경 기록 11-09 반응 창", 사용자 결정). 결과에 공시 직후와 그다음 주(다음 거래일 종가 → 5번째 후속 거래일 종가) 두 숫자를 보인다. 묶음마다 공시 AI 요약·주요 내용이 있는 공시를 먼저 고르고, AI 요약 작업은 근거 유형 공시를 먼저 한다([AI 요약 결정](decisions/2026-11-09-placement-ai-summary.md) 4 변경). 배포 전에 시작한 배치고사는 시작할 때의 5거래일 기준으로 채점한다. 계약 `VirtualContestPlacement.basis`(풀던 배치고사를 다시 열면 그 기준의 기간을 안내) 추가, `VirtualContestPlacementResult.items[]`에 `basis`(`REACTION`·`FIVE_DAY`)·`reactionReturnRate`·`nextWeekReturnRate` 추가, `subsequentReturnRate` nullable. 그다음 주는 다음 거래일 종가 체결을 가정한 비교라고 결과·「공시 읽는 법」에 밝힌다. PRD·계약의 대회 "구현 전"을 구현됨(보상 지급만 후속)으로 고쳤다. policies §8-8 배치고사 행·채점 표, §8-6 경향 쓰임, `virtual-contest.json` `placement`(`composition.evidence`·`evidenceTypes`·반응 창 채점 예시). 「공시 읽는 법」에 유형과 상관없이 확인할 것·두 구간 설명을 더했다(금지 표현 검사 그대로). 가상 시뮬레이션의 5거래일 문구·룰셋·판 기준 7·9는 그대로, 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드

@@ -141,17 +141,17 @@ public class VirtualSimStore {
 				String.class, stockCode, PlacementDetails.VERSION));
 	}
 
-	/** 한 종목의 공시별 화면용 항목(지금 규칙 버전, 항목이 있는 것만) */
+	/** 한 종목의 공시별 화면용 항목(실을 수 있는 규칙 버전 PlacementDetails.READABLE, 항목이 있는 것만) */
 	public Map<String, List<PlacementDetails.Detail>> details(String stockCode) {
 		Map<String, List<PlacementDetails.Detail>> out = new LinkedHashMap<>();
-		jdbc.query("SELECT d.receipt_no, d.items FROM dart_disclosure_details d JOIN dart_disclosures x ON x.receipt_no = d.receipt_no WHERE x.stock_code = ? AND d.version = ?",
+		jdbc.query("SELECT d.receipt_no, d.items FROM dart_disclosure_details d JOIN dart_disclosures x ON x.receipt_no = d.receipt_no WHERE x.stock_code = ? AND d.version IN (?, ?)",
 				rs -> {
 					List<PlacementDetails.Detail> items = json.readValue(rs.getString(2), new TypeReference<List<PlacementDetails.Detail>>() {
 					});
 					if (!items.isEmpty()) {
 						out.put(rs.getString(1), List.copyOf(items));
 					}
-				}, stockCode, PlacementDetails.VERSION);
+				}, stockCode, PlacementDetails.READABLE.get(0), PlacementDetails.READABLE.get(1));
 		return out;
 	}
 

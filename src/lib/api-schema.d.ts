@@ -818,7 +818,7 @@ export interface paths {
         put?: never;
         /**
          * 이번 시즌 배치고사 시작(회원, 요청 본문 없음). 실제 과거 공시 10개, 정답 없음
-         * @description no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시): 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자) 4개 + 유형 상관없이 6개(decisions/2026-11-09-placement-reaction-window). 업종·유형·공시 제목과 공시 주요 내용(details, 구조화 자료가 있는 유형만, 비율·규모 구간)만 보이고 회사명·날짜·절대 금액·상대방 이름은 없다. 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계·예시 주요 내용). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8
+         * @description no-store. 문제는 수집 종목의 실제 과거 공시 10개(서로 다른 공시, 정정 공시는 내지 않고 원공시로만): 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자) 4개 + 유형 상관없이 6개(decisions/2026-11-09-placement-reaction-window). 업종·유형·공시 제목과 공시 주요 내용(details, 구조화 자료가 있는 유형과 공급 계약만, 비율·규모 구간·기간 길이)만 보이고 회사명·날짜·절대 금액·상대방 이름은 없다. 회사명·날짜는 결과에서 공개한다(예시 자료면 예시 회사·예시 통계·예시 주요 내용). 시작 후 30분 안에 answers로 제출하고, 지나면 서버가 안 고른 문제를 틀림으로 채점해 참가시킨다. 진행 중인 배치고사가 있으면 같은 문제·마감 시각을 다시 준다. 마쳤으면 409 CONTEST_ALREADY_JOINED, 기간 밖 409 CONTEST_CLOSED, 문제를 만들 공시가 모자라면 503 PRACTICE_UNAVAILABLE. 처음 참가할 때 서버가 익명 별명을 붙인다. policies §8-8
          */
         post: {
             parameters: {
@@ -883,7 +883,7 @@ export interface paths {
                          *           "industry": "2차전지",
                          *           "category": "BONDS",
                          *           "categoryName": "사채 발행",
-                         *           "title": "[기재정정]주요사항보고서(전환사채권발행결정)",
+                         *           "title": "주요사항보고서(전환사채권발행결정)",
                          *           "body": null,
                          *           "summary": null,
                          *           "details": [
@@ -3634,7 +3634,7 @@ export interface components {
             sources: string[];
         };
         /**
-         * @description 가상 사건 유형(vsim-types-v3, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
+         * @description 가상 사건 유형(vsim-types-v4, DART 공시 제목 분류). 이름은 categoryName. 결정 기록 2026-11-04-virtual-simulation 1-1
          * @enum {string}
          */
         VirtualSimCategory: "EARNINGS" | "SUPPLY_CONTRACT" | "NEW_SHARES" | "BONUS_SHARES" | "BONDS" | "BUYBACK_ACQUIRE" | "BUYBACK_DISPOSE" | "DIVIDEND" | "RESTRUCTURE" | "FACILITY" | "LEGAL" | "OWNERSHIP";
@@ -3901,11 +3901,11 @@ export interface components {
                 industry: string;
                 category: components["schemas"]["VirtualSimCategory"];
                 categoryName: string;
-                /** @description 실제 DART 공시 제목(예시 자료는 유형별 제목 형식). [기재정정] 같은 접두어가 붙을 수 있다 */
+                /** @description 실제 DART 공시 제목(예시 자료는 유형별 제목 형식). 정정 공시는 문제로 내지 않으므로 [기재정정] 같은 정정 접두어는 없다([첨부추가]·[연장결정]은 붙을 수 있다) */
                 title: string;
                 /** @description 실제 공시는 null(공시 원문은 저장하지 않는다. 주요 내용은 details, AI 요약은 summary), 예시 자료는 예시 글 */
                 body: string | null;
-                /** @description 공시 주요 내용(policies §8-8 "공시 주요 내용"). OpenDART 주요사항보고서 주요정보에서 서버가 만든 비율(소수 1자리 내림)·규모 구간·정해 둔 분류 이름만 있고 회사·상대방 이름·날짜·절대 금액은 없다. 방향·과거 경향·상승 비율도 없다. 구조화 자료가 없는 유형(실적·공급 계약·배당·소송·최대주주 변경·신규시설투자 등)이거나 아직 받지 못했으면 null. 예시 자료는 예시 값 */
+                /** @description 공시 주요 내용(policies §8-8 "공시 주요 내용"). OpenDART 주요사항보고서 주요정보에서 서버가 만든 비율(소수 1자리 내림)·규모 구간·정해 둔 분류 이름, 공급 계약(단일판매·공급계약체결)은 원문에서 뽑은 매출액 대비(%)·계약 기간 길이만 있고 회사·상대방 이름·날짜·절대 금액은 없다. 방향·과거 경향·상승 비율도 없다. 원공시에 없으면 합친 정정 공시의 값을 쓴다. 구조화 자료가 없는 유형(실적·배당·소송·최대주주 변경·신규시설투자·종속회사 공시 등)이거나 아직 받지 못했으면 null. 예시 자료는 예시 값(공급 계약은 null) */
                 details: {
                     /** @description 항목 이름(예: 새 주식 수(기존 대비)) */
                     label: string;

@@ -24,7 +24,7 @@ tags:
   - name: practice
     description: '사건 퀴즈 투자 시뮬레이션(#88 구현). 기존 simulation과 별도이며 policies §5 적용'
   - name: virtual-sim
-    description: '가상 시뮬레이션(구현 전). AI가 만든 가상 종목·사건 글과 실제 공시 전체 통계 룰셋으로 서버가 만든 가상 시세. 매매·평가는 policies §5, 날짜·봉·검사·경향은 §8(일반 세션 채점 없음, 11-05). practice와 세션·상한을 따로 둔다. 회원 월간 대회(/virtual-sim/contests/*, /me/virtual-sim/contests, 구현 전)는 §8-8: 시즌마다 배치고사로 시작 판, 같은 판 안에서 잔액을 이어 가며 하루 목표 점수를 주마다 더해 승급·강등, 사건 4개·대회 판 채점 없음·하루 10판·판별 점수 랭킹'
+    description: '가상 시뮬레이션(구현 전). AI가 만든 가상 종목·사건 글과 실제 공시 전체 통계 룰셋으로 서버가 만든 가상 시세. 매매·평가는 policies §5, 날짜·봉·검사·경향은 §8(일반 세션 채점 없음, 11-05). practice와 세션·상한을 따로 둔다. 회원 월간 대회(/virtual-sim/contests/*, /me/virtual-sim/contests, 구현됨, 앱 보상 지급만 후속)는 §8-8: 시즌마다 배치고사로 시작 판, 같은 판 안에서 잔액을 이어 가며 하루 목표 점수를 주마다 더해 승급·강등, 사건 4개·대회 판 채점 없음·하루 10판·판별 점수 랭킹'
   - name: savings
     description: '적금 비교(F2). 로그인 없이 쓴다. finlife 공시·온통청년 정책을 DB에서 읽고 만기 금액은 서버가 계산(내림)'
   - name: deposit

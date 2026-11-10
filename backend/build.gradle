@@ -41,6 +41,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Spring 테스트 컨텍스트(각자 메모리 H2)가 여러 개 캐시돼 기본 힙 512MB로는 CI에서 OutOfMemoryError가 난다(11-10 main·PR #379)
+	maxHeapSize = '1g'
 	// worker 프로필도 자동 공식 HTTP 수집을 실행하지 않는다.
 	// 실데이터 opt-in은 OfficialCashLiveTest가 클라이언트를 명시적으로 호출한다.
 	systemProperty 'app.ingest.cash.enabled', 'false'

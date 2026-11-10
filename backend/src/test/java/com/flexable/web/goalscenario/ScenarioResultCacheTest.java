@@ -36,7 +36,7 @@ class ScenarioResultCacheTest {
 	}
 
 	private static Result result() {
-		return new Result(null, "목돈", 15_000_000, 1, 12, "DEMO", "AI_UNAVAILABLE", LocalDate.of(2026, 11, 3), "2021-10", "2026-10", 2000,
+		return new Result(null, "목돈", 15_000_000, 12, "DEMO", "AI_UNAVAILABLE", LocalDate.of(2026, 11, 3), "2021-10", "2026-10", 2000,
 				20261103L, new BigDecimal("0.8"), List.of(), List.of(), List.of(), "고지", true, null, false);
 	}
 

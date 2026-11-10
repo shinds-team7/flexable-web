@@ -98,11 +98,11 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		return Math.max(0, limitPerDay(userId) - used);
 	}
 
-	/** 같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 AI 초안. */
-	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int years, LocalDate asOf) {
+	/** 같은 회원이 같은 목표 금액·기한(개월)·자료 기준일로 받은 AI 초안. */
+	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, LocalDate asOf) {
 		List<String> rows = jdbc.queryForList(
-				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND years = ? AND as_of = ?", String.class,
-				userId, targetAmount, years, asOf);
+				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND as_of = ?", String.class,
+				userId, targetAmount, months, asOf);
 		if (rows.isEmpty()) {
 			return Optional.empty();
 		}
@@ -115,9 +115,9 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	}
 
 	/** 검증을 통과한 AI 초안만 저장한다. 동시에 저장하면 먼저 들어간 것을 둔다. */
-	void cache(long userId, long targetAmount, int years, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
-		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, years, as_of, drafts, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
-				+ "ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, years, asOf, JSON.writeValueAsString(drafts), model,
+	void cache(long userId, long targetAmount, int months, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
+		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, as_of, drafts, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
+				+ "ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, months, asOf, JSON.writeValueAsString(drafts), model,
 				Timestamp.from(clock.instant()));
 	}
 

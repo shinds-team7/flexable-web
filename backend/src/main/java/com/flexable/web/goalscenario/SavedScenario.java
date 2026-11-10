@@ -34,7 +34,7 @@ class SavedScenario {
 	private long targetAmount;
 
 	@Column(nullable = false)
-	private int years;
+	private int months;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	@Column(nullable = false, columnDefinition = "json")
@@ -43,12 +43,12 @@ class SavedScenario {
 	protected SavedScenario() {
 	}
 
-	SavedScenario(long userId, Instant savedAt, String name, long targetAmount, int years, String snapshot) {
+	SavedScenario(long userId, Instant savedAt, String name, long targetAmount, int months, String snapshot) {
 		this.userId = userId;
 		this.savedAt = savedAt;
 		this.name = name;
 		this.targetAmount = targetAmount;
-		this.years = years;
+		this.months = months;
 		this.snapshot = snapshot;
 	}
 
@@ -72,8 +72,8 @@ class SavedScenario {
 		return targetAmount;
 	}
 
-	int getYears() {
-		return years;
+	int getMonths() {
+		return months;
 	}
 
 	String getSnapshot() {

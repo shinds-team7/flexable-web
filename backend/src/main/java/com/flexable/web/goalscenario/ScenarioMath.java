@@ -30,7 +30,15 @@ final class ScenarioMath {
 
 	/** CMA: 매달 초 넣은 뒤 그 달 이자 floor(잔액 × 연이율 ÷ 12)를 더하고, 기한 말에 총이자의 세금을 뺀다. */
 	static Amounts cma(long monthly, int months, BigDecimal ratePercent) {
-		long balance = 0;
+		return cma(0, monthly, months, ratePercent);
+	}
+
+	/**
+	 * 처음 잔액 start가 있는 CMA(적금 만기 뒤 남은 달, policies §7-2). 첫 달 초에 start와 그 달 몫을 함께 넣은 것으로 본다.
+	 * 세금은 이 계좌에서 생긴 이자에만 매긴다(start에 들어 있는 적금 이자는 만기 때 이미 뗐다). principal = start + 넣은 돈.
+	 */
+	static Amounts cma(long start, long monthly, int months, BigDecimal ratePercent) {
+		long balance = start;
 		long interest = 0;
 		for (int m = 0; m < months; m++) {
 			balance += monthly;
@@ -39,7 +47,7 @@ final class ScenarioMath {
 			interest += i;
 		}
 		long tax = tax(interest);
-		return new Amounts(monthly * months, interest, tax, balance - tax);
+		return new Amounts(start + monthly * months, interest, tax, balance - tax);
 	}
 
 	/** 매달 초 1원을 넣고 그 달 수익률을 적용했을 때 기한 말 평가액 = Σ(그 달부터 끝까지 (1 + r)의 곱). */

@@ -18,7 +18,7 @@ interface ScenarioProposer {
 	List<Proposals.Draft> propose(Input input);
 
 	/** AI에게 보내는 값 전부. */
-	record Input(long targetAmount, int years, int months, List<TypeStat> stats) {
+	record Input(long targetAmount, int months, List<TypeStat> stats) {
 	}
 
 	/**

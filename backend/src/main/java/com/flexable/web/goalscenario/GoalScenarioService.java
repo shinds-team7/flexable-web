@@ -50,6 +50,9 @@ public class GoalScenarioService {
 	static final int BLOCK = 12;
 	static final int HISTORY = 60;
 	static final int REACH_BP = 8000;
+	/** 기한(개월) 범위(policies §7-1). */
+	static final int MIN_MONTHS = 6;
+	static final int MAX_MONTHS = 36;
 	/** 유형당 보는 상품 수(계산에 쓰는 1순위 + 함께 볼 상품 최대 2개, 적금·지수 ETF만). */
 	static final int CANDIDATES = 3;
 	static final BigDecimal CMA_RATE = new BigDecimal("2.50");
@@ -62,6 +65,8 @@ public class GoalScenarioService {
 			"배당·매매 수수료는 넣지 않았어요.",
 			"지수 ETF·주식은 지난 60개월의 월 수익률을 12개월 묶음으로 무작위로 이어 붙인 2,000가지 경우로 계산했어요.",
 			"코스피 주식은 시가총액 상위 5종목에 같은 금액으로 나눠 넣는다고 가정했어요.");
+	/** 적금 만기가 기한보다 짧을 때만 더하는 가정(policies §7-2). */
+	static final String AFTER_MATURITY = "적금 만기가 기한보다 짧으면 만기에 받은 돈과 남은 달의 적금 몫을 CMA 예시 금리 연 2.5%로 계산했어요.";
 	private static final List<ProductType> INVEST = List.of(ProductType.KR_INDEX_ETF, ProductType.US_INDEX_ETF, ProductType.KOSPI_TOP5);
 
 	private final MarketService market;
@@ -85,7 +90,7 @@ public class GoalScenarioService {
 	 * 유형마다 계산에 쓰는 상품(KOSPI_TOP5는 5개, CMA는 이름만)과 투자 상품의 60개월 월 수익률.
 	 * moreSavings·moreItems는 함께 볼 상품이고 금액 계산에 쓰지 않는다. returns에는 함께 볼 지수 ETF의 수익률도 들어 있다.
 	 */
-	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, Map<String, BigDecimal[]> returns,
+	private record Picked(Map<ProductType, List<Item>> items, FixedCandidate saving, int savingTerm, Map<String, BigDecimal[]> returns,
 			List<FixedCandidate> moreSavings, Map<ProductType, List<Item>> moreItems) {
 	}
 
@@ -97,27 +102,29 @@ public class GoalScenarioService {
 	Result calculate(Request req, Long userId) {
 		String name = validate(req);
 		long target = req.targetAmount();
-		int years = req.years();
-		int months = years * 12;
+		int months = req.months();
 
 		// 기준일 = 수집된 마지막 거래일. 수익률은 그 직전 달까지 60개월
 		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
 		YearMonth last = YearMonth.from(asOf).minusMonths(1);
 		Picked picked = pick(months, last);
-		int[][] draws = draws(years);
+		int[][] draws = draws(blocks(months));
 		Map<String, BigDecimal[]> factors = new HashMap<>();
 		for (ProductType t : INVEST) {
-			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws)));
+			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws, months)));
 		}
 
-		Chosen chosen = choose(target, years, months, asOf, userId, picked);
+		Chosen chosen = choose(target, months, asOf, userId, picked);
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Plan plan : chosen.plans()) {
 			scenarios.add(scenario(plan, target, months, picked, factors));
 		}
-		Result result = new Result(null, name, target, years, months, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
+		List<String> assumptions = picked.savingTerm() < months
+				? java.util.stream.Stream.concat(ASSUMPTIONS.stream(), java.util.stream.Stream.of(AFTER_MATURITY)).toList()
+				: ASSUMPTIONS;
+		Result result = new Result(null, name, target, months, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
 				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, new BigDecimal("0.8"),
-				products(picked), scenarios, ASSUMPTIONS, NOTICE, true, chosen.aiUsage(), chosen.reused());
+				products(picked), scenarios, assumptions, NOTICE, true, chosen.aiUsage(), chosen.reused());
 		return results.remember(result);
 	}
 
@@ -130,8 +137,8 @@ public class GoalScenarioService {
 		if (req.targetAmount() == null || req.targetAmount() < 1_000_000 || req.targetAmount() > 1_000_000_000) {
 			throw ApiException.invalid("targetAmount", "목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요");
 		}
-		if (req.years() == null || req.years() < 1 || req.years() > 3) {
-			throw ApiException.invalid("years", "기한은 1년·2년·3년 중에서 골라 주세요");
+		if (req.months() == null || req.months() < MIN_MONTHS || req.months() > MAX_MONTHS) {
+			throw ApiException.invalid("months", "기한은 6개월부터 3년까지 정할 수 있어요");
 		}
 		return name;
 	}
@@ -141,7 +148,7 @@ public class GoalScenarioService {
 	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 금액·기한·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
 	 * → 호출 실패(AI_FAILED)·규칙 위반(AI_REJECTED). 결과를 못 받으면 회원 횟수는 되돌리고 전체 횟수는 그대로 둔다.
 	 */
-	private Chosen choose(long target, int years, int months, LocalDate asOf, Long userId, Picked picked) {
+	private Chosen choose(long target, int months, LocalDate asOf, Long userId, Picked picked) {
 		ScenarioProposer p = proposer.getIfAvailable();
 		String reason;
 		if (p == null || !p.enabled()) {
@@ -152,7 +159,7 @@ public class GoalScenarioService {
 		}
 		else {
 			ProposalText.Facts facts = facts(target, months, picked);
-			Optional<List<Plan>> reused = quota.cached(userId, target, years, asOf).map(d -> Proposals.check(d, facts).plans());
+			Optional<List<Plan>> reused = quota.cached(userId, target, months, asOf).map(d -> Proposals.check(d, facts).plans());
 			if (reused.isPresent()) {
 				return new Chosen(reused.get(), null, usage(userId), true);
 			}
@@ -163,11 +170,11 @@ public class GoalScenarioService {
 			}
 			if (r == ScenarioAiQuota.Reserve.OK) {
 				try {
-					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, years, months, stats(picked)));
+					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, months, stats(picked, months)));
 					Proposals.Checked checked = Proposals.check(drafts, facts);
 					if (checked.plans() != null) {
 						checked.removed().forEach(n -> log.warn("goal scenario AI sentence removed: {}", n.logLine(aiProps.logRejected())));
-						quota.cache(userId, target, years, asOf, drafts, "openai");
+						quota.cache(userId, target, months, asOf, drafts, "openai");
 						return new Chosen(checked.plans(), null, usage(userId), false);
 					}
 					// 어긴 규칙·위치만 남긴다. 옵션을 켜면 걸린 칸의 문구도 남긴다(목표 이름·회원 번호는 남기지 않음)
@@ -202,7 +209,7 @@ public class GoalScenarioService {
 			percents.add(more.baseRate());
 		}
 		names.remove(null);
-		List<ScenarioProposer.TypeStat> sent = stats(picked);
+		List<ScenarioProposer.TypeStat> sent = stats(picked, months);
 		return new ProposalText.Facts(target, months, names, percents,
 				java.util.Map.of(ProposalText.StatKind.MEAN, statPercents(sent, ScenarioProposer.TypeStat::meanMonthlyReturn, ScenarioProposer.AltStat::meanMonthlyReturn),
 						ProposalText.StatKind.VOLATILITY, statPercents(sent, ScenarioProposer.TypeStat::monthlyVolatility, ScenarioProposer.AltStat::monthlyVolatility),
@@ -221,10 +228,13 @@ public class GoalScenarioService {
 	}
 
 	/** AI에게 보내는 유형별 사실(§7-6). 투자 유형은 지난 60개월 월 수익률의 평균·표준편차·최대 하락. 코스피 5종목은 같은 비중 평균. */
-	private static List<ScenarioProposer.TypeStat> stats(Picked picked) {
+	private static List<ScenarioProposer.TypeStat> stats(Picked picked, int months) {
 		List<ScenarioProposer.TypeStat> out = new ArrayList<>();
 		FixedCandidate s = picked.saving();
-		out.add(new ScenarioProposer.TypeStat("SAVINGS", "은행 정액적립식 적금(" + s.company() + " " + s.name() + "), 금리 확정, 이자 15.4% 과세",
+		String term = picked.savingTerm() < months
+				? ", 만기 " + picked.savingTerm() + "개월, 만기 뒤 남은 " + (months - picked.savingTerm()) + "개월은 CMA 예시 금리로 계산"
+				: ", 만기 " + picked.savingTerm() + "개월";
+		out.add(new ScenarioProposer.TypeStat("SAVINGS", "은행 정액적립식 적금(" + s.company() + " " + s.name() + ")" + term + ", 금리 확정, 이자 15.4% 과세",
 				rate(s), null, null, null, picked.moreSavings().stream()
 					.map(m -> new ScenarioProposer.AltStat(m.name(), m.company(), rate(m), null, null, null)).toList()));
 		out.add(new ScenarioProposer.TypeStat("CMA", "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세", CMA_RATE.toPlainString(), null, null, null, List.of()));
@@ -303,7 +313,15 @@ public class GoalScenarioService {
 	 * 적금·지수 ETF는 다음 순위를 함께 볼 상품으로 최대 2개까지 고른다. 모자라면 있는 만큼만 쓰고 503으로 만들지 않는다.
 	 */
 	private Picked pick(int months, YearMonth last) {
-		List<FixedCandidate> fixed = savings.openFixed(months, CANDIDATES);
+		// 적금 만기는 기한 이하인 만기 중 조건에 맞는 상품이 있는 가장 긴 것(policies §7-2)
+		List<FixedCandidate> fixed = List.of();
+		int term = months;
+		for (; term > 0; term--) {
+			fixed = savings.openFixed(term, CANDIDATES);
+			if (!fixed.isEmpty()) {
+				break;
+			}
+		}
 		if (fixed.isEmpty()) {
 			throw new ApiException(ErrorCode.MARKET_UNAVAILABLE, "조건에 맞는 적금 공시가 아직 없어요", Map.of("field", "SAVINGS"));
 		}
@@ -325,7 +343,7 @@ public class GoalScenarioService {
 		Map<ProductType, List<Item>> more = new EnumMap<>(ProductType.class);
 		more.put(ProductType.KR_INDEX_ETF, kr.stream().skip(1).map(GoalScenarioService::item).toList());
 		more.put(ProductType.US_INDEX_ETF, us.stream().skip(1).map(GoalScenarioService::item).toList());
-		return new Picked(items, saving, returns, fixed.subList(1, fixed.size()), more);
+		return new Picked(items, saving, term, returns, fixed.subList(1, fixed.size()), more);
 	}
 
 	private static Item item(InstrumentView i) {
@@ -392,28 +410,33 @@ public class GoalScenarioService {
 		return r;
 	}
 
-	/** 경로마다 years개 묶음 시작 위치(0~48). 모든 상품·시나리오가 같은 값을 쓴다. */
-	static int[][] draws(int years) {
+	/** 기한을 덮는 12개월 묶음 수 = ⌈개월 ÷ 12⌉. */
+	static int blocks(int months) {
+		return (months + BLOCK - 1) / BLOCK;
+	}
+
+	/** 경로마다 blocks개 묶음 시작 위치(0~48). 모든 상품·시나리오가 같은 값을 쓴다. 12·24·36개월은 바뀌기 전과 같은 순서다. */
+	static int[][] draws(int blocks) {
 		SplittableRandom rnd = new SplittableRandom(SEED);
 		int starts = HISTORY - BLOCK + 1;
-		int[][] out = new int[PATHS][years];
+		int[][] out = new int[PATHS][blocks];
 		for (int p = 0; p < PATHS; p++) {
-			for (int y = 0; y < years; y++) {
+			for (int y = 0; y < blocks; y++) {
 				out[p][y] = rnd.nextInt(starts);
 			}
 		}
 		return out;
 	}
 
-	/** 경로마다 매달 1원을 넣었을 때의 기한 말 배수. */
-	static BigDecimal[] factors(BigDecimal[] returns, int[][] draws) {
+	/** 경로마다 매달 1원을 넣었을 때의 기한 말 배수. 묶음을 이어 붙인 뒤 앞에서 months개월만 쓴다. */
+	static BigDecimal[] factors(BigDecimal[] returns, int[][] draws, int months) {
 		BigDecimal[] out = new BigDecimal[draws.length];
 		for (int p = 0; p < draws.length; p++) {
 			BigDecimal[] path = new BigDecimal[draws[p].length * BLOCK];
 			for (int y = 0; y < draws[p].length; y++) {
 				System.arraycopy(returns, draws[p][y], path, y * BLOCK, BLOCK);
 			}
-			out[p] = ScenarioMath.factor(path);
+			out[p] = ScenarioMath.factor(Arrays.copyOf(path, months));
 		}
 		return out;
 	}
@@ -424,11 +447,17 @@ public class GoalScenarioService {
 	 */
 	static LongFunction<long[]> finals(Map<ProductType, Integer> mix, int months, int n, BigDecimal savingsRate, boolean savingsCompound,
 			Map<ProductType, List<BigDecimal[]>> itemFactors) {
+		return finals(mix, months, months, n, savingsRate, savingsCompound, itemFactors);
+	}
+
+	/** savingsTerm은 적금 만기 개월(기한 이하). */
+	static LongFunction<long[]> finals(Map<ProductType, Integer> mix, int months, int savingsTerm, int n, BigDecimal savingsRate,
+			boolean savingsCompound, Map<ProductType, List<BigDecimal[]>> itemFactors) {
 		return monthly -> {
 			Map<ProductType, Long> alloc = ScenarioMath.allocate(monthly, mix);
 			long fixed = 0;
 			if (alloc.containsKey(ProductType.SAVINGS)) {
-				fixed += SavingsService.maturity(alloc.get(ProductType.SAVINGS), months, savingsRate, savingsCompound).finalAmount();
+				fixed += savingsFinal(alloc.get(ProductType.SAVINGS), months, savingsTerm, savingsRate, savingsCompound);
 			}
 			if (alloc.containsKey(ProductType.CMA)) {
 				fixed += ScenarioMath.cma(alloc.get(ProductType.CMA), months, CMA_RATE).finalAmount();
@@ -450,6 +479,15 @@ public class GoalScenarioService {
 			}
 			return out;
 		};
+	}
+
+	/**
+	 * 적금 몫의 기한 말 금액(policies §7-2). 만기 = 기한이면 적금 만기 금액. 만기가 짧으면 만기 금액(세후)을 CMA 예시 금리로 옮기고
+	 * 남은 달의 적금 몫도 매달 초 넣는다. 원래 CMA 비중과는 따로 계산하고, 세금은 이 부분 이자에만 매긴다.
+	 */
+	static long savingsFinal(long monthly, int months, int term, BigDecimal rate, boolean compound) {
+		long matured = SavingsService.maturity(monthly, term, rate, compound).finalAmount();
+		return term >= months ? matured : ScenarioMath.cma(matured, monthly, months - term, CMA_RATE).finalAmount();
 	}
 
 	/** 계산 결과 하나. reachable=false면 monthly·outcome이 없다. */
@@ -483,7 +521,7 @@ public class GoalScenarioService {
 			itemFactors.put(t, picked.items().get(t).stream().map(i -> factors.get(i.code())).toList());
 		}
 		FixedCandidate s = picked.saving();
-		Computed c = compute(target, months, n, invest, finals(plan.mix(), months, n, s.baseRate(), s.compound(), itemFactors));
+		Computed c = compute(target, months, n, invest, finals(plan.mix(), months, picked.savingTerm(), n, s.baseRate(), s.compound(), itemFactors));
 		if (c == null) {
 			List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), null)).toList();
 			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, false, null, null, null);
@@ -504,7 +542,7 @@ public class GoalScenarioService {
 			List<Alternative> more = t == ProductType.SAVINGS
 					? picked.moreSavings().stream().map(m -> new Alternative(m.productId(), m.name(), m.company(), rate(m))).toList()
 					: picked.moreItems().getOrDefault(t, List.of()).stream().map(i -> new Alternative(i.code(), i.name(), null, null)).toList();
-			out.add(new Product(t, picked.items().get(t), rate, t == ProductType.CMA, more));
+			out.add(new Product(t, picked.items().get(t), rate, t == ProductType.CMA, more, t == ProductType.SAVINGS ? picked.savingTerm() : null));
 		}
 		return out;
 	}

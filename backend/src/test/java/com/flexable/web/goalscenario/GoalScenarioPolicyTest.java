@@ -63,6 +63,8 @@ class GoalScenarioPolicyTest {
 		assertThat(GoalScenarioService.CMA_RATE).isEqualByComparingTo(new BigDecimal(c.get("cmaRatePercent").asString()));
 		assertThat(SavedScenarioService.LIMIT).isEqualTo(c.get("saveLimit").asInt());
 		assertThat(ScenarioResultCache.TTL.toMinutes()).isEqualTo(c.get("resultTtlMinutes").asLong());
+		assertThat(GoalScenarioService.MIN_MONTHS).isEqualTo(c.get("minMonths").asInt());
+		assertThat(GoalScenarioService.MAX_MONTHS).isEqualTo(c.get("maxMonths").asInt());
 	}
 
 	@TestFactory
@@ -117,6 +119,48 @@ class GoalScenarioPolicyTest {
 	}
 
 	@TestFactory
+	Stream<DynamicTest> 만기_뒤_CMA() {
+		return each("afterMaturity", c -> {
+			int months = c.get("months").asInt();
+			int term = c.get("savingsTermMonths").asInt();
+			long monthly = c.get("monthly").asLong();
+			BigDecimal rate = new BigDecimal(c.get("savingsRatePercent").asString());
+			boolean compound = c.get("savingsCompound").asBoolean();
+			JsonNode e = c.get("expected");
+			long matured = SavingsService.maturity(monthly, term, rate, compound).finalAmount();
+			assertThat(matured).as("matured").isEqualTo(e.get("matured").asLong());
+			var after = ScenarioMath.cma(matured, monthly, months - term, GoalScenarioService.CMA_RATE);
+			assertThat(after.gain()).as("afterInterestPreTax").isEqualTo(e.get("afterInterestPreTax").asLong());
+			assertThat(after.tax()).as("afterTax").isEqualTo(e.get("afterTax").asLong());
+			assertThat(GoalScenarioService.savingsFinal(monthly, months, term, rate, compound)).as("final").isEqualTo(e.get("final").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 경로_길이() {
+		return each("pathLength", c -> {
+			int months = c.get("months").asInt();
+			assertThat(GoalScenarioService.blocks(months)).as("blocks").isEqualTo(c.get("expected").get("blocks").asInt());
+			// 묶음을 이어 붙인 뒤 앞에서 기한 개월만 쓴다: 수익률이 달마다 다른 60개월로 확인한다
+			BigDecimal[] returns = new BigDecimal[GoalScenarioService.HISTORY];
+			for (int i = 0; i < returns.length; i++) {
+				returns[i] = new BigDecimal(i).movePointLeft(3);
+			}
+			int[][] draws = GoalScenarioService.draws(GoalScenarioService.blocks(months));
+			BigDecimal[] f = GoalScenarioService.factors(returns, new int[][] { draws[0] }, months);
+			BigDecimal[] path = new BigDecimal[months];
+			for (int m = 0; m < months; m++) {
+				path[m] = returns[draws[0][m / GoalScenarioService.BLOCK] + m % GoalScenarioService.BLOCK];
+			}
+			assertThat(f[0]).isEqualByComparingTo(ScenarioMath.factor(path));
+			// 12·24·36개월은 묶음 수만큼 그대로 쓴다(바뀌기 전 결과와 같다)
+			if (months % GoalScenarioService.BLOCK == 0) {
+				assertThat(path.length).isEqualTo(draws[0].length * GoalScenarioService.BLOCK);
+			}
+		});
+	}
+
+	@TestFactory
 	Stream<DynamicTest> 적금과_CMA_혼합() {
 		return each("mixFixed", c -> {
 			int months = c.get("months").asInt();
@@ -138,7 +182,7 @@ class GoalScenarioPolicyTest {
 	Stream<DynamicTest> 필요_월_금액() {
 		return each("required", c -> {
 			long target = c.get("target").asLong();
-			int months = c.get("years").asInt() * 12;
+			int months = c.get("months").asInt();
 			assertThat(new BigDecimal(c.get("reachShare") == null ? "0.8" : c.get("reachShare").asString()).movePointRight(4).intValueExact())
 				.isEqualTo(GoalScenarioService.REACH_BP);
 			Map<ProductType, Integer> m = mix(c.get("mix"));
@@ -199,7 +243,7 @@ class GoalScenarioPolicyTest {
 	Stream<DynamicTest> 입력_검증() {
 		return each("validation", c -> {
 			JsonNode q = c.get("request");
-			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("years").asInt());
+			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("months").asInt());
 			String field = c.get("expected").get("field").asString();
 			assertThatThrownBy(() -> GoalScenarioService.validate(req)).isInstanceOfSatisfying(ApiException.class,
 					ex -> assertThat(((Map<?, ?>) ex.extra().get("fields")).keySet()).map(String::valueOf).contains(field));

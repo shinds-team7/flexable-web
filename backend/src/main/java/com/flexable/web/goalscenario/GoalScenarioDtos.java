@@ -12,7 +12,7 @@ final class GoalScenarioDtos {
 	}
 
 	/** 숫자 칸은 비어 있을 수 있어 래퍼 타입으로 받고 서비스가 검사한다. */
-	record Request(String name, Long targetAmount, Integer years) {
+	record Request(String name, Long targetAmount, Integer months) {
 	}
 
 	record Item(String code, String name, String company) {
@@ -22,8 +22,11 @@ final class GoalScenarioDtos {
 	record Alternative(String code, String name, String company, String ratePercent) {
 	}
 
-	/** alternatives가 없는 이전 저장본도 빈 목록으로 읽는다. */
-	record Product(ProductType type, List<Item> items, String ratePercent, boolean isSample, List<Alternative> alternatives) {
+	/**
+	 * alternatives가 없는 이전 저장본도 빈 목록으로 읽는다. termMonths는 적금 만기 개월(적금만, 기한보다 짧을 수 있다).
+	 * termMonths가 없는 이전 저장본은 SavedScenarioService가 기한 개월로 채운다.
+	 */
+	record Product(ProductType type, List<Item> items, String ratePercent, boolean isSample, List<Alternative> alternatives, Integer termMonths) {
 		Product {
 			alternatives = alternatives == null ? List.of() : alternatives;
 		}
@@ -39,7 +42,7 @@ final class GoalScenarioDtos {
 			Long monthly, Long paid, Outcome outcome) {
 	}
 
-	record Result(String resultId, String name, long targetAmount, int years, int months, String proposer, String fallbackReason,
+	record Result(String resultId, String name, long targetAmount, int months, String proposer, String fallbackReason,
 			LocalDate asOf, String returnsFrom, String returnsTo, int paths, long seed, BigDecimal reachShare,
 			List<Product> products, List<Scenario> scenarios, List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage,
 			boolean aiReused) {
@@ -52,14 +55,14 @@ final class GoalScenarioDtos {
 	record SaveRequest(String resultId, String scenarioId) {
 	}
 
-	record SavedSummary(long id, OffsetDateTime savedAt, String name, long targetAmount, int years, LocalDate asOf, String title,
+	record SavedSummary(long id, OffsetDateTime savedAt, String name, long targetAmount, int months, LocalDate asOf, String title,
 			boolean reachable, Long monthly, String kind) {
 	}
 
 	record SavedList(List<SavedSummary> items, int limit) {
 	}
 
-	record Saved(long id, OffsetDateTime savedAt, String name, long targetAmount, int years, int months, String proposer, LocalDate asOf,
+	record Saved(long id, OffsetDateTime savedAt, String name, long targetAmount, int months, String proposer, LocalDate asOf,
 			String returnsFrom, String returnsTo, int paths, BigDecimal reachShare, List<Product> products, Scenario scenario,
 			List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample) {
 	}

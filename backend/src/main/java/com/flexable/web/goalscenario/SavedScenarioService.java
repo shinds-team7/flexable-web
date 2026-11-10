@@ -77,7 +77,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		Snapshot snap = new Snapshot(r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.reachShare(),
 				r.products(), s, r.scenarios().stream().filter(x -> !x.id().equals(s.id())).toList(), r.assumptions(), r.notice(), r.isSample());
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS); // DB(DATETIME(6))와 같은 정밀도로 돌려준다
-		SavedScenario row = saved.save(new SavedScenario(userId, now, r.name(), r.targetAmount(), r.years(), JSON.writeValueAsString(snap)));
+		SavedScenario row = saved.save(new SavedScenario(userId, now, r.name(), r.targetAmount(), r.months(), JSON.writeValueAsString(snap)));
 		// 동시에 저장해 5개를 넘겼으면 이번 저장을 되돌린다
 		if (saved.countByUserId(userId) > LIMIT) {
 			throw new ApiException(ErrorCode.GOAL_SCENARIO_LIMIT);
@@ -96,6 +96,15 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		saved.deleteByUserId(userId);
 	}
 
+	/** 적금 만기가 없는 예전 저장본은 만기 = 기한으로 읽는다(그때는 만기와 기한이 같은 적금만 골랐다). */
+	private static List<Product> products(Snapshot s) {
+		return s.products().stream()
+			.map(p -> p.type() == ProductType.SAVINGS && p.termMonths() == null
+					? new Product(p.type(), p.items(), p.ratePercent(), p.isSample(), p.alternatives(), s.months())
+					: p)
+			.toList();
+	}
+
 	private static Snapshot read(SavedScenario row) {
 		return JSON.readValue(row.getSnapshot(), Snapshot.class);
 	}
@@ -106,15 +115,15 @@ public class SavedScenarioService implements UserWithdrawalListener {
 
 	private static SavedSummary summary(SavedScenario row) {
 		Snapshot s = read(row);
-		return new SavedSummary(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getYears(), LocalDate.parse(s.asOf()),
+		return new SavedSummary(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), LocalDate.parse(s.asOf()),
 				s.scenario().title(), s.scenario().reachable(), s.scenario().monthly(),
 				s.scenario().outcome() == null ? null : s.scenario().outcome().kind());
 	}
 
 	private static Saved detail(SavedScenario row) {
 		Snapshot s = read(row);
-		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getYears(), s.months(), s.proposer(),
-				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), s.products(), s.scenario(),
+		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), s.proposer(),
+				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), products(s), s.scenario(),
 				s.alternatives() == null ? List.of() : s.alternatives(), s.assumptions(), s.notice(), s.isSample());
 	}
 }

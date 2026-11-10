@@ -90,11 +90,24 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 	 * basis: 채점 기준. REACTION(반응 창, 11-09 결정)이면 up = 공시 직후 방향이고 reactionRate·nextWeekRate가 있다. null이면 이 규칙 전에 만든 사본이라
 	 * 5거래일 기준(up·returnRate = 기준 봉 종가 → 5번째 후속 거래일 종가)으로 채점한다.
 	 * details: 공시 주요 내용(없으면 null), summary: 공시 AI 요약(없으면 null, 채점하면 주요 내용과 함께 지운다).
-	 * trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null)
+	 * trend·upShare·downShare·paths는 출제할 때의 룰셋 유형 통계(룰셋에 없는 유형이면 null). statsBasis: 그 통계의 구간. REACTION이면 공시 직후(vsim-rules-v3),
+	 * null이면 이 규칙 전 룰셋(v2)의 5거래일 통계다
 	 */
 	record StoredQuestion(String id, String company, String industry, VirtualSimCategory category, String title, String body,
 			List<PlacementDetails.Detail> details, String date, Boolean up, BigDecimal returnRate, String trend, BigDecimal upShare, BigDecimal downShare,
-			Integer paths, String summary, String basis, BigDecimal reactionRate, BigDecimal nextWeekRate) {
+			Integer paths, String summary, String basis, BigDecimal reactionRate, BigDecimal nextWeekRate, String statsBasis) {
+
+		/** 결과에 유형 통계를 실을지: 채점 기준과 같은 구간의 통계만(반응 창 채점은 공시 직후 통계, 5거래일 채점은 5거래일 통계) */
+		boolean statsMatch() {
+			return java.util.Objects.equals(statsBasis, VirtualContestQuestions.REACTION.equals(basis) ? VirtualContestQuestions.REACTION : null);
+		}
+	}
+
+	/**
+	 * 채점한 결과의 저장 모양(virtual_contest_placements.result). statsBasis: REACTION이면 items의 유형 통계가 채점 구간과 같다(11-10부터).
+	 * 이 규칙 전에 저장한 결과는 GradedItem 배열이고, 그중 반응 창 채점 문제의 유형 통계는 5거래일 통계라 읽을 때 지운다
+	 */
+	record StoredResult(String statsBasis, List<GradedItem> items) {
 	}
 
 	/** 실제 공시 문제 풀(6시간마다 다시 만든다). 예시 자료면 쓰지 않는다 */
@@ -276,7 +289,8 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null),
 						sim.sample() ? VirtualSimSample.summary(q.category())
 								: q.sources().stream().map(summaries::get).filter(java.util.Objects::nonNull).findFirst().orElse(null),
-						VirtualContestQuestions.REACTION, q.reactionRate(), q.nextWeekRate()));
+						VirtualContestQuestions.REACTION, q.reactionRate(), q.nextWeekRate(),
+						VirtualSimRuleset.V2.equals(rules.rules().version()) ? null : VirtualContestQuestions.REACTION));
 			}
 			String id = UUID.randomUUID().toString();
 			Instant started = now();
@@ -299,6 +313,19 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 		db.deletePlacement(p.id());
 		log.info("이전 형식 배치고사 삭제 user={}", p.userId());
 		return true;
+	}
+
+	/**
+	 * 저장한 채점 결과를 읽는다. 11-10 전에 저장한 배열은 basis가 없으면 5거래일 기준이고(11-09), 반응 창 채점 문제의 유형 통계는 5거래일 통계라 지운다
+	 * (결과 화면이 그 통계를 공시 직후 통계로 읽지 않게)
+	 */
+	private List<GradedItem> gradedItems(String result) {
+		if (!result.stripLeading().startsWith("[")) {
+			return json.readValue(result, StoredResult.class).items();
+		}
+		return json.readValue(result, new TypeReference<List<GradedItem>>() {
+		}).stream().map(i -> i.basis() == null ? i.withBasis(VirtualContestQuestions.FIVE_DAY)
+				: VirtualContestQuestions.REACTION.equals(i.basis()) ? i.withoutStats() : i).toList();
 	}
 
 	private List<StoredQuestion> questions(PlacementRow p) {
@@ -326,15 +353,17 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 		for (StoredQuestion q : questions(p)) {
 			Prediction pr = answers.get(q.id());
 			boolean reaction = VirtualContestQuestions.REACTION.equals(q.basis());
+			boolean stats = q.statsMatch();
 			items.add(new GradedItem(q.id(), pr, q.company(), q.date(), reaction ? VirtualContestQuestions.REACTION : VirtualContestQuestions.FIVE_DAY,
 					q.up() ? "UP" : "DOWN", reaction ? q.reactionRate() : null, reaction ? q.nextWeekRate() : null, reaction ? null : q.returnRate(),
-					VirtualContestRules.placementCorrect(q.up(), pr), q.trend(), q.upShare(), q.downShare(), q.paths()));
+					VirtualContestRules.placementCorrect(q.up(), pr), stats ? q.trend() : null, stats ? q.upShare() : null, stats ? q.downShare() : null,
+					stats ? q.paths() : null));
 		}
 		int correct = (int) items.stream().filter(GradedItem::correct).count();
 		VirtualContestBoard board = VirtualContestRules.placementBoard(correct);
 		Instant at = now();
 		tx.executeWithoutResult(t -> {
-			if (db.gradePlacement(p.id(), json.writeValueAsString(items), correct, board, at)) {
+			if (db.gradePlacement(p.id(), json.writeValueAsString(new StoredResult(VirtualContestQuestions.REACTION, items)), correct, board, at)) {
 				db.insertEntry(p.contestId(), p.userId(), correct, board, at);
 				log.info("대회 배치고사 채점 user={} board={}", p.userId(), board);
 			}
@@ -376,9 +405,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				}
 				p = db.placementById(p.id()).orElseThrow();
 			}
-			// 이 규칙 전에 채점한 결과(basis 없음)는 5거래일 기준이다
-			List<GradedItem> items = json.readValue(p.result(), new TypeReference<List<GradedItem>>() {
-			}).stream().map(i -> i.basis() != null ? i : i.withBasis(VirtualContestQuestions.FIVE_DAY)).toList();
+			List<GradedItem> items = gradedItems(p.result());
 			EntryRow e = db.entry(p.contestId(), userId).orElseThrow();
 			return new PlacementResult(p.id(), p.correct(), VirtualContestRules.PLACEMENT_QUESTIONS, VirtualContestBoard.valueOf(p.board()), items, entry(e));
 		});

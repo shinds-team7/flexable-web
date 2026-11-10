@@ -60,11 +60,17 @@ public final class VirtualContestDtos {
 	/**
 	 * company·date: 결과에서 공개하는 실제 회사·접수일(예시 자료는 date null). basis: 채점 기준(REACTION 반응 창, FIVE_DAY 이 규칙 전의 5거래일).
 	 * movement: 정답 방향(REACTION이면 공시 직후, FIVE_DAY면 5거래일). reactionReturnRate·nextWeekReturnRate: 공시 직후(전날 종가 → 다음 거래일 종가)·그다음 주
-	 * (다음 거래일 종가 → 5번째 후속 거래일 종가) 등락(REACTION만). subsequentReturnRate: 5거래일 등락(FIVE_DAY만). trend 이하: 그 유형의 과거 통계(룰셋, 5거래일)
+	 * (다음 거래일 종가 → 5번째 후속 거래일 종가) 등락(REACTION만). subsequentReturnRate: 5거래일 등락(FIVE_DAY만). trend 이하: 그 유형의 과거 통계(룰셋.
+	 * REACTION이면 공시 직후, FIVE_DAY면 5거래일. 채점 구간과 다른 통계뿐이면 null, 11-10)
 	 */
 	public record GradedItem(String questionId, Prediction prediction, String company, String date, String basis, String movement, BigDecimal reactionReturnRate,
 			BigDecimal nextWeekReturnRate, BigDecimal subsequentReturnRate, boolean correct, String trend, BigDecimal categoryUpShare, BigDecimal categoryDownShare,
 			Integer categorySampleCount) {
+
+		GradedItem withoutStats() {
+			return new GradedItem(questionId, prediction, company, date, basis, movement, reactionReturnRate, nextWeekReturnRate, subsequentReturnRate, correct, null,
+					null, null, null);
+		}
 
 		GradedItem withBasis(String basis) {
 			return new GradedItem(questionId, prediction, company, date, basis, movement, reactionReturnRate, nextWeekReturnRate, subsequentReturnRate, correct, trend,

@@ -282,6 +282,10 @@ class VirtualContestApiTest {
 		assertNoLeak(placement);
 		// 공시 주요 내용: 구조화 자료가 있는 유형(예시 룰셋의 유상증자·자기주식 취득)은 항목이, 없는 유형(공급 계약·실적·배당)은 null
 		List<Map<String, Object>> qs = JsonPath.read(placement, "$.questions");
+		// 출제(Issue #388): 한 유형은 3문제까지, 예시 자료에 있는 근거 유형(공급 계약·자기주식 취득)은 1문제 이상
+		Map<Object, Long> perType = qs.stream().collect(java.util.stream.Collectors.groupingBy(q -> q.get("category"), java.util.stream.Collectors.counting()));
+		assertThat(perType.values()).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
+		assertThat(perType).containsKeys("SUPPLY_CONTRACT", "BUYBACK_ACQUIRE");
 		assertThat(qs).allSatisfy(q -> assertThat(q.get("details") != null).as(q.toString())
 			.isEqualTo(Set.of("NEW_SHARES", "BUYBACK_ACQUIRE").contains((String) q.get("category"))));
 		// 공시 AI 요약: 예시 자료는 주요 내용이 없는 유형(공급 계약·실적·배당)에 예시 요약을 싣고, 있는 유형은 null

@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import com.flexable.web.ingest.dart.DartDisclosureSource.DartException;
 import com.flexable.web.virtualsim.PlacementDetails;
+import com.flexable.web.virtualsim.VirtualContestQuestions;
 import com.flexable.web.virtualsim.VirtualSimCategory;
 import com.flexable.web.virtualsim.VirtualSimStore;
 import com.flexable.web.virtualsim.VirtualSimStore.DetailRow;
@@ -30,6 +31,8 @@ import com.flexable.web.virtualsim.VirtualSimStore.DisclosureRow;
  * 응답에 없는 공시는 같은 공시의 나중 정정본 행을 쓰고(corrected), 그것도 없으면 빈 항목으로 저장해 다시 부르지 않는다. 호출 상한(전체 공시 수집이 쓰고 남은 VIRTUAL_SIM_DART_MAX_CALLS)에 닿으면 멈추고 다음 실행이 이어 받는다.
  * 정정 공시를 받을 때는 그 원 공시도 같은 응답으로 다시 평가한다(withOriginals). 응답 형식 오류(DartDisclosureSource)를 포함해 실패한 묶음은 저장하지 않고
  * dart_detail_failures에 남겨 다음 실행에 맨 뒤로 미뤄 다시 받는다(그 사이 다른 묶음이 먼저 진행된다). 공시 목록(dart_disclosures)은 건드리지 않는다.
+ * 공급 계약(PlacementDetails.fromDocument, Issue #375)은 DS005가 없어 종목마다 원공시(정정 공시는 빼고, 문제는 원공시로만 나온다)의 공시서류원본파일을 한 건에 한 번씩 받아
+ * 매출액 대비·계약 기간만 뽑아 저장한다(PlacementDetails.DOCUMENT 묶음, 같은 호출 상한). 원문·본문 글은 저장하지 않는다.
  */
 @Component
 @Profile("worker")
@@ -80,7 +83,12 @@ public class DisclosureDetailJob {
 				Map<String, List<DisclosureRow>> todo = new LinkedHashMap<>();
 				// API → 그 종목의 같은 API 공시 전체(이미 받은 것 포함). 정정 공시를 찾을 때 쓴다
 				Map<String, List<DisclosureRow>> sameApi = new HashMap<>();
+				List<DisclosureRow> documents = new ArrayList<>();
 				for (DisclosureRow d : store.disclosures(stock)) {
+					if (PlacementDetails.fromDocument(d.title()) && !VirtualContestQuestions.correction(d.title()) && inRange(d, since) && !done.contains(d.receiptNo())) {
+						documents.add(d);
+						continue;
+					}
 					String api = PlacementDetails.api(d.title());
 					if (api == null) {
 						continue;
@@ -91,6 +99,10 @@ public class DisclosureDetailJob {
 					}
 				}
 				todo.forEach((api, rows) -> groups.add(new Group(stock, api, withOriginals(rows, sameApi.get(api), since), sameApi.get(api))));
+				if (!documents.isEmpty()) {
+					documents.sort(Comparator.comparing(DisclosureRow::receiptNo).reversed());
+					groups.add(new Group(stock, PlacementDetails.DOCUMENT, List.copyOf(documents), List.of()));
+				}
 			}
 			// 2) 실패한 적 없는 묶음을 먼저, 실패한 묶음은 오래 전에 실패한 순으로 맨 뒤에. 같은 묶음이 계속 실패해도 상한을 다 써서 뒤 종목이 막히지 않는다
 			Map<String, Instant> failed = store.detailFailures();
@@ -103,6 +115,24 @@ public class DisclosureDetailJob {
 				LocalDate from = g.rows().stream().map(DisclosureRow::date).min(Comparator.naturalOrder()).orElseThrow().minusDays(LOOKBACK_DAYS);
 				LocalDate to = g.rows().stream().map(DisclosureRow::date).max(Comparator.naturalOrder()).orElseThrow();
 				try {
+					if (PlacementDetails.DOCUMENT.equals(g.api())) {
+						// 공시마다 원문 한 번. 한 건씩 저장하므로 상한에 닿거나 실패해도 그때까지 받은 공시는 남는다
+						boolean all = true;
+						for (DisclosureRow d : g.rows()) {
+							if (calls >= cap) {
+								capped = true;
+								all = false;
+								break;
+							}
+							calls++;
+							String text = disclosures.documentText(d.receiptNo());
+							saved += store.saveDetails(List.of(new DetailRow(d.receiptNo(), VirtualSimCategory.classify(d.title()), PlacementDetails.supplyContract(text))));
+						}
+						if (all) {
+							store.clearDetailFailure(g.stock(), g.api());
+						}
+						continue;
+					}
 					calls++;
 					List<Map<String, String>> got = disclosures.majorReport(g.api(), g.rows().getFirst().corpCode(), from.isBefore(DATA_FROM) ? DATA_FROM : from, to);
 					Map<String, Map<String, String>> byReceipt = new HashMap<>();

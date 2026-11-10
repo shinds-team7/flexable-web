@@ -12,7 +12,7 @@ import com.flexable.web.virtualsim.VirtualSimRuleset.Grade;
 
 /**
  * 예시 자료(VIRTUAL_SIM_SOURCE=fake, decisions/2026-11-04-virtual-simulation 4-8). 키 없이 로컬·테스트에서 끝까지 해 보려고
- * 코드에 넣은 예시 룰셋(유형 5개, 그중 뚜렷한 유형 3개)과 예시 회사 6곳의 글이다. 실제 시장 통계·AI 글이 아니다(isSample=true).
+ * 코드에 넣은 예시 룰셋(유형 5개, 그중 경향 있는 유형(반응 창 근거 유형) 2개, vsim-rules-v3 모양)과 예시 회사 6곳의 글이다. 실제 시장 통계·AI 글이 아니다(isSample=true).
  */
 public final class VirtualSimSample {
 
@@ -49,7 +49,7 @@ public final class VirtualSimSample {
 			int n = 300;
 			List<int[]> paths = new ArrayList<>();
 			for (int j = 0; j < n; j++) {
-				int[] p = new int[VirtualSimRules.FOLLOW_DAYS];
+				int[] p = new int[VirtualSimRules.PATH_DAYS];
 				for (int k = 0; k < p.length; k++) {
 					p[k] = (int) Math.round(gauss(rnd) * 180) + drift;
 				}
@@ -61,21 +61,21 @@ public final class VirtualSimSample {
 				}
 				paths.add(p);
 			}
+			// 상승 비율은 실제 룰셋처럼 공시 직후(전날 종가 → 다음 거래일 종가 = 경로 첫째·둘째 날)로 센다
 			int up = 0, down = 0;
-			int[] cumulative = new int[n];
+			int[] reaction = new int[n];
 			for (int j = 0; j < n; j++) {
 				long close = 10_000;
-				for (int r : paths.get(j)) {
-					close = Math.floorDiv(close * (10_000 + r), 10_000L);
+				for (int d = 0; d < 2; d++) {
+					close = Math.floorDiv(close * (10_000 + paths.get(j)[d]), 10_000L);
 				}
-				cumulative[j] = VirtualSimRules.returnBp(10_000, close);
+				reaction[j] = VirtualSimRules.returnBp(10_000, close);
 				up += close > 10_000 ? 1 : 0;
 				down += close < 10_000 ? 1 : 0;
 			}
-			int[] q = VirtualSimRules.quantiles(cumulative);
-			var share = VirtualSimRules.upShare(n, up);
-			stats.add(new CategoryStats(category, n, up, down, n - up - down, share, q[500], q[250], q[750], null,
-					VirtualSimRules.trend(n, share), List.copyOf(paths)));
+			int[] q = VirtualSimRules.quantiles(reaction);
+			stats.add(new CategoryStats(category, n, up, down, n - up - down, VirtualSimRules.upShare(n, up), q[500], q[250], q[750], null,
+					VirtualSimRules.trend(category), List.copyOf(paths)));
 		});
 		List<Grade> grades = new ArrayList<>();
 		int[][] spread = { { 90, 30, 40 }, { 160, 50, 70 }, { 260, 80, 110 } };
@@ -133,7 +133,8 @@ public final class VirtualSimSample {
 
 	/**
 	 * 배치고사 예시 문제의 공시 주요 내용(실제 공시가 아니다). 실제 문제와 같은 규칙(PlacementDetails)으로 유형마다 고정한 예시 DS005 행에서 만든다.
-	 * 실제 공시처럼 구조화 자료가 없는 유형(실적·공급 계약·배당·소송·최대주주 변경)은 null(유형 설명만 보인다)
+	 * 실제 공시처럼 구조화 자료가 없는 유형(실적·배당·소송·최대주주 변경)은 null(유형 설명만 보인다). 공급 계약은 실제로는 원문에서 매출액 대비·계약 기간을 뽑지만(#375),
+	 * 예시 사건 글에 없는 수치를 공시 내용으로 보이지 않게(#361 리뷰) 예시 요약만 두고 null
 	 */
 	public static List<PlacementDetails.Detail> details(VirtualSimCategory category) {
 		List<PlacementDetails.Detail> items = switch (category) {

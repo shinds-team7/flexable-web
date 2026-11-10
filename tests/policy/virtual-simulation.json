@@ -1,7 +1,7 @@
 {
   "status": "IMPLEMENTED",
   "policy": "docs/policies.md §8",
-  "versions": { "types": "vsim-types-v3", "ruleset": "vsim-rules-v2", "check": "vsim-check-v3" },
+  "versions": { "types": "vsim-types-v4", "ruleset": "vsim-rules-v3", "check": "vsim-check-v3" },
   "tradeAndQuiz": {
     "note": "평가는 §5 그대로(practice.json 아래 키). 사건 매매는 수량 직접 입력(order). 11-05(#253)부터 채점이 없어 quizCases는 쓰지 않는다(noScore)",
     "source": "practice.json",
@@ -64,24 +64,42 @@
       { "title": "증권발행\u00a0실적보고서", "expected": null, "note": "줄바꿈 없는 공백(U+00A0)도 지우고 본다" },
       { "title": "연결재무제표기준영업(잠정)\u00a0실적(공정공시)", "expected": "EARNINGS" },
       { "title": "결산실적공시예고(안내공시)", "expected": null, "note": "실적 발표 일정 안내라 분류하지 않는다(vsim-types-v3)" },
-      { "title": "연결재무제표기준영업실적등에대한전망(공정공시)", "expected": "EARNINGS" }
+      { "title": "연결재무제표기준영업실적등에대한전망(공정공시)", "expected": null, "note": "회사가 내놓은 실적 계획이라 지난 실적 발표가 아니다(vsim-types-v4)" },
+      { "title": "[기재정정]영업실적등에대한전망(공정공시)", "expected": null },
+      { "title": "영업실적 등에 대한 전망(공정공시)(자회사의 주요경영사항)", "expected": null, "note": "공백을 지우고 본다" },
+      { "title": "기타경영사항(자율공시)(2025년 연간 경영실적 발표일정)", "expected": null, "note": "실적 발표 일정 안내(vsim-types-v4)" },
+      { "title": "소액공모실적보고서", "expected": null, "note": "증권 공모 결과 서류(vsim-types-v4)" },
+      { "title": "매출액또는손익구조30%(대규모법인은15%)이상변경", "expected": "EARNINGS" }
     ],
     "eventPaths": {
-      "dates": ["2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10"],
-      "closes": [10000, 10250, 10100, 10100, 9900, 10400, 10500],
+      "note": "vsim-rules-v3(11-10): 경로 = 기준 봉 당일(전날 종가 → 기준 봉 종가) + 1~5번째 후속 거래일, r 6개. 기준 봉 전날 봉과 후속 5거래일이 있어야 한다. reactionUp = 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가)가 올랐는지(상승 비율을 세는 구간)",
+      "dates": ["2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10", "2026-03-11", "2026-03-12"],
+      "closes": [10000, 10250, 10100, 10100, 9900, 10400, 10500, 10600, 10300],
       "cases": [
-        { "publishedDate": "2026-03-02", "expected": [250, -147, 0, -199, 505] },
-        { "publishedDate": "2026-03-03", "expected": [-147, 0, -199, 505, 96] },
-        { "publishedDate": "2026-03-04", "expected": null, "note": "후속 4거래일뿐" },
-        { "publishedDate": "2026-03-07", "expected": null, "note": "토요일, 기준 03-06, 후속 2거래일뿐" },
+        { "publishedDate": "2026-03-02", "expected": null, "note": "기준 봉 전날 봉 없음" },
+        { "publishedDate": "2026-03-03", "expected": [250, -147, 0, -199, 505, 96], "reactionUp": true, "note": "10,000 → 10,100" },
+        { "publishedDate": "2026-03-04", "expected": [-147, 0, -199, 505, 96, 95], "reactionUp": false, "note": "10,250 → 10,100" },
+        { "publishedDate": "2026-03-05", "expected": [0, -199, 505, 96, 95, -284], "reactionUp": false, "note": "10,100 → 9,900" },
+        { "publishedDate": "2026-03-06", "expected": null, "note": "후속 4거래일뿐" },
+        { "publishedDate": "2026-03-07", "expected": null, "note": "토요일, 기준 03-06, 후속 4거래일뿐" },
         { "publishedDate": "2026-03-01", "expected": null, "note": "기준 봉 없음" }
+      ]
+    },
+    "corrections": {
+      "note": "정정 공시는 경로로 쓰지 않는다(v3, 정정일의 움직임은 원래 공시의 반응이 아니다). 판정은 배치고사와 같은 VirtualContestQuestions.correction",
+      "cases": [
+        { "title": "[기재정정]단일판매ㆍ공급계약체결", "correction": true },
+        { "title": "[첨부정정]주요사항보고서(자기주식취득결정)", "correction": true },
+        { "title": "[첨부추가]주요사항보고서(자기주식취득결정)", "correction": false },
+        { "title": "단일판매ㆍ공급계약체결", "correction": false }
       ]
     },
     "minPathsPerType": 30,
     "maxPathsPerType": 500,
     "minTypes": 3,
-    "minClearTypes": 2,
+    "minClearTypesRemoved": "11-10(v3): 경향 있는 유형 2개 미만이면 룰셋을 만들지 않던 조건과 가상 종목 후보 조건(뚜렷한 유형 2개)을 없앴다",
     "sampleSource": "dart_disclosures(수집 대상 종목의 최근 5년 DART 공시 전체, 5년을 다 받은 종목만). event_sources는 쓰지 않는다",
+    "upShareNote": "v3: 오른 수 = 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가)가 오른 경로 수. 내림식은 그대로",
     "upShare": [
       { "paths": 340, "up": 227, "expected": 0.6676 },
       { "paths": 30, "up": 15, "expected": 0.5 },
@@ -117,27 +135,26 @@
     ]
   },
   "trend": {
-    "note": "기준값은 임시. 구현 PR에서 전체 공시 분포로 확정",
-    "upAtLeast": 0.55,
-    "downAtMost": 0.45,
-    "minPaths": 100,
+    "note": "vsim-rules-v3(11-10, decisions/2026-11-10-vsim-ruleset-reaction-window): 경향은 상승 비율·경로 수로 정하지 않고 공시 반응 측정 v2의 반응 창 근거 유형으로 고정한다(배치고사 근거 유형과 같은 목록). 그 밖의 유형은 MIXED. 상승 비율이 50% 아래여도 고정 목록이면 UP이다(시장 조정 측정 결과라 원 가격 비율과 다를 수 있음)",
+    "fixed": { "SUPPLY_CONTRACT": "UP", "BUYBACK_ACQUIRE": "UP", "FACILITY": "UP" },
+    "others": "MIXED",
     "cases": [
-      { "paths": 340, "up": 227, "upShare": 0.6676, "expected": "UP" },
-      { "paths": 200, "up": 110, "upShare": 0.55, "expected": "UP" },
-      { "paths": 200, "up": 109, "upShare": 0.545, "expected": "MIXED" },
-      { "paths": 200, "up": 90, "upShare": 0.45, "expected": "DOWN" },
-      { "paths": 150, "up": 60, "upShare": 0.4, "expected": "DOWN" },
-      { "paths": 99, "up": 70, "upShare": 0.707, "expected": "MIXED", "note": "경로 100개 미만" }
+      { "category": "SUPPLY_CONTRACT", "paths": 1500, "up": 700, "expected": "UP", "note": "상승 비율 0.4666이어도 고정 목록" },
+      { "category": "BUYBACK_ACQUIRE", "paths": 40, "up": 30, "expected": "UP" },
+      { "category": "FACILITY", "paths": 600, "up": 320, "expected": "UP" },
+      { "category": "BONUS_SHARES", "paths": 60, "up": 45, "expected": "MIXED", "note": "v2 기준이면 UP이 될 수 있던 유형" },
+      { "category": "NEW_SHARES", "paths": 500, "up": 200, "expected": "MIXED", "note": "v2 기준이면 DOWN" },
+      { "category": "EARNINGS", "paths": 3000, "up": 1500, "expected": "MIXED" }
     ]
   },
   "noScore": {
     "status": "IMPLEMENTED",
-    "note": "#253 사용자 결정(11-05). 일반 세션도 trendOutcome·outcome 늘 null, movement·유형 통계만. 출제는 뚜렷한 유형 최소 개수 없이 균등(후보 조건 ruleset.minClearTypes는 그대로)",
+    "note": "#253 사용자 결정(11-05). 일반 세션도 trendOutcome·outcome 늘 null, movement·유형 통계만. 출제는 경향 있는 유형 최소 개수 없이 균등. 11-10부터 movement는 공시 직후(사건 봉 전날 종가 prevClose → 다음 봉 종가 nextClose) 방향이고, reactionReturnRate = (nextClose − prevClose) / prevClose, nextWeekReturnRate = (5번째 후속 봉 종가 afterClose − nextClose) / nextClose, 소수 4자리 내림(음수는 더 작은 쪽)",
     "minClearQuestions": 0,
     "cases": [
-      { "trend": "UP", "action": "BUY", "baseline": 1000, "afterFiveSessions": 1100, "trendOutcome": null, "outcome": null, "movement": "UP" },
-      { "trend": "DOWN", "action": "SELL", "baseline": 1000, "afterFiveSessions": 1000, "trendOutcome": null, "outcome": null, "movement": "FLAT" },
-      { "trend": "MIXED", "action": "HOLD", "baseline": 1000, "afterFiveSessions": 900, "trendOutcome": null, "outcome": null, "movement": "DOWN" }
+      { "trend": "UP", "action": "BUY", "prevClose": 1000, "nextClose": 1100, "afterClose": 1050, "trendOutcome": null, "outcome": null, "movement": "UP", "reactionReturnRate": 0.1, "nextWeekReturnRate": -0.0455 },
+      { "trend": "UP", "action": "SELL", "prevClose": 1000, "nextClose": 1000, "afterClose": 1200, "trendOutcome": null, "outcome": null, "movement": "FLAT", "reactionReturnRate": 0, "nextWeekReturnRate": 0.2 },
+      { "trend": "MIXED", "action": "HOLD", "prevClose": 1000, "nextClose": 900, "afterClose": 900, "trendOutcome": null, "outcome": null, "movement": "DOWN", "reactionReturnRate": -0.1, "nextWeekReturnRate": 0 }
     ]
   },
   "order": {
@@ -162,7 +179,8 @@
       "길이는 120~250이고 날짜는 평일만, 하루씩 이어진다",
       "시작일 연도 = 세션 시작일 연도 + 10",
       "문제는 3~5개이고 유형이 서로 다르며, PracticeWindow.questions가 모두 출제한다",
-      "사건 뒤 1~5번째 봉의 종가 등락이 그 유형에서 뽑은 경로 값과 같다(제한에 걸리지 않은 경우)"
+      "사건 봉과 그 뒤 1~5번째 봉의 종가 등락이 그 유형에서 뽑은 경로 값 6개와 같다(제한에 걸리지 않은 경우, vsim-gen-v3·vsim-rules-v3)",
+      "경로가 5개인 v2 룰셋이면 사건 뒤 1~5번째 봉만 경로 값이고 사건 봉은 평소 분포다(v2 판 정산 호환)"
     ]
   },
   "checks": {

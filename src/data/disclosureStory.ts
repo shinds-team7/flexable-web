@@ -50,9 +50,12 @@ const SENTENCE: Record<string, (v: string, q: Question) => string> = {
   '자기자본 대비': v => `회사 자기자본에 견주면 ${v}에 해당해요.`,
   '양수 뒤 지분율': v => `사들인 뒤 그 회사 지분을 ${v} 갖게 돼요.`,
   '대상 회사와의 관계': v => v === '관계 없음' ? '대상 회사는 원래 관계가 없던 회사예요.' : `대상 회사는 이 회사의 ${is(v)}.`,
+  // 공급 계약(원문에서 뽑은 두 칸, #375)
+  '매출액 대비': v => `계약 금액은 이 회사 최근 매출액의 ${v}에 해당해요.`,
+  '계약 기간': v => `계약 기간은 ${is(v)}.`,
 };
 const MASKED = '회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 기존 대비 %로만 보여 줘요.';
-const NO_DETAILS_QUESTION = '이 유형은 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
+const NO_DETAILS_QUESTION = '이 공시는 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
 const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 금액은 규모 구간으로만 보여 줘요.';
 const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
@@ -89,7 +92,8 @@ const share = (r: number) => (Math.floor(r * 1000) / 10).toFixed(1);
 /**
  * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 AI 요약 또는 공시 주요 내용(있을 때) ③ 실제 움직임과 같은 유형 통계.
  * 움직임은 반응 창 채점(REACTION)이면 공시 직후(채점)와 그다음 주, 이 규칙 전에 시작한 배치고사(FIVE_DAY)면 5거래일이다(decisions/2026-11-09-placement-reaction-window).
- * 유형 통계는 룰셋의 5거래일 통계라 그렇게 밝힌다.
+ * 유형 통계는 채점 구간과 같은 구간만 온다(서버): REACTION이면 룰셋 v3의 공시 직후 통계, FIVE_DAY면 5거래일 통계(decisions/2026-11-10-vsim-ruleset-reaction-window).
+ * 경향 UP은 시장 조정 측정에서 공시 직후 평균이 오른 쪽이던 반응 창 근거 유형이라, 원 가격 상승 비율이 절반보다 낮을 수 있다.
  * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true, sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
 export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean, sample: boolean | null = null): string[] {
@@ -101,7 +105,7 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     ?? detailsStory(q)
     ?? (q.body
       ? q.body
-      : '이 유형은 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
+      : '이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
   let after: string;
   if (it.basis === 'REACTION' && it.reactionReturnRate != null && it.nextWeekReturnRate != null) {
     const n = it.nextWeekReturnRate;
@@ -111,8 +115,12 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     after = `공시 뒤 5거래일 동안 주가는 ${percent(it.subsequentReturnRate ?? 0)} ${it.movement === 'UP' ? '올랐어요' : '내렸어요'}(기준일 종가 → 5번째 거래일 종가).`;
   }
   if (it.categorySampleCount != null && it.categoryUpShare != null && it.categoryDownShare != null) {
-    after += ` 같은 유형 공시 ${it.categorySampleCount.toLocaleString('ko-KR')}건을 5거래일 뒤로 보면 ${share(it.categoryUpShare)}%는 올랐고 ${share(it.categoryDownShare)}%는 내렸어요`
-      + (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.');
+    const reaction = it.basis === 'REACTION';
+    after += ` 같은 유형 공시 ${it.categorySampleCount.toLocaleString('ko-KR')}건을 ${reaction ? '공시 직후로' : '5거래일 뒤로'} 보면 ${share(it.categoryUpShare)}%는 올랐고 ${share(it.categoryDownShare)}%는 내렸어요`
+      + (!reaction
+        ? (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.')
+        : it.trend === 'UP' ? '. 시장 전체 움직임을 빼고 보면 공시 직후 평균이 조금 오른 쪽이던 유형이지만, 평균 차이가 작아 이 공시가 꼭 그렇게 움직이지는 않아요.'
+        : it.trend === 'MIXED' ? '. 공시 직후 방향이 한쪽으로 기울었다는 근거가 없는 유형이에요.' : '.');
   }
   return [intro, body, after];
 }

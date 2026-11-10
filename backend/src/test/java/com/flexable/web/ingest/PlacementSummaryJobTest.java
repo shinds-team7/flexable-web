@@ -273,6 +273,18 @@ class PlacementSummaryJobTest {
 		assertThat(job.targets(10)).extracting(t -> t.disclosure().receiptNo()).containsExactly("20250101000003", "20250101000002", "20250101000001");
 	}
 
+	/** 정정 공시는 문제로 나오지 않아(원공시에 합침) 원공시를 다 한 뒤에 하고, 원공시가 기간 밖인 정정 공시는 하지 않는다(Issue #375) */
+	@Test
+	void 정정_공시는_원공시_뒤에_하고_짝이_없으면_뺀다() {
+		Documents dart = seed();
+		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
+		store.saveDisclosures(List.of(new DisclosureRow("20250101000007", "111111", "00000001", "[기재정정]단일판매ㆍ공급계약체결", today.minusDays(15)),
+				new DisclosureRow("20250101000008", "111111", "00000001", "[기재정정]주요사항보고서(자기주식취득결정)", today.minusDays(14))));
+		var job = job(dart, new Writer(), props("dart", 1, 2, 10));
+		assertThat(job.targets(10)).extracting(t -> t.disclosure().receiptNo()).containsExactly("20250101000003", "20250101000002", "20250101000001",
+				"20250101000007");
+	}
+
 	@Test
 	void 원문_받기에_실패한_공시는_다음_실행에서_뒤로_미루고_성공으로_기록하지_않는다() {
 		Documents dart = seed();

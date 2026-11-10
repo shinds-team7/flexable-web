@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -30,15 +31,19 @@ public final class VirtualSimRules {
 	public static final String UP = "UP";
 	public static final String DOWN = "DOWN";
 	public static final String MIXED = "MIXED";
-	/** 경향 기준값(임시, 결정 기록 1-9). 바꾸면 룰셋 버전을 올린다 */
-	public static final BigDecimal UP_AT_LEAST = new BigDecimal("0.55");
-	public static final BigDecimal DOWN_AT_MOST = new BigDecimal("0.45");
-	public static final int TREND_MIN_PATHS = 100;
+	/**
+	 * 유형별 경향(vsim-rules-v3, decisions/2026-11-10-vsim-ruleset-reaction-window 1). 공시 반응 측정 v2에서 반응 창 "근거 있음"(시장 조정, BH q<0.10, 두 기간 재현)인
+	 * 유형과 그 방향을 고정한다. 배치고사의 반응 창 근거 유형(VirtualContestQuestions.EVIDENCE_TYPES)과 같은 목록이고, 나머지 유형은 MIXED다.
+	 * 룰셋을 만들 때마다 다시 판정하지 않는다. 수집 종목·기간을 바꿔 다시 재면 이 목록을 고치고 룰셋 버전을 올린다
+	 */
+	public static final Map<VirtualSimCategory, String> TRENDS = Collections.unmodifiableMap(new EnumMap<>(Map.of(
+			VirtualSimCategory.SUPPLY_CONTRACT, UP, VirtualSimCategory.BUYBACK_ACQUIRE, UP, VirtualSimCategory.FACILITY, UP)));
 	public static final int MIN_PATHS = 30;
 	public static final int MAX_PATHS = 500;
 	public static final int MIN_TYPES = 3;
-	public static final int MIN_CLEAR_TYPES = 2;
 	public static final int FOLLOW_DAYS = 5;
+	/** 경로 길이: 사건 봉(전날 종가 → 기준 봉 종가) + 1~5번째 후속 거래일 */
+	public static final int PATH_DAYS = FOLLOW_DAYS + 1;
 	public static final int VOLUME_LOOKBACK = 20;
 	public static final int QUANTILES = 1001;
 	public static final int GRADES = 3;
@@ -79,14 +84,17 @@ public final class VirtualSimRules {
 		return found;
 	}
 
-	/** 기준 봉 뒤 1~5번째 후속 거래일의 하루 등락. 기준 봉이 없거나 후속 5거래일이 없으면 null */
+	/**
+	 * 기준 봉 당일(전날 종가 → 기준 봉 종가)과 1~5번째 후속 거래일의 하루 등락 6개(vsim-rules-v3). 기준 봉 전날 봉이 없거나 후속 5거래일이 없으면 null.
+	 * 첫째·둘째 값이 공시 직후(반응 창: 전날 종가 → 다음 거래일 종가)다
+	 */
 	public static int[] path(List<Long> closes, int base) {
-		if (base < 0 || base + FOLLOW_DAYS >= closes.size()) {
+		if (base < 1 || base + FOLLOW_DAYS >= closes.size()) {
 			return null;
 		}
-		int[] out = new int[FOLLOW_DAYS];
-		for (int k = 1; k <= FOLLOW_DAYS; k++) {
-			out[k - 1] = returnBp(closes.get(base + k - 1), closes.get(base + k));
+		int[] out = new int[PATH_DAYS];
+		for (int k = 0; k <= FOLLOW_DAYS; k++) {
+			out[k] = returnBp(closes.get(base + k - 1), closes.get(base + k));
 		}
 		return out;
 	}
@@ -109,15 +117,9 @@ public final class VirtualSimRules {
 		return BigDecimal.valueOf((long) up * 10000 / n, 4);
 	}
 
-	/** n ≥ 100이고 비율 ≥ 0.55면 UP, n ≥ 100이고 비율 ≤ 0.45면 DOWN, 그 밖은 MIXED */
-	public static String trend(int n, BigDecimal share) {
-		if (n < TREND_MIN_PATHS) {
-			return MIXED;
-		}
-		if (share.compareTo(UP_AT_LEAST) >= 0) {
-			return UP;
-		}
-		return share.compareTo(DOWN_AT_MOST) <= 0 ? DOWN : MIXED;
+	/** 유형의 경향: 고정 목록(TRENDS)에 있으면 그 방향, 없으면 MIXED. 경로 수·상승 비율로 정하지 않는다(v3) */
+	public static String trend(VirtualSimCategory category) {
+		return TRENDS.getOrDefault(category, MIXED);
 	}
 
 	/** 정렬한 값 v(개수 n)에서 q_i = v[floor(i × (n − 1) / 1000)], i = 0..1000 */
@@ -193,13 +195,13 @@ public final class VirtualSimRules {
 		return m.setScale(1, RoundingMode.FLOOR);
 	}
 
-	/** sign: 기준일 종가 → 5번째 후속 거래일 종가가 오르면 1, 내리면 -1, 같으면 0(bp로 내림하기 전 원 가격으로 비교) */
+	/** cumulative·sign: 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가)의 등락 bp와 방향(오르면 1, 내리면 -1, 같으면 0. bp로 내림하기 전 원 가격으로 비교) */
 	private record Sample(VirtualSimCategory category, String receiptNo, LocalDate date, int[] path, int cumulative, int sign, BigDecimal volumeRatio) {
 	}
 
 	/**
-	 * 룰셋을 만든다. 쓸 수 있는 유형(경로 30개 이상)이 3개 미만이거나 경향이 뚜렷한 유형이 2개 미만이거나,
-	 * 등급마다 종가 등락 1,000개·갭/꼬리 500개가 안 되면 비어 있다(직전 룰셋을 둔다).
+	 * 룰셋을 만든다. 쓸 수 있는 유형(경로 30개 이상)이 3개 미만이거나 등급마다 종가 등락 1,000개·갭/꼬리 500개가 안 되면 비어 있다(직전 룰셋을 둔다).
+	 * 정정 공시는 경로로 쓰지 않는다(정정일의 움직임은 원래 공시의 반응이 아니다, v3).
 	 */
 	public static Optional<VirtualSimRuleset> build(Input input) {
 		Map<String, int[]> returns = new HashMap<>();
@@ -232,24 +234,24 @@ public final class VirtualSimRules {
 			Set<Integer> excluded = new HashSet<>();
 			for (Filing f : e.getValue()) {
 				VirtualSimCategory c = VirtualSimCategory.classify(f.title());
-				if (c == null || !seen.add(f.receiptNo())) {
+				if (c == null || VirtualContestQuestions.correction(f.title()) || !seen.add(f.receiptNo())) {
 					continue;
 				}
 				int base = baseIndex(s.dates(), f.date());
 				if (base < 0) {
 					continue;
 				}
-				for (int k = 1; k <= FOLLOW_DAYS && base + k < s.closes().size(); k++) {
+				for (int k = 0; k <= FOLLOW_DAYS && base + k < s.closes().size(); k++) {
 					excluded.add(base + k);
 				}
 				int[] p = path(s.closes(), base);
 				if (p == null) {
 					continue;
 				}
-				long first = s.closes().get(base), last = s.closes().get(base + FOLLOW_DAYS);
-				samples.add(new Sample(c, f.receiptNo(), f.date(), p, returnBp(first, last), Long.compare(last, first), volumeRatio(s.volumes(), base)));
+				long prev = s.closes().get(base - 1), next = s.closes().get(base + 1);
+				samples.add(new Sample(c, f.receiptNo(), f.date(), p, returnBp(prev, next), Long.compare(next, prev), volumeRatio(s.volumes(), base)));
 			}
-			// 평소 하루: 분류된 공시의 1~5번째 후속 거래일을 뺀 날
+			// 평소 하루: 분류된 공시(정정 제외)의 기준 봉과 1~5번째 후속 거래일을 뺀 날
 			Integer g = grade.get(s.code());
 			if (g != null) {
 				int[] r = returns.get(s.code());
@@ -276,12 +278,11 @@ public final class VirtualSimRules {
 			int down = (int) list.stream().filter(x -> x.sign() < 0).count();
 			int[] cumulative = list.stream().mapToInt(Sample::cumulative).toArray();
 			int[] q = quantiles(cumulative);
-			BigDecimal share = upShare(n, up);
-			stats.add(new CategoryStats(e.getKey(), n, up, down, n - up - down, share, q[500], q[250], q[750],
-					median(list.stream().map(Sample::volumeRatio).filter(v -> v != null).toList()), trend(n, share),
+			stats.add(new CategoryStats(e.getKey(), n, up, down, n - up - down, upShare(n, up), q[500], q[250], q[750],
+					median(list.stream().map(Sample::volumeRatio).filter(v -> v != null).toList()), trend(e.getKey()),
 					thin(list.stream().map(Sample::path).toList())));
 		}
-		if (stats.size() < MIN_TYPES || stats.stream().filter(CategoryStats::clear).count() < MIN_CLEAR_TYPES) {
+		if (stats.size() < MIN_TYPES) {
 			return Optional.empty();
 		}
 

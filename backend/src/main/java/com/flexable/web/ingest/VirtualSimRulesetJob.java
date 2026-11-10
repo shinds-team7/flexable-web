@@ -28,7 +28,7 @@ import com.flexable.web.virtualsim.VirtualSimStore;
 /**
  * 가상 시뮬레이션 룰셋 추출(worker, decisions/2026-11-04-virtual-simulation 1, policies §8-3). 전체 공시 수집(DisclosureArchiveJob) 뒤 돈다.
  * 수집 대상 STOCK의 최근 5년 일봉(daily_prices), 5년 공시 목록을 다 받은 종목의 공시(dart_disclosures), practice_datasets OHLC로
- * 유형별 경로·상승 비율·경향과 변동성 등급별 분위표를 만든다. 조건(유형 3개·뚜렷한 유형 2개·등급별 표본)을 못 채우면 새 룰셋을 만들지 않고 직전 것을 둔다.
+ * 유형별 경로(사건 봉 + 후속 5거래일)·공시 직후 상승 비율·경향(고정 목록)과 변동성 등급별 분위표를 만든다. 조건(유형 3개·등급별 표본)을 못 채우면 새 룰셋을 만들지 않고 직전 것을 둔다.
  * 급변동 사건에 붙은 공시(event_sources)는 쓰지 않는다. VIRTUAL_SIM_SOURCE=fake면 코드에 넣은 예시 룰셋을 쓰므로 건너뛴다.
  */
 @Component
@@ -97,13 +97,13 @@ public class VirtualSimRulesetJob {
 				store.saveRuleset(r);
 				types = r.categories().size();
 				status = "SUCCESS";
-				log.info("가상 시뮬레이션 룰셋 저장 (종목 {}, 공시 다 받은 종목 {}, 유형 {}개, 뚜렷한 유형 {}개, 자료 {}~{})", series.size(), archivedUsed, types,
+				log.info("가상 시뮬레이션 룰셋 저장 (종목 {}, 공시 다 받은 종목 {}, 유형 {}개, 경향 있는 유형 {}개, 자료 {}~{})", series.size(), archivedUsed, types,
 						r.categories().stream().filter(VirtualSimRuleset.CategoryStats::clear).count(), r.dataFrom(), r.dataTo());
-				r.categories().forEach(c -> log.info("  {} 경로 {} 상승 비율 {} 경향 {}", c.category(), c.paths(), c.upShare(), c.trend()));
+				r.categories().forEach(c -> log.info("  {} 경로 {} 공시 직후 상승 비율 {} 경향 {}", c.category(), c.paths(), c.upShare(), c.trend()));
 			}
 			else {
 				status = "SKIPPED";
-				note = "조건(유형 3개·뚜렷한 유형 2개·등급별 표본)을 못 채워 직전 룰셋을 둬요(공시 다 받은 종목 " + archivedUsed + ")";
+				note = "조건(유형 3개·등급별 표본)을 못 채워 직전 룰셋을 둬요(공시 다 받은 종목 " + archivedUsed + ")";
 				log.info("가상 시뮬레이션 룰셋 건너뜀: {}", note);
 			}
 		}

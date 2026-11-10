@@ -20,7 +20,7 @@ import com.flexable.web.virtualsim.VirtualSimRuleset.Grade;
  * 가상 시세 생성(policies §8-1·8-2·8-4, decisions/2026-11-04-virtual-simulation 2·3). 시드의 결정적 난수(SplittableRandom)로
  * 아래 순서대로 뽑으므로 같은 시드·룰셋·가상 종목(유형 목록)·세션 시작일이면 같은 구간·사건 위치·OHLC가 나온다.
  * 순서: 시작일 → 길이 L → 문제 수 N → 유형(일반은 균등, 11-05부터 뚜렷한 유형을 먼저 뽑지 않음) → 순서 섞기 → 위치 y → 사건마다 경로·제목 → 시작가 → 등급 → 봉마다 g·r·u·d.
- * 대회 판(decisions/2026-11-05-virtual-sim-contest 9)은 문제 수를 뽑는 자리를 건너뛰고(4 고정, v2는 길이를 뽑는 자리도 건너뛰고 120 고정), 판의 "먼저 뽑는 유형"(뚜렷한 유형 → MIXED 순)을
+ * 대회 판(decisions/2026-11-05-virtual-sim-contest 9)은 문제 수를 뽑는 자리를 건너뛰고(4 고정, v2부터 길이를 뽑는 자리도 건너뛰고 120 고정), 판의 "먼저 뽑는 유형"(경향 있는 유형 → MIXED 순)을
  * 뽑은 뒤 나머지를 뽑으며, 등급은 판의 등급 목록에서 균등하게 뽑는다. 이 순서·계산식을 바꿔 같은 시드에서 다른 봉이 나오면 VERSION을 올린다(결정 기록 5-3).
  */
 public final class VirtualSimGenerator {
@@ -30,23 +30,24 @@ public final class VirtualSimGenerator {
 
 	/**
 	 * 생성기 버전(구간·사건 위치·유형 고르기·봉 만들기의 난수 순서와 계산식). 대회 판은 시작할 때의 버전으로 끝까지 진행·정산한다.
-	 * v1: 대회 판도 길이를 120~250거래일에서 뽑음. v2(11-05 구현 PR): 대회 판은 길이를 뽑는 자리를 건너뛰고 120거래일 고정. 일반 유형은 두 버전이 같다
+	 * v1: 대회 판도 길이를 120~250거래일에서 뽑음. v2(11-05 구현 PR): 대회 판은 길이를 뽑는 자리를 건너뛰고 120거래일 고정. 일반 유형은 두 버전이 같다.
+	 * v3(11-10, decisions/2026-11-10-vsim-ruleset-reaction-window): 경로가 6개(vsim-rules-v3)면 첫째 값을 사건 봉 자체의 r로, 나머지를 1~5번째 후속 봉에 쓴다.
+	 * 난수 순서는 v2와 같고, 경로가 5개인 v2 룰셋으로는 v2와 같은 봉이 나온다
 	 */
 	public static final String V1 = "vsim-gen-v1";
-	public static final String VERSION = "vsim-gen-v2";
+	public static final String V2 = "vsim-gen-v2";
+	public static final String VERSION = "vsim-gen-v3";
 	/** 지원하는 생성기 버전. 이전 버전 지원은 그 버전의 미완료 대회 판이 0개일 때만 지운다(결정 기록 5-3) */
-	public static final Set<String> SUPPORTED = Set.of(V1, VERSION);
+	public static final Set<String> SUPPORTED = Set.of(V1, V2, VERSION);
 	public static final int YEAR_OFFSET = 10;
 	public static final int MIN_QUESTIONS = PracticeWindow.MIN_QUESTIONS;
 	public static final int MAX_QUESTIONS = 5;
-	/** 가상 종목 후보 조건: 공개 가능한 유형 중 뚜렷한 유형(UP·DOWN) 수. 일반 출제는 이 유형을 먼저 뽑지 않는다(11-05) */
-	public static final int MIN_CLEAR_TYPES = 2;
 	public static final long MIN_START_PRICE = 5_000;
 	public static final long MAX_START_PRICE = 200_000;
 	public static final long PRICE_STEP = 100;
 	public static final long LIMIT_BP = 3_000;
 
-	/** 사건 하나. index는 0부터 센 봉 번호(그 봉 종가 뒤에 보인다), path는 그 유형에서 뽑은 1~5번째 후속 거래일 등락 */
+	/** 사건 하나. index는 0부터 센 봉 번호(그 봉 종가 뒤에 보인다), path는 그 유형에서 뽑은 경로(v3 룰셋: 사건 봉 + 1~5번째 후속 거래일 등락 6개, v2: 후속 5개) */
 	public record Planned(int index, VirtualSimCategory category, String title, int[] path) {
 	}
 
@@ -116,14 +117,14 @@ public final class VirtualSimGenerator {
 	}
 
 	/**
-	 * 대회 판의 유형 고르기. events: 사건 수(4), clear·mixed: 먼저 뽑는 뚜렷한 유형·MIXED 유형 수, grades: 균등하게 뽑는 변동성 등급,
+	 * 대회 판의 유형 고르기. events: 사건 수(4), clear·mixed: 먼저 뽑는 경향 있는 유형(v3 룰셋은 반응 창 근거 유형)·MIXED 유형 수, grades: 균등하게 뽑는 변동성 등급,
 	 * length: 구간 길이 고정값(0이면 120~250에서 뽑음, vsim-gen-v1)
 	 */
 	public record Board(int events, int clear, int mixed, int[] grades, int length) {
 	}
 
 	/**
-	 * 가상 종목 하나의 구간을 만든다. available: 그 회사의 공개 가능한 사건 유형(룰셋에 있는 것만). 3개 이상이고 그중 뚜렷한 유형이 2개 이상이어야 한다(후보 조건, 출제는 균등).
+	 * 가상 종목 하나의 구간을 만든다. available: 그 회사의 공개 가능한 사건 유형(룰셋에 있는 것만). 3개 이상이어야 한다(후보 조건, 출제는 균등).
 	 */
 	public static Plan generate(long seed, VirtualSimRuleset rules, Collection<VirtualSimCategory> available, LocalDate sessionDate) {
 		return generate(seed, rules, available, sessionDate, null);
@@ -137,7 +138,7 @@ public final class VirtualSimGenerator {
 			.toList();
 		List<VirtualSimCategory> clear = usable.stream().filter(c -> rules.stats(c).orElseThrow().clear()).toList();
 		List<VirtualSimCategory> mixed = usable.stream().filter(c -> !rules.stats(c).orElseThrow().clear()).toList();
-		if (board == null ? usable.size() < MIN_QUESTIONS || clear.size() < MIN_CLEAR_TYPES
+		if (board == null ? usable.size() < MIN_QUESTIONS
 				: usable.size() < board.events() || clear.size() < board.clear() || mixed.size() < board.mixed()) {
 			throw new IllegalArgumentException("공개 가능한 사건 유형이 모자라요");
 		}
@@ -185,8 +186,10 @@ public final class VirtualSimGenerator {
 		Arrays.fill(follow, -1);
 		int[][] eventPath = new int[length][];
 		for (Planned e : events) {
-			for (int k = 1; k <= PracticeWindow.FOLLOW_DAYS; k++) {
-				follow[e.index() + k] = k - 1;
+			// v3 룰셋 경로는 사건 봉(공시 당일)부터, v2는 1번째 후속 봉부터
+			int first = e.path().length > PracticeWindow.FOLLOW_DAYS ? 0 : 1;
+			for (int k = first; k <= PracticeWindow.FOLLOW_DAYS; k++) {
+				follow[e.index() + k] = k - first;
 				eventPath[e.index() + k] = e.path();
 			}
 		}

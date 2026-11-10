@@ -194,7 +194,10 @@ class VirtualContestPolicyTest {
 		}
 	}
 
-	/** 대회 판 규칙을 더해도 일반 유형의 결과는 그대로다. 값은 #253(일반 출제에서 뚜렷한 유형을 먼저 뽑지 않음) 생성기로 같은 입력을 돌려 잰 것. 대회 판의 난수 순서는 바뀌지 않아 생성기 버전은 그대로다 */
+	/**
+	 * 대회 판 규칙을 더해도 일반 유형의 결과는 그대로다. 값은 #253(일반 출제에서 뚜렷한 유형을 먼저 뽑지 않음) 생성기로 같은 입력을 돌려 잰 것. 대회 판의 난수 순서는 바뀌지 않아 생성기 버전은 그대로다.
+	 * 11-10(vsim-gen-v3·예시 룰셋 vsim-rules-v3)에 다시 쟀다: 예시 룰셋 경로가 6개가 되고 사건 봉에 첫째 값을 써서 봉이 바뀌었다(난수 순서는 같음)
+	 */
 	@Test
 	void general_generation_unchanged() {
 		var all = EnumSet.of(VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES,
@@ -209,7 +212,7 @@ class VirtualContestPolicyTest {
 				h = h * 31 + e.index() * 101 + e.category().ordinal() + e.title().hashCode();
 			}
 		}
-		assertThat(h).isEqualTo(-7166366154250459648L);
+		assertThat(h).isEqualTo(7220147959821266951L);
 	}
 
 	private static Portfolio play(JsonNode c) {
@@ -340,6 +343,57 @@ class VirtualContestPolicyTest {
 		for (JsonNode c : p.get("titles")) {
 			assertThat(PlacementDetails.api(c.get("title").asString())).as(c.toString()).isEqualTo(textOrNull(c.get("api")));
 		}
+		// 공급 계약: 원문 본문 글에서 매출액 대비·계약 기간만(Issue #375)
+		JsonNode supply = p.get("supplyContract");
+		for (JsonNode c : supply.get("cases")) {
+			assertThat(PlacementDetails.supplyContract(c.get("text").asString()).stream().map(d -> List.of(d.label(), d.value())).toList()).as(c.get("case").asString())
+				.isEqualTo(pairs(c.get("expected")));
+		}
+		for (JsonNode c : supply.get("titles")) {
+			assertThat(PlacementDetails.fromDocument(c.get("title").asString())).as(c.toString()).isEqualTo(c.get("document").asBoolean());
+		}
+	}
+
+	private static List<List<String>> pairs(JsonNode n) {
+		return n.isNull() ? null : n.valueStream().map(x -> x.valueStream().map(JsonNode::asString).toList()).toList();
+	}
+
+	/** 정정 공시는 문제로 내지 않고 원공시에 합친다(Issue #375) */
+	@Test
+	void placement_corrections() throws Exception {
+		JsonNode p = root().get("placement").get("corrections");
+		assertThat(VirtualContestQuestions.CORRECTION_DAYS).isEqualTo(p.get("days").asInt());
+		for (JsonNode c : p.get("titles")) {
+			assertThat(VirtualContestQuestions.correction(c.get("title").asString())).as(c.toString()).isEqualTo(c.get("correction").asBoolean());
+		}
+		List<VirtualContestQuestions.Filing> filings = new ArrayList<>();
+		for (JsonNode f : p.get("filings")) {
+			List<List<String>> d = pairs(f.get("details"));
+			filings.add(new VirtualContestQuestions.Filing(f.get("receiptNo").asString(), f.get("title").asString(), LocalDate.parse(f.get("date").asString()),
+					d == null ? null : d.stream().map(x -> new PlacementDetails.Detail(x.get(0), x.get(1))).toList()));
+		}
+		// 2026-03-02(전날) ~ 03-12: 날마다 오르는 종가라 보합 없이 모든 원공시가 후보가 된다
+		List<LocalDate> dates = new ArrayList<>();
+		List<Long> closes = new ArrayList<>();
+		for (int i = 0; i < 11; i++) {
+			dates.add(LocalDate.of(2026, 3, 2).plusDays(i));
+			closes.add(10_000L + i * 100);
+		}
+		var made = VirtualContestQuestions.fromFilings("회사", "업종", filings, dates, closes);
+		assertThat(made).hasSize(p.get("expected").size());
+		for (int i = 0; i < made.size(); i++) {
+			JsonNode e = p.get("expected").get(i);
+			var q = made.get(i);
+			assertThat(q.key()).as(e.toString()).isEqualTo(e.get("key").asString());
+			assertThat(q.sources()).as(e.toString()).isEqualTo(e.get("sources").valueStream().map(JsonNode::asString).toList());
+			assertThat(q.details() == null ? null : q.details().stream().map(d -> List.of(d.label(), d.value())).toList()).as(e.toString()).isEqualTo(pairs(e.get("details")));
+		}
+		assertThat(made).extracting(VirtualContestQuestions.Past::key).doesNotContainAnyElementsOf(p.get("dropped").valueStream().map(JsonNode::asString).toList());
+		JsonNode late = p.get("lateCorrection");
+		var merged = VirtualContestQuestions.merge(List.of(new VirtualContestQuestions.Filing("1", "현금ㆍ현물배당결정", LocalDate.parse(late.get("original").asString())),
+				new VirtualContestQuestions.Filing("2", "[기재정정]현금ㆍ현물배당결정", LocalDate.parse(late.get("correction").asString()))));
+		assertThat(merged).hasSize(1);
+		assertThat(!merged.get(0).corrections().isEmpty()).isEqualTo(late.get("merged").asBoolean());
 	}
 
 	@Test

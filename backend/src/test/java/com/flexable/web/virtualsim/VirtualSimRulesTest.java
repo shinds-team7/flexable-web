@@ -19,12 +19,15 @@ import com.flexable.web.virtualsim.VirtualSimRules.Filing;
 import com.flexable.web.virtualsim.VirtualSimRules.Series;
 import com.flexable.web.virtualsim.VirtualSimRuleset.CategoryStats;
 
-/** 룰셋 추출(policies §8-3, decisions 1-3~1-7)을 합성 시세로 확인한다. 공시 뒤 5거래일을 정해 두고 유형별 경로·경향·평소 하루 분포가 맞게 나오는지 본다 */
+/** 룰셋 추출(policies §8-3, decisions 1-3~1-7)을 합성 시세로 확인한다. 공시 당일과 뒤 5거래일을 정해 두고 유형별 경로·경향·평소 하루 분포가 맞게 나오는지 본다 */
 class VirtualSimRulesTest {
 
 	private static final String[] TITLES = { "단일판매ㆍ공급계약체결", "주요사항보고서(유상증자결정)", "현금ㆍ현물배당결정" };
 
-	/** 종목 6개, 평일 1,300일. 10거래일마다 공시(공급 계약 → 유상증자 → 배당 순). 공급 계약 뒤 5일은 +1%, 유상증자 뒤 5일은 −1%, 배당 뒤와 평소는 무작위 */
+	/**
+	 * 종목 6개, 평일 1,300일. 10거래일마다 공시(공급 계약 → 유상증자 → 배당 순). 공급 계약 당일과 뒤 5일은 +1%, 유상증자는 −1%, 배당과 평소는 무작위.
+	 * 공급 계약 공시 3거래일 뒤에는 정정 공시를 하나씩 둔다(경로로 쓰지 않아야 한다)
+	 */
 	private static VirtualSimRules.Input input(int stocks, boolean withOhlc) {
 		SplittableRandom rnd = new SplittableRandom(7);
 		List<Series> series = new ArrayList<>();
@@ -45,6 +48,15 @@ class VirtualSimRulesTest {
 			long price = 10_000;
 			int drift = 0, left = 0;
 			for (int i = 0; i < dates.size(); i++) {
+				if (i > 0 && i % 10 == 0) {
+					int t = (i / 10) % 3;
+					list.add(new Filing(code + String.format("%06d", i), TITLES[t], dates.get(i)));
+					if (t == 0 && i + 3 < dates.size()) {
+						list.add(new Filing(code + String.format("%06dC", i), "[기재정정]" + TITLES[t], dates.get(i + 3)));
+					}
+					drift = t == 0 ? 100 : t == 1 ? -100 : rnd.nextInt(-spread, spread + 1);
+					left = 6;
+				}
 				if (i > 0) {
 					int r = left > 0 ? drift : rnd.nextInt(-spread, spread + 1);
 					left--;
@@ -52,12 +64,6 @@ class VirtualSimRulesTest {
 				}
 				closes.add(price);
 				volumes.add(1_000L + rnd.nextInt(100));
-				if (i > 0 && i % 10 == 0) {
-					int t = (i / 10) % 3;
-					list.add(new Filing(code + String.format("%06d", i), TITLES[t], dates.get(i)));
-					drift = t == 0 ? 100 : t == 1 ? -100 : rnd.nextInt(-spread, spread + 1);
-					left = 5;
-				}
 			}
 			series.add(new Series(code, List.copyOf(dates), closes, volumes));
 			filings.put(code, list);
@@ -82,12 +88,22 @@ class VirtualSimRulesTest {
 		assertThat(rules.categories()).extracting(CategoryStats::category)
 			.containsExactlyInAnyOrder(VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.NEW_SHARES, VirtualSimCategory.DIVIDEND);
 		CategoryStats supply = rules.stats(VirtualSimCategory.SUPPLY_CONTRACT).orElseThrow();
+		// 경향은 고정 목록(v3): 공급 계약은 UP, 유상증자는 모든 경로가 내려도 MIXED
 		assertThat(supply.trend()).isEqualTo("UP");
 		assertThat(supply.upShare()).isEqualByComparingTo(BigDecimal.ONE);
-		assertThat(supply.samples()).allSatisfy(p -> assertThat(Arrays.stream(p).allMatch(r -> r >= 90 && r <= 100)).isTrue());
+		// 경로는 사건 봉 + 후속 5일 = 6개이고, 정정 공시는 빠진다(종목마다 10거래일 간격 공급 계약 공시 수만큼)
+		assertThat(supply.samples()).allSatisfy(p -> {
+			assertThat(p).hasSize(6);
+			assertThat(Arrays.stream(p).allMatch(r -> r >= 90 && r <= 100)).isTrue();
+		});
+		long originals = input(6, true).filings().values().stream().flatMap(List::stream)
+			.filter(f -> f.title().equals(TITLES[0])).count();
+		assertThat(supply.paths()).isEqualTo((int) originals);
 		assertThat(supply.paths()).isEqualTo(supply.up() + supply.down() + supply.flat());
 		assertThat(supply.samples()).hasSize(Math.min(500, supply.paths()));
-		assertThat(rules.stats(VirtualSimCategory.NEW_SHARES).orElseThrow().trend()).isEqualTo("DOWN");
+		CategoryStats newShares = rules.stats(VirtualSimCategory.NEW_SHARES).orElseThrow();
+		assertThat(newShares.trend()).isEqualTo("MIXED");
+		assertThat(newShares.up()).isZero();
 		assertThat(supply.volumeRatio()).isNotNull();
 		assertThat(rules.grades()).hasSize(3).allSatisfy(g -> {
 			assertThat(g.r()).hasSize(1001);

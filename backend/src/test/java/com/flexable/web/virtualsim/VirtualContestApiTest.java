@@ -312,7 +312,10 @@ class VirtualContestApiTest {
 			assertThat(it.get("subsequentReturnRate")).isNull();
 			assertThat(it.get("nextWeekReturnRate")).isNotNull();
 			assertThat(((Number) it.get("reactionReturnRate")).doubleValue() > 0).as(it.toString()).isEqualTo("UP".equals(it.get("movement")));
+			// 유형 통계는 v3 룰셋의 공시 직후 통계라 채점 구간과 같아 싣는다. 경향은 고정 목록(근거 유형만 UP)
+			assertThat(it.get("categoryUpShare")).as(it.toString()).isNotNull();
 		});
+		assertThat(graded).allSatisfy(it -> assertThat(it.get("trend")).isIn("UP", "MIXED"));
 		String board = JsonPath.read(result, "$.board");
 		assertThat(board).isEqualTo(VirtualContestRules.placementBoard(correct).name());
 		assertThat(((Number) JsonPath.read(result, "$.entry.balance")).longValue()).isEqualTo(VirtualContestBoard.valueOf(board).seedMoney());
@@ -547,12 +550,24 @@ class VirtualContestApiTest {
 		assertThat((List<String>) JsonPath.read(fiveDay, "$.items[*].basis")).containsOnly("FIVE_DAY");
 		assertThat((List<Object>) JsonPath.read(fiveDay, "$.items[*].reactionReturnRate")).containsOnly((Object) null);
 		assertThat(((Number) JsonPath.read(fiveDay, "$.items[0].subsequentReturnRate")).doubleValue()).isEqualTo(0.0123);
-		// 이 규칙 전에 채점해 basis 없이 저장된 결과도 5거래일 기준으로 돌려준다
-		jdbc.update("UPDATE virtual_contest_placements SET result = REPLACE(result, '\"basis\":\"FIVE_DAY\",', '') WHERE id = 'fiveday-1'");
-		assertThat(jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = 'fiveday-1'", String.class)).doesNotContain("basis");
-		String resent = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), "{\"placementId\":\"fiveday-1\",\"answers\":["
-				+ String.join(",", java.util.stream.IntStream.rangeClosed(1, 10).mapToObj(i -> "{\"questionId\":\"q" + i + "\",\"prediction\":\"POSITIVE\"}").toList()) + "]}"), g), 200));
+		// 5거래일 채점 문제의 유형 통계는 5거래일 통계라 그대로 싣는다
+		assertThat((List<String>) JsonPath.read(fiveDay, "$.items[*].trend")).containsOnly("DOWN");
+		// 11-10 전에 저장한 결과는 GradedItem 배열이다. 11-09 전에 채점해 basis 없이 저장된 결과도 5거래일 기준으로 돌려준다
+		String stored = jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = 'fiveday-1'", String.class);
+		String legacy = stored.substring(stored.indexOf("\"items\":") + 8, stored.length() - 1);
+		jdbc.update("UPDATE virtual_contest_placements SET result = ? WHERE id = 'fiveday-1'", legacy.replace("\"basis\":\"FIVE_DAY\",", ""));
+		assertThat(jdbc.queryForObject("SELECT result FROM virtual_contest_placements WHERE id = 'fiveday-1'", String.class)).startsWith("[").doesNotContain("basis");
+		String answers = "{\"placementId\":\"fiveday-1\",\"answers\":["
+				+ String.join(",", java.util.stream.IntStream.rangeClosed(1, 10).mapToObj(i -> "{\"questionId\":\"q" + i + "\",\"prediction\":\"POSITIVE\"}").toList()) + "]}";
+		String resent = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), answers), g), 200));
 		assertThat((List<String>) JsonPath.read(resent, "$.items[*].basis")).containsOnly("FIVE_DAY");
+		assertThat((List<String>) JsonPath.read(resent, "$.items[*].trend")).containsOnly("DOWN");
+		// 11-09~11-10에 반응 창으로 채점해 배열로 저장한 결과의 유형 통계는 5거래일 통계라 지운다(결과 화면이 공시 직후 통계로 읽지 않게)
+		jdbc.update("UPDATE virtual_contest_placements SET result = ? WHERE id = 'fiveday-1'", legacy.replace("\"basis\":\"FIVE_DAY\"", "\"basis\":\"REACTION\""));
+		String reactionLegacy = body(call(auth(json(post("/api/v1/virtual-sim/contests/current/placement/answers"), answers), g), 200));
+		assertThat((List<String>) JsonPath.read(reactionLegacy, "$.items[*].basis")).containsOnly("REACTION");
+		assertThat((List<Object>) JsonPath.read(reactionLegacy, "$.items[*].trend")).containsOnly((Object) null);
+		assertThat((List<Object>) JsonPath.read(reactionLegacy, "$.items[*].categoryUpShare")).containsOnly((Object) null);
 		long entry = jdbc.queryForObject("SELECT id FROM virtual_contest_entries WHERE user_id = ?", Long.class, user);
 		// 1일에 참가해 1~4일 하루 10판씩 유지보다 +6% 더 벌었다(5~7일은 판 없음): 1주 합 +400 → B10M에서 B50M으로 승급, 잔액은 새 판 시드머니
 		Instant joined = ZonedDateTime.of(2026, 11, 1, 9, 0, 0, 0, SEOUL).toInstant();

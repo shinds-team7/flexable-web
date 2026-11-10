@@ -1,10 +1,12 @@
 """배치고사 판 기준 모의 계산(Issue #376 2단계, 읽기 전용). 판 기준(policies §8-8, tests/policy/virtual-contest.json placementCuts)을 바꾸지 않는다.
 
-지금 출제·채점 규칙(VirtualContestQuestions, 반응 창 11-09·정정 병합 11-10)을 그대로 따라 문제 10개를 여러 번 뽑고, 전략별 맞힌 수 분포와
+지금 출제·채점 규칙(VirtualContestQuestions, 반응 창 11-09·정정 병합 11-10·유형별 상한 11-10 #388)을 그대로 따라 문제 10개를 여러 번 뽑고, 전략별 맞힌 수 분포와
 판 기준 후보별 판 배정 비율을 낸다. 표준 라이브러리만 쓴다.
   - 문제 풀: 수집 종목(5년 공시를 다 받은 종목)의 최근 5년 공시 중 유형으로 분류되는 원공시. 정정 공시는 같은 공시 열쇠의 가장 가까운 앞 원공시(180일 안)에
     합치고 문제로 내지 않는다. 기준 봉 전날·5번째 후속 거래일이 없거나 공시 직후(전날 종가 → 다음 거래일 종가, 원 가격)가 보합이면 뺀다.
-  - 출제: 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자)에서 4개 + 남은 공시 전체에서 6개. 묶음마다 설명(AI 요약·공시 주요 내용)이 있는 공시를 먼저 고른다.
+  - 출제(Issue #388, PR #392): 유형을 먼저 고른다. 근거 4문제는 근거 유형(공급 계약·자기주식 취득·시설·지분 투자)마다 1문제 + 남은 1문제는 후보가
+    있는 근거 유형 중 무작위 유형에서, 나머지 6문제는 한 문제씩 후보가 남은 유형 중 하나를 균등하게. 시험 전체에서 한 유형은 3문제까지.
+    유형 안에서는 설명(AI 요약·공시 주요 내용)이 있는 공시를 먼저 고른다.
   - 정답: 공시 직후 방향.
   - 전략: 무작위 / 근거 유형만 ↑(나머지 무작위) / 모두 ↑ / (참고) 유형 다수 방향(풀의 유형별 상승 비율을 아는 경우의 상한).
 
@@ -46,6 +48,8 @@ POOL_YEARS = 5
 CORRECTION_DAYS = 180
 EVIDENCE, ANY = 4, 6
 QUESTIONS = EVIDENCE + ANY
+PER_TYPE_MAX = 3  # VirtualContestQuestions.PER_TYPE_MAX(Issue #388)
+EVIDENCE_EACH = 1  # VirtualContestQuestions.EVIDENCE_EACH(Issue #388)
 CURRENT_CUTS = (7, 9)
 CUT_B50M = (6, 7, 8)
 CUT_B100M = (8, 9, 10)
@@ -197,32 +201,56 @@ def build_pool(d, asof):
     return pool, asof, described_known
 
 
-# ---- 출제(VirtualContestQuestions.draw 그대로: 묶음마다 설명 있는 공시를 먼저 무작위로) ----
-def pick(rng, tiers, k, used, out):
-    for tier in tiers:
-        need = k - len(out)
-        if need <= 0:
-            return
-        for c in rng.sample(tier, min(len(tier), need + len(used))):
-            if c not in used:
-                used.add(c)
-                out.append(c)
-                if len(out) == k:
-                    return
-
-
+# ---- 출제(VirtualContestQuestions.draw 그대로, Issue #388: 유형을 먼저 고르고 유형 안에서 설명 있는 공시 먼저) ----
 class Drawer:
+    """① 근거 유형마다 EVIDENCE_EACH문제, 남은 근거 자리는 아직 열린 근거 유형 중 무작위 유형에서
+    ② 나머지는 한 문제씩 열린 유형(근거 유형 포함) 중 하나를 균등하게. 열린 유형 = 후보가 남고 시험 안 문제 수가 PER_TYPE_MAX 미만.
+    유형 안에서는 설명 있는 공시를 먼저 무작위로(서버의 describedFirst 순서에서 맨 앞부터 뽑는 것과 같은 분포). 못 채우면 None(503)"""
+
     def __init__(self, pool, described_first=True):
-        ev = [i for i, p in enumerate(pool) if p["cat"] in EVIDENCE_TYPES]
-        al = list(range(len(pool)))
-        split = lambda xs: ([i for i in xs if pool[i]["described"]], [i for i in xs if not pool[i]["described"]]) if described_first else (xs,)
-        self.ev, self.al = split(ev), split(al)
-        self.ok = len(ev) >= EVIDENCE and len(al) >= QUESTIONS
+        by_type = defaultdict(lambda: ([], []))
+        for i, p in enumerate(pool):
+            by_type[p["cat"]][0 if p["described"] or not described_first else 1].append(i)
+        self.by_type = dict(by_type)
+        self.types = [c for c in ORDER if c in self.by_type]
 
     def draw(self, rng):
-        used, out = set(), []
-        pick(rng, self.ev, EVIDENCE, used, out)
-        pick(rng, self.al, QUESTIONS, used, out)
+        order = {}  # 유형 → 이 시험에서 뽑을 순서(상한까지만 미리 뽑음)
+
+        def queue(t):
+            if t not in order:
+                first, rest = self.by_type[t]
+                q = rng.sample(first, min(PER_TYPE_MAX, len(first)))
+                q += rng.sample(rest, min(PER_TYPE_MAX - len(q), len(rest)))
+                order[t] = q
+            return order[t]
+
+        taken = defaultdict(int)
+        out = []
+        is_open = lambda t: t in self.by_type and taken[t] < len(queue(t))
+
+        def take(t):
+            out.append(queue(t)[taken[t]])
+            taken[t] += 1
+
+        def take_any(types):
+            opened = [t for t in types if is_open(t)]
+            if not opened:
+                return False
+            take(rng.choice(opened))
+            return True
+
+        evidence = [c for c in ORDER if c in EVIDENCE_TYPES]
+        for t in evidence:
+            for _ in range(EVIDENCE_EACH):
+                if is_open(t):
+                    take(t)
+        while len(out) < EVIDENCE:
+            if not take_any(evidence):
+                return None
+        while len(out) < QUESTIONS:
+            if not take_any(self.types):
+                return None
         return out
 
 
@@ -243,14 +271,19 @@ def strategies(pool):
 
 def simulate(pool, trials, seed, described_first=True):
     drawer = Drawer(pool, described_first)
-    if not drawer.ok:
-        return None
     strats = strategies(pool)
     draw_rng, answer_rng = random.Random(seed), random.Random(seed + 1)
     hist = [[0] * (QUESTIONS + 1) for _ in strats]
     up_questions = ev_up = ev_n = 0
+    per_type = defaultdict(int)
     for _ in range(trials):
-        qs = [pool[i] for i in drawer.draw(draw_rng)]
+        drawn = drawer.draw(draw_rng)
+        if drawn is None:
+            return None
+        qs = [pool[i] for i in drawn]
+        for p in qs:
+            per_type[p["cat"]] += 1
+        assert max(sum(q["cat"] == p["cat"] for q in qs) for p in qs) <= PER_TYPE_MAX
         up_questions += sum(p["up"] for p in qs)
         for p in qs:
             if p["cat"] in EVIDENCE_TYPES:
@@ -261,6 +294,7 @@ def simulate(pool, trials, seed, described_first=True):
     return {
         "names": [n for n, _ in strats], "hist": hist, "trials": trials,
         "up_share": up_questions / (trials * QUESTIONS), "ev_per_test": ev_n / trials, "ev_up_share": ev_up / ev_n if ev_n else 0.0,
+        "per_type": {c: n / trials for c, n in per_type.items()},
     }
 
 
@@ -319,6 +353,12 @@ def report(res, detail=True):
     print()
     if not detail:
         return
+    print("**시험 한 번의 유형 구성**(평균 문제 수, 한 유형 최대 " + str(PER_TYPE_MAX) + "문제)")
+    print()
+    print("| " + " | ".join(NAME[c] for c in ORDER if c in res["per_type"]) + " |")
+    print("|" + "---:|" * len(res["per_type"]))
+    print("| " + " | ".join(f"{res['per_type'][c]:.2f}" for c in ORDER if c in res["per_type"]) + " |")
+    print()
     print("**맞힌 수 분포**")
     print()
     print("| 전략 | " + " | ".join(str(k) for k in range(QUESTIONS + 1)) + " |")
@@ -368,7 +408,7 @@ def run_sim(args):
     if described_known:
         print("## 설명 먼저 출제를 빼면")
         print()
-        print("설명(AI 요약·주요 내용) 있는 공시를 먼저 고르는 규칙이 정답 방향을 쏠리게 하는지 본다. 같은 풀에서 묶음 안 공시를 모두 같은 순위로 뽑는다.")
+        print("설명(AI 요약·주요 내용) 있는 공시를 먼저 고르는 규칙이 정답 방향을 쏠리게 하는지 본다. 같은 풀에서 유형 안 공시를 모두 같은 순위로 뽑는다.")
         print()
         report(simulate(pool, args.trials, args.seed, described_first=False), detail=False)
 

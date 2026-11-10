@@ -120,7 +120,7 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
       + (!reaction
         ? (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.')
         : it.trend === 'UP' ? '. 시장 전체 움직임을 빼고 보면 공시 직후 평균이 조금 오른 쪽이던 유형이지만, 평균 차이가 작아 이 공시가 꼭 그렇게 움직이지는 않아요.'
-        : it.trend === 'MIXED' ? '. 표본이 적거나 기간마다 달라 공시 직후 방향의 근거로 보지 않은 유형이에요.' : '.');
+        : it.trend === 'MIXED' ? '. 공시 직후 방향의 근거 유형으로 분류하지 않은 유형이에요.' : '.');
   }
   return [intro, body, after];
 }

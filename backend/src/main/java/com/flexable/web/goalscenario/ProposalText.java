@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
  * 숫자는 서버가 확인할 수 있는 것만 허용한다: 상품·지수 이름 속 숫자, 기한 안의 기간, AI에게 보낸 목표 금액·월 납입 가능액·금리·세율·유형별 통계와
  * 통계 기간("지난 60개월"), 그 시나리오의 비중과 같은 %, 합쳤다는 말과 함께 쓴 비중의 합, 다섯 이하의 종목·가지 수. 그 밖의 금액·%·배수·횟수는 AI가 새로 만든 숫자로 보고 막는다.
  * 보장 표현은 단정만 막고 부정문("보장되지 않아요")은 허용한다.
+ * 월 납입 가능액으로 충분하다는 단정도 막는다. 필요 월 금액은 제안을 받은 뒤 서버가 계산해 AI는 알 수 없다(#400 리뷰).
  */
 final class ProposalText {
 
@@ -77,6 +78,12 @@ final class ProposalText {
 	private static final String[] NEGATIONS = { "되지않", "하지않", "되지는않", "하지는않", "되진않", "하진않", "치않", "되지못", "하지못", "이없", "은없", "는없",
 			"이안", "은안", "할수없", "될수없", "되는건아니", "되는것은아니", "되는게아니", "하는건아니", "하는것은아니", "된건아니" };
 
+	/**
+	 * 월 납입 가능액을 채운다는 단정. 띄어쓰기를 지운 문장과 비교하고, 같은 문장이 가능액을 가리킬 때만 본다(#400 리뷰).
+	 * "매달 50만 원으로 해 볼 수 있어요"처럼 참고만 하는 문장은 허용한다.
+	 */
+	private static final List<String> BUDGET_CLAIMS = List.of("충분", "넉넉", "여유", "감당", "안에들", "안에서", "안으로", "넘지않", "맞출수있");
+
 	private ProposalText() {
 	}
 
@@ -110,12 +117,45 @@ final class ProposalText {
 		return new Cleaned(out, removed);
 	}
 
-	/** 규칙을 어기면 이유 코드(TEXT_NUMBER·TEXT_ASSERTION), 지키면 null. mix는 그 시나리오의 비중. */
+	/** 규칙을 어기면 이유 코드(TEXT_NUMBER·TEXT_ASSERTION·TEXT_BUDGET), 지키면 null. mix는 그 시나리오의 비중. */
 	static String problem(String text, Facts facts, Collection<Integer> mix) {
 		if (asserts(text)) {
 			return "TEXT_ASSERTION";
 		}
+		if (claimsBudget(text, facts)) {
+			return "TEXT_BUDGET";
+		}
 		return numbersOk(text, facts, mix) ? null : "TEXT_NUMBER";
+	}
+
+	/** 월 납입 가능액(낱말 "가능액" 또는 AI에게 보낸 가능액과 같은 금액)을 가리키며 충분하다·안에 든다고 단정하는지. */
+	static boolean claimsBudget(String text, Facts facts) {
+		String t = text.replaceAll("\\s+", "");
+		if (BUDGET_CLAIMS.stream().noneMatch(t::contains)) {
+			return false;
+		}
+		return text.contains("가능액") || mentionsAmount(text, facts.monthlyBudget());
+	}
+
+	/** 문장에 amount원과 같은 금액이 있는지(표기는 numbersOk와 같다). amount가 0이면 false. */
+	private static boolean mentionsAmount(String text, long amount) {
+		if (amount == 0) {
+			return false;
+		}
+		Matcher m = NUMBER.matcher(text);
+		int from = 0;
+		while (m.find(from)) {
+			from = m.end();
+			if (MONEY_UNIT.matcher(text.substring(m.end())).find()) {
+				int[] end = { m.start() };
+				BigDecimal won = money(text, end);
+				if (won != null && won.compareTo(BigDecimal.valueOf(amount)) == 0) {
+					return true;
+				}
+				from = Math.max(from, end[0]);
+			}
+		}
+		return false;
 	}
 
 	/** "무조건"·"원금 보장"·"보장돼요"·"확실히" 같은 단정. "보장되지 않아요"·"불확실"은 허용. */

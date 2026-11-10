@@ -876,17 +876,19 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
-	void 해설에_보낸_가능액은_쓸_수_있고_다른_금액은_지운다() throws Exception {
+	void 해설에_보낸_가능액은_쓸_수_있고_다른_금액과_충족_단정은_지운다() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(List.of(
 				new Proposals.Draft("a", "저축만", "적금 위주", new Proposals.Parts("매달 50만 원으로 해 볼 수 있게 짰어요.", "적금으로 모아요.",
-						"매달 60만 원이 필요해요. 가장 덜 흔들려요.", "안정을 원할 때 맞아요."), Map.of("SAVINGS", 100)),
+						"매달 60만 원이 필요해요. 가장 덜 흔들려요.", "매달 50만 원이면 충분해요. 안정을 원할 때 맞아요."), Map.of("SAVINGS", 100)),
 				GOOD.get(1), THIRD));
 		String token = signup();
 		String body = member(BUDGET_BODY.formatted("목돈", 15_000_000, 12, 500_000), token, 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanationParts.reason")).isEqualTo("매달 50만 원으로 해 볼 수 있게 짰어요.");
 		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanationParts.comparison")).isEqualTo("가장 덜 흔들려요.");
+		// 적금 100%의 필요 월 금액(1,231,000원)이 가능액보다 커서, 지운 단정 대신 서버 대안 문장만 남는다
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanationParts.fit")).isEqualTo("안정을 원할 때 맞아요. " + ScenarioBudget.OVER);
 	}
 
 	@Test

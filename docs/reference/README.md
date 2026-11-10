@@ -6,6 +6,7 @@
 |---|---|
 | `wireframes.html` | 데스크톱 웹 와이어프레임(디자인 2차 회의 반영본, 2026-10-18 회의 · 10-20 이전). project2에서 이전한 설계 샘플의 정본이다. 브라우저로 열고 위쪽 점선 띠에서 화면·상태(기본/빈/로딩/오류)·사용자(무료/플러스/체험)·테마를 바꿔 본다. 숫자·종목·소식은 모두 예시다 |
 | `vsim-ruleset-diagnosis-2026-11-09.md` | 가상 시뮬레이션 룰셋(`vsim-rules-v2`) 신뢰도 진단 측정 기록. 시장 조정·정정공시·겹침·종목 쏠림·기간 안정성·공시 상세 내용별 차이. 스크립트는 `scripts/vsim-ruleset-diagnosis.py` |
+| `placement-cuts-2026-11-10.md` | 배치고사 판 기준 다시 보기(#376 2단계). 반응 창·유형별 상한 출제 규칙의 운영 데이터 모의 계산(전략별 맞힌 수·판 기준 후보), 분포 수집 기준 시점, 판 기준 7·9 유지 결정. 스크립트는 `scripts/placement-cuts-sim.py` |
 | `disclosure-reaction-v2-2026-11-09.md` | 공시 반응 측정 v2(#371). 정정 병합·실제 지수 조정·반응 창과 체결 가능 창·2중 클러스터 회귀·사전 고정 세분 칸·기간 재현. 스크립트는 `scripts/disclosure-reaction-v2.py`, 원문 표본 `scripts/dart-document-fields-sample.py` |
 
 ## 와이어프레임에서 코드로 옮길 때

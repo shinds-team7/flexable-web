@@ -67,12 +67,13 @@ export type ContestPlay = { board: ContestBoard; today?: { returnRate: number | 
 function Judged({ r, sample }: { r: VirtualSimDecision; sample: boolean }) {
   if (!r.movement || r.categoryUpShare == null || r.categorySampleCount == null || !r.trend) return <small>5거래일 뒤 확인해요</small>;
   const moved = r.movement === 'UP' ? 1 : r.movement === 'DOWN' ? -1 : 0;
-  const against = (r.trend === 'UP' && moved < 0) || (r.trend === 'DOWN' && moved > 0);
-  // 반대로 움직인 비율: UP이면 내린 비율, DOWN이면 오른 비율(서버 값, 보합은 어디에도 들지 않는다)
-  const opposite = r.trend === 'UP' ? r.categoryDownShare ?? 0 : r.categoryUpShare;
+  // 경향은 공시 없는 날 대비 시장 초과수익 비교라 원 가격 비율로 "반대"를 말하지 않는다(policies §8-6)
+  const against = r.trend === 'UP' && moved < 0 ? '시장 움직임을 뺀 수익률이 공시 직후에 공시 없는 날보다 평균 조금 높았던 유형이지만, 이번에는 내렸어요.'
+    : r.trend === 'DOWN' && moved > 0 ? '시장 움직임을 뺀 수익률이 공시 직후에 공시 없는 날보다 평균 조금 낮았던 유형이지만, 이번에는 올랐어요.'
+    : null;
   return <div className="vsim-judged">
     <p className="practice-muted">{categoryText(r, sample)}</p>
-    <p><TwoMoves r={r} />. 이번에는 공시 직후 {moved > 0 ? '올랐어요' : moved < 0 ? '내렸어요' : '그대로였어요'}.{against && <> 이 유형도 {share(opposite)}%는 공시 직후 반대로 움직였어요.</>}</p>
+    <p><TwoMoves r={r} />. {against ?? `이번에는 공시 직후 ${moved > 0 ? '올랐어요' : moved < 0 ? '내렸어요' : '그대로였어요'}.`}</p>
   </div>;
 }
 

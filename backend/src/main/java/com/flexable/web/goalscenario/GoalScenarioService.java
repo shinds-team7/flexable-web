@@ -524,11 +524,13 @@ public class GoalScenarioService {
 		Computed c = compute(target, months, n, invest, finals(plan.mix(), months, picked.savingTerm(), n, s.baseRate(), s.compound(), itemFactors));
 		if (c == null) {
 			List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), null)).toList();
-			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, false, null, null, null);
+			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), plan.parts(), ScenarioResultText.of(false, null, null, months),
+					mix, false, null, null, null);
 		}
 		Map<ProductType, Long> alloc = ScenarioMath.allocate(c.monthly(), plan.mix());
 		List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), alloc.get(e.getKey()))).toList();
-		return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), mix, true, c.monthly(), c.paid(), c.outcome());
+		return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), plan.parts(),
+				ScenarioResultText.of(true, c.monthly(), c.outcome(), months), mix, true, c.monthly(), c.paid(), c.outcome());
 	}
 
 	private static List<Product> products(Picked picked) {

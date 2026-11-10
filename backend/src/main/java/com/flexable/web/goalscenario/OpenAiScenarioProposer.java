@@ -53,13 +53,13 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 		for (JsonNode s : root.path("scenarios")) {
 			Map<String, Integer> mix = new LinkedHashMap<>();
 			s.path("mix").properties().forEach(e -> mix.put(e.getKey(), e.getValue().isIntegralNumber() ? e.getValue().asInt() : null));
-			out.add(new Proposals.Draft(text(s, "id"), text(s, "title"), text(s, "summary"), explanation(s), mix));
+			out.add(new Proposals.Draft(text(s, "id"), text(s, "title"), text(s, "summary"), parts(s), mix));
 		}
 		return out;
 	}
 
-	/** 해설 네 칸을 문단으로 합친다. 한 칸이라도 비면 null이라 검증에서 걸린다(TEXT_EMPTY). */
-	private static String explanation(JsonNode scenario) {
+	/** 해설 네 칸을 따로 둔다(합친 문단은 Draft가 만든다). 한 칸이라도 비면 null이라 검증에서 걸린다(TEXT_EMPTY). */
+	private static Proposals.Parts parts(JsonNode scenario) {
 		List<String> parts = new ArrayList<>();
 		for (String field : GoalScenarioAiClient.EXPLANATION_FIELDS) {
 			String part = text(scenario, field);
@@ -68,7 +68,7 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 			}
 			parts.add(part.strip());
 		}
-		return String.join("\n\n", parts);
+		return new Proposals.Parts(parts.get(0), parts.get(1), parts.get(2), parts.get(3));
 	}
 
 	private static String text(JsonNode node, String field) {

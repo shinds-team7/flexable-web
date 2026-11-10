@@ -29,11 +29,18 @@ export type ScenarioOutcome = {
   lossBp: number;
 };
 
+/** 해설 네 칸(policies §7-6). 걸린 문장을 지워 빈 칸은 ''이다. */
+export type ExplanationParts = { reason: string; roles: string; comparison: string; fit: string };
+
 export type GoalScenario = {
   id: string;
   title: string;
   summary: string;
+  /** 네 칸을 합친 문단. explanationParts가 null인 옛 재사용 조합·옛 저장본은 이것만 보여 준다. */
   explanation: string;
+  explanationParts: ExplanationParts | null;
+  /** 서버가 정해 둔 문장에 계산값을 넣은 결과 문장(policies §7-5). */
+  resultText: string;
   mix: { type: ScenarioProductType; ratioPercent: number; monthly: number | null }[];
   reachable: boolean;
   monthly: number | null;

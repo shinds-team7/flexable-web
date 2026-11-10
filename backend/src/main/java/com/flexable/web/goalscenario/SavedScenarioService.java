@@ -74,8 +74,10 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		if (saved.countByUserId(userId) >= LIMIT) {
 			throw new ApiException(ErrorCode.GOAL_SCENARIO_LIMIT);
 		}
+		// 결과 문장은 저장하지 않고 조회할 때 저장된 숫자로 만든다(policies §7-8)
 		Snapshot snap = new Snapshot(r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.reachShare(),
-				r.products(), s, r.scenarios().stream().filter(x -> !x.id().equals(s.id())).toList(), r.assumptions(), r.notice(), r.isSample());
+				r.products(), s.withResultText(null), r.scenarios().stream().filter(x -> !x.id().equals(s.id())).map(x -> x.withResultText(null)).toList(),
+				r.assumptions(), r.notice(), r.isSample());
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS); // DB(DATETIME(6))와 같은 정밀도로 돌려준다
 		SavedScenario row = saved.save(new SavedScenario(userId, now, r.name(), r.targetAmount(), r.months(), JSON.writeValueAsString(snap)));
 		// 동시에 저장해 5개를 넘겼으면 이번 저장을 되돌린다
@@ -123,7 +125,13 @@ public class SavedScenarioService implements UserWithdrawalListener {
 	private static Saved detail(SavedScenario row) {
 		Snapshot s = read(row);
 		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), s.proposer(),
-				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), products(s), s.scenario(),
-				s.alternatives() == null ? List.of() : s.alternatives(), s.assumptions(), s.notice(), s.isSample());
+				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), products(s), withText(s.scenario(), s.months()),
+				s.alternatives() == null ? List.of() : s.alternatives().stream().map(x -> withText(x, s.months())).toList(), s.assumptions(), s.notice(),
+				s.isSample());
+	}
+
+	/** 저장된 월 금액·결과로 결과 문장을 만든다(옛 저장본 포함, policies §7-5). 옛 저장본의 explanationParts는 없어 null로 읽힌다. */
+	private static Scenario withText(Scenario x, int months) {
+		return x.withResultText(ScenarioResultText.of(x.reachable(), x.monthly(), x.outcome(), months));
 	}
 }

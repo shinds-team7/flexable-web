@@ -1,6 +1,6 @@
 # 배치고사를 반응 창(공시 직후) 기준으로 채점
 
-- 날짜: 2026-11-09 · 결정한 사람: 사용자(시즌 호환·출제 기준·채점 비교 대상·가상 시뮬레이션 문구), 개발(칸 이름·예시 자료 처리) · 관련: Issue #(작성 예정), 근거 측정 [공시 반응 측정 v2](../reference/disclosure-reaction-v2-2026-11-09.md)(Issue #371)·[룰셋 신뢰도 진단](../reference/vsim-ruleset-diagnosis-2026-11-09.md)(Issue #369)
+- 날짜: 2026-11-09 · 결정한 사람: 사용자(시즌 호환·출제 기준·채점 비교 대상·가상 시뮬레이션 문구), 개발(칸 이름·예시 자료 처리) · 관련: PR #374, 근거 측정 [공시 반응 측정 v2](../reference/disclosure-reaction-v2-2026-11-09.md)(Issue #371)·[룰셋 신뢰도 진단](../reference/vsim-ruleset-diagnosis-2026-11-09.md)(Issue #369)
 - 영향: 프론트·백엔드(계약 `VirtualContestPlacementResult.items[]`)
 - 바꾸는 것: [대회 결정](2026-11-05-virtual-sim-contest.md) 2-2(출제)·2-3(채점)·2-4(무작위 기준 설명). 판 기준(7·9)·30분·문제 수 10은 그대로다
 

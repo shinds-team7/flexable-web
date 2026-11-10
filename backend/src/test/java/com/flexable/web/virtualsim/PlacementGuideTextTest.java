@@ -43,7 +43,10 @@ class PlacementGuideTextTest {
 		assertThat(guide).hasSize(VirtualSimCategory.values().length);
 	}
 
-	/** 문제 화면 공시 줄글(src/data/disclosureStory.ts의 "문제 화면에도 쓰는 문구" 구간, Issue #308)에도 방향·경향·비율 표현이 없다. 회사·날짜·움직임은 결과에서만 붙인다 */
+	/**
+	 * 문제 화면 공시 줄글(src/data/disclosureStory.ts의 "문제 화면에도 쓰는 문구" 구간, Issue #308)에도 방향·경향·비율 표현이 없다. 회사·날짜·움직임은 결과에서만 붙인다.
+	 * 항목 읽는 법 문장(#387)을 더하면서 「공시 읽는 법」과 같은 GUIDE_BANNED(주가·평가·전망·권유)로 본다. "주주가"는 빼고 본다
+	 */
 	@Test
 	void 문제_화면_공시_줄글에도_방향_경향_비율_표현이_없다() throws Exception {
 		String ts = Files.readString(Path.of("..", "src", "data", "disclosureStory.ts"));
@@ -55,9 +58,10 @@ class PlacementGuideTextTest {
 		while (m.find()) {
 			String text = m.group(1) != null ? m.group(1) : m.group(2);
 			texts++;
-			assertThat(BANNED).as(text).noneMatch(text::contains);
+			String checked = text.replace("주주가", "");
+			assertThat(GUIDE_BANNED).as(text).noneMatch(checked::contains);
 		}
-		assertThat(texts).isGreaterThan(20);
+		assertThat(texts).isGreaterThan(50);
 	}
 
 	@Test

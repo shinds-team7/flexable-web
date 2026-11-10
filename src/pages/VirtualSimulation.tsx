@@ -68,8 +68,8 @@ function Judged({ r, sample }: { r: VirtualSimDecision; sample: boolean }) {
   if (!r.movement || r.categoryUpShare == null || r.categorySampleCount == null || !r.trend) return <small>5거래일 뒤 확인해요</small>;
   const moved = r.movement === 'UP' ? 1 : r.movement === 'DOWN' ? -1 : 0;
   // 경향은 공시 없는 날 대비 시장 초과수익 비교라 원 가격 비율로 "반대"를 말하지 않는다(policies §8-6)
-  const against = r.trend === 'UP' && moved < 0 ? '시장 움직임을 뺀 비교에서 공시 직후가 공시 없는 날보다 조금 높았던 유형이지만, 이번에는 내렸어요.'
-    : r.trend === 'DOWN' && moved > 0 ? '시장 움직임을 뺀 비교에서 공시 직후가 공시 없는 날보다 조금 낮았던 유형이지만, 이번에는 올랐어요.'
+  const against = r.trend === 'UP' && moved < 0 ? '시장 움직임을 뺀 수익률이 공시 직후에 공시 없는 날보다 평균 조금 높았던 유형이지만, 이번에는 내렸어요.'
+    : r.trend === 'DOWN' && moved > 0 ? '시장 움직임을 뺀 수익률이 공시 직후에 공시 없는 날보다 평균 조금 낮았던 유형이지만, 이번에는 올랐어요.'
     : null;
   return <div className="vsim-judged">
     <p className="practice-muted">{categoryText(r, sample)}</p>

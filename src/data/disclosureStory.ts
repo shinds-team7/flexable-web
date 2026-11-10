@@ -119,7 +119,7 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     after += ` 같은 유형 공시 ${it.categorySampleCount.toLocaleString('ko-KR')}건을 ${reaction ? '공시 직후로' : '5거래일 뒤로'} 보면 ${share(it.categoryUpShare)}%는 올랐고 ${share(it.categoryDownShare)}%는 내렸어요`
       + (!reaction
         ? (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.')
-        : it.trend === 'UP' ? '. 시장 전체 움직임을 빼고 보면 공시 직후 평균이 조금 오른 쪽이던 유형이지만, 평균 차이가 작아 이 공시가 꼭 그렇게 움직이지는 않아요.'
+        : it.trend === 'UP' ? '. 시장 움직임을 뺀 수익률이 공시 직후에 공시 없는 날보다 평균 조금 높았던 유형이지만, 차이가 작아 이 공시가 꼭 그렇게 움직이지는 않아요.'
         : it.trend === 'MIXED' ? '. 공시 직후 방향의 근거 유형으로 분류하지 않은 유형이에요.' : '.');
   }
   return [intro, body, after];

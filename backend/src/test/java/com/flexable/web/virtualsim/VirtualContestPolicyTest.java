@@ -129,33 +129,100 @@ class VirtualContestPolicyTest {
 		assertThat(made.get(0).up()).isTrue();
 	}
 
-	/** 출제: 묶음마다 설명(공시 AI 요약·주요 내용)이 있는 공시를 먼저 고르고, 모자라면 설명이 없는 공시로 채운다 */
+	private static VirtualContestQuestions.Past past(String key, VirtualSimCategory category) {
+		return new VirtualContestQuestions.Past(key, "회사", "업종", category, "t", null, null, null, 100, 110, 120);
+	}
+
+	private static Map<VirtualSimCategory, Long> byType(List<VirtualContestQuestions.Past> drawn) {
+		return drawn.stream().collect(java.util.stream.Collectors.groupingBy(VirtualContestQuestions.Past::category, java.util.stream.Collectors.counting()));
+	}
+
+	/** 출제(Issue #388): 한 유형만 많은 묶음(공급 계약 위주)이어도 유형당 상한, 근거 유형마다 1문제 이상, 유형 안에서 설명 있는 공시 먼저 */
 	@Test
-	void placement_draw_prefers_described() {
+	void placement_draw_type_cap() throws Exception {
+		JsonNode comp = root().get("placement").get("composition");
+		assertThat(VirtualContestQuestions.PER_TYPE_MAX).isEqualTo(comp.get("perTypeMax").asInt());
+		assertThat(VirtualContestQuestions.EVIDENCE_EACH).isEqualTo(comp.get("evidenceEachMin").asInt());
 		List<VirtualContestQuestions.Past> pool = new ArrayList<>();
-		java.util.function.BiFunction<String, VirtualSimCategory, VirtualContestQuestions.Past> past = (k, c) -> new VirtualContestQuestions.Past(k, "회사", "업종", c, "t",
-				null, null, null, 100, 110, 120);
+		for (int i = 0; i < 300; i++) {
+			pool.add(past("sc-plain-" + i, VirtualSimCategory.SUPPLY_CONTRACT));
+		}
+		for (int i = 0; i < 2; i++) {
+			pool.add(past("sc-sum-" + i, VirtualSimCategory.SUPPLY_CONTRACT));
+		}
+		for (int i = 0; i < 5; i++) {
+			pool.add(past("bb-plain-" + i, VirtualSimCategory.BUYBACK_ACQUIRE));
+			pool.add(past("fa-plain-" + i, VirtualSimCategory.FACILITY));
+			pool.add(past("ea-plain-" + i, VirtualSimCategory.EARNINGS));
+			pool.add(past("dv-plain-" + i, VirtualSimCategory.DIVIDEND));
+		}
+		pool.add(past("fa-sum-0", VirtualSimCategory.FACILITY));
+		Set<String> summarized = Set.of("sc-sum-0", "sc-sum-1", "fa-sum-0");
+		for (long seed = 1; seed <= 200; seed++) {
+			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool, summarized, new java.util.Random(seed));
+			List<String> keys = drawn.stream().map(VirtualContestQuestions.Past::key).toList();
+			assertThat(keys).as("seed %d", seed).hasSize(VirtualContestRules.PLACEMENT_QUESTIONS).doesNotHaveDuplicates();
+			Map<VirtualSimCategory, Long> counts = byType(drawn);
+			assertThat(counts.values()).as("seed %d %s", seed, counts).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
+			for (VirtualSimCategory t : VirtualContestQuestions.EVIDENCE_TYPES) {
+				assertThat(counts.getOrDefault(t, 0L)).as("seed %d %s", seed, t).isGreaterThanOrEqualTo(VirtualContestQuestions.EVIDENCE_EACH);
+			}
+			// 유형 안에서 설명 있는 공시 먼저: 시설·지분 투자는 늘 설명 있는 것이 들어가고, 공급 계약은 설명 있는 2개부터
+			assertThat(keys).as("seed %d", seed).contains("fa-sum-0");
+			long sc = counts.get(VirtualSimCategory.SUPPLY_CONTRACT);
+			assertThat(keys.stream().filter(k -> k.startsWith("sc-sum-")).count()).as("seed %d", seed).isEqualTo(Math.min(sc, 2));
+		}
+	}
+
+	/** 출제(Issue #388): 후보가 없는 근거 유형의 몫은 다른 근거 유형으로 상한 안에서 채우고, 상한 때문에 못 채우면 빈 목록(503) */
+	@Test
+	void placement_draw_missing_types() {
+		List<VirtualContestQuestions.Past> pool = new ArrayList<>();
 		for (int i = 0; i < 20; i++) {
-			pool.add(past.apply("ev-plain-" + i, VirtualSimCategory.FACILITY));
-			pool.add(past.apply("any-plain-" + i, VirtualSimCategory.EARNINGS));
+			pool.add(past("sc-" + i, VirtualSimCategory.SUPPLY_CONTRACT));
+			pool.add(past("bb-" + i, VirtualSimCategory.BUYBACK_ACQUIRE));
+			pool.add(past("ea-" + i, VirtualSimCategory.EARNINGS));
+			pool.add(past("dv-" + i, VirtualSimCategory.DIVIDEND));
 		}
-		for (int i = 0; i < 6; i++) {
-			pool.add(past.apply("any-sum-" + i, VirtualSimCategory.DIVIDEND));
+		for (long seed = 1; seed <= 100; seed++) {
+			Map<VirtualSimCategory, Long> counts = byType(VirtualContestQuestions.draw(pool, Set.of(), new java.util.Random(seed)));
+			// 시설·지분 투자 없음: 근거 4문제는 공급 계약·자기주식 취득으로, 유형 4개 × 상한 3 = 12 ≥ 10
+			assertThat(counts.values().stream().mapToLong(Long::longValue).sum()).isEqualTo(10);
+			assertThat(counts.get(VirtualSimCategory.SUPPLY_CONTRACT) + counts.get(VirtualSimCategory.BUYBACK_ACQUIRE)).as("seed %d", seed).isGreaterThanOrEqualTo(4);
+			assertThat(counts.values()).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
 		}
-		pool.add(past.apply("ev-sum-0", VirtualSimCategory.SUPPLY_CONTRACT));
-		pool.add(past.apply("ev-sum-1", VirtualSimCategory.BUYBACK_ACQUIRE));
-		Set<String> summarized = new java.util.HashSet<>(List.of("ev-sum-0", "ev-sum-1"));
-		for (int i = 0; i < 6; i++) {
-			summarized.add("any-sum-" + i);
+		// 유형 3개뿐이면 3 × 3 = 9 < 10이라 503
+		List<VirtualContestQuestions.Past> three = pool.stream().filter(p -> p.category() != VirtualSimCategory.DIVIDEND).toList();
+		assertThat(VirtualContestQuestions.draw(three, Set.of(), new java.util.Random(1))).isEmpty();
+		// 근거 유형이 하나뿐이면 상한 3으로 근거 4문제를 못 채워 503
+		List<VirtualContestQuestions.Past> oneEvidence = pool.stream().filter(p -> p.category() != VirtualSimCategory.BUYBACK_ACQUIRE).toList();
+		assertThat(VirtualContestQuestions.draw(oneEvidence, Set.of(), new java.util.Random(1))).isEmpty();
+	}
+
+	/** 예시 자료(fake)로 여러 번 출제한 유형 분포: 시설·지분 투자가 없어 근거 4문제는 공급 계약·자기주식 취득, 유형 5개가 상한 안에서 나온다 */
+	@Test
+	void placement_draw_sample_distribution() {
+		Map<String, Map<VirtualSimCategory, String>> bodies = new HashMap<>();
+		Map<String, String> industries = new HashMap<>();
+		VirtualSimSample.companies().forEach(d -> {
+			bodies.put(d.name(), d.bodies());
+			industries.put(d.name(), d.industry());
+		});
+		Map<VirtualSimCategory, Long> total = new java.util.EnumMap<>(VirtualSimCategory.class);
+		for (long seed = 1; seed <= 200; seed++) {
+			var random = new java.util.Random(seed);
+			var drawn = VirtualContestQuestions.draw(VirtualContestQuestions.sample(bodies, industries, VirtualSimSample.ruleset(), random), Set.of(), random);
+			assertThat(drawn).as("seed %d", seed).hasSize(VirtualContestRules.PLACEMENT_QUESTIONS);
+			Map<VirtualSimCategory, Long> counts = byType(drawn);
+			assertThat(counts.values()).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
+			assertThat(counts.get(VirtualSimCategory.SUPPLY_CONTRACT)).isGreaterThanOrEqualTo(1);
+			assertThat(counts.get(VirtualSimCategory.BUYBACK_ACQUIRE)).isGreaterThanOrEqualTo(1);
+			assertThat(counts.get(VirtualSimCategory.SUPPLY_CONTRACT) + counts.get(VirtualSimCategory.BUYBACK_ACQUIRE)).isGreaterThanOrEqualTo(4);
+			counts.forEach((t, n) -> total.merge(t, n, Long::sum));
 		}
-		for (long seed = 1; seed <= 20; seed++) {
-			List<String> keys = VirtualContestQuestions.draw(pool, summarized, new java.util.Random(seed)).stream().map(VirtualContestQuestions.Past::key).toList();
-			assertThat(keys).hasSize(10).doesNotHaveDuplicates();
-			// 근거 유형 4개: 설명 있는 2개를 먼저, 모자란 2개는 설명 없는 근거 유형. 나머지 6개는 설명 있는 공시 6개
-			assertThat(keys).contains("ev-sum-0", "ev-sum-1");
-			assertThat(keys.stream().filter(k -> k.startsWith("ev-plain-"))).hasSize(2);
-			assertThat(keys.stream().filter(k -> k.startsWith("any-sum-"))).hasSize(6);
-		}
+		System.out.println("fake 배치고사 200번 유형 분포: " + total);
+		assertThat(total.keySet()).containsExactlyInAnyOrder(VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES,
+				VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND);
 	}
 
 	@Test

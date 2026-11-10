@@ -383,7 +383,7 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
     <h2 id="contestResultTitle" ref={heading} tabIndex={-1}>배치고사 결과</h2>
     <p className="contest-big">{result.total}문제 중 <b>{result.correct}개</b> 맞혔어요 → <b>{BOARD_LABEL[result.board]}</b>에서 시작해요</p>
     <p className="practice-muted">시작 잔액은 {money(result.entry.seedMoney)}이에요. 공시 하나의 움직임은 같은 유형이어도 방향이 자주 갈려서, 배치고사는 시작 판을 정하는 가벼운 퀴즈예요. 실력은 주간 점수로 겨뤄요.</p>
-    {result.items.some(it => it.basis === 'REACTION') && <p className="practice-muted">문제마다 두 숫자를 보여 줘요. <b>공시 직후</b>는 공시 전날 종가에서 다음 거래일 종가까지, <b>그다음 주</b>는 다음 거래일 종가에서 5번째 거래일 종가까지예요. 채점은 공시 직후로만 했어요. 공시를 읽고 다음 날 샀다면 겪는 몫이 그다음 주예요.</p>}
+    {result.items.some(it => it.basis === 'REACTION') && <p className="practice-muted">문제마다 두 숫자를 보여 줘요. <b>공시 직후</b>는 공시 전날 종가에서 다음 거래일 종가까지, <b>그다음 주</b>는 다음 거래일 종가에서 5번째 거래일 종가까지예요. 채점은 공시 직후로만 했어요. 그다음 주는 다음 거래일 종가에 샀다고 가정한 비교예요. 다음 날 시가에 사면 그날 시가와 종가가 다른 만큼 실제 수익률은 이 값과 달라요.</p>}
     <button className="btn btn-primary contest-result-start" type="button" onClick={onStart}>대회 화면으로</button>
     <ol className="contest-graded">
       {result.items.map((it, i) => { const q = byId.get(it.questionId); return <li key={it.questionId} className={it.correct ? 'ok' : 'no'}>

@@ -287,6 +287,9 @@ export default function GoalScenarios() {
   const preset = GOAL_PRESETS.find((c) => c.amount === amountValue && c.months === months && c.name === name);
   const periodYears = Math.floor(months / 12);
   const periodMonths = months % 12;
+  /** 기한은 6~36개월(policies §7-1). 연을 바꿔 범위를 벗어나면 가장 가까운 값으로 맞춘다. */
+  const inRange = (total: number) => total >= GOAL_LIMITS.monthsMin && total <= GOAL_LIMITS.monthsMax;
+  const setPeriod = (total: number) => setMonths(Math.min(GOAL_LIMITS.monthsMax, Math.max(GOAL_LIMITS.monthsMin, total)));
 
   const run = async (q: { name: string; targetAmount: number; months: number }) => {
     const trimmed = q.name.trim();
@@ -402,11 +405,11 @@ export default function GoalScenarios() {
             <div className="gp-field">
               <label htmlFor="gp-years">목표 기한</label>
               <div className="gp-period">
-                <select id="gp-years" value={periodYears} onChange={(e) => setMonths(Number(e.target.value) * 12 + periodMonths)}>
+                <select id="gp-years" aria-label="목표 기한 연" value={periodYears} onChange={(e) => setPeriod(Number(e.target.value) * 12 + periodMonths)}>
                   {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}년</option>)}
                 </select>
-                <select aria-label="목표 기한 개월" value={periodMonths} onChange={(e) => setMonths(periodYears * 12 + Number(e.target.value))}>
-                  {MONTH_OPTIONS.map((m) => <option key={m} value={m}>{m}개월</option>)}
+                <select aria-label="목표 기한 개월" value={periodMonths} onChange={(e) => setPeriod(periodYears * 12 + Number(e.target.value))}>
+                  {MONTH_OPTIONS.map((m) => <option key={m} value={m} disabled={!inRange(periodYears * 12 + m)}>{m}개월</option>)}
                 </select>
               </div>
             </div>

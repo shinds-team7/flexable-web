@@ -92,7 +92,8 @@ const share = (r: number) => (Math.floor(r * 1000) / 10).toFixed(1);
 /**
  * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 AI 요약 또는 공시 주요 내용(있을 때) ③ 실제 움직임과 같은 유형 통계.
  * 움직임은 반응 창 채점(REACTION)이면 공시 직후(채점)와 그다음 주, 이 규칙 전에 시작한 배치고사(FIVE_DAY)면 5거래일이다(decisions/2026-11-09-placement-reaction-window).
- * 유형 통계는 룰셋의 5거래일 통계라 그렇게 밝힌다.
+ * 유형 통계는 채점 구간과 같은 구간만 온다(서버): REACTION이면 룰셋 v3의 공시 직후 통계, FIVE_DAY면 5거래일 통계(decisions/2026-11-10-vsim-ruleset-reaction-window).
+ * 경향 UP은 시장 조정 측정에서 공시 직후 평균이 오른 쪽이던 반응 창 근거 유형이라, 원 가격 상승 비율이 절반보다 낮을 수 있다.
  * title: 정리한 공시 제목, subsidiary: 종속회사 주요경영사항이면 true, sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
 export function disclosureStory(q: Question, it: Item, title: string, subsidiary: boolean, sample: boolean | null = null): string[] {
@@ -114,8 +115,12 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     after = `공시 뒤 5거래일 동안 주가는 ${percent(it.subsequentReturnRate ?? 0)} ${it.movement === 'UP' ? '올랐어요' : '내렸어요'}(기준일 종가 → 5번째 거래일 종가).`;
   }
   if (it.categorySampleCount != null && it.categoryUpShare != null && it.categoryDownShare != null) {
-    after += ` 같은 유형 공시 ${it.categorySampleCount.toLocaleString('ko-KR')}건을 5거래일 뒤로 보면 ${share(it.categoryUpShare)}%는 올랐고 ${share(it.categoryDownShare)}%는 내렸어요`
-      + (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.');
+    const reaction = it.basis === 'REACTION';
+    after += ` 같은 유형 공시 ${it.categorySampleCount.toLocaleString('ko-KR')}건을 ${reaction ? '공시 직후로' : '5거래일 뒤로'} 보면 ${share(it.categoryUpShare)}%는 올랐고 ${share(it.categoryDownShare)}%는 내렸어요`
+      + (!reaction
+        ? (it.trend === 'MIXED' ? '. 방향이 자주 갈리는 유형이에요.' : it.trend === 'UP' ? '. 대체로 오른 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : it.trend === 'DOWN' ? '. 대체로 내린 유형이었지만 이 공시가 꼭 그렇게 움직이지는 않아요.' : '.')
+        : it.trend === 'UP' ? '. 시장 전체 움직임을 빼고 보면 공시 직후 평균이 조금 오른 쪽이던 유형이지만, 평균 차이가 작아 이 공시가 꼭 그렇게 움직이지는 않아요.'
+        : it.trend === 'MIXED' ? '. 공시 직후 방향이 한쪽으로 기울었다는 근거가 없는 유형이에요.' : '.');
   }
   return [intro, body, after];
 }

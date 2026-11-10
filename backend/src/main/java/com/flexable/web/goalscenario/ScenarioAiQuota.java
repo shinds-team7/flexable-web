@@ -98,11 +98,14 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		return Math.max(0, limitPerDay(userId) - used);
 	}
 
-	/** 같은 회원이 같은 목표 금액·기한(개월)·자료 기준일로 받은 AI 초안. */
-	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, LocalDate asOf) {
+	/**
+	 * 같은 회원이 같은 목표 금액·기한(개월)·월 납입 가능액·자료 기준일로 받은 AI 초안. 가능액이 없으면 칸에 0을 두고 0끼리 같은 조건으로 본다
+	 * (V37 전에 저장된 조합도 0이다).
+	 */
+	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf) {
 		List<String> rows = jdbc.queryForList(
-				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND as_of = ?", String.class,
-				userId, targetAmount, months, asOf);
+				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?",
+				String.class, userId, targetAmount, months, budgetKey(monthlyBudget), asOf);
 		if (rows.isEmpty()) {
 			return Optional.empty();
 		}
@@ -115,10 +118,15 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	}
 
 	/** 검증을 통과한 AI 초안만 저장한다. 동시에 저장하면 먼저 들어간 것을 둔다. */
-	void cache(long userId, long targetAmount, int months, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
-		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, as_of, drafts, model, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) "
-				+ "ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, months, asOf, JSON.writeValueAsString(drafts), model,
-				Timestamp.from(clock.instant()));
+	void cache(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
+		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, monthly_budget, as_of, drafts, model, created_at) "
+				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, months, budgetKey(monthlyBudget),
+				asOf, JSON.writeValueAsString(drafts), model, Timestamp.from(clock.instant()));
+	}
+
+	/** 기본 키 칸이라 null을 둘 수 없어 가능액이 없으면 0으로 둔다(가능액은 1만 원 이상이라 겹치지 않는다). */
+	private static long budgetKey(Long monthlyBudget) {
+		return monthlyBudget == null ? 0 : monthlyBudget;
 	}
 
 	LocalDate today() {

@@ -173,4 +173,28 @@ class ProposalTextTest {
 		assertThat(ProposalText.problem("1,500만 원을 모아요.", ProposalText.Facts.NONE, List.of())).isEqualTo("TEXT_NUMBER");
 		assertThat(ProposalText.problem("적금 50%예요.", ProposalText.Facts.NONE, List.of())).isEqualTo("TEXT_NUMBER");
 	}
+
+	/** AI에게 보낸 월 납입 가능액과 같은 금액은 쓸 수 있다(#399). 보내지 않았거나 다른 금액이면 막는다. */
+	@Test
+	void 보낸_월_납입_가능액과_같은_금액만_통과() {
+		ProposalText.Facts budget = new ProposalText.Facts(FACTS.targetAmount(), 500_000L, FACTS.months(), FACTS.names(), FACTS.percents(), Map.of());
+		assertThat(ProposalText.problem("매달 50만 원이면 충분해요.", FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+		assertThat(ProposalText.problem("매달 50만 원으로 해 볼 수 있어요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("월 500,000원을 참고해 비중을 정했어요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("1,500만 원 목표예요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("매달 60만 원이 필요해요.", budget, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
+	/** 가능액으로 충분하다·안에 든다는 단정은 막는다. 필요 월 금액은 서버가 나중에 계산한다(#400 리뷰). */
+	@Test
+	void 가능액_충족을_단정하면_막힘() {
+		ProposalText.Facts budget = new ProposalText.Facts(FACTS.targetAmount(), 500_000L, FACTS.months(), FACTS.names(), FACTS.percents(), Map.of());
+		for (String text : List.of("매달 50만 원이면 충분해요.", "월 500,000원 안에서 나눴어요.", "월 납입 가능액 안에 들어요.", "가능액으로도 넉넉해요.",
+				"가능액을 넘지 않아요.", "가능액에 맞출 수 있어요.", "50만 원으로 감당할 수 있어요.")) {
+			assertThat(ProposalText.problem(text, budget, MIX)).as(text).isEqualTo("TEXT_BUDGET");
+		}
+		// 가능액을 가리키지 않는 문장의 같은 낱말은 막지 않는다
+		assertThat(ProposalText.problem("기한 안에서 꺼내 쓸 여유를 남겨요.", budget, MIX)).isNull();
+		assertThat(ProposalText.problem("가능액을 참고해 적금 비중을 높였어요.", budget, MIX)).isNull();
+	}
 }

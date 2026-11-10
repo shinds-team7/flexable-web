@@ -98,9 +98,12 @@ class RestGoalScenarioAiClientTest {
 	}
 
 	@Test
-	void 프롬프트_v7은_시나리오_세_개와_유형별_해설을_안내한다() {
-		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v7");
-		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v7.")
+	void 프롬프트_v8은_시나리오_세_개와_유형별_해설과_월_납입_가능액을_안내한다() {
+		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v8");
+		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v8.")
+			.contains("monthlyBudget은 사용자가 매달 넣을 수 있다고 한 돈")
+			.contains("가능액 안에 든다거나 넘는다고 단정하지 않아요")
+			.contains("목표 금액, 월 납입 가능액,")
 			.contains("정확히 세 개")
 			.contains("유형마다 세 문장 이상")
 			.contains("alternatives")

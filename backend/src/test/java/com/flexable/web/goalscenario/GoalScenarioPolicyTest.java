@@ -243,7 +243,8 @@ class GoalScenarioPolicyTest {
 	Stream<DynamicTest> 입력_검증() {
 		return each("validation", c -> {
 			JsonNode q = c.get("request");
-			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("months").asInt());
+			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("months").asInt(),
+					longOrNull(q.get("monthlyBudget")));
 			String field = c.get("expected").get("field").asString();
 			assertThatThrownBy(() -> GoalScenarioService.validate(req)).isInstanceOfSatisfying(ApiException.class,
 					ex -> assertThat(((Map<?, ?>) ex.extra().get("fields")).keySet()).map(String::valueOf).contains(field));
@@ -277,7 +278,8 @@ class GoalScenarioPolicyTest {
 							stats.put(ProposalText.StatKind.valueOf(e.getKey()), values);
 						});
 					}
-					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.get("months").asInt(), names, percents, stats);
+					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.has("monthlyBudget") ? f.get("monthlyBudget").asLong() : 0,
+							f.get("months").asInt(), names, percents, stats);
 				}
 				Proposals.Checked checked = Proposals.check(drafts, facts);
 				if ("AI".equals(c.get("expected").get("proposer").asString())) {
@@ -314,6 +316,24 @@ class GoalScenarioPolicyTest {
 							longOrNull(o.get("median")), longOrNull(o.get("high")), o.get("chanceBp").asInt(), o.get("lossBp").asInt());
 			assertThat(ScenarioResultText.of(c.get("reachable").asBoolean(), longOrNull(c.get("monthly")), outcome, c.get("months").asInt()))
 				.isEqualTo(c.get("expected").asString());
+		});
+	}
+
+	/** 월 납입 가능액 비교와 대안 문장(§7-5, #399). 필요 월 금액은 바꾸지 않고, 가능액 밖이면 fit 칸 끝에 정해 둔 문장을 붙인다. */
+	@TestFactory
+	Stream<DynamicTest> 가능액_비교() {
+		return each("budget", c -> {
+			boolean reachable = c.get("reachable").asBoolean();
+			Long monthly = longOrNull(c.get("monthly"));
+			Proposals.Parts parts = new Proposals.Parts("이유예요.", "역할이에요.", "차이예요.", c.get("fit").asString());
+			GoalScenarioDtos.Scenario s = new GoalScenarioDtos.Scenario("a", "조합", "설명", parts.joined(), parts, "결과", List.of(), reachable, monthly,
+					monthly == null ? null : monthly * 12, null, null, null).withBudget(longOrNull(c.get("monthlyBudget")));
+			JsonNode e = c.get("expected");
+			assertThat(s.withinBudget()).isEqualTo(e.get("withinBudget").isNull() ? null : e.get("withinBudget").asBoolean());
+			assertThat(s.overBudgetBy()).isEqualTo(longOrNull(e.get("overBudgetBy")));
+			assertThat(s.explanationParts().fit()).isEqualTo(e.get("fit").asString());
+			assertThat(s.explanation()).isEqualTo(s.explanationParts().joined());
+			assertThat(s.monthly()).isEqualTo(monthly);
 		});
 	}
 

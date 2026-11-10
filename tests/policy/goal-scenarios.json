@@ -61,7 +61,10 @@
     { "name": "목표 하한 미만", "request": { "name": "목돈", "targetAmount": 999999, "months": 12 }, "expected": { "status": 400, "field": "targetAmount" } },
     { "name": "목표 상한 초과", "request": { "name": "목돈", "targetAmount": 1000000001, "months": 12 }, "expected": { "status": 400, "field": "targetAmount" } },
     { "name": "이름 공백만", "request": { "name": "   ", "targetAmount": 15000000, "months": 12 }, "expected": { "status": 400, "field": "name" } },
-    { "name": "이름 21자", "request": { "name": "가나다라마바사아자차카타파하가나다라마바사", "targetAmount": 15000000, "months": 12 }, "expected": { "status": 400, "field": "name" } }
+    { "name": "이름 21자", "request": { "name": "가나다라마바사아자차카타파하가나다라마바사", "targetAmount": 15000000, "months": 12 }, "expected": { "status": 400, "field": "name" } },
+    { "name": "월 납입 가능액 1만 원 미만", "request": { "name": "목돈", "targetAmount": 15000000, "months": 12, "monthlyBudget": 9000 }, "expected": { "status": 400, "field": "monthlyBudget" } },
+    { "name": "월 납입 가능액이 목표 금액보다 큼", "request": { "name": "목돈", "targetAmount": 15000000, "months": 12, "monthlyBudget": 15001000 }, "expected": { "status": 400, "field": "monthlyBudget" } },
+    { "name": "월 납입 가능액 천 원 단위 아님", "request": { "name": "목돈", "targetAmount": 15000000, "months": 12, "monthlyBudget": 500500 }, "expected": { "status": 400, "field": "monthlyBudget" } }
   ],
   "proposal": [
     { "name": "비중 합 90", "scenarios": [ { "mix": { "SAVINGS": 60, "CMA": 30 } }, { "mix": { "SAVINGS": 50, "KR_INDEX_ETF": 50 } }, { "mix": { "CMA": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
@@ -75,6 +78,10 @@
       "scenarios": [ { "mix": { "SAVINGS": 70, "US_INDEX_ETF": 30 }, "explanation": "1년 안에 1,500만 원을 모으려고 적금 70%에 연 3.5% 금리를 받고, S&P 500 지수에 30%를 둬요. 이익에는 15.4% 세금이 붙어요" }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } } ], "expected": { "proposer": "AI" } },
     { "name": "해설에 보낸 통계와 자료 기간", "facts": { "targetAmount": 15000000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"], "stats": { "MEAN": ["1.23"], "VOLATILITY": ["4.56"], "DRAWDOWN": ["23.45"] } },
       "scenarios": [ { "mix": { "SAVINGS": 50, "US_INDEX_ETF": 50 }, "explanation": "지난 60개월 최대 하락 23.45%, 월 변동폭 4.6%를 고려했어요" }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } } ], "expected": { "proposer": "AI" } },
+    { "name": "해설에 보낸 월 납입 가능액을 참고만 함", "facts": { "targetAmount": 15000000, "monthlyBudget": 500000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"] },
+      "scenarios": [ { "mix": { "SAVINGS": 100 }, "explanation": "매달 50만 원으로 해 볼 수 있게 적금에 담았어요" }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } } ], "expected": { "proposer": "AI" } },
+    { "name": "해설이 월 납입 가능액으로 충분하다고 단정", "facts": { "targetAmount": 15000000, "monthlyBudget": 500000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"] },
+      "scenarios": [ { "mix": { "SAVINGS": 100 }, "explanation": "매달 50만 원이면 충분해요" }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
     { "name": "해설에 보내지 않은 통계", "facts": { "targetAmount": 15000000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"], "stats": { "MEAN": ["1.23"], "VOLATILITY": ["4.56"], "DRAWDOWN": ["23.45"] } },
       "scenarios": [ { "mix": { "SAVINGS": 50, "US_INDEX_ETF": 50 }, "explanation": "최대 하락은 30%였어요" }, { "mix": { "CMA": 100 } }, { "mix": { "KR_INDEX_ETF": 100 } } ], "expected": { "proposer": "DEMO", "fallbackReason": "AI_REJECTED" } },
     { "name": "해설에 통계를 다른 뜻으로 인용", "facts": { "targetAmount": 15000000, "months": 12, "names": [], "percents": ["3.50", "2.50", "15.4"], "stats": { "MEAN": ["1.23"], "VOLATILITY": ["4.56"], "DRAWDOWN": ["23.45"] } },
@@ -109,5 +116,19 @@
       "expected": "매달 6,000,000원씩 넣으면 1년 6개월 뒤 1억 1,000만 원이 돼요(세후 이자 포함)." },
     { "name": "닿지 못함", "months": 36, "reachable": false, "monthly": null, "outcome": null,
       "expected": "목표 금액 안의 월 금액으로는 10번 중 8번 목표에 닿지 못했어요. 기한을 늘리거나 목표를 조정해 보세요." }
+  ],
+  "budget": [
+    { "name": "가능액 없음", "monthlyBudget": null, "reachable": true, "monthly": 1231000, "fit": "안정을 원할 때 맞아요.",
+      "expected": { "withinBudget": null, "overBudgetBy": null, "fit": "안정을 원할 때 맞아요." } },
+    { "name": "필요 월 금액 = 가능액", "monthlyBudget": 1231000, "reachable": true, "monthly": 1231000, "fit": "안정을 원할 때 맞아요.",
+      "expected": { "withinBudget": true, "overBudgetBy": null, "fit": "안정을 원할 때 맞아요." } },
+    { "name": "필요 월 금액 < 가능액", "monthlyBudget": 2000000, "reachable": true, "monthly": 1231000, "fit": "안정을 원할 때 맞아요.",
+      "expected": { "withinBudget": true, "overBudgetBy": null, "fit": "안정을 원할 때 맞아요." } },
+    { "name": "필요 월 금액이 가능액보다 천 원 많음", "monthlyBudget": 1230000, "reachable": true, "monthly": 1231000, "fit": "안정을 원할 때 맞아요.",
+      "expected": { "withinBudget": false, "overBudgetBy": 1000, "fit": "안정을 원할 때 맞아요. 이 조합은 월 납입 가능액보다 많이 넣어야 해요. 목표를 낮춰보거나 월 납입 가능액을 늘려보세요." } },
+    { "name": "월 금액을 찾지 못함", "monthlyBudget": 500000, "reachable": false, "monthly": null, "fit": "기다릴 수 있을 때 맞아요.",
+      "expected": { "withinBudget": false, "overBudgetBy": null, "fit": "기다릴 수 있을 때 맞아요. 이 조합은 월 납입 가능액보다 많이 넣어야 해요. 목표를 낮춰보거나 월 납입 가능액을 늘려보세요." } },
+    { "name": "걸린 문장을 지워 빈 칸", "monthlyBudget": 500000, "reachable": true, "monthly": 600000, "fit": "",
+      "expected": { "withinBudget": false, "overBudgetBy": 100000, "fit": "이 조합은 월 납입 가능액보다 많이 넣어야 해요. 목표를 낮춰보거나 월 납입 가능액을 늘려보세요." } }
   ]
 }

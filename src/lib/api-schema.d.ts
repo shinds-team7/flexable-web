@@ -3416,6 +3416,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/guide-contents/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 금융 가이드 글별 누적 조회수
+         * @description 등록된 글 전부를 돌려준다. 아직 아무도 읽지 않은 글은 views가 0이다. 1분 캐시.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 글별 조회수 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                id: string;
+                                /** Format: int64 */
+                                views: number;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/guide-contents/{id}/views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 금융 가이드 글을 열었다고 센다(방문자·글·날짜당 한 번). 계정과 연결하지 않는다
+         * @description - id는 글 주소의 마지막 칸(예: interest-rate)이다.
+         *     - viewerId는 브라우저가 처음 한 번 만들어 localStorage에 둔 임의 UUID이다. 계정·IP와 이어 두지 않고 30일 뒤 지운다. 글별 합계 숫자는 계속 남는다.
+         *     - 이미 센 열람은 오류 없이 204로 넘어간다.
+         *     - 등록되지 않은 글은 404, viewerId가 UUID가 아니면 400.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        viewerId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description 셈 */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/client-errors": {
         parameters: {
             query?: never;

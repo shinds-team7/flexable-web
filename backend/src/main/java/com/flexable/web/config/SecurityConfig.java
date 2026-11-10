@@ -58,6 +58,8 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/v1/market/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/v1/youth-news", "/api/v1/youth-news/hot").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/youth-news/*/views").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/v1/guide-contents/views").permitAll()
+				.requestMatchers(HttpMethod.POST, "/api/v1/guide-contents/*/views").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/client-errors").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/simulations/run").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/v1/goal/scenarios").permitAll()

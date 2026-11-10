@@ -11,12 +11,14 @@ import {
   GUIDE_CATEGORIES,
   GUIDE_CONTENTS,
   isGuideCategory,
+  RECOMMENDED,
   selectContents,
   SORT_LABEL,
   type ContentSort,
   type GuideCategory,
   type GuideContent,
 } from '@/data/financeGuide';
+import { useGuideViews } from '@/data/guideViews';
 import '@/styles/finance-guide.css';
 
 export default function FinanceGuideCategory() {
@@ -35,7 +37,9 @@ function CategoryPage({ category }: { category: GuideCategory }) {
 
   const all = useMemo(() => GUIDE_CONTENTS.items.filter((c) => c.category === category), [category]);
   const pinned = all.filter((c) => c.pinned);
-  const list = selectContents(all, category, sort).filter((c) => contentMatches(c, query));
+  const views = useGuideViews();
+  const recommended = category === 'basic' ? RECOMMENDED.basic : [...RECOMMENDED.saving, ...RECOMMENDED.investing];
+  const list = selectContents(all, category, sort, views ?? {}, recommended).filter((c) => contentMatches(c, query));
 
   // 주소의 #id로 들어오면(메인의 콘텐츠 카드 등) 그 카드로 내려가 잠깐 강조한다
   useEffect(() => {
@@ -133,7 +137,7 @@ function CategoryPage({ category }: { category: GuideCategory }) {
               ))}
             </ul>
           )}
-          {GUIDE_CONTENTS.isSample && <p className="fin-list-foot">많이 본 순과 최신순은 예시 값으로 정렬해요.</p>}
+          {GUIDE_CONTENTS.isSample && <p className="fin-list-foot">최신순은 예시 값으로 정렬해요.</p>}
         </section>
       </div>
     </section>

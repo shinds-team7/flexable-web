@@ -50,6 +50,7 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `goalscenario` | F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7, #175). 제안기(AI 연결 전 데모 조합) 검증·필요 월 금액·결과 범위 계산, 회원의 시나리오 저장(최대 5개, `/me/goal/scenarios`) | `market`, `savings`, `user` |
 | `errorlog` | 오류 기록 `error_events`(V31): 브라우저가 보낸 오류(`POST /client-errors`)와 서버 500을 저장 전에 가려 같은 날 같은 오류는 한 줄로 묶음, 30일 보관·탈퇴 삭제. 500은 `common.ServerErrorSink`로 받음 | `common`, `user` |
 | `news` | 청년 금융 소식: 온통청년 수집 카드 자동 게시·AI 요약 저장·`GET /youth-news`(#47·#93) | `common` |
+| `guide` | 금융 가이드 글별 조회수(V36): 공개 집계·열람 기록, 방문자 기록 30일 보관 | `common` |
 | `billing` | 요금제·구독·결제. 코드 없음(모의 결제는 화면만) | `user` |
 | `engagement` | 목표·AI 안내·사용량, 공유·지표 이벤트(미구현) | `simulation`, `user`, `seedmoney`, `ai` |
 | `ai` | OpenAI 목표 안내 클라이언트(식별자·자유 입력 이름 미전송) | `common` |

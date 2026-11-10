@@ -385,6 +385,10 @@ class ContractTest {
 		call(json(post("/api/v1/youth-news/" + viewedId + "/views"), viewBody), 204);
 		call(json(post("/api/v1/youth-news/" + viewedId + "/views"), "{\"viewerId\":\"nope\"}"), 400);
 		call(json(post("/api/v1/youth-news/999999/views"), viewBody), 404);
+		call(json(post("/api/v1/guide-contents/interest-rate/views"), viewBody), 204);
+		call(json(post("/api/v1/guide-contents/interest-rate/views"), "{\"viewerId\":\"nope\"}"), 400);
+		call(json(post("/api/v1/guide-contents/no-such-article/views"), viewBody), 404);
+		call(get("/api/v1/guide-contents/views"), 200);
 		call(get("/api/v1/youth-news/hot"), 200);
 		// 브라우저 오류 기록: 형식이 맞으면 204(한도를 넘어도), 아니면 400
 		call(json(post("/api/v1/client-errors"), "{\"kind\":\"API\",\"message\":\"x\",\"status\":500,\"method\":\"GET\",\"path\":\"/api/v1/a/1\",\"code\":\"UNKNOWN\",\"screen\":\"/home\",\"appVersion\":\"1.0.0\"}"), 204);

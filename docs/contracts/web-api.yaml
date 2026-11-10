@@ -30,6 +30,8 @@ tags:
   - name: deposit
     description: '정기예금 비교(#140). 로그인 없이 쓴다. finlife 정기예금 공시를 DB에서 읽고 만기 금액은 서버가 계산(내림). 적금(savings)과 같은 모양이고 매달 넣는 돈 대신 한 번에 맡기는 금액을 쓴다'
   - name: youth-news
+  - name: guide-contents
+    description: '금융 가이드 글별 조회수. 로그인 없이 쓰고 계정과 연결하지 않는다'
   - name: client-errors
     description: '브라우저 오류 기록(error_events). 로그인 없이 보낼 수 있고 서버가 저장 전에 가린다. 30일 보관'
   - name: health
@@ -1594,6 +1596,57 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
 
+  /guide-contents/views:
+    get:
+      tags: [guide-contents]
+      summary: '금융 가이드 글별 누적 조회수'
+      description: '등록된 글 전부를 돌려준다. 아직 아무도 읽지 않은 글은 views가 0이다. 1분 캐시.'
+      security: []
+      responses:
+        '200':
+          description: 글별 조회수
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [id, views]
+                      properties:
+                        id: { type: string }
+                        views: { type: integer, format: int64, minimum: 0 }
+  /guide-contents/{id}/views:
+    post:
+      tags: [guide-contents]
+      summary: '금융 가이드 글을 열었다고 센다(방문자·글·날짜당 한 번). 계정과 연결하지 않는다'
+      description: |
+        - id는 글 주소의 마지막 칸(예: interest-rate)이다.
+        - viewerId는 브라우저가 처음 한 번 만들어 localStorage에 둔 임의 UUID이다. 계정·IP와 이어 두지 않고 30일 뒤 지운다. 글별 합계 숫자는 계속 남는다.
+        - 이미 센 열람은 오류 없이 204로 넘어간다.
+        - 등록되지 않은 글은 404, viewerId가 UUID가 아니면 400.
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [viewerId]
+              properties:
+                viewerId: { type: string, format: uuid }
+      responses:
+        '204': { description: 셈 }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   /client-errors:
     post:
       tags: [client-errors]

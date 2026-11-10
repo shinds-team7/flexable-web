@@ -47,7 +47,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 | 경로 | 화면 | 상태 |
 |---|---|---|
 | `/home` | 랜딩(예시 차트·로그인 진입). `/`는 `/home`으로 이동하고, 로그인한 사람도 solpa 로고로 이 화면에 온다 | 완료 |
-| `/finance` | 금융정보(빈 화면, 팀원 개발 예정). 상단 메뉴 맨 앞 | 자리만 |
+| `/finance` | 금융정보(빈 화면, 팀원 개발 예정). 상단 메뉴에는 없다 | 자리만 |
 | `/login`, `/signup`, `/oauth/callback` | 카카오·Google·이메일 로그인, 이메일 가입(실제 API) | 완료 |
 | `/mypage` | 마이페이지(이전 `/home`): 시드머니 · 쌓인 모양(꺾은선) · 코스피/코스닥 · 청년 금융 소식 | 시드머니·꺾은선은 앱 연동 값(웹 백엔드 배포만). 로그인했지만 연동 전이면 0원, 비로그인 체험은 예시 427만 원. [수정하기]는 로그인 회원이면 서버에 저장하고(앱 값보다 우선, 상단 칩·투자 화면에도 적용) [기록 기준으로 되돌리기]로 지운다. 비로그인 체험은 저장하지 않고 이 탭에서만 바뀐다. '굴렸다면' 카드는 10-27에 뺐다(프론트 예시 수익률 계산이라 ADR-3과 어긋남). 소식은 `GET /youth-news`의 마감 임박순 3건(소식 화면과 같은 목록, 없거나 실패하면 예시). 코스피/코스닥은 예시(#89 `GET /market/indices` 대기) |
 | `/mypage/settings` | 내 정보(이전 `/me`, `/me`는 이동): 계정 · 앱 연동하기 · 구독(모의) · 테마(라이트/다크) · 사용법 다시 보기 · 로그아웃 · 탈퇴 | 완료. 구독은 늘 무료로 보이고 해지 화면은 시연 |
@@ -63,7 +63,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 | `/lab/stocks`, `/lab/savings` | 예전 주소 → 새 경로로 이동 | 호환 |
 | `/m/*` | 앱 시연(온보딩·홈·지출계획·분석·마이) | 완료(project2에서 옮김) |
 
-상단 메뉴는 금융정보 · 투자성향 · 인사이트 · 시뮬레이션 · 예적금 · AI 목표달성 · 청년소식(`src/components/Layout.tsx`). 플러스는 메뉴에서 빼고 내 정보(`/mypage/settings`)에서 들어간다. 새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).
+상단 메뉴는 금융 가이드 · 투자성향 · 투자 · 예적금 · AI 목표달성 · 청년소식(`src/components/Layout.tsx`). 투자의 하위 메뉴는 인사이트(`/invest`) · 과거 시장 연습(`/simulation?mode=past`) · 가상 시뮬레이션(`?mode=virtual`) · 월간 시뮬레이션 대회(`?mode=contest`)이고, `/invest`·`/simulation` 어디서나 투자가 선택 표시된다. 플러스는 메뉴에서 빼고 내 정보(`/mypage/settings`)에서 들어간다. 새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).
 
 ## 로그인 없이 체험하기
 

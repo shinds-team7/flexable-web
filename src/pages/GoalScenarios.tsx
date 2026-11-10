@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -22,6 +22,18 @@ const PART_LABELS: [keyof ExplanationParts, string][] = [
   ['reason', '이렇게 짠 이유'], ['roles', '유형별 역할'], ['comparison', '다른 시나리오와 차이'], ['fit', '주의할 점과 맞는 사람'],
 ];
 const AI_REUSE_TIP = '같은 조건으로 만든 AI 조합은 횟수가 차감되지 않아요.';
+/** AI 해설의 전망 고지(policies §7-6, #398). 전망은 AI 학습 지식으로만 쓴다. */
+const AI_OUTLOOK_NOTICE = '전망은 AI가 학습한 일반적인 내용이에요. 최신 뉴스나 실적을 확인한 것이 아니고 수익을 보장하지 않아요.';
+/** 유형별 역할 문단의 첫머리(띄어쓰기 뺌)로 어느 유형인지 찾는다. 프롬프트 v9는 유형마다 문단을 유형 이름으로 시작하게 한다. */
+const ROLE_PREFIX: [ScenarioProductType, RegExp][] = [
+  ['SAVINGS', /^적금/], ['CMA', /^CMA/i], ['KR_INDEX_ETF', /^국내(대표)?(지수)?ETF/i], ['US_INDEX_ETF', /^미국(대표)?(지수)?ETF/i], ['KOSPI_TOP5', /^코스피(대형주|상위)/],
+];
+/** 이 시나리오에 비중이 있는 유형만 소제목을 붙인다. 이름으로 시작하지 않는 문단은 소제목 없이 보여 준다. */
+function roleType(line: string, plan: GoalScenario): ScenarioProductType | null {
+  const head = line.replace(/\s+/g, '');
+  const found = ROLE_PREFIX.find(([, re]) => re.test(head))?.[0];
+  return found && plan.mix.some((m) => m.type === found && m.ratioPercent > 0) ? found : null;
+}
 const won = (n: number) => n.toLocaleString('ko-KR');
 /** 표시용 만 원 단위(내림). 서버 값을 읽기 쉽게 바꿀 뿐 계산 결과를 바꾸지 않는다. */
 function manwon(n: number) {
@@ -156,13 +168,18 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
       {plan.explanationParts
         ? PART_LABELS.filter(([k]) => plan.explanationParts?.[k].trim()).map(([k, label]) => <section key={k} className="gp-ai-part">
           <h4 className="gp-h4">{label}</h4>
-          <p>{plan.explanationParts?.[k]}</p>
+          {/* 줄마다 문단을 띄운다. 유형별 역할은 문단이 유형 이름으로 시작하면 그 유형 소제목을 붙인다(#398) */}
+          {(plan.explanationParts?.[k] ?? '').split(/\n+/).filter((line) => line.trim()).map((line, i) => {
+            const type = k === 'roles' ? roleType(line, plan) : null;
+            return <Fragment key={i}>{type && <h5 className="gp-h5">{TYPE_LABEL[type]}</h5>}<p>{line}</p></Fragment>;
+          })}
         </section>)
         : <p>{plan.explanation}</p>}
       <section className="gp-ai-part">
         <h4 className="gp-h4">계산 결과</h4>
         <p>{plan.resultText}</p>
       </section>
+      {!demo && <p className="gp-ai-notice">{AI_OUTLOOK_NOTICE}</p>}
     </div>
   </>;
 }

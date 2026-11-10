@@ -6,7 +6,7 @@
 
 ## 2026-11-10
 
-- [#PR, Closes #377] 목표 시나리오 기한을 1·2·3년(`years`)에서 **6~36개월**(`months`)로 바꿨다([결정](decisions/2026-10-29-goal-scenarios.md) "11-10 기한 연·월 단위", policies §7-1·7-2·7-3·7-6·7-7, PRD F7). 적금은 기한 이하 만기 중 가장 긴 것을 쓰고(함께 볼 상품도 같은 만기), 만기 뒤 남은 달은 적금 몫을 CMA 예시 금리로 따로 계산한다(가정 한 줄 추가). 경로는 묶음 ⌈개월 ÷ 12⌉개의 앞 기한 개월이라 12·24·36개월 결과는 같다. 계약: 요청 `months`(6~36), 결과·저장본·저장 목록 `years` 삭제·`months`로 통일, `GoalScenarioProduct.termMonths`(nullable, 필수 칸). AI 입력에서 `years`를 빼고 적금 설명에 만기를 넣었다(프롬프트 v7 그대로). Flyway V35: `goal_scenarios.years` → `months`(× 12), `goal_scenario_ai_cache`도 키를 `months`로 바꾸고 기존 재사용 조합을 × 12로 옮겼다(`GoalScenarioMonthsMigrationTest`). `goal-scenarios.json` `afterMaturity`·`pathLength`·`minMonths`·`maxMonths`. 화면은 연·월 두 칸 입력과 "1년 6개월 뒤" 표시. 기한 5년은 하지 않음(#301 결정 유지), 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [#381, Closes #377] 목표 시나리오 기한을 1·2·3년(`years`)에서 **6~36개월**(`months`)로 바꿨다([결정](decisions/2026-10-29-goal-scenarios.md) "11-10 기한 연·월 단위", policies §7-1·7-2·7-3·7-6·7-7, PRD F7). 적금은 기한 이하 만기 중 가장 긴 것을 쓰고(함께 볼 상품도 같은 만기), 만기 뒤 남은 달은 적금 몫을 CMA 예시 금리로 따로 계산한다(가정 한 줄 추가). 경로는 묶음 ⌈개월 ÷ 12⌉개의 앞 기한 개월이라 12·24·36개월 결과는 같다. 계약: 요청 `months`(6~36), 결과·저장본·저장 목록 `years` 삭제·`months`로 통일, `GoalScenarioProduct.termMonths`(nullable, 필수 칸). AI 입력에서 `years`를 빼고 적금 설명에 만기를 넣었다(프롬프트 v7 그대로). Flyway V35: `goal_scenarios.years` → `months`(× 12), `goal_scenario_ai_cache`도 키를 `months`로 바꾸고 기존 재사용 조합을 × 12로 옮겼다(`GoalScenarioMonthsMigrationTest`). `goal-scenarios.json` `afterMaturity`·`pathLength`·`minMonths`·`maxMonths`. 화면은 연·월 두 칸 입력과 "1년 6개월 뒤" 표시. 기한 5년은 하지 않음(#301 결정 유지), 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 
 ## 2026-11-09
 

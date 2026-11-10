@@ -1,13 +1,13 @@
 // 공통 틀: 상단 바(64px, 하위 탭 없음). 본문 최대 1344px(패딩 포함 1280px).
 // 로그인한 사용자와 체험 중인 손님은 로고를 누르면 홈(/home)으로 간다.
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LEGAL_BASE, fmtEffective, privacyHref, privacyNotice } from '@/lib/legal';
 import { useSession } from '@/auth/session';
 import { displayName } from '@/auth/types';
 import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
-import { Logo } from './Icons';
+import { Icon, Logo } from './Icons';
 import { ScrollTopButton } from './ScrollTopButton';
 import { LoginModalProvider, useLoginModal } from './LoginModal';
 
@@ -84,9 +84,24 @@ function SeedChip() {
 }
 
 function ProfileMenu() {
-  const { user } = useSession();
+  const { status, user, signOut } = useSession();
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // 설정 화면의 로그아웃과 같다: 서버 로그아웃 후 토큰을 지우고 첫 화면으로 간다.
+  // disabled 대신 aria-disabled로 막아 처리 중에도 포커스가 버튼에 남고 메뉴가 닫히지 않게 한다.
+  const logout = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+      navigate('/', { replace: true });
+    } finally {
+      setSigningOut(false);
+    }
+  };
   const box = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
@@ -122,9 +137,19 @@ function ProfileMenu() {
         </svg>
       </button>
       {open && <nav className="profile-links" id="profile-links" aria-label="프로필" onClick={() => setOpen(false)}>
-        <Link to="/mypage">마이페이지</Link>
-        <Link to="/mypage/settings">설정</Link>
-        <Link to="/support">고객지원</Link>
+        <Link to="/mypage"><Icon id="i-user" size={16} />마이페이지</Link>
+        <Link to="/mypage/settings"><Icon id="i-gear" size={16} />설정</Link>
+        <Link to="/support"><Icon id="i-help" size={16} />고객지원</Link>
+        {status === 'member' && <>
+          <hr />
+          <button type="button" className="profile-logout" aria-disabled={signingOut || undefined}
+            onClick={(event) => {
+              event.stopPropagation();
+              void logout();
+            }}>
+            <Icon id="i-logout" size={16} />{signingOut ? '로그아웃 중…' : '로그아웃'}
+          </button>
+        </>}
       </nav>}
     </div>
   );

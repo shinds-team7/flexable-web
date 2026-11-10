@@ -53,6 +53,26 @@ export function IconSprite() {
         <circle cx="12" cy="12.5" r="1.9" fill="none" stroke="currentColor" strokeWidth="1.4" />
         <path d="M5.7 7l4.6-2.5M5.7 9l4.6 2.5" stroke="currentColor" strokeWidth="1.4" />
       </symbol>
+      {/* 프로필 메뉴: 마이페이지·설정·고객지원·로그아웃 */}
+      <symbol id="i-user" viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="8" cy="6.6" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M4.2 12.6c.9-1.6 2.2-2.4 3.8-2.4s2.9.8 3.8 2.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </symbol>
+      <symbol id="i-gear" viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="4.3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M12.3 8h2.1M3.7 8H1.6M8 3.7V1.6M8 12.3v2.1M11.04 4.96l1.49-1.49M4.96 11.04l-1.49 1.49M4.96 4.96L3.47 3.47M11.04 11.04l1.49 1.49" stroke="currentColor" strokeWidth="2.2" />
+      </symbol>
+      <symbol id="i-help" viewBox="0 0 16 16">
+        <circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M6.2 6.2a1.9 1.9 0 1 1 2.6 1.75c-.5.2-.8.6-.8 1.1v.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M8 11.4v.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </symbol>
+      <symbol id="i-logout" viewBox="0 0 16 16">
+        <path d="M6.5 2.5H4A1.5 1.5 0 0 0 2.5 4v8A1.5 1.5 0 0 0 4 13.5h2.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M7 8h6.5M10.8 5.2L13.5 8l-2.7 2.8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </symbol>
       <symbol id="i-kakao" viewBox="0 0 18 18">
         <path d="M9 2C4.6 2 1 4.8 1 8.2c0 2.2 1.5 4.1 3.7 5.2l-.9 3.3c-.1.3.3.5.5.3l3.9-2.6c.3 0 .5.1.8.1 4.4 0 8-2.8 8-6.2S13.4 2 9 2z" fill="#000" />
       </symbol>

@@ -4,6 +4,10 @@
 
 형식: `- [#PR] 무엇이 바뀌었나 — 영향: 프론트·백엔드·앱·시연·전체`
 
+## 2026-11-10
+
+- [#PR, Closes #377] 목표 시나리오 기한을 1·2·3년(`years`)에서 **6~36개월**(`months`)로 바꿨다([결정](decisions/2026-10-29-goal-scenarios.md) "11-10 기한 연·월 단위", policies §7-1·7-2·7-3·7-6·7-7, PRD F7). 적금은 기한 이하 만기 중 가장 긴 것을 쓰고(함께 볼 상품도 같은 만기), 만기 뒤 남은 달은 적금 몫을 CMA 예시 금리로 따로 계산한다(가정 한 줄 추가). 경로는 묶음 ⌈개월 ÷ 12⌉개의 앞 기한 개월이라 12·24·36개월 결과는 같다. 계약: 요청 `months`(6~36), 결과·저장본·저장 목록 `years` 삭제·`months`로 통일, `GoalScenarioProduct.termMonths`(nullable, 필수 칸). AI 입력에서 `years`를 빼고 적금 설명에 만기를 넣었다(프롬프트 v7 그대로). Flyway V35: `goal_scenarios.years` → `months`(× 12), `goal_scenario_ai_cache`는 비우고 키를 `months`로. `goal-scenarios.json` `afterMaturity`·`pathLength`·`minMonths`·`maxMonths`. 화면은 연·월 두 칸 입력과 "1년 6개월 뒤" 표시. 기한 5년은 하지 않음(#301 결정 유지), 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+
 ## 2026-11-09
 
 - [#374] 배치고사 채점을 5거래일 방향에서 **공시 직후(반응 창: 기준 봉 전날 종가 → 다음 거래일 종가, 원 가격)** 방향으로 바꾸고, 출제를 "룰셋에서 경향이 뚜렷한 유형 6 + 나머지 4"에서 **반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자) 4 + 유형 상관없이 6**으로 바꿨다([결정](decisions/2026-11-09-placement-reaction-window.md), 근거 [공시 반응 측정 v2](reference/disclosure-reaction-v2-2026-11-09.md), 대회 결정 2-2·2-3 "변경 기록 11-09 반응 창", 사용자 결정). 결과에 공시 직후와 그다음 주(다음 거래일 종가 → 5번째 후속 거래일 종가) 두 숫자를 보인다. 묶음마다 공시 AI 요약·주요 내용이 있는 공시를 먼저 고르고, AI 요약 작업은 근거 유형 공시를 먼저 한다([AI 요약 결정](decisions/2026-11-09-placement-ai-summary.md) 4 변경). 배포 전에 시작한 배치고사는 시작할 때의 5거래일 기준으로 채점한다. 계약 `VirtualContestPlacement.basis`(풀던 배치고사를 다시 열면 그 기준의 기간을 안내) 추가, `VirtualContestPlacementResult.items[]`에 `basis`(`REACTION`·`FIVE_DAY`)·`reactionReturnRate`·`nextWeekReturnRate` 추가, `subsequentReturnRate` nullable. 그다음 주는 다음 거래일 종가 체결을 가정한 비교라고 결과·「공시 읽는 법」에 밝힌다. PRD·계약의 대회 "구현 전"을 구현됨(보상 지급만 후속)으로 고쳤다. policies §8-8 배치고사 행·채점 표, §8-6 경향 쓰임, `virtual-contest.json` `placement`(`composition.evidence`·`evidenceTypes`·반응 창 채점 예시). 「공시 읽는 법」에 유형과 상관없이 확인할 것·두 구간 설명을 더했다(금지 표현 검사 그대로). 가상 시뮬레이션의 5거래일 문구·룰셋·판 기준 7·9는 그대로, 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드

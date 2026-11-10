@@ -5,7 +5,8 @@ import { api } from '@/lib/api';
 
 export type ScenarioProductType = 'SAVINGS' | 'CMA' | 'KR_INDEX_ETF' | 'US_INDEX_ETF' | 'KOSPI_TOP5';
 
-export type GoalScenarioRequest = { name: string; targetAmount: number; years: 1 | 2 | 3 };
+/** months는 기한(개월, 6~36). 화면은 연·월로 받아 개월로 보낸다(policies §7-1). */
+export type GoalScenarioRequest = { name: string; targetAmount: number; months: number };
 
 export type ScenarioProduct = {
   type: ScenarioProductType;
@@ -14,6 +15,8 @@ export type ScenarioProduct = {
   isSample: boolean;
   /** 함께 볼 상품. 금액 계산에는 쓰지 않는다(policies §7-2). */
   alternatives: { code: string; name: string; company: string | null; ratePercent: string | null }[];
+  /** 적금 만기 개월(적금만). 기한보다 짧으면 만기 뒤 남은 달은 CMA 예시 금리로 계산했다(policies §7-2). */
+  termMonths: number | null;
 };
 
 export type ScenarioOutcome = {
@@ -42,7 +45,6 @@ export type GoalScenarioResult = {
   resultId: string;
   name: string;
   targetAmount: number;
-  years: number;
   months: number;
   proposer: 'AI' | 'DEMO';
   fallbackReason: ScenarioFallbackReason | null;
@@ -79,7 +81,7 @@ export type SavedScenarioSummary = {
   savedAt: string;
   name: string;
   targetAmount: number;
-  years: number;
+  months: number;
   asOf: string;
   title: string;
   reachable: boolean;
@@ -94,7 +96,6 @@ export type SavedGoalScenario = {
   savedAt: string;
   name: string;
   targetAmount: number;
-  years: number;
   months: number;
   proposer: 'AI' | 'DEMO';
   asOf: string;
@@ -132,10 +133,17 @@ export const TYPE_LABEL: Record<ScenarioProductType, string> = {
 };
 
 /** 입력을 빨리 채우는 예시(결과는 서버가 계산한다). */
-export const GOAL_PRESETS: { id: string; chip: string; name: string; amount: number; years: 1 | 2 | 3 }[] = [
-  { id: 'y1', chip: '1년 · 1,500만 원', name: '1년 안에 목돈 만들기', amount: 15_000_000, years: 1 },
-  { id: 'y2', chip: '2년 · 3,000만 원', name: '2년 뒤 전세 보증금 보태기', amount: 30_000_000, years: 2 },
-  { id: 'y3', chip: '3년 · 5,000만 원', name: '3년 뒤 5,000만 원', amount: 50_000_000, years: 3 },
+export const GOAL_PRESETS: { id: string; chip: string; name: string; amount: number; months: number }[] = [
+  { id: 'y1', chip: '1년 · 1,500만 원', name: '1년 안에 목돈 만들기', amount: 15_000_000, months: 12 },
+  { id: 'y2', chip: '2년 · 3,000만 원', name: '2년 뒤 전세 보증금 보태기', amount: 30_000_000, months: 24 },
+  { id: 'y3', chip: '3년 · 5,000만 원', name: '3년 뒤 5,000만 원', amount: 50_000_000, months: 36 },
 ];
 
-export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000 };
+export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000, monthsMin: 6, monthsMax: 36 };
+
+/** 개월 수를 "6개월"·"1년 6개월"·"2년"으로. */
+export function periodText(months: number) {
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return [y ? `${y}년` : '', m ? `${m}개월` : ''].filter(Boolean).join(' ') || '0개월';
+}

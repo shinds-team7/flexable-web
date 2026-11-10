@@ -1905,7 +1905,8 @@ export interface paths {
          *     - 로그인 토큰이 있으면 회원으로 보고 AI(OpenAI) 조합을 준다(하루 횟수·서비스 상한). 회원이 받은 AI 조합(유형·비중·문구)은 목표 금액·기한·자료 기준일과 함께 그 회원의 재사용용으로 DB에 두고, 같은 조건이면 다시 부르지 않는다(aiReused). 7일 뒤 삭제, 탈퇴하면 즉시 삭제(§7-6). 토큰이 없으면 데모 조합(GUEST). 토큰이 잘못됐거나 탈퇴한 회원이면 401.
          *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
          *     - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
-         *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 적금 후보가 없으면 field = SAVINGS.
+         *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
+         *     - 기한은 개월 수(6~36)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
          */
         post: {
             parameters: {
@@ -1921,8 +1922,8 @@ export interface paths {
                         name: string;
                         /** Format: int64 */
                         targetAmount: number;
-                        /** @enum {integer} */
-                        years: 1 | 2 | 3;
+                        /** @description 기한(개월). 화면은 연·월로 받아 개월로 보낸다 */
+                        months: number;
                     };
                 };
             };
@@ -4174,6 +4175,8 @@ export interface components {
             ratePercent: string | null;
             /** @description CMA 예시 금리면 true */
             isSample: boolean;
+            /** @description 적금 만기 개월(기한 이하, 함께 볼 상품도 같은 만기). 기한보다 짧으면 만기 뒤 남은 달은 CMA 예시 금리로 계산했다. 적금이 아니면 null */
+            termMonths: number | null;
             /** @description 함께 볼 상품(policies §7-2). 금액 계산에 쓰지 않는다. 적금·지수 ETF만 있고 CMA·KOSPI_TOP5와 #309 이전 저장본은 빈 배열 */
             alternatives: {
                 /** @description 종목 코드 또는 적금 상품 id */
@@ -4191,8 +4194,7 @@ export interface components {
             name: string;
             /** Format: int64 */
             targetAmount: number;
-            years: number;
-            /** @description years × 12 */
+            /** @description 기한(개월, 6~36) */
             months: number;
             /**
              * @description DEMO면 화면에 "AI 연결 전 예시 조합" 표시
@@ -4244,7 +4246,8 @@ export interface components {
             name: string;
             /** Format: int64 */
             targetAmount: number;
-            years: number;
+            /** @description 기한(개월) */
+            months: number;
             /**
              * Format: date
              * @description 저장한 결과의 자료 기준일
@@ -4267,7 +4270,7 @@ export interface components {
             name: string;
             /** Format: int64 */
             targetAmount: number;
-            years: number;
+            /** @description 기한(개월) */
             months: number;
             /** @enum {string} */
             proposer: "AI" | "DEMO";

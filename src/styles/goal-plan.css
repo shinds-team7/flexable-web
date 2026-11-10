@@ -17,6 +17,7 @@
 .gp-field label{display:block;font-size:13px;font-weight:600;color:var(--color-text-secondary);margin-bottom:calc(var(--density-gap)/4)}
 .gp-field input,.gp-field select{width:100%;height:var(--density-control);border:1px solid var(--color-border-strong);border-radius:var(--radius-soft-sm);padding:0 calc(var(--density-gap)*7/12);font:inherit;font-size:var(--font-size-body);background:var(--color-surface);color:var(--color-text-primary)}
 .gp-field input:focus-visible,.gp-field select:focus-visible,.gp-chip:focus-visible,.gp-plan:focus-visible,.gp-primary:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+.gp-period{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--density-gap)/3)}
 .gp-unit{position:relative}
 .gp-unit input{padding-right:calc(var(--density-gap)*1.5)}
 .gp-unit span{position:absolute;right:calc(var(--density-gap)*7/12);top:50%;transform:translateY(-50%);color:var(--color-text-tertiary)}

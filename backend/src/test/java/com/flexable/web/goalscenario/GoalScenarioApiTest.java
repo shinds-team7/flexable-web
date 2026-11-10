@@ -61,7 +61,7 @@ import com.jayway.jsonpath.JsonPath;
 class GoalScenarioApiTest {
 
 	private static final OpenApiInteractionValidator VALIDATOR = validator();
-	private static final String BODY = "{\"name\":\"%s\",\"targetAmount\":%d,\"years\":%d}";
+	private static final String BODY = "{\"name\":\"%s\",\"targetAmount\":%d,\"months\":%d}";
 
 	@Autowired
 	MockMvc mvc;
@@ -203,7 +203,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 데모_조합으로_세_시나리오를_계산한다() throws Exception {
 		long started = System.nanoTime();
-		String body = call(BODY.formatted("  1년 안에 목돈  ", 15_000_000, 1), 200);
+		String body = call(BODY.formatted("  1년 안에 목돈  ", 15_000_000, 12), 200);
 		long elapsedMs = (System.nanoTime() - started) / 1_000_000;
 		assertThat(elapsedMs).as("계산 시간(ms)").isLessThan(10_000);
 
@@ -235,7 +235,7 @@ class GoalScenarioApiTest {
 
 	@Test
 	void 적금과_지수_ETF는_다음_순위를_함께_볼_상품으로_보여_준다() throws Exception {
-		String body = call(BODY.formatted("목돈", 15_000_000, 1), 200);
+		String body = call(BODY.formatted("목돈", 15_000_000, 12), 200);
 		// 데모 조합이어도 서버가 고른 상품은 같다. 적금은 금리 순 최대 2개(넷째는 빠짐)
 		assertThat((List<String>) JsonPath.read(body, "$.products[0].alternatives[*].name")).containsExactly("둘째 적금", "셋째 적금");
 		assertThat((String) JsonPath.read(body, "$.products[0].alternatives[0].company")).isEqualTo("함께은행");
@@ -264,7 +264,7 @@ class GoalScenarioApiTest {
 			return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "둘째 적금의 금리는 연 3.2%예요. 넷째 적금의 금리는 연 2.8%예요.", Map.of("SAVINGS", 100)),
 					new Proposals.Draft("b", "반반", "적금과 지수 ETF", "TIGER 200의 지난 60개월 최대 하락은 " + drawdown + "%예요.", Map.of("SAVINGS", 50, "KR_INDEX_ETF", 50)), THIRD);
 		});
-		String body = member(BODY.formatted("목돈", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("목돈", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanation")).isEqualTo("둘째 적금의 금리는 연 3.2%예요.");
 		assertThat((String) JsonPath.read(body, "$.scenarios[1].explanation")).contains("TIGER 200의 지난 60개월 최대 하락은");
@@ -274,7 +274,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 함께_볼_상품이_없는_이전_저장본은_빈_목록으로_읽는다() throws Exception {
 		String token = signup();
-		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 12), 200), "$.resultId");
 		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
 		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
 		String old = JsonPath.parse(snapshot).delete("$.products[*].alternatives").delete("$.alternatives").jsonString();
@@ -286,8 +286,8 @@ class GoalScenarioApiTest {
 
 	@Test
 	void 같은_입력이면_같은_응답이다() throws Exception {
-		String a = call(BODY.formatted("목돈", 20_000_000, 1), 200);
-		String b = call(BODY.formatted("목돈", 20_000_000, 1), 200);
+		String a = call(BODY.formatted("목돈", 20_000_000, 12), 200);
+		String b = call(BODY.formatted("목돈", 20_000_000, 12), 200);
 		// 저장용 resultId만 매번 다르다
 		assertThat((String) JsonPath.read(a, "$.resultId")).isNotEqualTo(JsonPath.read(b, "$.resultId"));
 		String id = "\"resultId\":\"[^\"]+\"";
@@ -295,16 +295,89 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
-	void 입력이_범위를_벗어나면_400() throws Exception {
-		call(BODY.formatted("목돈", 15_000_000, 4), 400);
-		call(BODY.formatted("목돈", 999_999, 1), 400);
-		call(BODY.formatted("   ", 15_000_000, 1), 400);
-		call("{\"name\":\"목돈\",\"years\":1}", 400);
+	void 기한과_같은_만기가_없으면_더_짧은_만기의_적금을_쓰고_남은_달은_CMA로_계산한다() throws Exception {
+		String body = call(BODY.formatted("목돈", 15_500_000, 18), 200);
+		assertThat((Integer) JsonPath.read(body, "$.months")).isEqualTo(18);
+		assertThat((String) JsonPath.read(body, "$.products[0].items[0].name")).isEqualTo("누구나 적금");
+		assertThat((Integer) JsonPath.read(body, "$.products[0].termMonths")).isEqualTo(12);
+		assertThat((List<String>) JsonPath.read(body, "$.products[0].alternatives[*].name")).containsExactly("둘째 적금", "셋째 적금");
+		assertThat((Object) JsonPath.read(body, "$.products[1].termMonths")).isNull();
+		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).contains(GoalScenarioService.AFTER_MATURITY);
+		// 적금 70·CMA 30(확정형): 적금 몫은 12개월 만기 뒤 6개월을 CMA로, 원래 CMA 몫은 18개월 CMA로 따로 계산해 더한다
+		long monthly = ((Number) JsonPath.read(body, "$.scenarios[0].monthly")).longValue();
+		long fixed = ((Number) JsonPath.read(body, "$.scenarios[0].outcome.fixedAmount")).longValue();
+		long savingsPart = GoalScenarioService.savingsFinal(monthly * 70 / 100, 18, 12, new BigDecimal("3.50"), false);
+		long cmaPart = ScenarioMath.cma(monthly * 30 / 100, 18, GoalScenarioService.CMA_RATE).finalAmount();
+		assertThat(fixed).isEqualTo(savingsPart + cmaPart);
+		assertThat(fixed).isGreaterThanOrEqualTo(15_500_000);
+		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].paid")).longValue()).isEqualTo(monthly * 18);
 	}
 
 	@Test
-	void 맞는_적금이_없으면_503() throws Exception {
-		String body = call(BODY.formatted("목돈", 30_000_000, 2), 503);
+	void 기한과_만기가_같으면_만기_뒤_가정을_붙이지_않는다() throws Exception {
+		String body = call(BODY.formatted("목돈", 15_000_000, 12), 200);
+		assertThat((Integer) JsonPath.read(body, "$.products[0].termMonths")).isEqualTo(12);
+		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).doesNotContain(GoalScenarioService.AFTER_MATURITY);
+	}
+
+	@Test
+	void AI에게_기한_개월과_적금_만기를_보낸다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenAnswer(call -> {
+			ScenarioProposer.Input input = call.getArgument(0);
+			assertThat(input.months()).isEqualTo(18);
+			assertThat(input.stats().getFirst().description()).contains("만기 12개월, 만기 뒤 남은 6개월은 CMA 예시 금리로 계산");
+			return GOOD;
+		});
+		String body = member(BODY.formatted("목돈", 15_600_000, 18), signup(), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+		verify(proposer, times(1)).propose(any());
+	}
+
+	@Test
+	void 기한이_다르면_AI_조합을_재사용하지_않는다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(GOOD);
+		String token = signup();
+		member(BODY.formatted("목돈", 16_200_000, 12), token, 200);
+		String other = member(BODY.formatted("목돈", 16_200_000, 18), token, 200);
+		assertThat((Boolean) JsonPath.read(other, "$.aiReused")).isFalse();
+		String again = member(BODY.formatted("목돈", 16_200_000, 18), token, 200);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		verify(proposer, times(2)).propose(any());
+	}
+
+	@Test
+	void 적금_만기가_없는_이전_저장본은_만기를_기한으로_읽는다() throws Exception {
+		String token = signup();
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 12), 200), "$.resultId");
+		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
+		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
+		String old = JsonPath.parse(snapshot).delete("$.products[*].termMonths").jsonString();
+		assertThat(old).doesNotContain("termMonths");
+		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
+		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat((Integer) JsonPath.read(saved, "$.months")).isEqualTo(12);
+		assertThat((Integer) JsonPath.read(saved, "$.products[0].termMonths")).isEqualTo(12);
+		assertThat((Object) JsonPath.read(saved, "$.products[1].termMonths")).isNull();
+		String list = send(auth(get("/api/v1/me/goal/scenarios"), token), 200);
+		assertThat((Integer) JsonPath.read(list, "$.items[0].months")).isEqualTo(12);
+	}
+
+	@Test
+	void 입력이_범위를_벗어나면_400() throws Exception {
+		call(BODY.formatted("목돈", 15_000_000, 37), 400);
+		call(BODY.formatted("목돈", 15_000_000, 5), 400);
+		call(BODY.formatted("목돈", 999_999, 12), 400);
+		call(BODY.formatted("   ", 15_000_000, 12), 400);
+		// 예전 형식(years)만 보내면 기한이 없어 400
+		call("{\"name\":\"목돈\",\"targetAmount\":15000000,\"years\":1}", 400);
+	}
+
+	@Test
+	void 기한_이하_만기의_적금이_없으면_503() throws Exception {
+		// 테스트 적금은 모두 만기 12개월이라 6개월 기한에는 넣을 적금이 없다
+		String body = call(BODY.formatted("목돈", 3_000_000, 6), 503);
 		assertThat((String) JsonPath.read(body, "$.field")).isEqualTo("SAVINGS");
 	}
 
@@ -324,7 +397,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 비회원은_AI_대신_데모() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
-		String body = call(BODY.formatted("목돈", 15_000_000, 1), 200);
+		String body = call(BODY.formatted("목돈", 15_000_000, 12), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("DEMO");
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("GUEST");
 		assertThat((Object) JsonPath.read(body, "$.aiUsage")).isNull();
@@ -337,7 +410,7 @@ class GoalScenarioApiTest {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(GOOD);
 		String token = signup();
-		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), token, 200);
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 12), token, 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 		assertThat((Object) JsonPath.read(body, "$.fallbackReason")).isNull();
 		assertThat((List<String>) JsonPath.read(body, "$.scenarios[*].id")).containsExactly("a", "b", "c");
@@ -359,10 +432,10 @@ class GoalScenarioApiTest {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(GOOD);
 		String a = signup();
-		String first = member(BODY.formatted("목돈", 16_000_000, 1), a, 200);
+		String first = member(BODY.formatted("목돈", 16_000_000, 12), a, 200);
 		assertThat((Boolean) JsonPath.read(first, "$.aiReused")).isFalse();
 		assertThat((Integer) JsonPath.read(first, "$.aiUsage.remainingToday")).isEqualTo(2);
-		String again = member(BODY.formatted("다른 이름", 16_000_000, 1), a, 200);
+		String again = member(BODY.formatted("다른 이름", 16_000_000, 12), a, 200);
 		assertThat((String) JsonPath.read(again, "$.proposer")).isEqualTo("AI");
 		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
 		assertThat((Integer) JsonPath.read(again, "$.aiUsage.remainingToday")).isEqualTo(2);
@@ -373,8 +446,8 @@ class GoalScenarioApiTest {
 	void 다른_회원은_같은_조건이어도_새로_부르고_차감한다() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(GOOD);
-		member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
-		String other = member(BODY.formatted("목돈", 16_500_000, 1), signup(), 200);
+		member(BODY.formatted("목돈", 16_500_000, 12), signup(), 200);
+		String other = member(BODY.formatted("목돈", 16_500_000, 12), signup(), 200);
 		assertThat((Boolean) JsonPath.read(other, "$.aiReused")).isFalse();
 		assertThat((Integer) JsonPath.read(other, "$.aiUsage.remainingToday")).isEqualTo(2);
 		verify(proposer, times(2)).propose(any());
@@ -385,12 +458,12 @@ class GoalScenarioApiTest {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(BAD);
 		String token = signup();
-		String rejected = member(BODY.formatted("목돈", 17_000_000, 1), token, 200);
+		String rejected = member(BODY.formatted("목돈", 17_000_000, 12), token, 200);
 		assertThat((String) JsonPath.read(rejected, "$.proposer")).isEqualTo("DEMO");
 		assertThat((String) JsonPath.read(rejected, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 
 		when(proposer.propose(any())).thenThrow(new ScenarioProposer.Failed("시간 초과"));
-		String failed = member(BODY.formatted("목돈", 17_000_000, 1), token, 200);
+		String failed = member(BODY.formatted("목돈", 17_000_000, 12), token, 200);
 		assertThat((String) JsonPath.read(failed, "$.fallbackReason")).isEqualTo("AI_FAILED");
 		// 결과를 못 받았으니 회원 횟수는 되돌린다(서비스 전체 횟수는 그대로)
 		assertThat((Integer) JsonPath.read(rejected, "$.aiUsage.remainingToday")).isEqualTo(3);
@@ -405,7 +478,7 @@ class GoalScenarioApiTest {
 						"1년 안에 1,500만 원을 모으도록 적금 100%로 정했어요. 수익이 보장되지 않는 상품은 넣지 않았어요.", Map.of("SAVINGS", 100)),
 				new Proposals.Draft("b", "반반", "적금과 S&P 500 지수",
 						"적금 50%와 미국 S&P 500 지수 50%로 나눴어요. 이익에는 15.4% 세금이 붙어요.", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD));
-		String body = member(BODY.formatted("목돈", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("목돈", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 	}
 
@@ -416,7 +489,7 @@ class GoalScenarioApiTest {
 		when(proposer.propose(any())).thenReturn(List.of(
 				new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
 				new Proposals.Draft("b", "반반", "적금과 지수 ETF", "연 7% 수익을 노려 반씩 나눠요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD));
-		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation").doesNotContain("연 7%").doesNotContain("비밀 목표");
 	}
@@ -431,7 +504,7 @@ class GoalScenarioApiTest {
 			return List.of(new Proposals.Draft("a", "저축만", "적금 위주", "적금으로 모아요", Map.of("SAVINGS", 100)),
 					new Proposals.Draft("b", "반반", "적금과 지수 ETF", "지난 60개월 최대 하락 " + drawdown + "%를 고려했어요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD);
 		});
-		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 	}
 
@@ -443,7 +516,7 @@ class GoalScenarioApiTest {
 		when(proposer.propose(any())).thenReturn(List.of(
 				new Proposals.Draft("a", "저축만", "적금 위주", "다른 칸의 해설이에요", Map.of("SAVINGS", 100)),
 				new Proposals.Draft("b", "반반", "요약 문구예요", "연 7% 수익을 노려요", Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD));
-		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_REJECTED");
 		assertThat(output).contains("goal scenario AI rejected: TEXT_NUMBER #2.explanation \"연 7% 수익을 노려요\"")
 			.doesNotContain("다른 칸의 해설이에요").doesNotContain("요약 문구예요").doesNotContain("비밀 목표");
@@ -459,7 +532,7 @@ class GoalScenarioApiTest {
 	void 해설의_걸린_문장만_지우고_AI_조합을_유지한다(CapturedOutput output) throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(oneBadSentence());
-		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
 		assertThat((String) JsonPath.read(body, "$.scenarios[1].explanation")).isEqualTo("적금으로 바닥을 받쳐요.\n\n기한이 다가오면 줄여요.");
 		assertThat(output).contains("goal scenario AI sentence removed: TEXT_NUMBER #2.explanation").doesNotContain("연 7%");
@@ -471,7 +544,7 @@ class GoalScenarioApiTest {
 		when(aiProps.logRejected()).thenReturn(true);
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(oneBadSentence());
-		member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		member(BODY.formatted("비밀 목표", 15_000_000, 12), signup(), 200);
 		assertThat(output).contains("goal scenario AI sentence removed: TEXT_NUMBER #2.explanation \"연 7% 수익을 노려요.\"")
 			.doesNotContain("적금으로 바닥을 받쳐요").doesNotContain("비밀 목표");
 	}
@@ -481,7 +554,7 @@ class GoalScenarioApiTest {
 	void AI_호출_실패는_원인_분류만_로그에_남긴다(CapturedOutput output) throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenThrow(new ScenarioProposer.Failed("TRUNCATED"));
-		String body = member(BODY.formatted("비밀 목표", 15_000_000, 1), signup(), 200);
+		String body = member(BODY.formatted("비밀 목표", 15_000_000, 12), signup(), 200);
 		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_FAILED");
 		assertThat(output).contains("goal scenario AI failed: TRUNCATED").doesNotContain("비밀 목표");
 	}
@@ -492,9 +565,9 @@ class GoalScenarioApiTest {
 		when(proposer.propose(any())).thenReturn(GOOD);
 		String token = signup();
 		for (int i = 0; i < 3; i++) {
-			member(BODY.formatted("목돈", 18_000_000 + i * 1_000_000L, 1), token, 200);
+			member(BODY.formatted("목돈", 18_000_000 + i * 1_000_000L, 12), token, 200);
 		}
-		String over = member(BODY.formatted("목돈", 25_000_000, 1), token, 200);
+		String over = member(BODY.formatted("목돈", 25_000_000, 12), token, 200);
 		assertThat((String) JsonPath.read(over, "$.fallbackReason")).isEqualTo("LIMIT");
 		assertThat((Integer) JsonPath.read(over, "$.aiUsage.remainingToday")).isZero();
 		verify(proposer, times(3)).propose(any());
@@ -509,7 +582,7 @@ class GoalScenarioApiTest {
 		jdbc.update("DELETE FROM goal_scenario_ai_daily WHERE usage_date = ?", today);
 		jdbc.update("INSERT INTO goal_scenario_ai_daily (usage_date, count) VALUES (?, 300)", today);
 		try {
-			String capped = member(BODY.formatted("목돈", 26_000_000, 1), token, 200);
+			String capped = member(BODY.formatted("목돈", 26_000_000, 12), token, 200);
 			assertThat((String) JsonPath.read(capped, "$.fallbackReason")).isEqualTo("DAILY_CAP");
 			assertThat((Integer) JsonPath.read(capped, "$.aiUsage.remainingToday")).isEqualTo(3);
 			verify(proposer, times(0)).propose(any());
@@ -522,7 +595,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 회원은_본_결과를_그대로_저장하고_지울_수_있다() throws Exception {
 		String token = signup();
-		String result = call(BODY.formatted("여행 자금", 15_000_000, 1), 200);
+		String result = call(BODY.formatted("여행 자금", 15_000_000, 12), 200);
 		String resultId = JsonPath.read(result, "$.resultId");
 		String saved = save(token, resultId, "spread", 201);
 		assertThat((String) JsonPath.read(saved, "$.name")).isEqualTo("여행 자금");
@@ -551,7 +624,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 저장하면_고른_플랜과_나머지_플랜을_모두_그대로_돌려준다() throws Exception {
 		String token = signup();
-		String result = call(BODY.formatted("여행 자금", 15_000_000, 1), 200);
+		String result = call(BODY.formatted("여행 자금", 15_000_000, 12), 200);
 		String saved = save(token, JsonPath.read(result, "$.resultId"), "spread", 201);
 		assertThat((String) JsonPath.read(saved, "$.scenario.id")).isEqualTo("spread");
 		assertThat((List<String>) JsonPath.read(saved, "$.alternatives[*].id")).containsExactly("steady", "bold");
@@ -567,12 +640,12 @@ class GoalScenarioApiTest {
 	@Test
 	void 플랜_하나만_저장하던_저장본은_나머지_플랜이_빈_목록이다() throws Exception {
 		String token = signup();
-		String result = call(BODY.formatted("여행 자금", 15_000_000, 1), 200);
+		String result = call(BODY.formatted("여행 자금", 15_000_000, 12), 200);
 		long id = ((Number) JsonPath.read(save(token, JsonPath.read(result, "$.resultId"), "spread", 201), "$.id")).longValue();
 		SavedScenario row = savedScenarios.findById(id).orElseThrow();
 		String legacy = JsonPath.parse(row.getSnapshot()).delete("$.alternatives").jsonString();
 		savedScenarios.delete(row);
-		long legacyId = savedScenarios.save(new SavedScenario(row.getUserId(), row.getSavedAt(), row.getName(), row.getTargetAmount(), row.getYears(), legacy)).getId();
+		long legacyId = savedScenarios.save(new SavedScenario(row.getUserId(), row.getSavedAt(), row.getName(), row.getTargetAmount(), row.getMonths(), legacy)).getId();
 
 		String body = send(auth(get("/api/v1/me/goal/scenarios/" + legacyId), token), 200);
 		assertThat((String) JsonPath.read(body, "$.scenario.id")).isEqualTo("spread");
@@ -582,7 +655,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 다섯_개까지만_저장한다() throws Exception {
 		String token = signup();
-		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 12), 200), "$.resultId");
 		for (int i = 0; i < 5; i++) {
 			save(token, resultId, i % 2 == 0 ? "steady" : "bold", 201);
 		}
@@ -597,7 +670,7 @@ class GoalScenarioApiTest {
 		String token = signup();
 		String expired = save(token, "no-such-result", "spread", 409);
 		assertThat((String) JsonPath.read(expired, "$.code")).isEqualTo("GOAL_SCENARIO_EXPIRED");
-		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 12), 200), "$.resultId");
 		save(token, resultId, "nope", 400);
 		save(token, "", "spread", 400);
 		send(auth(get("/api/v1/me/goal/scenarios/999999"), token), 404);
@@ -606,7 +679,7 @@ class GoalScenarioApiTest {
 	@Test
 	void 탈퇴하면_저장한_시나리오도_지운다() throws Exception {
 		String token = signup();
-		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 1), 200), "$.resultId");
+		String resultId = JsonPath.read(call(BODY.formatted("목돈", 15_000_000, 12), 200), "$.resultId");
 		long id = ((Number) JsonPath.read(save(token, resultId, "steady", 201), "$.id")).longValue();
 		int status = mvc.perform(auth(delete("/api/v1/me"), token).contentType(MediaType.APPLICATION_JSON)
 			.content("{\"password\":\"password1\",\"confirm\":\"탈퇴\"}")).andReturn().getResponse().getStatus();
@@ -621,7 +694,7 @@ class GoalScenarioApiTest {
 		int status = mvc.perform(auth(delete("/api/v1/me"), token).contentType(MediaType.APPLICATION_JSON)
 			.content("{\"password\":\"password1\",\"confirm\":\"탈퇴\"}")).andReturn().getResponse().getStatus();
 		assertThat(status).isEqualTo(204);
-		member(BODY.formatted("목돈", 15_000_000, 1), token, 401);
+		member(BODY.formatted("목돈", 15_000_000, 12), token, 401);
 		verify(proposer, times(0)).propose(any());
 	}
 }

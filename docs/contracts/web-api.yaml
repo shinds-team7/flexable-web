@@ -904,7 +904,8 @@ paths:
         - 로그인 토큰이 있으면 회원으로 보고 AI(OpenAI) 조합을 준다(하루 횟수·서비스 상한). 회원이 받은 AI 조합(유형·비중·문구)은 목표 금액·기한·자료 기준일과 함께 그 회원의 재사용용으로 DB에 두고, 같은 조건이면 다시 부르지 않는다(aiReused). 7일 뒤 삭제, 탈퇴하면 즉시 삭제(§7-6). 토큰이 없으면 데모 조합(GUEST). 토큰이 잘못됐거나 탈퇴한 회원이면 401.
         - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
         - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
-        - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 적금 후보가 없으면 field = SAVINGS.
+        - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
+        - 기한은 개월 수(6~36)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
       security: []
       requestBody:
         required: true
@@ -912,12 +913,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, targetAmount, years]
+              required: [name, targetAmount, months]
               additionalProperties: false
               properties:
                 name: { type: string, minLength: 1, maxLength: 20, description: '앞뒤 공백을 뺀 1~20자' }
                 targetAmount: { type: integer, format: int64, minimum: 1000000, maximum: 1000000000 }
-                years: { type: integer, enum: [1, 2, 3] }
+                months: { type: integer, minimum: 6, maximum: 36, description: '기한(개월). 화면은 연·월로 받아 개월로 보낸다' }
       responses:
         '200':
           description: 시나리오 3개
@@ -2266,7 +2267,7 @@ components:
       description: 'SAVINGS 적금, CMA, KR_INDEX_ETF 국내 대표 지수 ETF, US_INDEX_ETF 미국 대표 지수 ETF(국내 상장), KOSPI_TOP5 코스피 시가총액 상위 5종목 같은 비중. 고르는 규칙은 policies §7-2'
     GoalScenarioProduct:
       type: object
-      required: [type, items, ratePercent, isSample, alternatives]
+      required: [type, items, ratePercent, isSample, alternatives, termMonths]
       additionalProperties: false
       properties:
         type: { $ref: '#/components/schemas/GoalScenarioProductType' }
@@ -2284,6 +2285,7 @@ components:
               company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
         ratePercent: { type: string, nullable: true, description: '적금 기본금리·CMA 예시 금리(예: "3.50"). 투자 유형은 null' }
         isSample: { type: boolean, description: 'CMA 예시 금리면 true' }
+        termMonths: { type: integer, nullable: true, description: '적금 만기 개월(기한 이하, 함께 볼 상품도 같은 만기). 기한보다 짧으면 만기 뒤 남은 달은 CMA 예시 금리로 계산했다. 적금이 아니면 null' }
         alternatives:
           type: array
           maxItems: 2
@@ -2299,14 +2301,13 @@ components:
               ratePercent: { type: string, nullable: true, description: '적금 기본금리(예: "3.20"). 지수 ETF는 null' }
     GoalScenarioResult:
       type: object
-      required: [resultId, name, targetAmount, years, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
+      required: [resultId, name, targetAmount, months, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, reachShare, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
       additionalProperties: false
       properties:
         resultId: { type: string, description: '이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8)' }
         name: { type: string }
         targetAmount: { type: integer, format: int64 }
-        years: { type: integer }
-        months: { type: integer, description: 'years × 12' }
+        months: { type: integer, description: '기한(개월, 6~36)' }
         proposer: { type: string, enum: [AI, DEMO], description: 'DEMO면 화면에 "AI 연결 전 예시 조합" 표시' }
         fallbackReason: { type: string, nullable: true, enum: [AI_UNAVAILABLE, GUEST, LIMIT, DAILY_CAP, AI_FAILED, AI_REJECTED, null], description: 'proposer=DEMO일 때 이유(policies §7-6). AI_UNAVAILABLE 키 없음, GUEST 비회원, LIMIT 회원 하루 횟수 소진, DAILY_CAP 서비스 전체 하루 상한, AI_FAILED 호출 실패, AI_REJECTED 규칙 위반. AI면 null' }
         asOf: { type: string, format: date, description: '자료 기준일(수집된 마지막 거래일)' }
@@ -2339,14 +2340,14 @@ components:
         aiReused: { type: boolean, description: '같은 회원이 같은 목표 금액·기한·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false' }
     SavedGoalScenarioSummary:
       type: object
-      required: [id, savedAt, name, targetAmount, years, asOf, title, reachable, monthly, kind]
+      required: [id, savedAt, name, targetAmount, months, asOf, title, reachable, monthly, kind]
       additionalProperties: false
       properties:
         id: { type: integer, format: int64 }
         savedAt: { type: string, format: date-time }
         name: { type: string }
         targetAmount: { type: integer, format: int64 }
-        years: { type: integer }
+        months: { type: integer, description: '기한(개월)' }
         asOf: { type: string, format: date, description: '저장한 결과의 자료 기준일' }
         title: { type: string, description: '저장한 시나리오 제목' }
         reachable: { type: boolean }
@@ -2354,7 +2355,7 @@ components:
         kind: { type: string, nullable: true, enum: [FIXED, RANGE, null] }
     SavedGoalScenario:
       type: object
-      required: [id, savedAt, name, targetAmount, years, months, proposer, asOf, returnsFrom, returnsTo, paths, reachShare, products, scenario, alternatives, assumptions, notice, isSample]
+      required: [id, savedAt, name, targetAmount, months, proposer, asOf, returnsFrom, returnsTo, paths, reachShare, products, scenario, alternatives, assumptions, notice, isSample]
       additionalProperties: false
       description: '저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다'
       properties:
@@ -2362,8 +2363,7 @@ components:
         savedAt: { type: string, format: date-time }
         name: { type: string }
         targetAmount: { type: integer, format: int64 }
-        years: { type: integer }
-        months: { type: integer }
+        months: { type: integer, description: '기한(개월)' }
         proposer: { type: string, enum: [AI, DEMO] }
         asOf: { type: string, format: date }
         returnsFrom: { type: string }

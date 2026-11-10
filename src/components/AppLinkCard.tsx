@@ -8,7 +8,7 @@ import { ApiError, errorText } from '@/lib/api';
 import { fmtMonthDay, fmtMonthDayTime, won } from '@/lib/format';
 
 const PROVIDER: Record<string, string> = { email: '이메일', kakao: '카카오', google: 'Google' };
-const CHOICE: Record<SeedChoice, string> = { GOAL: '매달 저축할 돈만큼', ALL: '남은 돈 전부', MANUAL: '직접 입력한 금액', EXTRA: '바로 보낸 돈' };
+const CHOICE: Record<SeedChoice, string> = { GOAL: '매달 저축할 돈만큼', ALL: '남은 돈 전부', MANUAL: '직접 입력한 금액', EXTRA: '바로 보낸 돈', ADJUSTMENT: '총액 정정' };
 
 /** 서버 오류를 화면 문구로. 시도 제한이면 기다릴 시간을 덧붙인다. */
 function linkErrorText(e: unknown) {
@@ -183,7 +183,7 @@ function Linked({ link, refreshing, onRefresh }: { link: Extract<AppLink, { link
             <span className="k">마지막 반영</span>
             <span className="v num">
               {seed.lastEntry
-                ? `${fmtMonthDay(seed.lastEntry.cycleEnd)} ${seed.lastEntry.choice === 'EXTRA' ? '이동' : '정산'} · ${CHOICE[seed.lastEntry.choice] ?? seed.lastEntry.choice} · ${won(seed.lastEntry.amount)}원`
+                ? `${fmtMonthDay(seed.lastEntry.cycleEnd)} ${seed.lastEntry.choice === 'ADJUSTMENT' ? '정정' : seed.lastEntry.choice === 'EXTRA' ? '이동' : '정산'} · ${CHOICE[seed.lastEntry.choice] ?? seed.lastEntry.choice} · ${won(seed.lastEntry.amount)}원`
                 : '아직 반영한 적 없어요'}
             </span>
           </div>

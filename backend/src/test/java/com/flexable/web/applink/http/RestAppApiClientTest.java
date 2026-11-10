@@ -102,6 +102,22 @@ class RestAppApiClientTest {
 		throw new AssertionError("예외가 나야 합니다");
 	}
 
+	@Test
+	void readsSignedAdjustmentWithoutLosingTotalOrHistory() {
+		reply(200, """
+				{"total":10000,"base":500000,"monthlyGoal":300000,
+				 "lastEntry":{"cycleEnd":"2026-11-10","choice":"ADJUSTMENT","amount":-590000,"createdAt":"2026-11-10T12:00:00+09:00"},
+				 "updatedAt":"2026-11-10T12:00:00+09:00","startedOn":"2026-10-01",
+				 "entries":[{"cycleEnd":"2026-11-09","choice":"EXTRA","amount":100000,"totalAfter":600000,"createdAt":"2026-11-09T10:00:00+09:00"},
+				            {"cycleEnd":"2026-11-10","choice":"ADJUSTMENT","amount":-590000,"totalAfter":10000,"createdAt":"2026-11-10T12:00:00+09:00"}]}""");
+		AppSeedMoney seed = client().seedMoney(LINK_ID);
+		assertThat(seed.total()).isEqualTo(10000L);
+		assertThat(seed.lastEntry().choice()).isEqualTo("ADJUSTMENT");
+		assertThat(seed.lastEntry().amount()).isEqualTo(-590000L);
+		assertThat(seed.entries()).extracting(Entry::choice).containsExactly("EXTRA", "ADJUSTMENT");
+		assertThat(seed.entries()).extracting(Entry::totalAfter).containsExactly(600000L, 10000L);
+	}
+
 	/** 앱 #225: EXTRA는 cycleEnd가 옮긴 날짜라 같은 날 여러 번 올 수 있다. startedOn이 null이어도 기록은 그대로 읽는다. */
 	@Test
 	void readsExtraEntriesWithSameDateAndNullStartedOn() {

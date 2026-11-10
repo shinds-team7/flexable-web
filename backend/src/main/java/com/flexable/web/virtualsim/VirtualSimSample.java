@@ -133,7 +133,8 @@ public final class VirtualSimSample {
 
 	/**
 	 * 배치고사 예시 문제의 공시 주요 내용(실제 공시가 아니다). 실제 문제와 같은 규칙(PlacementDetails)으로 유형마다 고정한 예시 DS005 행에서 만든다.
-	 * 실제 공시처럼 구조화 자료가 없는 유형(실적·공급 계약·배당·소송·최대주주 변경)은 null(유형 설명만 보인다)
+	 * 실제 공시처럼 구조화 자료가 없는 유형(실적·배당·소송·최대주주 변경)은 null(유형 설명만 보인다). 공급 계약은 실제로는 원문에서 매출액 대비·계약 기간을 뽑지만(#375),
+	 * 예시 사건 글에 없는 수치를 공시 내용으로 보이지 않게(#361 리뷰) 예시 요약만 두고 null
 	 */
 	public static List<PlacementDetails.Detail> details(VirtualSimCategory category) {
 		List<PlacementDetails.Detail> items = switch (category) {

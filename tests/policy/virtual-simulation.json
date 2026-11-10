@@ -1,7 +1,7 @@
 {
   "status": "IMPLEMENTED",
   "policy": "docs/policies.md §8",
-  "versions": { "types": "vsim-types-v3", "ruleset": "vsim-rules-v2", "check": "vsim-check-v3" },
+  "versions": { "types": "vsim-types-v4", "ruleset": "vsim-rules-v2", "check": "vsim-check-v3" },
   "tradeAndQuiz": {
     "note": "평가는 §5 그대로(practice.json 아래 키). 사건 매매는 수량 직접 입력(order). 11-05(#253)부터 채점이 없어 quizCases는 쓰지 않는다(noScore)",
     "source": "practice.json",
@@ -64,7 +64,12 @@
       { "title": "증권발행\u00a0실적보고서", "expected": null, "note": "줄바꿈 없는 공백(U+00A0)도 지우고 본다" },
       { "title": "연결재무제표기준영업(잠정)\u00a0실적(공정공시)", "expected": "EARNINGS" },
       { "title": "결산실적공시예고(안내공시)", "expected": null, "note": "실적 발표 일정 안내라 분류하지 않는다(vsim-types-v3)" },
-      { "title": "연결재무제표기준영업실적등에대한전망(공정공시)", "expected": "EARNINGS" }
+      { "title": "연결재무제표기준영업실적등에대한전망(공정공시)", "expected": null, "note": "회사가 내놓은 실적 계획이라 지난 실적 발표가 아니다(vsim-types-v4)" },
+      { "title": "[기재정정]영업실적등에대한전망(공정공시)", "expected": null },
+      { "title": "영업실적 등에 대한 전망(공정공시)(자회사의 주요경영사항)", "expected": null, "note": "공백을 지우고 본다" },
+      { "title": "기타경영사항(자율공시)(2025년 연간 경영실적 발표일정)", "expected": null, "note": "실적 발표 일정 안내(vsim-types-v4)" },
+      { "title": "소액공모실적보고서", "expected": null, "note": "증권 공모 결과 서류(vsim-types-v4)" },
+      { "title": "매출액또는손익구조30%(대규모법인은15%)이상변경", "expected": "EARNINGS" }
     ],
     "eventPaths": {
       "dates": ["2026-03-02", "2026-03-03", "2026-03-04", "2026-03-05", "2026-03-06", "2026-03-09", "2026-03-10"],

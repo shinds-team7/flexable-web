@@ -258,4 +258,41 @@ class DisclosureDetailJobTest {
 		assertThat(dart.calls).containsExactly("piicDecsn 00000061", "piicDecsn 00000062", "piicDecsn 00000063", "piicDecsn 00000061");
 		assertThat(jdbc.queryForObject("SELECT attempts FROM dart_detail_failures WHERE stock_code = '666661'", Integer.class)).isEqualTo(2);
 	}
+
+	/** 공급 계약: 원공시마다 원문을 한 번 받아 매출액 대비·계약 기간만 저장하고, 정정·자회사 공시와 원문은 받거나 저장하지 않는다(Issue #375) */
+	@Test
+	void 공급_계약은_원공시_원문에서_두_칸만_뽑는다() {
+		LocalDate today = LocalDate.now(clock.withZone(IngestConfig.SEOUL));
+		store.saveDisclosures(List.of(new DisclosureRow("20250501000001", "777777", "00000077", "단일판매ㆍ공급계약체결", today.minusDays(20)),
+				new DisclosureRow("20250501000002", "777777", "00000077", "[기재정정]단일판매ㆍ공급계약체결", today.minusDays(10)),
+				new DisclosureRow("20250501000003", "777777", "00000077", "단일판매ㆍ공급계약체결(자회사의 주요경영사항)", today.minusDays(9)),
+				new DisclosureRow("20250501000004", "777777", "00000077", "단일판매ㆍ공급계약체결(자율공시)", today.minusDays(5))));
+		store.saveArchive(new Archive("777777", "00000077", today.minusYears(5), today, null, null, null));
+		List<String> docs = new ArrayList<>();
+		Ds005 dart = new Ds005(Map.of()) {
+			@Override
+			public String documentText(String receiptNo) {
+				docs.add(receiptNo);
+				return receiptNo.endsWith("1") ? "1. 계약상대방 | 누리소재(주)\n2. 계약내역 | 계약금액(원) | 1,000,000,000\n매출액 대비(%) | 3.45\n5. 계약기간 | 시작일 | 2025-01-01\n종료일 | 2025-06-30"
+						: null;
+			}
+		};
+
+		// 상한 1번: 최근 원공시부터 한 건
+		var first = new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(1);
+		assertThat(first.capped()).isTrue();
+		assertThat(docs).containsExactly("20250501000004");
+		var second = new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(10);
+		assertThat(second.status()).isEqualTo("SUCCESS");
+		assertThat(docs).containsExactly("20250501000004", "20250501000001");
+		assertThat(dart.calls).isEmpty();
+		// 원문이 없던 공시는 빈 항목으로 저장해 다시 받지 않는다. 금액·상대방·날짜는 저장하지 않는다
+		assertThat(store.details("777777")).containsOnlyKeys("20250501000001");
+		assertThat(store.details("777777").get("20250501000001")).containsExactly(new com.flexable.web.virtualsim.PlacementDetails.Detail("매출액 대비", "3.4%"),
+				new com.flexable.web.virtualsim.PlacementDetails.Detail("계약 기간", "6개월"));
+		String saved = String.join(" ", jdbc.queryForList("SELECT items FROM dart_disclosure_details", String.class));
+		assertThat(saved).doesNotContain("누리소재").doesNotContain("1,000,000,000").doesNotContain("2025");
+		new DisclosureDetailJob(dart, store, props("dart"), runs, clock).runOnce(10);
+		assertThat(docs).hasSize(2);
+	}
 }

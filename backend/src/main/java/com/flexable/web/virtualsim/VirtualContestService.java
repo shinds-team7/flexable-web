@@ -262,8 +262,10 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 			if (drawn.isEmpty()) {
 				throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
 			}
-			// 공시 AI 요약: 실제 공시는 뽑은 공시의 접수번호로 지금 저장된 요약(숨기지 않은 것)을 붙이고, 예시 자료는 유형별 예시 글
-			Map<String, String> summaries = sim.sample() ? Map.of() : sims.summaries(drawn.stream().map(VirtualContestQuestions.Past::key).toList());
+			// 공시 AI 요약: 실제 공시는 뽑은 공시의 접수번호로 지금 저장된 요약(숨기지 않은 것)을 붙이고(원공시 것이 없으면 합친 정정 공시의 것을 가까운 순으로),
+			// 예시 자료는 유형별 예시 글
+			Map<String, String> summaries = sim.sample() ? Map.of()
+					: sims.summaries(drawn.stream().flatMap(q -> q.sources().stream()).toList());
 			List<StoredQuestion> questions = new ArrayList<>();
 			for (int k = 0; k < drawn.size(); k++) {
 				VirtualContestQuestions.Past q = drawn.get(k);
@@ -272,8 +274,9 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 						q.date() == null ? null : q.date().toString(), q.up(), null,
 						st.map(CategoryStats::trend).orElse(null), st.map(CategoryStats::upShare).orElse(null),
 						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null),
-						sim.sample() ? VirtualSimSample.summary(q.category()) : summaries.get(q.key()), VirtualContestQuestions.REACTION, q.reactionRate(),
-						q.nextWeekRate()));
+						sim.sample() ? VirtualSimSample.summary(q.category())
+								: q.sources().stream().map(summaries::get).filter(java.util.Objects::nonNull).findFirst().orElse(null),
+						VirtualContestQuestions.REACTION, q.reactionRate(), q.nextWeekRate()));
 			}
 			String id = UUID.randomUUID().toString();
 			Instant started = now();

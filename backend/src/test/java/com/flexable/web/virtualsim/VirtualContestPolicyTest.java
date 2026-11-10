@@ -340,6 +340,57 @@ class VirtualContestPolicyTest {
 		for (JsonNode c : p.get("titles")) {
 			assertThat(PlacementDetails.api(c.get("title").asString())).as(c.toString()).isEqualTo(textOrNull(c.get("api")));
 		}
+		// 공급 계약: 원문 본문 글에서 매출액 대비·계약 기간만(Issue #375)
+		JsonNode supply = p.get("supplyContract");
+		for (JsonNode c : supply.get("cases")) {
+			assertThat(PlacementDetails.supplyContract(c.get("text").asString()).stream().map(d -> List.of(d.label(), d.value())).toList()).as(c.get("case").asString())
+				.isEqualTo(pairs(c.get("expected")));
+		}
+		for (JsonNode c : supply.get("titles")) {
+			assertThat(PlacementDetails.fromDocument(c.get("title").asString())).as(c.toString()).isEqualTo(c.get("document").asBoolean());
+		}
+	}
+
+	private static List<List<String>> pairs(JsonNode n) {
+		return n.isNull() ? null : n.valueStream().map(x -> x.valueStream().map(JsonNode::asString).toList()).toList();
+	}
+
+	/** 정정 공시는 문제로 내지 않고 원공시에 합친다(Issue #375) */
+	@Test
+	void placement_corrections() throws Exception {
+		JsonNode p = root().get("placement").get("corrections");
+		assertThat(VirtualContestQuestions.CORRECTION_DAYS).isEqualTo(p.get("days").asInt());
+		for (JsonNode c : p.get("titles")) {
+			assertThat(VirtualContestQuestions.correction(c.get("title").asString())).as(c.toString()).isEqualTo(c.get("correction").asBoolean());
+		}
+		List<VirtualContestQuestions.Filing> filings = new ArrayList<>();
+		for (JsonNode f : p.get("filings")) {
+			List<List<String>> d = pairs(f.get("details"));
+			filings.add(new VirtualContestQuestions.Filing(f.get("receiptNo").asString(), f.get("title").asString(), LocalDate.parse(f.get("date").asString()),
+					d == null ? null : d.stream().map(x -> new PlacementDetails.Detail(x.get(0), x.get(1))).toList()));
+		}
+		// 2026-03-02(전날) ~ 03-12: 날마다 오르는 종가라 보합 없이 모든 원공시가 후보가 된다
+		List<LocalDate> dates = new ArrayList<>();
+		List<Long> closes = new ArrayList<>();
+		for (int i = 0; i < 11; i++) {
+			dates.add(LocalDate.of(2026, 3, 2).plusDays(i));
+			closes.add(10_000L + i * 100);
+		}
+		var made = VirtualContestQuestions.fromFilings("회사", "업종", filings, dates, closes);
+		assertThat(made).hasSize(p.get("expected").size());
+		for (int i = 0; i < made.size(); i++) {
+			JsonNode e = p.get("expected").get(i);
+			var q = made.get(i);
+			assertThat(q.key()).as(e.toString()).isEqualTo(e.get("key").asString());
+			assertThat(q.sources()).as(e.toString()).isEqualTo(e.get("sources").valueStream().map(JsonNode::asString).toList());
+			assertThat(q.details() == null ? null : q.details().stream().map(d -> List.of(d.label(), d.value())).toList()).as(e.toString()).isEqualTo(pairs(e.get("details")));
+		}
+		assertThat(made).extracting(VirtualContestQuestions.Past::key).doesNotContainAnyElementsOf(p.get("dropped").valueStream().map(JsonNode::asString).toList());
+		JsonNode late = p.get("lateCorrection");
+		var merged = VirtualContestQuestions.merge(List.of(new VirtualContestQuestions.Filing("1", "현금ㆍ현물배당결정", LocalDate.parse(late.get("original").asString())),
+				new VirtualContestQuestions.Filing("2", "[기재정정]현금ㆍ현물배당결정", LocalDate.parse(late.get("correction").asString()))));
+		assertThat(merged).hasSize(1);
+		assertThat(!merged.get(0).corrections().isEmpty()).isEqualTo(late.get("merged").asBoolean());
 	}
 
 	@Test

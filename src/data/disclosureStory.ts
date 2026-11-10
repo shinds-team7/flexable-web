@@ -50,9 +50,12 @@ const SENTENCE: Record<string, (v: string, q: Question) => string> = {
   '자기자본 대비': v => `회사 자기자본에 견주면 ${v}에 해당해요.`,
   '양수 뒤 지분율': v => `사들인 뒤 그 회사 지분을 ${v} 갖게 돼요.`,
   '대상 회사와의 관계': v => v === '관계 없음' ? '대상 회사는 원래 관계가 없던 회사예요.' : `대상 회사는 이 회사의 ${is(v)}.`,
+  // 공급 계약(원문에서 뽑은 두 칸, #375)
+  '매출액 대비': v => `계약 금액은 이 회사 최근 매출액의 ${v}에 해당해요.`,
+  '계약 기간': v => `계약 기간은 ${is(v)}.`,
 };
 const MASKED = '회사를 알아보지 못하게 금액은 규모 구간, 주식 수는 기존 대비 %로만 보여 줘요.';
-const NO_DETAILS_QUESTION = '이 유형은 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
+const NO_DETAILS_QUESTION = '이 공시는 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
 const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 금액은 규모 구간으로만 보여 줘요.';
 const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
@@ -101,7 +104,7 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     ?? detailsStory(q)
     ?? (q.body
       ? q.body
-      : '이 유형은 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
+      : '이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
   let after: string;
   if (it.basis === 'REACTION' && it.reactionReturnRate != null && it.nextWeekReturnRate != null) {
     const n = it.nextWeekReturnRate;

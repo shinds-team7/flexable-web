@@ -106,18 +106,37 @@ function masked(q: Question, labels: string[]): string {
     ? `회사를 알아보지 못하게 이름·날짜는 빼고 ${parts.join(', ')} 보여 줘요.`
     : '회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 보여 줘요.';
 }
+/**
+ * 유형별 읽는 법 한 문장(Issue #387). 공시 AI 요약이 있거나 공시 주요 내용이 없는 문제에 붙인다(주요 내용이 있으면 항목별 READ를 쓴다).
+ * 「공시 읽는 법」(simulationGuide.ts)의 유형별 확인할 것에서 가져오고, 방향·경향·평가는 말하지 않는다
+ */
+const TYPE_READ: Record<components['schemas']['VirtualSimCategory'], string> = {
+  EARNINGS: '실적 공시는 전년 같은 기간과 견준 변화와 바로 앞 분기와 견준 변화가 함께 나오니, 어느 기간과 견줬는지 먼저 봐요.',
+  SUPPLY_CONTRACT: '공급 계약은 계약 금액이 회사의 1년 매출에 견줘 얼마나 큰지와, 몇 달짜리인지 몇 년짜리인지가 크기를 읽는 기준이에요.',
+  NEW_SHARES: '유상증자는 새 주식 수가 기존 주식에 견줘 얼마나 되는지, 누구에게 파는지, 모은 돈을 어디에 쓰는지가 읽는 기준이에요.',
+  BONUS_SHARES: '무상증자는 회사로 들어오는 돈 없이 주식 수만 늘어서, 기존 주식에 견줘 몇 %를 나눠 주는지가 읽는 기준이에요.',
+  BONDS: '사채 발행은 빌리는 돈의 크기와, 사채가 주식으로 바뀌면 주식 수가 얼마나 늘어날 수 있는지가 읽는 기준이에요.',
+  BUYBACK_ACQUIRE: '자기주식 취득은 사들일 규모가 발행 주식에 견줘 얼마나 되는지와, 사들인 주식을 없애는지(소각) 회사가 갖고 있는지가 읽는 기준이에요.',
+  BUYBACK_DISPOSE: '자기주식 처분은 넘길 규모와, 시장에서 파는지·정해 둔 상대에게 넘기는지·임직원에게 주는지가 읽는 기준이에요.',
+  DIVIDEND: '배당은 한 주당 배당금을 그 무렵 주식 시세로 나눈 시가배당률과, 결산 배당인지 중간·분기 배당인지가 읽는 기준이에요.',
+  RESTRUCTURE: '합병·분할은 어느 회사가 남고 어느 회사가 새로 생기는지와, 옮겨 가는 자산이 회사 전체에 견줘 얼마나 되는지가 읽는 기준이에요.',
+  FACILITY: '시설·지분 투자는 투자 금액이 회사 자기자본이나 자산총액에 견줘 얼마나 큰지가 읽는 기준이에요.',
+  LEGAL: '소송·사고는 걸린 금액이 회사 자기자본에 견줘 얼마나 큰지와, 회사가 소송을 당했는지 걸었는지가 읽는 기준이에요.',
+  OWNERSHIP: '최대주주 변경은 새 최대주주 쪽이 가진 주식이 발행 주식의 몇 %인지와, 주식을 사고판 계약인지 상속·증여인지 같은 경위가 읽는 기준이에요.',
+};
 const NO_DETAILS_QUESTION = '이 공시는 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
 const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 금액은 규모 구간으로만 보여 줘요.';
 const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
 
 /**
- * 공시 AI 요약 → 줄글(요약 + 출처 안내). 요약이 없으면 null.
+ * 공시 AI 요약 → 줄글(요약 + 출처 안내 + 유형별 읽는 법). 요약이 없으면 null.
  * sample: 예시 자료면 true, 실제 자료면 false, 상태를 아직 확인하지 못했으면 null(출처를 단정하지 않고 안내를 붙이지 않는다)
  */
 function summaryStory(q: Question, sample: boolean | null): string | null {
   if (!q.summary) return null;
-  return sample === null ? q.summary : `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}`;
+  // 읽는 법은 출처 안내 뒤에 붙여 요약(AI·예시 글)의 일부로 읽히지 않게 한다
+  return `${sample === null ? q.summary : `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}`} ${TYPE_READ[q.category]}`;
 }
 
 /** 공시 주요 내용 → 줄글(항목마다 내용 문장 + 읽는 법 문장, 끝에 가린 방식 안내). 항목이 없으면 null */
@@ -136,7 +155,7 @@ function detailsStory(q: Question): string | null {
  * 예시 글(body)은 카드에 따로 보이므로 요약·주요 내용이 없으면 안내 문장을 뺀다. sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
 export function questionStory(q: Question, title: string, sample: boolean | null = null): string[] {
-  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
+  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : `${NO_DETAILS_QUESTION} ${TYPE_READ[q.category]}`);
   return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
 }
 
@@ -160,7 +179,7 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     ?? detailsStory(q)
     ?? (q.body
       ? q.body
-      : '이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
+      : `이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. ${TYPE_READ[q.category]} 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.`);
   let after: string;
   if (it.basis === 'REACTION' && it.reactionReturnRate != null && it.nextWeekReturnRate != null) {
     const n = it.nextWeekReturnRate;

@@ -20,10 +20,19 @@
   쉼표 CSV와 탭 구분(mysql --batch 출력) 둘 다 읽는다.
 실행: python3 scripts/placement-cuts-sim.py sim <DIR> [--trials 20000] [--seed 376] [--asof YYYY-MM-DD] > report.md
 한계: 서버의 수집 종목은 상위 목록(topLimit) 안 종목이라 stocks.csv(cap_rank 있는 수집 종목)와 조금 다를 수 있다. 풀 캐시(POOL_TTL) 시점 차이도 무시한다.
+
+실제 결과 집계(actual 모드): 채점된 배치고사 중 모든 문제가 basis = REACTION인 것만 시즌별로 모은다(11-09 배포 전에 시작해 5거래일로 채점한 것과
+예시 자료 문제는 빼고 수만 센다). 회원 번호·배치고사 번호는 내보내지 않고 집계만 낸다.
+  call csvwrite('<DIR>/placements.csv','select contest_id, correct, board, graded_at, result from virtual_contest_placements where graded_at is not null')
+  문제 유형: 채점하면 문제 사본(questions)을 지우고 결과 JSON에는 유형이 없어서, 결과의 회사명·날짜를 stocks.csv(code, name)·disc.csv의
+  같은 종목·같은 접수일 공시 유형으로 되찾는다(11-10 전 출제는 정정 공시도 문제였으므로 포함). 그날 유형이 둘 이상이면 결과에 남은 유형 통계
+  (categorySampleCount·trend)로 가리고, 그래도 모르면 "알 수 없음"이다. 두 파일이 없으면 유형별 표를 건너뛴다.
+실행: python3 scripts/placement-cuts-sim.py actual <DIR> [--min-n N] > report.md   (--min-n: 그보다 응시 수가 적은 시즌에 "최소 응시 수 미달" 표시)
 """
 import argparse
 import bisect
 import csv
+import json
 import random
 import re
 import sys
@@ -398,6 +407,156 @@ def run_sim(args):
     print()
 
 
+# ---- 실제 결과 집계 ----
+def graded_items(result):
+    """VirtualContestService.gradedItems와 같은 해석: 11-10 전 배열 모양이면 basis가 없는 문제는 5거래일 기준"""
+    data = json.loads(result)
+    items = data if isinstance(data, list) else data.get("items") or []
+    for it in items:
+        it["basis"] = it.get("basis") or "FIVE_DAY"
+    return items
+
+
+def category_lookup(d, items):
+    """문제 → 유형. 같은 종목·같은 접수일의 분류되는 공시(11-10 전 출제는 정정 공시도 문제였으므로 포함) 유형이 하나면 그 유형.
+    둘 이상이면 결과에 남은 출제 때 유형 통계(categorySampleCount·trend)를 유형이 하나로 정해진 다른 문제에서 배운 짝으로 가린다. 그래도 모르면 None"""
+    stocks, disc = try_rows(f"{d}/stocks.csv"), try_rows(f"{d}/disc.csv")
+    if stocks is None or disc is None:
+        return None
+    codes = defaultdict(set)
+    for r in stocks:
+        codes[r["name"]].add(r["code"])
+    cats = defaultdict(set)
+    for r in disc:
+        c = classify(r["title"])
+        if c is not None:
+            cats[(r["stock_code"], day(r["receipt_date"]))].add(c)
+
+    def candidates(it):
+        found = set()
+        for code in codes.get(it["company"], ()):
+            found |= cats.get((code, day(it["date"])), set())
+        return found
+
+    stat = lambda it: (it.get("categorySampleCount"), it.get("trend")) if it.get("categorySampleCount") is not None else None
+    learned = defaultdict(set)
+    for it in items:
+        found = candidates(it)
+        if len(found) == 1 and stat(it) is not None:
+            learned[stat(it)] |= found
+
+    def lookup(it):
+        found = candidates(it)
+        if len(found) > 1 and stat(it) is not None and len(learned.get(stat(it), ())) == 1:
+            found &= learned[stat(it)]
+        return next(iter(found)) if len(found) == 1 else None
+
+    return lookup
+
+
+def answer_table(rows):
+    """rows: [(묶음 이름, [문제...])] → 정답률·답 쏠림 표"""
+    print("| 묶음 | 문제 수 | 정답률(무응답 = 틀림) | 응답한 문제 정답률 | 무응답 | ↑ 고른 비율(응답 중) | 실제 ↑ 비율 |")
+    print("|---|---:|---:|---:|---:|---:|---:|")
+    for label, qs in rows:
+        if not qs:
+            continue
+        answered = [q for q in qs if q.get("prediction")]
+        ok = sum(bool(q.get("correct")) for q in qs)
+        ok_answered = sum(bool(q.get("correct")) for q in answered)
+        picked_up = sum(q["prediction"] == "POSITIVE" for q in answered)
+        actual_up = sum(q.get("movement") == "UP" for q in qs)
+        ratio = lambda a, b: pct(a / b) if b else "—"
+        print(f"| {label} | {len(qs):,} | {ratio(ok, len(qs))} | {ratio(ok_answered, len(answered))} | {ratio(len(qs) - len(answered), len(qs))} | "
+              f"{ratio(picked_up, len(answered))} | {ratio(actual_up, len(qs))} |")
+    print()
+
+
+def season_report(title, tests, lookup, min_n):
+    n = len(tests)
+    print(f"## {title}")
+    print()
+    if min_n and n < min_n:
+        print(f"**최소 응시 수 미달**: 응시 {n}명 < {min_n}명. 아래 분포는 참고만 한다.")
+        print()
+    hist = [0] * (QUESTIONS + 1)
+    stored = defaultdict(int)
+    for t in tests:
+        hist[t["correct"]] += 1
+        stored[t["board"]] += 1
+    mean, sd = stats(hist)
+    print(f"응시 {n:,}명, 평균 {mean:.2f}, 표준편차 {sd:.2f}. 저장된 판 배정: " +
+          " / ".join(f"{b} {stored[b]:,}명({pct(stored[b] / n)})" for b in ("B10M", "B50M", "B100M")) + ".")
+    print()
+    print("| 맞힌 수 | " + " | ".join(str(k) for k in range(QUESTIONS + 1)) + " |")
+    print("|---|" + "---:|" * (QUESTIONS + 1))
+    print("| 응시 수 | " + " | ".join(str(c) for c in hist) + " |")
+    print("| 비율 | " + " | ".join(pct(c / n) for c in hist) + " |")
+    print()
+    print("**판 기준 후보별 배정 비율**(1천만 / 5천만 / 1억, ★ = 지금 기준)")
+    print()
+    print("| 5천만·1억 기준 | 배정 비율 |")
+    print("|---|---|")
+    for a, b in cut_pairs():
+        print(f"| {a}·{b}{' ★' if (a, b) == CURRENT_CUTS else ''} | " + " / ".join(pct(x) for x in boards(hist, a, b)) + " |")
+    print()
+    items = [it for t in tests for it in t["items"]]
+    groups = [("전체", items)]
+    if lookup is not None:
+        cat = [(it, lookup(it)) for it in items]
+        groups += [("근거 유형", [it for it, c in cat if c in EVIDENCE_TYPES]),
+                   ("나머지 유형", [it for it, c in cat if c is not None and c not in EVIDENCE_TYPES]),
+                   ("알 수 없음", [it for it, c in cat if c is None])]
+    if lookup is not None:
+        found = sum(c is not None for _, c in cat)
+        short = sum(sum(lookup(it) in EVIDENCE_TYPES for it in t["items"]) < EVIDENCE for t in tests)
+        print(f"유형을 되찾은 문제 {found:,}/{len(items):,}개. 근거 유형을 {EVIDENCE}개 미만으로 되찾은 시험 {short:,}번"
+              f"(시험마다 근거 유형이 {EVIDENCE}개 이상이므로, 0이 아니면 근거 유형 문제 일부가 \"알 수 없음\"에 남아 있다).")
+        print()
+    print("**문제 묶음별 정답률과 답 쏠림**")
+    print()
+    answer_table(groups)
+    if lookup is not None:
+        print("**유형별**")
+        print()
+        answer_table([(NAME[c], [it for it, k in cat if k == c]) for c in ORDER])
+
+
+def run_actual(args):
+    seasons = defaultdict(list)
+    skipped = defaultdict(lambda: defaultdict(int))
+    for r in read_rows(f"{args.dir}/placements.csv"):
+        items = graded_items(r["result"])
+        cid = r["contest_id"]
+        if any(it["basis"] != "REACTION" for it in items):
+            skipped[cid]["5거래일 채점(배포 전 시작)"] += 1
+        elif any(not it.get("date") for it in items):
+            skipped[cid]["예시 자료 문제"] += 1
+        elif len(items) != QUESTIONS:
+            skipped[cid][f"문제 수 {QUESTIONS}개 아님"] += 1
+        else:
+            seasons[cid].append({"correct": int(r["correct"]), "board": r["board"], "items": items})
+    lookup = category_lookup(args.dir, [it for ts in seasons.values() for t in ts for it in t["items"]])
+    print("# 배치고사 실제 결과 집계(반응 창 채점)")
+    print()
+    print("- 대상: 채점된 배치고사 중 모든 문제가 basis = REACTION인 것. 회원·배치고사 번호는 읽지 않는다.")
+    if lookup is None:
+        print("- stocks.csv·disc.csv가 없어 문제 유형별 표를 건너뛰었다.")
+    else:
+        print("- 문제 유형은 결과의 회사명·날짜로 같은 날 공시 유형을 되찾았다. 유형이 둘 이상이면 결과의 유형 통계로 가리고, 그래도 모르면 \"알 수 없음\".")
+    print(f"- 최소 응시 수 조건: {args.min_n}명(--min-n)" if args.min_n else "- 최소 응시 수 조건: 정하지 않음(--min-n으로 지정).")
+    for cid in sorted(set(seasons) | set(skipped)):
+        if skipped[cid]:
+            print(f"- {cid} 제외: " + ", ".join(f"{k} {v}건" for k, v in skipped[cid].items()))
+    print()
+    for cid in sorted(seasons):
+        season_report(f"시즌 {cid}", seasons[cid], lookup, args.min_n)
+    if len(seasons) > 1:
+        season_report("전체 시즌", [t for ts in seasons.values() for t in ts], lookup, args.min_n)
+    if not seasons:
+        print("집계할 반응 창 배치고사가 없다.")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="mode", required=True)
@@ -406,9 +565,14 @@ def main():
     s.add_argument("--trials", type=int, default=20000)
     s.add_argument("--seed", type=int, default=376)
     s.add_argument("--asof", help="문제 풀 기준일(기본: prices.csv의 마지막 거래일)")
+    a = sub.add_parser("actual", help="실제 채점 결과 집계(반응 창)")
+    a.add_argument("dir")
+    a.add_argument("--min-n", type=int, default=0, help="이보다 응시 수가 적은 시즌에 '최소 응시 수 미달' 표시")
     args = ap.parse_args()
     if args.mode == "sim":
         run_sim(args)
+    else:
+        run_actual(args)
 
 
 if __name__ == "__main__":

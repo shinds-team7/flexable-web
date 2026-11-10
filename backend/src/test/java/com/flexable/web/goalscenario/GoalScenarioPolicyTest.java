@@ -278,7 +278,8 @@ class GoalScenarioPolicyTest {
 							stats.put(ProposalText.StatKind.valueOf(e.getKey()), values);
 						});
 					}
-					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.get("months").asInt(), names, percents, stats);
+					facts = new ProposalText.Facts(f.get("targetAmount").asLong(), f.has("monthlyBudget") ? f.get("monthlyBudget").asLong() : 0,
+							f.get("months").asInt(), names, percents, stats);
 				}
 				Proposals.Checked checked = Proposals.check(drafts, facts);
 				if ("AI".equals(c.get("expected").get("proposer").asString())) {

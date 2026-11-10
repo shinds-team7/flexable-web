@@ -107,7 +107,8 @@ function masked(q: Question, labels: string[]): string {
     : '회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 보여 줘요.';
 }
 /**
- * 유형별 읽는 법 한 문장(Issue #387). 공시 AI 요약이 있거나 공시 주요 내용이 없는 문제에 붙인다(주요 내용이 있으면 항목별 READ를 쓴다).
+ * 유형별 읽는 법 한 문장(Issue #387). 공시 주요 내용이 없는 문제(AI 요약만 있거나 아무것도 없을 때)에 줄글 상자 밖 "읽는 법" 줄로 보인다(typeReading).
+ * 줄글에 붙이면 예시·AI 요약 출처 안내 뒤에 와 그 글의 일부로 읽히므로 따로 둔다. 주요 내용이 있으면 항목별 READ를 줄글에 쓴다.
  * 「공시 읽는 법」(simulationGuide.ts)의 유형별 확인할 것에서 가져오고, 방향·경향·평가는 말하지 않는다
  */
 const TYPE_READ: Record<components['schemas']['VirtualSimCategory'], string> = {
@@ -130,13 +131,17 @@ const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
 
 /**
- * 공시 AI 요약 → 줄글(요약 + 출처 안내 + 유형별 읽는 법). 요약이 없으면 null.
+ * 공시 AI 요약 → 줄글(요약 + 출처 안내). 요약이 없으면 null.
  * sample: 예시 자료면 true, 실제 자료면 false, 상태를 아직 확인하지 못했으면 null(출처를 단정하지 않고 안내를 붙이지 않는다)
  */
 function summaryStory(q: Question, sample: boolean | null): string | null {
   if (!q.summary) return null;
-  // 읽는 법은 출처 안내 뒤에 붙여 요약(AI·예시 글)의 일부로 읽히지 않게 한다
-  return `${sample === null ? q.summary : `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}`} ${TYPE_READ[q.category]}`;
+  return sample === null ? q.summary : `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}`;
+}
+
+/** 유형별 읽는 법(문제·결과 화면의 줄글 상자 밖 한 줄). 공시 주요 내용이 있으면 항목별 읽는 법을 줄글에 쓰므로 null */
+export function typeReading(q: Question): string | null {
+  return q.details?.length ? null : TYPE_READ[q.category];
 }
 
 /** 공시 주요 내용 → 줄글(항목마다 내용 문장 + 읽는 법 문장, 끝에 가린 방식 안내). 항목이 없으면 null */
@@ -155,7 +160,7 @@ function detailsStory(q: Question): string | null {
  * 예시 글(body)은 카드에 따로 보이므로 요약·주요 내용이 없으면 안내 문장을 뺀다. sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
 export function questionStory(q: Question, title: string, sample: boolean | null = null): string[] {
-  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : `${NO_DETAILS_QUESTION} ${TYPE_READ[q.category]}`);
+  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
   return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
 }
 
@@ -179,7 +184,7 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     ?? detailsStory(q)
     ?? (q.body
       ? q.body
-      : `이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. ${TYPE_READ[q.category]} 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.`);
+      : '이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
   let after: string;
   if (it.basis === 'REACTION' && it.reactionReturnRate != null && it.nextWeekReturnRate != null) {
     const n = it.nextWeekReturnRate;

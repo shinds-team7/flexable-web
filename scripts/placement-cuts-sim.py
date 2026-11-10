@@ -28,12 +28,13 @@
 배치고사 결과에는 출제 규칙 버전이 없어서 시작 시각(started_at)으로 가른다. 기준 시점 전 시작·5거래일 채점·예시 자료 문제는 빼고 수만 센다.
 회원 번호·배치고사 번호는 내보내지 않고 집계만 낸다.
   call csvwrite('<DIR>/placements.csv','select contest_id, correct, board, started_at, graded_at, result from virtual_contest_placements where graded_at is not null')
-  --since는 DB에 저장된 started_at과 같은 시간대로 준다. 운영 api는 TZ=Asia/Seoul이지만 JDBC가 serverTimezone=UTC라 운영 MySQL에는 UTC로 저장됐을
-  가능성이 높다. 배포 직후 시작한 배치고사 한 건의 started_at으로 먼저 확인한다(로컬 H2는 KST로 저장).
+  기준 시점 기본값은 #388 운영 배포 시각 2026-11-10T08:05:33Z(17:05:33 KST, VM api 컨테이너 StartedAt. #392 머지 07:49:19Z·#394 머지
+  07:59:34Z 뒤 한 번 배포). --db-tz는 DB가 started_at을 저장한 시간대다. 운영 api는 TZ=Asia/Seoul이지만 JDBC가 serverTimezone=UTC라
+  운영 MySQL에는 UTC로 저장됐을 가능성이 높다. 시작 시각을 아는 배치고사 한 건의 started_at으로 먼저 확인한다(로컬 H2는 KST로 저장).
   문제 유형: 채점하면 문제 사본(questions)을 지우고 결과 JSON에는 유형이 없어서, 결과의 회사명·날짜를 stocks.csv(code, name)·disc.csv의
   같은 종목·같은 접수일 공시 유형으로 되찾는다(11-10 전 출제는 정정 공시도 문제였으므로 포함). 그날 유형이 둘 이상이면 결과에 남은 유형 통계
   (categorySampleCount·trend)로 가리고, 그래도 모르면 "알 수 없음"이다. 두 파일이 없으면 유형별 표를 건너뛴다.
-실행: python3 scripts/placement-cuts-sim.py actual <DIR> --since "YYYY-MM-DD HH:MM:SS" [--min-n N] > report.md   (--min-n: 그보다 응시 수가 적은 시즌에 "최소 응시 수 미달" 표시)
+실행: python3 scripts/placement-cuts-sim.py actual <DIR> --db-tz UTC|KST [--since 2026-11-10T08:05:33Z] [--min-n N] > report.md   (--min-n: 그보다 응시 수가 적은 시즌에 "최소 응시 수 미달" 표시)
 """
 import argparse
 import bisect
@@ -43,7 +44,7 @@ import random
 import re
 import sys
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 csv.field_size_limit(10**9)
 
@@ -452,8 +453,14 @@ def run_sim(args):
 
 
 # ---- 실제 결과 집계 ----
-def moment(v):
-    return datetime.fromisoformat(v.strip())
+DEPLOY_388 = "2026-11-10T08:05:33Z"
+ZONES = {"UTC": timezone.utc, "KST": timezone(timedelta(hours=9), "KST")}
+
+
+def moment(v, tz=timezone.utc):
+    """시각 글자 → UTC 시각. 시간대 표시가 없으면 tz로 본다(DB의 started_at은 표시가 없다)"""
+    t = datetime.fromisoformat(v.strip().replace("Z", "+00:00"))
+    return (t if t.tzinfo else t.replace(tzinfo=tz)).astimezone(timezone.utc)
 
 
 def graded_items(result):
@@ -576,7 +583,7 @@ def run_actual(args):
     for r in read_rows(f"{args.dir}/placements.csv"):
         items = graded_items(r["result"])
         cid = r["contest_id"]
-        if moment(r["started_at"]) < args.since:
+        if moment(r["started_at"], ZONES[args.db_tz]) < args.since:
             skipped[cid]["기준 시점 전 시작(이전 출제 규칙)"] += 1
         elif any(it["basis"] != "REACTION" for it in items):
             skipped[cid]["5거래일 채점(배포 전 시작)"] += 1
@@ -589,7 +596,9 @@ def run_actual(args):
     lookup = category_lookup(args.dir, [it for ts in seasons.values() for t in ts for it in t["items"]])
     print("# 배치고사 실제 결과 집계(반응 창 채점)")
     print()
-    print(f"- 대상: 채점된 배치고사 중 {args.since}(#388 배포, DB 저장 시각 기준) 이후에 시작했고 모든 문제가 basis = REACTION인 것. 회원·배치고사 번호는 읽지 않는다.")
+    kst = args.since.astimezone(ZONES["KST"])
+    print(f"- 대상: 채점된 배치고사 중 {args.since:%Y-%m-%d %H:%M:%S} UTC({kst:%H:%M:%S} KST, #388 배포) 이후에 시작했고 모든 문제가 basis = REACTION인 것. "
+          f"DB의 started_at은 {args.db_tz}로 읽었다. 회원·배치고사 번호는 읽지 않는다.")
     if lookup is None:
         print("- stocks.csv·disc.csv가 없어 문제 유형별 표를 건너뛰었다.")
     else:
@@ -617,7 +626,8 @@ def main():
     s.add_argument("--asof", help="문제 풀 기준일(기본: prices.csv의 마지막 거래일)")
     a = sub.add_parser("actual", help="실제 채점 결과 집계(반응 창)")
     a.add_argument("dir")
-    a.add_argument("--since", type=moment, required=True, help="분포 수집 기준 시점 = #388 운영 배포 시각(DB의 started_at과 같은 시간대)")
+    a.add_argument("--since", type=moment, default=moment(DEPLOY_388), help=f"분포 수집 기준 시점(기본: #388 운영 배포 {DEPLOY_388}). 시간대 표시가 없으면 UTC")
+    a.add_argument("--db-tz", choices=sorted(ZONES), required=True, help="DB가 started_at을 저장한 시간대(운영은 확인 뒤 지정)")
     a.add_argument("--min-n", type=int, default=0, help="이보다 응시 수가 적은 시즌에 '최소 응시 수 미달' 표시")
     args = ap.parse_args()
     if args.mode == "sim":

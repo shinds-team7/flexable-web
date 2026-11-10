@@ -51,12 +51,10 @@ def text_of(receipt_no):
         if main is None:
             return ""
         raw = z.read(main)
-    for enc in ("utf-8", "euc-kr"):
-        try:
-            xml = raw.decode(enc)
-            break
-        except UnicodeDecodeError:
-            continue
+    # 서버 DartDisclosureSource.decode처럼 문서 앞의 encoding 선언을 따른다(euc-kr은 cp949, 없으면 utf-8)
+    m = re.search(rb"encoding=[\"']([A-Za-z0-9_\-]+)[\"']", raw[:200])
+    enc = m.group(1).decode().lower() if m else "utf-8"
+    xml = raw.decode("cp949" if enc == "euc-kr" else enc, errors="replace")
     return re.sub(r"[\s ]", "", TAG.sub(" ", CELL.sub("|", xml)).replace("&nbsp;", " "))
 
 
@@ -94,7 +92,8 @@ for rn in sample:
         t = text_of(rn)
     except Exception as ex:  # noqa: BLE001 - 확인용이라 실패도 센다
         failed += 1
-        print(f"  호출 실패: {type(ex).__name__}", file=sys.stderr)
+        msg = re.sub(r"crtfc_key=[^&\s]+", "crtfc_key=***", str(ex)).replace(KEY, "***")
+        print(f"  호출 실패: {type(ex).__name__}: {msg[:200]}", file=sys.stderr)
         continue
     finally:
         time.sleep(0.3)

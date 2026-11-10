@@ -3655,7 +3655,7 @@ export interface components {
                 /** Format: date-time */
                 generatedAt: string;
             };
-            /** @description 가격 움직임을 뽑은 통계. 실제 세션은 실제 시장 통계, 예시 세션(isSample=true)은 코드에 넣은 예시 룰셋이고 dataFrom·dataTo는 null */
+            /** @description 가격 움직임을 뽑은 통계. 실제 세션은 실제 시장 통계, 예시 세션(isSample=true)은 코드에 넣은 예시 룰셋이고 dataFrom·dataTo는 null. version: 지금은 vsim-rules-v3(사건 봉 + 후속 5거래일 경로, 공시 직후 상승 비율, 고정 경향) */
             ruleset: {
                 version: string;
                 /** Format: date */
@@ -3726,7 +3726,7 @@ export interface components {
                     maxSellShares: number;
                 };
             } | null;
-            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 공개 가능한 유형 전체에서 서로 다른 유형을 균등하게 뽑는다(뚜렷한 유형 최소 개수 없음, 11-05), 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
+            /** @description 이미 제출한 선택만 반환. 판정 전 결과·경향·수익률은 null. 일반 세션의 문제는 3~5개이고 공개 가능한 유형 전체에서 서로 다른 유형을 균등하게 뽑는다(경향 있는 유형 최소 개수 없음, 11-05), 대회 판은 4개이고 판별 유형 규칙(policies §8-8) */
             decisions: {
                 eventId: string;
                 category: components["schemas"]["VirtualSimCategory"];
@@ -3755,26 +3755,31 @@ export interface components {
                 /** Format: int64 */
                 executedShares: number | null;
                 /**
-                 * @description 늘 null(11-05 일반 세션 채점 없음, #253). 대회 판도 null. 이후 5거래일 방향은 movement·subsequentReturnRate로 본다
+                 * @description 늘 null(11-05 일반 세션 채점 없음, #253). 대회 판도 null. 판정 뒤 움직임은 movement·reactionReturnRate·nextWeekReturnRate로 본다
                  * @enum {string|null}
                  */
                 outcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
                 /** Format: date */
                 outcomeDate: string | null;
+                /** @description 판정 뒤만. 사건 봉 종가 → 5번째 후속 봉 종가 가상 등락(소수 4자리 내림). 11-10부터 화면은 reactionReturnRate·nextWeekReturnRate를 보이고 이 값은 호환을 위해 남긴다. 판정 전에는 null */
                 subsequentReturnRate: number | null;
+                /** @description 판정 뒤만. 공시 직후 가상 등락(사건 봉 전날 종가 → 다음 봉 종가, 소수 4자리 내림, decisions/2026-11-10-vsim-ruleset-reaction-window). 판정 전에는 null */
+                reactionReturnRate: number | null;
+                /** @description 판정 뒤만. 그다음 주 가상 등락(다음 봉 종가 → 5번째 후속 봉 종가, 소수 4자리 내림). 사건을 보고 고른 매매는 다음 봉 시가에 체결하므로 실제 수익률과는 다를 수 있다. 판정 전에는 null */
+                nextWeekReturnRate: number | null;
                 /**
-                 * @description 판정 뒤만. 이후 5거래일 가상 등락의 방향(원 가격 비교). 판정 전에는 null
+                 * @description 판정 뒤만. 공시 직후(사건 봉 전날 종가 → 다음 봉 종가) 가상 등락의 방향(원 가격 비교, 11-10. 그 전에는 5거래일). 판정 전에는 null
                  * @enum {string|null}
                  */
                 movement: "UP" | "DOWN" | "FLAT" | null;
-                /** @description 판정 뒤(movement가 null이 아닐 때)만. 룰셋에서 같은 유형 공시 뒤 5거래일 종가가 오른 비율(소수 4자리 내림). 판정 전에는 null */
+                /** @description 판정 뒤(movement가 null이 아닐 때)만. 룰셋에서 같은 유형 공시 직후(기준 봉 전날 종가 → 다음 거래일 종가)가 오른 비율(소수 4자리 내림, vsim-rules-v3). 정정 공시는 세지 않는다. 판정 전에는 null */
                 categoryUpShare: number | null;
-                /** @description 판정 뒤만. 같은 유형 공시 뒤 5거래일 종가가 내린 비율(소수 4자리 내림). 보합은 오름·내림 어디에도 들지 않으므로 1 − categoryUpShare와 다를 수 있다. 판정 전에는 null */
+                /** @description 판정 뒤만. 같은 유형 공시 직후가 내린 비율(소수 4자리 내림). 보합은 오름·내림 어디에도 들지 않으므로 1 − categoryUpShare와 다를 수 있다. 판정 전에는 null */
                 categoryDownShare: number | null;
                 /** @description 판정 뒤만. categoryUpShare·categoryDownShare를 센 공시 수. 판정 전에는 null */
                 categorySampleCount: number | null;
                 /**
-                 * @description 판정 뒤만. 그 유형의 과거 경향(policies §8-6). 판정 전에는 null
+                 * @description 판정 뒤만. 그 유형의 경향(policies §8-6). vsim-rules-v3부터 공시 반응 측정 v2의 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자)은 UP, 나머지는 MIXED로 고정한다(시장 조정 측정이라 categoryUpShare가 0.5 아래여도 UP일 수 있다). 판정 전에는 null
                  * @enum {string|null}
                  */
                 trend: "UP" | "DOWN" | "MIXED" | null;
@@ -3784,7 +3789,7 @@ export interface components {
                  */
                 trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
             }[];
-            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 이후 5거래일 움직임·유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임, 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
+            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 공시 직후·그다음 주 움직임과 유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임(사건 날과 그 뒤 5거래일은 같은 유형 과거 공시 당일과 그 뒤 움직임, 시장 전체 몫을 빼지 않음), 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
             notice: string;
             sources: string[];
         };
@@ -3953,12 +3958,15 @@ export interface components {
                 /** @description movement가 UP이면 POSITIVE, DOWN이면 NEGATIVE가 맞음. null은 틀림 */
                 correct: boolean;
                 /**
-                 * @description 그 유형의 과거 경향(지금 룰셋의 5거래일 통계, 룰셋에 없는 유형이면 null). 채점에는 쓰지 않는다
+                 * @description 그 유형의 경향(출제할 때의 룰셋, 룰셋에 없는 유형이면 null). 채점에는 쓰지 않는다. 아래 유형 통계와 함께 채점 구간과 같은 구간의 통계만 싣는다: REACTION이면 공시 직후 통계(vsim-rules-v3), FIVE_DAY면 5거래일 통계. 11-10 전 룰셋으로 출제한 REACTION 문제는 통계가 5거래일이라 4칸 모두 null(decisions/2026-11-10-vsim-ruleset-reaction-window)
                  * @enum {string|null}
                  */
                 trend: "UP" | "DOWN" | "MIXED" | null;
+                /** @description 같은 유형 공시 중 오른 비율(구간은 trend 설명). 소수 4자리 내림 */
                 categoryUpShare: number | null;
+                /** @description 같은 유형 공시 중 내린 비율. 소수 4자리 내림 */
                 categoryDownShare: number | null;
+                /** @description 유형 통계를 센 공시 수 */
                 categorySampleCount: number | null;
             }[];
             entry: components["schemas"]["VirtualContestEntry"];

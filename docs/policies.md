@@ -553,7 +553,7 @@ worker가 종목마다 한 번 고르고 세션은 고른 구간을 그대로 �
 
 ### 8-8. 대회(배치고사·하루 목표·주간 점수·판별 랭킹)
 
-회원만 참가하는 한 달(시즌) 단위 대회다. 결정·이유는 [대회 결정 기록](decisions/2026-11-05-virtual-sim-contest.md)을 따른다. 테스트 입력 정본은 `tests/policy/virtual-contest.json`(`IMPLEMENTED`)이고, `VirtualContestPolicyTest`가 읽는다. 매매·평가는 §5와 8-7을 그대로 쓰고, 금액은 원 단위 정수, 나눗셈은 내림(음수는 더 작은 쪽)이다. 배치고사 판 기준(7·9)은 11-05 구현 PR에서 실제 공시 모의 계산을 보고 사용자가 정했다.
+회원만 참가하는 한 달(시즌) 단위 대회다. 결정·이유는 [대회 결정 기록](decisions/2026-11-05-virtual-sim-contest.md)을 따른다. 테스트 입력 정본은 `tests/policy/virtual-contest.json`(`IMPLEMENTED`)이고, `VirtualContestPolicyTest`가 읽는다. 매매·평가는 §5와 8-7을 그대로 쓰고, 금액은 원 단위 정수, 나눗셈은 내림(음수는 더 작은 쪽)이다. 배치고사 판 기준(7·9)은 11-05 구현 PR에서 실제 공시 모의 계산을 보고 사용자가 정했고, 11-10 반응 창·유형별 상한 출제 규칙으로 다시 계산해 유지했다([판 기준 측정 기록](reference/placement-cuts-2026-11-10.md)).
 
 | 규칙 | 내용 |
 |---|---|

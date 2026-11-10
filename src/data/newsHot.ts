@@ -7,7 +7,8 @@ export type HotNews = { basis: 'SITE'; windowDays: number; items: { newsId: stri
 
 const VIEWER_KEY = 'fx.news.viewer';
 
-function viewerId(): string | null {
+/** 금융 가이드 조회수(guideViews.ts)도 같은 값을 쓴다 */
+export function viewerId(): string | null {
   try {
     let id = localStorage.getItem(VIEWER_KEY);
     if (!id) {

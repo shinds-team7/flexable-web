@@ -4396,8 +4396,21 @@ export interface components {
             id: string;
             title: string;
             summary: string;
-            /** @description 제안기 해설. 글자 수 제한 없음(문단 사이 줄바꿈 포함). 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6) */
+            /** @description 제안기 해설. explanationParts의 빈 칸이 아닌 칸을 문단으로 합친 값(문단 사이 줄바꿈). 글자 수 제한 없음. 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6). explanationParts가 null인 옛 데이터는 이 값만 보여 준다 */
             explanation: string;
+            /** @description 해설 네 칸(policies §7-6). 걸린 문장을 지워 빈 칸은 ""(화면에서 그 소제목을 숨김). 11-10 배포 전 재사용 조합과 옛 저장본은 null */
+            explanationParts: {
+                /** @description 조합 이유 */
+                reason: string;
+                /** @description 유형별 역할과 근거 */
+                roles: string;
+                /** @description 다른 시나리오와의 차이 */
+                comparison: string;
+                /** @description 주의할 점과 맞는 사람 */
+                fit: string;
+            } | null;
+            /** @description 서버가 정해 둔 문장에 이 시나리오의 계산값을 넣은 결과 문장(policies §7-5). 표기는 내림. 저장본은 조회할 때 저장된 숫자로 만든다 */
+            resultText: string;
             /** @description 비중이 0보다 큰 유형만, 비중 합 100 */
             mix: {
                 type: components["schemas"]["GoalScenarioProductType"];

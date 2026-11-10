@@ -21,8 +21,13 @@ class OpenAiScenarioProposerTest {
 		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
 		assertThat(drafts).hasSize(3);
 		assertThat(drafts.get(0).explanation()).isEqualTo("기한이 짧아요\n\n적금과 CMA로 바닥을 받쳐요\n\n가장 덜 흔들려요\n\n안정을 원하는 분께 맞아요");
+		assertThat(drafts.get(0).parts()).isEqualTo(new Proposals.Parts("기한이 짧아요", "적금과 CMA로 바닥을 받쳐요", "가장 덜 흔들려요", "안정을 원하는 분께 맞아요"));
 		assertThat(drafts.get(1).mix()).containsEntry("US_INDEX_ETF", 20);
 		assertThat(Proposals.validate(drafts)).isPresent();
+		// 검사를 통과한 시나리오도 네 칸을 따로, 합친 문단은 그대로 낸다(policies §7-6, #391)
+		Proposals.Plan plan = Proposals.validate(drafts).orElseThrow().getFirst();
+		assertThat(plan.parts()).isEqualTo(drafts.get(0).parts());
+		assertThat(plan.explanation()).isEqualTo(drafts.get(0).explanation());
 	}
 
 	@Test
@@ -35,6 +40,7 @@ class OpenAiScenarioProposerTest {
 				""";
 		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
 		assertThat(drafts.get(0).explanation()).isNull();
+		assertThat(drafts.get(0).parts()).isNull();
 		assertThat(drafts.get(1).explanation()).isNull();
 		assertThat(Proposals.check(drafts, ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_EMPTY #1.explanation");
 	}

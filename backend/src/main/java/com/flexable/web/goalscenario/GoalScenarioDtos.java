@@ -38,8 +38,16 @@ final class GoalScenarioDtos {
 	record Outcome(String kind, Long fixedAmount, Long low, Long median, Long high, int chanceBp, int lossBp) {
 	}
 
-	record Scenario(String id, String title, String summary, String explanation, List<MixItem> mix, boolean reachable,
-			Long monthly, Long paid, Outcome outcome) {
+	/**
+	 * explanationParts는 해설 네 칸(옛 재사용 조합·옛 저장본은 null), resultText는 서버가 만든 결과 문장(policies §7-5).
+	 * 저장본 스냅샷에는 resultText를 넣지 않고 조회할 때 만든다(SavedScenarioService).
+	 */
+	record Scenario(String id, String title, String summary, String explanation, Proposals.Parts explanationParts, String resultText,
+			List<MixItem> mix, boolean reachable, Long monthly, Long paid, Outcome outcome) {
+		/** 같은 시나리오에 결과 문장만 바꿔 끼운다. */
+		Scenario withResultText(String text) {
+			return new Scenario(id, title, summary, explanation, explanationParts, text, mix, reachable, monthly, paid, outcome);
+		}
 	}
 
 	record Result(String resultId, String name, long targetAmount, int months, String proposer, String fallbackReason,

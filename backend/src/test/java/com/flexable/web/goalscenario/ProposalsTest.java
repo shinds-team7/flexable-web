@@ -52,6 +52,59 @@ class ProposalsTest {
 		assertThat(checked.problem()).isEqualTo("TEXT_NUMBER #1.explanation");
 	}
 
+	private static List<Proposals.Draft> partsDrafts(Proposals.Parts first) {
+		Proposals.Parts ok = new Proposals.Parts("이유예요.", "역할이에요.", "차이예요.", "맞는 사람이에요.");
+		return List.of(new Proposals.Draft("s1", "조합", "설명", first, Map.of("SAVINGS", 100)),
+				new Proposals.Draft("s2", "조합", "설명", ok, Map.of("CMA", 100)),
+				new Proposals.Draft("s3", "조합", "설명", ok, Map.of("KR_INDEX_ETF", 100)));
+	}
+
+	@Test
+	void 네_칸은_칸마다_걸린_문장만_지우고_다_지워진_칸은_빈_칸이다() {
+		Proposals.Checked checked = Proposals.check(partsDrafts(
+				new Proposals.Parts("이유예요. 연 7% 수익이에요.", "무조건 올라요.", "차이예요.", "맞는 사람이에요.")), ProposalText.Facts.NONE);
+		assertThat(checked.problem()).isNull();
+		Proposals.Plan plan = checked.plans().getFirst();
+		assertThat(plan.parts()).isEqualTo(new Proposals.Parts("이유예요.", "", "차이예요.", "맞는 사람이에요."));
+		assertThat(plan.explanation()).isEqualTo("이유예요.\n\n차이예요.\n\n맞는 사람이에요.");
+		// 로그 위치는 칸을 나누지 않는다
+		assertThat(checked.removed()).containsExactly(new Proposals.Note("TEXT_NUMBER #1.explanation", "연 7% 수익이에요."),
+				new Proposals.Note("TEXT_ASSERTION #1.explanation", "무조건 올라요."));
+	}
+
+	@Test
+	void 네_칸이_모두_지워지면_제안_전체를_버린다() {
+		Proposals.Checked checked = Proposals.check(partsDrafts(
+				new Proposals.Parts("연 7%예요.", "무조건 올라요.", "매달 50만 원이에요.", "수익이 보장돼요.")), ProposalText.Facts.NONE);
+		assertThat(checked.plans()).isNull();
+		assertThat(checked.problem()).isEqualTo("TEXT_NUMBER #1.explanation");
+		assertThat(checked.logLine(true)).startsWith("TEXT_NUMBER #1.explanation \"연 7%예요.\n\n무조건 올라요.".replace("\n", " "));
+	}
+
+	@Test
+	void 네_칸_중_빈_칸이_있으면_걸린다() {
+		assertThat(Proposals.check(partsDrafts(new Proposals.Parts("이유예요.", " ", "차이예요.", "맞는 사람이에요.")), ProposalText.Facts.NONE).problem())
+			.isEqualTo("TEXT_EMPTY #1.explanation");
+	}
+
+	@Test
+	void 네_칸이_없는_옛_초안은_합친_문단만_검사하고_칸은_null이다() {
+		Proposals.Checked checked = Proposals.check(drafts("조합", "설명", "남는 문장이에요.\n\n둘째 문단이에요."), ProposalText.Facts.NONE);
+		assertThat(checked.plans().getFirst().parts()).isNull();
+		assertThat(checked.plans().getFirst().explanation()).isEqualTo("남는 문장이에요.\n\n둘째 문단이에요.");
+	}
+
+	@Test
+	void 데모_조합은_네_칸이_모두_있고_규칙을_통과한다() {
+		List<Proposals.Plan> demo = Proposals.validate(Proposals.DEMO).orElseThrow();
+		assertThat(demo).hasSize(3).allSatisfy(p -> {
+			assertThat(p.parts()).isNotNull();
+			assertThat(p.parts().all()).allSatisfy(t -> assertThat(t).isNotBlank());
+			assertThat(p.explanation()).isEqualTo(p.parts().joined());
+		});
+		assertThat(Proposals.check(Proposals.DEMO, ProposalText.Facts.NONE).removed()).isEmpty();
+	}
+
 	@Test
 	void 제목과_요약의_규칙_위반은_제안_전체를_버린다() {
 		assertThat(Proposals.check(drafts("연 7% 수익", "설명", "해설"), ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_NUMBER #1.title");

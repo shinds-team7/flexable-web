@@ -93,5 +93,21 @@
     { "id": "steady", "title": "차근차근 모으기", "mix": { "SAVINGS": 70, "CMA": 30, "KR_INDEX_ETF": 0, "US_INDEX_ETF": 0, "KOSPI_TOP5": 0 } },
     { "id": "spread", "title": "나눠서 키우기", "mix": { "SAVINGS": 40, "CMA": 10, "KR_INDEX_ETF": 20, "US_INDEX_ETF": 20, "KOSPI_TOP5": 10 } },
     { "id": "bold", "title": "적극적으로 키우기", "mix": { "SAVINGS": 10, "CMA": 10, "KR_INDEX_ETF": 20, "US_INDEX_ETF": 30, "KOSPI_TOP5": 30 } }
+  ],
+  "resultText": [
+    { "name": "투자 포함", "months": 12, "reachable": true, "monthly": 1067000,
+      "outcome": { "kind": "RANGE", "fixedAmount": null, "low": 11255655, "median": 12804000, "high": 14596913, "chanceBp": 8000, "lossBp": 4000 },
+      "expected": "매달 1,067,000원씩 넣으면 10번 중 8번 목표에 닿아요. 잘 안 풀리면(하위 10%) 1,125만 원이고, 원금보다 적게 남을 가능성은 40%예요." },
+    { "name": "억 단위·내림 경계", "months": 24, "reachable": true, "monthly": 4321000,
+      "outcome": { "kind": "RANGE", "fixedAmount": null, "low": 123456789, "median": 130000000, "high": 140000000, "chanceBp": 9999, "lossBp": 37 },
+      "expected": "매달 4,321,000원씩 넣으면 10번 중 9번 목표에 닿아요. 잘 안 풀리면(하위 10%) 1억 2,345만 원이고, 원금보다 적게 남을 가능성은 0%예요." },
+    { "name": "적금·CMA만", "months": 12, "reachable": true, "monthly": 1231000,
+      "outcome": { "kind": "FIXED", "fixedAmount": 15008920, "low": null, "median": null, "high": null, "chanceBp": 10000, "lossBp": 0 },
+      "expected": "매달 1,231,000원씩 넣으면 1년 뒤 1,500만 원이 돼요(세후 이자 포함)." },
+    { "name": "적금·CMA만(억·기한 1년 6개월)", "months": 18, "reachable": true, "monthly": 6000000,
+      "outcome": { "kind": "FIXED", "fixedAmount": 110000000, "low": null, "median": null, "high": null, "chanceBp": 10000, "lossBp": 0 },
+      "expected": "매달 6,000,000원씩 넣으면 1년 6개월 뒤 1억 1,000만 원이 돼요(세후 이자 포함)." },
+    { "name": "닿지 못함", "months": 36, "reachable": false, "monthly": null, "outcome": null,
+      "expected": "목표 금액 안의 월 금액으로는 10번 중 8번 목표에 닿지 못했어요. 기한을 늘리거나 목표를 조정해 보세요." }
   ]
 }

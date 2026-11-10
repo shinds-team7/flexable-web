@@ -12,24 +12,56 @@ import java.util.Set;
 /** 제안기가 낸 조합과 그 검증(policies §7-6). 제안은 유형 이름을 문자열로 받아 목록 밖 유형도 검사한다. */
 final class Proposals {
 
-	/** 제안기가 낸 시나리오 한 개. mix의 키는 유형 이름, 값은 비중(%). */
-	record Draft(String id, String title, String summary, String explanation, Map<String, Integer> mix) {
+	/**
+	 * 제안기가 낸 시나리오 한 개. mix의 키는 유형 이름, 값은 비중(%). parts는 해설 네 칸이고 explanation은 그 칸을 합친 문단이다.
+	 * 11-10(#391) 전에 저장한 재사용 조합은 parts가 없어(null) explanation만 검사해 쓴다.
+	 */
+	record Draft(String id, String title, String summary, String explanation, Map<String, Integer> mix, Parts parts) {
+		Draft(String id, String title, String summary, Parts parts, Map<String, Integer> mix) {
+			this(id, title, summary, parts == null ? null : parts.joined(), mix, parts);
+		}
+
+		/** 네 칸 없이 합친 문단만 있는 초안(옛 재사용 조합과 같은 모양). */
+		Draft(String id, String title, String summary, String explanation, Map<String, Integer> mix) {
+			this(id, title, summary, explanation, mix, null);
+		}
 	}
 
-	/** 검증을 통과한 시나리오. mix는 비중이 0보다 큰 유형만, ProductType 순서. */
-	record Plan(String id, String title, String summary, String explanation, Map<ProductType, Integer> mix) {
+	/** 해설 네 칸(policies §7-6). 걸린 문장을 지워 빈 칸은 ""이다. */
+	record Parts(String reason, String roles, String comparison, String fit) {
+		List<String> all() {
+			return java.util.Arrays.asList(reason, roles, comparison, fit);
+		}
+
+		/** 빈 칸을 뺀 나머지를 문단으로 합친다. */
+		String joined() {
+			return String.join("\n\n", all().stream().filter(t -> t != null && !t.isBlank()).map(String::strip).toList());
+		}
+	}
+
+	/** 검증을 통과한 시나리오. mix는 비중이 0보다 큰 유형만, ProductType 순서. parts는 옛 재사용 조합이면 null. */
+	record Plan(String id, String title, String summary, String explanation, Parts parts, Map<ProductType, Integer> mix) {
 	}
 
 	/** AI 연결 전·검증 실패 시 쓰는 데모 조합. 문구에도 숫자·보장 표현을 넣지 않는다. */
 	static final List<Draft> DEMO = List.of(
-			new Draft("steady", "차근차근 모으기", "이자가 정해진 상품만",
-					"원금이 줄어들 일 없이 목표에 닿는 조합이에요. 적금으로 매달 꾸준히 모으고, 급하게 꺼낼 일에 대비해 일부는 CMA에 둬요. 매달 넣는 돈은 세 조합 중 가장 많아요.",
+			new Draft("steady", "차근차근 모으기", "이자가 정해진 상품만", new Parts(
+					"원금이 줄어들 일 없이 목표에 닿도록 이자가 정해진 상품만 담은 조합이에요.",
+					"적금으로 매달 꾸준히 모으고, 급하게 꺼낼 일에 대비해 일부는 CMA에 둬요.",
+					"매달 넣는 돈은 세 조합 중 가장 많지만, 결과가 하나로 정해져요.",
+					"기한 안에 꼭 써야 하는 돈이거나 금액이 흔들리는 게 불안할 때 맞아요."),
 					ordered("SAVINGS", 70, "CMA", 30)),
-			new Draft("spread", "나눠서 키우기", "저축 절반과 지수 ETF·주식",
-					"저축 몫으로 바닥을 받치고, 나머지는 국내·미국 지수 ETF와 주식에 나눠 넣은 조합이에요. 한 시장이 부진해도 다른 쪽이 메워 줄 수 있게 나눴어요. 기한이 다가오면 투자 몫을 적금·CMA로 옮기는 것도 방법이에요.",
+			new Draft("spread", "나눠서 키우기", "저축 절반과 지수 ETF·주식", new Parts(
+					"저축 몫으로 바닥을 받치고, 나머지는 국내·미국 지수 ETF와 주식에 나눠 넣은 조합이에요.",
+					"적금·CMA는 정해진 이자로 모으고, 지수 ETF와 주식은 시장을 따라 오르내리며 키우는 몫이에요. 한 시장이 부진해도 다른 쪽이 메워 줄 수 있게 나눴어요.",
+					"차근차근 모으기보다 매달 넣는 돈이 적을 수 있지만, 결과가 범위로 흔들려요.",
+					"기한이 다가오면 투자 몫을 적금·CMA로 옮기는 것도 방법이에요. 어느 정도 오르내림을 견딜 수 있을 때 맞아요."),
 					ordered("SAVINGS", 40, "CMA", 10, "KR_INDEX_ETF", 20, "US_INDEX_ETF", 20, "KOSPI_TOP5", 10)),
-			new Draft("bold", "적극적으로 키우기", "지수 ETF·주식 중심",
-					"지수 ETF와 주식 비중을 크게 높여, 같은 목표를 더 적은 월 금액으로 노리는 조합이에요. 잘 안 풀리면 목표에 많이 못 미칠 수 있어서, 중간에 크게 줄어도 기다릴 수 있는 돈일 때만 고려해 보세요.",
+			new Draft("bold", "적극적으로 키우기", "지수 ETF·주식 중심", new Parts(
+					"지수 ETF와 주식 비중을 크게 높여, 같은 목표를 더 적은 월 금액으로 노리는 조합이에요.",
+					"적금·CMA는 작은 몫으로 급할 때 쓸 돈을 남기고, 지수 ETF와 주식이 대부분을 맡아요.",
+					"세 조합 중 매달 넣는 돈이 가장 적을 수 있지만, 결과의 폭도 가장 넓어요.",
+					"잘 안 풀리면 목표에 많이 못 미칠 수 있어서, 중간에 크게 줄어도 기다릴 수 있는 돈일 때만 고려해 보세요."),
 					ordered("SAVINGS", 10, "CMA", 10, "KR_INDEX_ETF", 20, "US_INDEX_ETF", 30, "KOSPI_TOP5", 30)));
 
 	/** 제안 하나의 시나리오 수. */
@@ -130,17 +162,28 @@ final class Proposals {
 					return Checked.fail(problem + " " + at + "." + f[0], f[1]);
 				}
 			}
+			// 로그 위치는 칸을 나누지 않고 "#2.explanation"으로 쓴다(§7-6).
 			String field = at + ".explanation";
-			if (d.explanation() == null || d.explanation().isBlank()) {
-				return Checked.fail("TEXT_EMPTY " + field, d.explanation());
+			List<String> texts = d.parts() == null ? java.util.Collections.singletonList(d.explanation()) : d.parts().all();
+			String whole = d.parts() == null ? d.explanation() : d.parts().joined();
+			if (texts.stream().anyMatch(t -> t == null || t.isBlank())) {
+				return Checked.fail("TEXT_EMPTY " + field, whole);
 			}
-			// 해설은 걸린 문장만 지운다. 다 지워지면 근거 없는 조합이 되므로 제안 전체를 버린다.
-			ProposalText.Cleaned cleaned = ProposalText.clean(d.explanation(), facts, mix.values());
-			if (cleaned.text().isEmpty()) {
-				return Checked.fail(cleaned.removed().getFirst().problem() + " " + field, d.explanation());
+			// 해설은 칸마다 걸린 문장만 지운다. 네 칸이 다 지워지면 근거 없는 조합이 되므로 제안 전체를 버린다.
+			List<String> kept = new ArrayList<>();
+			List<ProposalText.Removed> gone = new ArrayList<>();
+			for (String t : texts) {
+				ProposalText.Cleaned cleaned = ProposalText.clean(t, facts, mix.values());
+				kept.add(cleaned.text());
+				gone.addAll(cleaned.removed());
 			}
-			cleaned.removed().forEach(r -> removed.add(new Note(r.problem() + " " + field, r.sentence())));
-			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), cleaned.text(), mix));
+			if (kept.stream().allMatch(String::isEmpty)) {
+				return Checked.fail(gone.getFirst().problem() + " " + field, whole);
+			}
+			gone.forEach(r -> removed.add(new Note(r.problem() + " " + field, r.sentence())));
+			Parts parts = d.parts() == null ? null : new Parts(kept.get(0), kept.get(1), kept.get(2), kept.get(3));
+			String explanation = parts == null ? kept.getFirst() : parts.joined();
+			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), explanation, parts, mix));
 		}
 		return new Checked(out, null, null, removed);
 	}

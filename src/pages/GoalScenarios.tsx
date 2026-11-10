@@ -5,7 +5,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useLoginModal } from '@/components/LoginModal';
 import {
   FALLBACK_TEXT, GOAL_LIMITS, GOAL_PRESETS, TYPE_LABEL, deleteSavedScenario, periodText, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
-  type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
+  type ExplanationParts, type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
 } from '@/data/goalScenarios';
 import { ApiError, errorText } from '@/lib/api';
 import '@/styles/goal-plan.css';
@@ -17,6 +17,10 @@ const COLORS: Record<ScenarioProductType, string> = {
   US_INDEX_ETF: 'var(--color-series-4)', KOSPI_TOP5: 'var(--color-series-5)',
 };
 
+/** 해설 네 칸의 소제목(policies §7-6). 빈 칸은 소제목째 숨긴다. */
+const PART_LABELS: [keyof ExplanationParts, string][] = [
+  ['reason', '이렇게 짠 이유'], ['roles', '유형별 역할'], ['comparison', '다른 시나리오와 차이'], ['fit', '주의할 점과 맞는 사람'],
+];
 const AI_REUSE_TIP = '같은 조건으로 만든 AI 조합은 횟수가 차감되지 않아요.';
 const won = (n: number) => n.toLocaleString('ko-KR');
 /** 표시용 만 원 단위(내림). 서버 값을 읽기 쉽게 바꿀 뿐 계산 결과를 바꾸지 않는다. */
@@ -142,7 +146,16 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
     </div>
     <div className="gp-card gp-ai">
       <h3 className="gp-h3">{demo ? '조합 해설' : <span className="gp-ai-title"><AiBotIcon />AI 해설</span>} {demo && <span className="gp-badge gp-badge-muted">예시 문구</span>}</h3>
-      <p>{plan.explanation}</p>
+      {plan.explanationParts
+        ? PART_LABELS.filter(([k]) => plan.explanationParts?.[k].trim()).map(([k, label]) => <section key={k} className="gp-ai-part">
+          <h4 className="gp-h4">{label}</h4>
+          <p>{plan.explanationParts?.[k]}</p>
+        </section>)
+        : <p>{plan.explanation}</p>}
+      <section className="gp-ai-part">
+        <h4 className="gp-h4">계산 결과</h4>
+        <p>{plan.resultText}</p>
+      </section>
     </div>
   </>;
 }

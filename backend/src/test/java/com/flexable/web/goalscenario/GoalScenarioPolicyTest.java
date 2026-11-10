@@ -304,6 +304,23 @@ class GoalScenarioPolicyTest {
 		}
 	}
 
+	/** 결과 문장(§7-5 resultText). 서버 값과 같은 숫자를 화면과 같은 내림 표기로 넣는다. */
+	@TestFactory
+	Stream<DynamicTest> 결과_문장() {
+		return each("resultText", c -> {
+			JsonNode o = c.get("outcome");
+			GoalScenarioDtos.Outcome outcome = o == null || o.isNull() ? null
+					: new GoalScenarioDtos.Outcome(o.get("kind").asString(), longOrNull(o.get("fixedAmount")), longOrNull(o.get("low")),
+							longOrNull(o.get("median")), longOrNull(o.get("high")), o.get("chanceBp").asInt(), o.get("lossBp").asInt());
+			assertThat(ScenarioResultText.of(c.get("reachable").asBoolean(), longOrNull(c.get("monthly")), outcome, c.get("months").asInt()))
+				.isEqualTo(c.get("expected").asString());
+		});
+	}
+
+	private static Long longOrNull(JsonNode n) {
+		return n == null || n.isNull() ? null : n.asLong();
+	}
+
 	@Test
 	void 우선주는_뺀다() {
 		assertThat(GoalScenarioService.preferred("삼성전자우")).isTrue();

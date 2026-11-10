@@ -230,6 +230,9 @@ class GoalScenarioApiTest {
 				assertThat(sum).as("금액 보존").isEqualTo(monthly);
 				assertThat((Integer) JsonPath.read(body, "$.scenarios[" + i + "].outcome.chanceBp")).isGreaterThanOrEqualTo(8000);
 			}
+			// 데모 조합도 해설 네 칸과 결과 문장이 있다(§7-5·§7-6)
+			assertThat((String) JsonPath.read(body, "$.scenarios[" + i + "].explanationParts.reason")).isNotBlank();
+			assertResultText(body, "$.scenarios[" + i + "]", 12);
 		}
 	}
 
@@ -390,8 +393,72 @@ class GoalScenarioApiTest {
 			new Proposals.Draft("a", "코인", "코인", "코인이에요", Map.of("BITCOIN", 100)),
 			new Proposals.Draft("b", "적금", "적금", "적금이에요", Map.of("SAVINGS", 100)), THIRD);
 
+	/** AI가 해설을 네 칸으로 낸 제안(policies §7-6, #391). */
+	private static final List<Proposals.Draft> PARTS = List.of(
+			new Proposals.Draft("a", "저축만", "적금 위주", new Proposals.Parts("기한이 짧아요.", "적금으로 모아요.", "가장 덜 흔들려요.", "안정을 원할 때 맞아요."),
+					Map.of("SAVINGS", 100)),
+			new Proposals.Draft("b", "반반", "적금과 지수 ETF", new Proposals.Parts("나눠 담아요.", "반씩 나눠요.", "연 7% 수익을 노려요.", "기다릴 수 있을 때 맞아요."),
+					Map.of("SAVINGS", 50, "US_INDEX_ETF", 50)), THIRD);
+
 	private String member(String body, String token, int expectedStatus) throws Exception {
 		return send(auth(post("/api/v1/goal/scenarios").contentType(MediaType.APPLICATION_JSON).content(body), token), expectedStatus);
+	}
+
+	@Test
+	void 해설_네_칸과_결과_문장을_내고_재사용할_때도_네_칸을_그대로_쓴다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(PARTS);
+		String token = signup();
+		String body = member(BODY.formatted("목돈", 15_000_000, 12), token, 200);
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanationParts.reason")).isEqualTo("기한이 짧아요.");
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].explanation")).isEqualTo("기한이 짧아요.\n\n적금으로 모아요.\n\n가장 덜 흔들려요.\n\n안정을 원할 때 맞아요.");
+		// 걸린 문장만 있던 칸은 빈 칸, 나머지 칸은 그대로
+		assertThat((String) JsonPath.read(body, "$.scenarios[1].explanationParts.comparison")).isEmpty();
+		assertThat((String) JsonPath.read(body, "$.scenarios[1].explanationParts.fit")).isEqualTo("기다릴 수 있을 때 맞아요.");
+		// 적금 100%·3.50%·1년·목표 1,500만 원 = 정책 예시(1,231,000원 · 15,008,920원)
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].resultText")).isEqualTo("매달 1,231,000원씩 넣으면 1년 뒤 1,500만 원이 돼요(세후 이자 포함).");
+		assertResultText(body, "$.scenarios[1]", 12);
+
+		String again = member(BODY.formatted("목돈", 15_000_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		assertThat((Object) JsonPath.read(again, "$.scenarios[*].explanationParts")).isEqualTo(JsonPath.read(body, "$.scenarios[*].explanationParts"));
+		verify(proposer, times(1)).propose(any());
+	}
+
+	@Test
+	void 네_칸이_없는_배포_전_재사용_조합은_한_문단으로_읽는다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(PARTS);
+		String token = signup();
+		member(BODY.formatted("목돈", 15_100_000, 12), token, 200);
+		String drafts = jdbc.queryForObject("select drafts from goal_scenario_ai_cache where target_amount = ?", String.class, 15_100_000L);
+		String old = JsonPath.parse(drafts).delete("$[*].parts").jsonString();
+		assertThat(old).doesNotContain("parts");
+		jdbc.update("update goal_scenario_ai_cache set drafts = ? where target_amount = ?", old, 15_100_000L);
+
+		String again = member(BODY.formatted("목돈", 15_100_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		assertThat((Object) JsonPath.read(again, "$.scenarios[0].explanationParts")).isNull();
+		assertThat((String) JsonPath.read(again, "$.scenarios[0].explanation")).startsWith("기한이 짧아요.");
+		assertThat((String) JsonPath.read(again, "$.scenarios[1].explanation")).doesNotContain("연 7%");
+	}
+
+	/** 결과 문장의 숫자가 같은 응답의 월 금액·결과와 같다(§7-5). */
+	private static void assertResultText(String body, String at, int months) {
+		GoalScenarioDtos.Outcome o = outcome(body, at);
+		Long monthly = JsonPath.read(body, at + ".monthly") == null ? null : ((Number) JsonPath.read(body, at + ".monthly")).longValue();
+		assertThat((String) JsonPath.read(body, at + ".resultText"))
+			.isEqualTo(ScenarioResultText.of(JsonPath.read(body, at + ".reachable"), monthly, o, months));
+	}
+
+	private static GoalScenarioDtos.Outcome outcome(String body, String at) {
+		Map<String, Object> o = JsonPath.read(body, at + ".outcome");
+		if (o == null) {
+			return null;
+		}
+		java.util.function.Function<String, Long> n = k -> o.get(k) == null ? null : ((Number) o.get(k)).longValue();
+		return new GoalScenarioDtos.Outcome((String) o.get("kind"), n.apply("fixedAmount"), n.apply("low"), n.apply("median"), n.apply("high"),
+				((Number) o.get("chanceBp")).intValue(), ((Number) o.get("lossBp")).intValue());
 	}
 
 	@Test
@@ -650,6 +717,30 @@ class GoalScenarioApiTest {
 		String body = send(auth(get("/api/v1/me/goal/scenarios/" + legacyId), token), 200);
 		assertThat((String) JsonPath.read(body, "$.scenario.id")).isEqualTo("spread");
 		assertThat((List<?>) JsonPath.read(body, "$.alternatives")).isEmpty();
+	}
+
+	@Test
+	void 결과_문장은_저장하지_않고_조회할_때_만들며_옛_저장본은_한_문단이다() throws Exception {
+		String token = signup();
+		String result = call(BODY.formatted("여행 자금", 15_000_000, 12), 200);
+		long id = ((Number) JsonPath.read(save(token, JsonPath.read(result, "$.resultId"), "spread", 201), "$.id")).longValue();
+		String snapshot = jdbc.queryForObject("select snapshot from goal_scenarios where id = ?", String.class, id);
+		assertThat((Object) JsonPath.read(snapshot, "$.scenario.resultText")).isNull();
+		assertThat((List<Object>) JsonPath.read(snapshot, "$.alternatives[*].resultText")).containsOnlyNulls();
+
+		String saved = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat((String) JsonPath.read(saved, "$.scenario.resultText")).isEqualTo(JsonPath.read(result, "$.scenarios[1].resultText"));
+		assertThat((String) JsonPath.read(saved, "$.alternatives[0].resultText")).isEqualTo(JsonPath.read(result, "$.scenarios[0].resultText"));
+		assertThat((String) JsonPath.read(saved, "$.scenario.explanationParts.reason")).isNotBlank();
+
+		// 11-10 전 저장본: 네 칸·결과 문장 칸이 없다
+		String old = JsonPath.parse(snapshot).delete("$.scenario.explanationParts").delete("$.scenario.resultText")
+			.delete("$.alternatives[*].explanationParts").delete("$.alternatives[*].resultText").jsonString();
+		jdbc.update("update goal_scenarios set snapshot = ? format json where id = ?", old, id);
+		String legacy = send(auth(get("/api/v1/me/goal/scenarios/" + id), token), 200);
+		assertThat((Object) JsonPath.read(legacy, "$.scenario.explanationParts")).isNull();
+		assertThat((String) JsonPath.read(legacy, "$.scenario.explanation")).isEqualTo(JsonPath.read(result, "$.scenarios[1].explanation"));
+		assertThat((String) JsonPath.read(legacy, "$.scenario.resultText")).isEqualTo(JsonPath.read(result, "$.scenarios[1].resultText"));
 	}
 
 	@Test

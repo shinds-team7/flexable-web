@@ -177,18 +177,22 @@ class VirtualSimPolicyTest {
 		List<LocalDate> dates = e.get("dates").valueStream().map(x -> LocalDate.parse(x.asString())).toList();
 		List<Long> closes = e.get("closes").valueStream().map(JsonNode::asLong).toList();
 		for (JsonNode c : e.get("cases")) {
-			int[] path = VirtualSimRules.path(closes, VirtualSimRules.baseIndex(dates, LocalDate.parse(c.get("publishedDate").asString())));
+			int base = VirtualSimRules.baseIndex(dates, LocalDate.parse(c.get("publishedDate").asString()));
+			int[] path = VirtualSimRules.path(closes, base);
 			if (c.get("expected").isNull()) {
 				assertThat(path).as(c.toString()).isNull();
 			}
 			else {
 				assertThat(path).as(c.toString()).containsExactly(ints(c.get("expected")).stream().mapToInt(Integer::intValue).toArray());
+				assertThat(closes.get(base + 1) > closes.get(base - 1)).as(c.toString()).isEqualTo(c.get("reactionUp").asBoolean());
 			}
+		}
+		for (JsonNode c : r.get("corrections").get("cases")) {
+			assertThat(VirtualContestQuestions.correction(c.get("title").asString())).as(c.toString()).isEqualTo(c.get("correction").asBoolean());
 		}
 		assertThat(VirtualSimRules.MIN_PATHS).isEqualTo(r.get("minPathsPerType").asInt());
 		assertThat(VirtualSimRules.MAX_PATHS).isEqualTo(r.get("maxPathsPerType").asInt());
 		assertThat(VirtualSimRules.MIN_TYPES).isEqualTo(r.get("minTypes").asInt());
-		assertThat(VirtualSimRules.MIN_CLEAR_TYPES).isEqualTo(r.get("minClearTypes").asInt());
 		for (JsonNode c : r.get("upShare")) {
 			assertThat(VirtualSimRules.upShare(c.get("paths").asInt(), c.get("up").asInt())).as(c.toString())
 				.isEqualByComparingTo(new BigDecimal(c.get("expected").asString()));
@@ -243,13 +247,16 @@ class VirtualSimPolicyTest {
 	@Test
 	void trend() throws Exception {
 		JsonNode t = root().get("trend");
-		assertThat(VirtualSimRules.UP_AT_LEAST).isEqualByComparingTo(new BigDecimal(t.get("upAtLeast").asString()));
-		assertThat(VirtualSimRules.DOWN_AT_MOST).isEqualByComparingTo(new BigDecimal(t.get("downAtMost").asString()));
-		assertThat(VirtualSimRules.TREND_MIN_PATHS).isEqualTo(t.get("minPaths").asInt());
+		Map<VirtualSimCategory, String> fixed = new HashMap<>();
+		t.get("fixed").properties().forEach(x -> fixed.put(VirtualSimCategory.valueOf(x.getKey()), x.getValue().asString()));
+		assertThat(VirtualSimRules.TRENDS).isEqualTo(fixed);
+		// 고정 목록은 배치고사의 반응 창 근거 유형과 같다
+		assertThat(VirtualSimRules.TRENDS.keySet()).isEqualTo(VirtualContestQuestions.EVIDENCE_TYPES);
+		for (VirtualSimCategory c : VirtualSimCategory.values()) {
+			assertThat(VirtualSimRules.trend(c)).as(c.name()).isEqualTo(fixed.getOrDefault(c, t.get("others").asString()));
+		}
 		for (JsonNode c : t.get("cases")) {
-			BigDecimal share = VirtualSimRules.upShare(c.get("paths").asInt(), c.get("up").asInt());
-			assertThat(share).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("upShare").asString()));
-			assertThat(VirtualSimRules.trend(c.get("paths").asInt(), share)).as(c.toString()).isEqualTo(c.get("expected").asString());
+			assertThat(VirtualSimRules.trend(VirtualSimCategory.valueOf(c.get("category").asString()))).as(c.toString()).isEqualTo(c.get("expected").asString());
 		}
 	}
 
@@ -258,10 +265,12 @@ class VirtualSimPolicyTest {
 	void no_score() throws Exception {
 		JsonNode n = root().get("noScore");
 		for (JsonNode c : n.get("cases")) {
-			long base = c.get("baseline").asLong(), after = c.get("afterFiveSessions").asLong();
+			long prev = c.get("prevClose").asLong(), next = c.get("nextClose").asLong(), after = c.get("afterClose").asLong();
 			assertThat(c.get("trendOutcome").isNull()).as(c.toString()).isTrue();
 			assertThat(c.get("outcome").isNull()).as(c.toString()).isTrue();
-			assertThat(VirtualSimService.movement(base, after)).as(c.toString()).isEqualTo(c.get("movement").asString());
+			assertThat(VirtualSimService.movement(prev, next)).as(c.toString()).isEqualTo(c.get("movement").asString());
+			assertThat(PracticeEngine.rate(next - prev, prev)).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("reactionReturnRate").asString()));
+			assertThat(PracticeEngine.rate(after - next, next)).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("nextWeekReturnRate").asString()));
 		}
 	}
 
@@ -297,11 +306,14 @@ class VirtualSimPolicyTest {
 	// ───────── 생성 성질(예시 룰셋, 시드 여러 개) ─────────
 
 	@Test
-	void sample_ruleset_has_five_types_three_clear() {
+	void sample_ruleset_has_five_types_two_with_trend() {
 		VirtualSimRuleset rules = VirtualSimSample.ruleset();
 		assertThat(rules.isSample()).isTrue();
+		assertThat(rules.version()).isEqualTo(VirtualSimRuleset.VERSION);
 		assertThat(rules.categories()).hasSize(5);
-		assertThat(rules.categories().stream().filter(CategoryStats::clear)).hasSize(3);
+		assertThat(rules.categories().stream().filter(CategoryStats::clear).map(CategoryStats::category))
+			.containsExactlyInAnyOrder(VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE);
+		assertThat(rules.categories()).allSatisfy(c -> assertThat(c.samples()).allSatisfy(p -> assertThat(p).hasSize(VirtualSimRules.PATH_DAYS)));
 		assertThat(rules.grades()).hasSize(3).allSatisfy(g -> {
 			assertThat(g.r()).hasSize(VirtualSimRules.QUANTILES);
 			assertThat(java.util.Arrays.stream(g.u()).min().orElse(0)).isGreaterThanOrEqualTo(0);
@@ -343,13 +355,13 @@ class VirtualSimPolicyTest {
 			assertThat(events.size()).isBetween(3, 5);
 			assertThat(events.stream().map(Planned::category).distinct()).hasSize(events.size());
 			assertAllAsked(c.size(), events.stream().mapToInt(Planned::index).toArray());
-			// 사건 뒤 1~5번째 봉의 종가는 그 유형에서 뽑은 경로 값으로 만든 것이다
+			// 사건 봉과 그 뒤 1~5번째 봉의 종가는 그 유형에서 뽑은 경로 값 6개로 만든 것이다(v3)
 			for (Planned e : events) {
 				assertThat(rules.stats(e.category()).orElseThrow().samples()).anyMatch(s -> java.util.Arrays.equals(s, e.path()));
 				assertThat(e.category().titles()).contains(e.title());
-				for (int k = 1; k <= 5; k++) {
+				for (int k = 0; k <= 5; k++) {
 					long p = c.get(e.index() + k - 1).close();
-					long expected = Math.floorDiv(p * (10_000L + e.path()[k - 1]), 10_000L);
+					long expected = Math.floorDiv(p * (10_000L + e.path()[k]), 10_000L);
 					long upper = Math.floorDiv(p * 13_000, 10_000L), lower = Math.max(1, -Math.floorDiv(-p * 7_000, 10_000L));
 					assertThat(c.get(e.index() + k).close()).isEqualTo(Math.max(lower, Math.min(upper, expected)));
 				}
@@ -357,6 +369,29 @@ class VirtualSimPolicyTest {
 		}
 		assertThat(counts).contains(3, 4, 5);
 		assertThat(lengths.size()).isGreaterThan(50);
+	}
+
+	/** v2 룰셋(경로 5개)으로 시작한 대회 판을 정산할 때: 사건 뒤 1~5번째 봉만 경로 값이다(v3 생성기에서도 v2와 같은 봉) */
+	@Test
+	void generation_with_v2_ruleset_keeps_follow_only_paths() {
+		VirtualSimRuleset v3 = VirtualSimSample.ruleset();
+		VirtualSimRuleset v2 = new VirtualSimRuleset(VirtualSimRuleset.V2, null, null, true, v3.sources(), v3.categories().stream()
+			.map(c -> new CategoryStats(c.category(), c.paths(), c.up(), c.down(), c.flat(), c.upShare(), c.medianBp(), c.p25Bp(), c.p75Bp(), c.volumeRatio(),
+					c.trend(), c.samples().stream().map(x -> java.util.Arrays.copyOfRange(x, 1, x.length)).toList()))
+			.toList(), v3.grades());
+		Set<VirtualSimCategory> available = v2.categories().stream().map(CategoryStats::category).collect(java.util.stream.Collectors.toSet());
+		for (long seed = 1; seed <= 50; seed++) {
+			Plan plan = VirtualSimGenerator.generate(seed, v2, available, LocalDate.of(2026, 11, 10));
+			for (Planned e : plan.events()) {
+				assertThat(e.path()).hasSize(5);
+				for (int k = 1; k <= 5; k++) {
+					long p = plan.candles().get(e.index() + k - 1).close();
+					long expected = Math.floorDiv(p * (10_000L + e.path()[k - 1]), 10_000L);
+					long upper = Math.floorDiv(p * 13_000, 10_000L), lower = Math.max(1, -Math.floorDiv(-p * 7_000, 10_000L));
+					assertThat(plan.candles().get(e.index() + k).close()).isEqualTo(Math.max(lower, Math.min(upper, expected)));
+				}
+			}
+		}
 	}
 
 	// ───────── 8-5 자동 검사 ─────────

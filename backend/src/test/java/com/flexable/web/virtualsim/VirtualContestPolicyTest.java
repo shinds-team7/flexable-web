@@ -194,7 +194,10 @@ class VirtualContestPolicyTest {
 		}
 	}
 
-	/** 대회 판 규칙을 더해도 일반 유형의 결과는 그대로다. 값은 #253(일반 출제에서 뚜렷한 유형을 먼저 뽑지 않음) 생성기로 같은 입력을 돌려 잰 것. 대회 판의 난수 순서는 바뀌지 않아 생성기 버전은 그대로다 */
+	/**
+	 * 대회 판 규칙을 더해도 일반 유형의 결과는 그대로다. 값은 #253(일반 출제에서 뚜렷한 유형을 먼저 뽑지 않음) 생성기로 같은 입력을 돌려 잰 것. 대회 판의 난수 순서는 바뀌지 않아 생성기 버전은 그대로다.
+	 * 11-10(vsim-gen-v3·예시 룰셋 vsim-rules-v3)에 다시 쟀다: 예시 룰셋 경로가 6개가 되고 사건 봉에 첫째 값을 써서 봉이 바뀌었다(난수 순서는 같음)
+	 */
 	@Test
 	void general_generation_unchanged() {
 		var all = EnumSet.of(VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES,
@@ -209,7 +212,7 @@ class VirtualContestPolicyTest {
 				h = h * 31 + e.index() * 101 + e.category().ordinal() + e.title().hashCode();
 			}
 		}
-		assertThat(h).isEqualTo(-7166366154250459648L);
+		assertThat(h).isEqualTo(7220147959821266951L);
 	}
 
 	private static Portfolio play(JsonNode c) {

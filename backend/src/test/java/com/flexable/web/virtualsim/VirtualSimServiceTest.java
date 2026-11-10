@@ -75,11 +75,11 @@ class VirtualSimServiceTest {
 		assertThatThrownBy(() -> service.start(start(), "1.1.1.1")).isInstanceOfSatisfying(ApiException.class,
 				e -> assertThat(e.code()).isEqualTo(ErrorCode.PRACTICE_UNAVAILABLE));
 
-		// 룰셋은 있지만 공개 가능한 사건이 3개 미만이거나 뚜렷한 유형이 2개 미만인 회사뿐
+		// 룰셋은 있지만 공개 가능한 사건(지금 룰셋에 있는 유형)이 3개 미만인 회사뿐. 룰셋에 없는 유형(최대주주 변경)은 세지 않는다
 		VirtualSimStore sample = mock(VirtualSimStore.class);
 		when(sample.companies(true, VirtualSimChecker.VERSION)).thenReturn(List.of(
 				company(true, VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE),
-				company(true, VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND, VirtualSimCategory.OWNERSHIP)));
+				company(true, VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND, VirtualSimCategory.OWNERSHIP)));
 		var fake = new VirtualSimService(sample, new VirtualSimStartLimiter(new MovableClock()), new MovableClock(), "fake", 10);
 		assertThat(fake.status()).isEqualTo(new VirtualSimDtos.Status(false, true));
 		assertThatThrownBy(() -> fake.start(start(), "1.1.1.1")).isInstanceOf(ApiException.class);

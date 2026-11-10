@@ -200,7 +200,8 @@ public final class VirtualContestQuestions {
 
 	/**
 	 * 예시 자료(VIRTUAL_SIM_SOURCE=fake)의 문제 재료: 예시 회사의 사건마다 예시 룰셋에서 경로 몇 개를 골라 쓴다(실제 공시가 아니다).
-	 * 룰셋 경로에는 기준 봉 당일 등락이 없어 전날 종가 = 기준 봉 종가(10,000)로 두고, 첫째 날 등락까지를 공시 직후(정답), 둘째~다섯째 날을 그다음 주로 쓴다.
+	 * 전날 종가를 10,000으로 두고 경로를 이어 붙인다. v3 경로(6개, 기준 봉 당일부터)는 둘째 날까지가 공시 직후(정답)이고 셋째~여섯째 날이 그다음 주다.
+	 * v2 경로(5개, 기준 봉 당일 등락이 없음)는 전날 종가 = 기준 봉 종가로 보고 첫째 날까지가 공시 직후, 둘째~다섯째 날이 그다음 주다.
 	 * bodies: 회사 → 유형별 사건 글. 주요 내용은 유형마다 고정한 예시 값(VirtualSimSample.details, 실제 공시처럼 구조화 자료가 없는 유형은 null)
 	 */
 	public static List<Past> sample(Map<String, Map<VirtualSimCategory, String>> bodies, Map<String, String> industries, VirtualSimRuleset rules,
@@ -209,10 +210,11 @@ public final class VirtualContestQuestions {
 		bodies.forEach((company, byCategory) -> byCategory.forEach((category, body) -> rules.stats(category).ifPresent(st -> {
 			for (int k = 0; k < 4; k++) {
 				int[] path = st.samples().get(random.nextInt(st.samples().size()));
+				int reactionEnd = path.length > VirtualSimRules.FOLLOW_DAYS ? 1 : 0;
 				long close = 10_000, next = 0;
 				for (int d = 0; d < path.length; d++) {
 					close = Math.floorDiv(close * (10_000 + path[d]), 10_000L);
-					if (d == 0) {
+					if (d == reactionEnd) {
 						next = close;
 					}
 				}

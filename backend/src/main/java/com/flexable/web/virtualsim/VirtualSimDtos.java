@@ -58,13 +58,14 @@ public final class VirtualSimDtos {
 
 	/**
 	 * prediction: 매매 방향에서 정한 예상(BUY → POSITIVE, SELL → NEGATIVE, HOLD → null). quantity: 요청 수량, executedShares: 실제 체결 수량.
-	 * categoryDownShare: 5거래일 뒤 내린 비율 floor(down × 10000 / n) / 10000(보합은 오름·내림 어디에도 들지 않는다).
-	 * outcome·trendOutcome은 늘 null(일반·대회 모두 채점 없음, policies §8-6).
-	 * 판정 전에는 outcomeDate·subsequentReturnRate·movement·categoryUpShare·categoryDownShare·categorySampleCount·trend가 null
+	 * subsequentReturnRate: 사건 봉 종가 → 5번째 후속 봉 종가. reactionReturnRate: 공시 직후(사건 봉 전날 종가 → 다음 봉 종가), nextWeekReturnRate: 그다음 주
+	 * (다음 봉 종가 → 5번째 후속 봉 종가). movement: 공시 직후의 방향. categoryUpShare·categoryDownShare: 룰셋에서 같은 유형 공시 직후가 오른·내린 비율
+	 * floor(× 10000 / n) / 10000(보합은 오름·내림 어디에도 들지 않는다). outcome·trendOutcome은 늘 null(일반·대회 모두 채점 없음, policies §8-6).
+	 * 판정 전에는 outcomeDate부터 trend까지 null
 	 */
 	public record Result(String eventId, VirtualSimCategory category, String categoryName, String title, String date, Prediction prediction,
 			Action action, long quantity, String execution, String executedDate, Long executedPrice, Long executedShares, String outcome,
-			String outcomeDate, BigDecimal subsequentReturnRate, String movement, BigDecimal categoryUpShare, BigDecimal categoryDownShare, Integer categorySampleCount,
+			String outcomeDate, BigDecimal subsequentReturnRate, BigDecimal reactionReturnRate, BigDecimal nextWeekReturnRate, String movement, BigDecimal categoryUpShare, BigDecimal categoryDownShare, Integer categorySampleCount,
 			String trend, String trendOutcome) {
 	}
 

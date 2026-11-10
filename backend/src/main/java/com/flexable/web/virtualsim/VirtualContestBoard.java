@@ -2,7 +2,8 @@ package com.flexable.web.virtualsim;
 
 /**
  * 대회 판(티어, policies §8-8, decisions/2026-11-05-virtual-sim-contest 1-3·9). seedMoney: 판의 대회 시드머니(배치·승급·강등 때 잔액을 이 값으로 정한다).
- * 출제: 사건 4개·구간 120거래일 고정, 판의 변동성 등급에서 균등하게 뽑고, 뚜렷한 유형(UP·DOWN) clear개와 MIXED 유형 mixed개를 먼저 뽑는다.
+ * 출제: 사건 4개·구간 120거래일 고정, 판의 변동성 등급에서 균등하게 뽑고, 경향 있는 유형(UP·DOWN) clear개와 MIXED 유형 mixed개를 먼저 뽑는다.
+ * vsim-rules-v3부터 경향 있는 유형은 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자, VirtualSimRules.TRENDS)이다(decisions/2026-11-10-vsim-ruleset-reaction-window).
  */
 public enum VirtualContestBoard {
 
@@ -29,7 +30,7 @@ public enum VirtualContestBoard {
 		return rule;
 	}
 
-	/** 판을 시작할 때의 생성기 버전에 맞는 판 규칙(v1은 길이를 120~250에서 뽑음) */
+	/** 판을 시작할 때의 생성기 버전에 맞는 판 규칙(v1은 길이를 120~250에서 뽑음, v2·v3는 같음) */
 	VirtualSimGenerator.Board rule(String generator) {
 		return VirtualSimGenerator.V1.equals(generator) ? ruleV1 : rule;
 	}

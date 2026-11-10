@@ -57,7 +57,10 @@ public final class VirtualContestRules {
 		return prediction != null && (prediction == Prediction.POSITIVE) == up;
 	}
 
-	/** 판의 후보: 공개 가능 유형이 4개 이상이고 먼저 뽑는 뚜렷한 유형·MIXED 유형을 채울 수 있다. trends: 공개 가능 유형마다의 경향 */
+	/**
+	 * 판의 후보: 공개 가능 유형이 4개 이상이고 먼저 뽑는 경향 있는 유형(UP·DOWN, vsim-rules-v3는 반응 창 근거 유형)·MIXED 유형을 채울 수 있다.
+	 * trends: 공개 가능 유형마다의 경향
+	 */
 	public static boolean candidate(Collection<String> trends, VirtualContestBoard board) {
 		long mixed = trends.stream().filter(VirtualSimRules.MIXED::equals).count();
 		return trends.size() >= EVENTS && trends.size() - mixed >= board.clear() && mixed >= board.mixed();

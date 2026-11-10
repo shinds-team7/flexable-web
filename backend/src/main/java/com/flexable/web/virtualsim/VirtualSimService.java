@@ -51,9 +51,9 @@ import com.flexable.web.virtualsim.VirtualSimStore.Company;
 @EnableScheduling
 public class VirtualSimService {
 
-	static final String NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 채점하지 않고, 사건마다 이후 5거래일 움직임과 같은 유형 공시의 과거 통계를 보여 줘요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 뒤 움직임은 같은 유형의 과거 공시 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
-	static final String SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 사건 뒤 움직임은 예시 통계에서 무작위로 뽑았고, 채점하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
-	static final String CONTEST_NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 뒤 움직임은 같은 유형의 과거 공시 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	static final String NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 채점하지 않고, 사건마다 공시 직후와 그다음 주 움직임, 같은 유형 공시의 과거 통계를 보여 줘요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 날과 그 뒤 5거래일 움직임은 같은 유형의 과거 공시 당일과 그 뒤 움직임에서 무작위로 뽑았어요. 시장 전체가 오르내린 몫은 빼지 않았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	static final String SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 사건 날과 그 뒤 움직임은 예시 통계에서 무작위로 뽑았고, 채점하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	static final String CONTEST_NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 날과 그 뒤 5거래일 움직임은 같은 유형의 과거 공시 당일과 그 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	static final String CONTEST_SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	private static final Logger log = LoggerFactory.getLogger(VirtualSimService.class);
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
@@ -156,12 +156,11 @@ public class VirtualSimService {
 		return sample;
 	}
 
-	/** 공개 가능한 사건(지금 룰셋에 있는 유형)이 3개 이상이고 그중 뚜렷한 유형이 2개 이상인 회사 */
+	/** 공개 가능한 사건(지금 룰셋에 있는 유형)이 3개 이상인 회사(11-10부터 경향 있는 유형 수는 보지 않는다. 대회 판은 판 규칙으로 따로 거른다) */
 	private List<Company> candidates(VirtualSimRuleset rules) {
-		return store.companies(sample, VirtualSimChecker.VERSION).stream().filter(c -> {
-			var usable = c.bodies().keySet().stream().map(rules::stats).flatMap(Optional::stream).toList();
-			return usable.size() >= VirtualSimGenerator.MIN_QUESTIONS && usable.stream().filter(CategoryStats::clear).count() >= VirtualSimGenerator.MIN_CLEAR_TYPES;
-		}).toList();
+		return store.companies(sample, VirtualSimChecker.VERSION).stream()
+			.filter(c -> c.bodies().keySet().stream().map(rules::stats).flatMap(Optional::stream).count() >= VirtualSimGenerator.MIN_QUESTIONS)
+			.toList();
 	}
 
 	public Status status() {
@@ -355,18 +354,20 @@ public class VirtualSimService {
 				s.holding = trade.holding();
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
 						r.action() == Action.HOLD ? "HOLD" : trade.shares() == 0 ? "NO_FILL" : "FILLED", candle.date(), candle.open(), trade.shares(), null,
-						null, null, null, null, null, null, null, null);
+						null, null, null, null, null, null, null, null, null, null);
 			}
 			int baseline = s.decisionIndices.get(n);
 			if (s.index == baseline + VirtualSimRules.FOLLOW_DAYS) {
 				long price = s.candles.get(baseline).close();
+				// 공시 직후 = 사건 봉 전날 종가 → 다음 봉 종가, 그다음 주 = 다음 봉 종가 → 5번째 후속 봉 종가(11-10, 배치고사 결과와 같은 두 구간)
+				long prev = s.candles.get(baseline - 1).close(), next = s.candles.get(baseline + 1).close();
 				String eventId = r.eventId();
 				CategoryStats stats = s.questions.stream().filter(q -> q.id().equals(eventId)).findFirst().orElseThrow().stats();
 				// 일반·대회 모두 채점하지 않는다(policies §8-6, 11-05): 이번 결과·경향 채점은 null, 이번 움직임·유형 통계는 보인다
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
 						r.execution(), r.executedDate(), r.executedPrice(), r.executedShares(), null, candle.date(),
-						PracticeEngine.rate(candle.close() - price, price), movement(price, candle.close()), stats.upShare(), VirtualSimRules.upShare(stats.paths(), stats.down()), stats.paths(), stats.trend(),
-						null);
+						PracticeEngine.rate(candle.close() - price, price), PracticeEngine.rate(next - prev, prev), PracticeEngine.rate(candle.close() - next, next),
+						movement(prev, next), stats.upShare(), VirtualSimRules.upShare(stats.paths(), stats.down()), stats.paths(), stats.trend(), null);
 			}
 			s.decisions.set(n, r);
 		}
@@ -381,7 +382,7 @@ public class VirtualSimService {
 		};
 	}
 
-	/** 이번 5거래일 가상 등락의 방향(원 가격 비교) */
+	/** 가상 등락의 방향(원 가격 비교). 판정 뒤 movement는 공시 직후(사건 봉 전날 종가 → 다음 봉 종가) */
 	static String movement(long baseline, long after) {
 		return after > baseline ? "UP" : after < baseline ? "DOWN" : "FLAT";
 	}
@@ -435,7 +436,7 @@ public class VirtualSimService {
 		}
 		Planned p = q.planned();
 		s.decisions.add(new Result(q.id(), p.category(), p.category().displayName(), p.title(), s.candles.get(s.index).date(), prediction(input.action()),
-				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null, null));
+				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 		s.decisionIndices.add(s.index);
 		return save(s, input.commandId(), input, List.of());
 	}

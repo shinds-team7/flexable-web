@@ -79,10 +79,11 @@
       ]
     ],
     "note": "배치고사만 과거 경향으로 채점. 대회 판의 decisions[].outcome·trendOutcome은 늘 null. 승급·강등하면 잔액 = 새 판의 대회 시드머니. 시드는 판마다 사람마다 새로 뽑는다",
-    "generatorVersion": "vsim-gen-v2",
+    "generatorVersion": "vsim-gen-v3",
     "supportedGeneratorVersions": [
       "vsim-gen-v1",
-      "vsim-gen-v2"
+      "vsim-gen-v2",
+      "vsim-gen-v3"
     ],
     "roundsForDailyScore": 10
   },
@@ -203,8 +204,36 @@
     }
   },
   "candidates": {
-    "note": "공개 가능 유형의 경향 목록 → 판별 후보 여부. 유형 4개 이상이고 그 판의 먼저 뽑는 유형을 채울 수 있어야 후보",
+    "note": "공개 가능 유형의 경향 목록 → 판별 후보 여부. 유형 4개 이상이고 그 판의 먼저 뽑는 유형을 채울 수 있어야 후보. vsim-rules-v3(11-10)부터 경향 있는 유형(UP·DOWN) = 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자, 모두 UP)이라 DOWN은 나오지 않는다. DOWN이 든 예시는 판 규칙 계산 예로 남긴다",
     "cases": [
+      {
+        "trends": [
+          "UP",
+          "UP",
+          "MIXED",
+          "MIXED"
+        ],
+        "note": "v3: 공급 계약·자기주식 취득·배당·실적 발표",
+        "expected": {
+          "B10M": true,
+          "B50M": true,
+          "B100M": true
+        }
+      },
+      {
+        "trends": [
+          "UP",
+          "UP",
+          "UP",
+          "MIXED"
+        ],
+        "note": "v3: 근거 유형 3개 + 1개",
+        "expected": {
+          "B10M": true,
+          "B50M": true,
+          "B100M": false
+        }
+      },
       {
         "trends": [
           "UP",

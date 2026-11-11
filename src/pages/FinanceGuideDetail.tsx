@@ -5,7 +5,7 @@ import { Fragment, useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { CATEGORY_LABEL, GUIDE_CONTENTS, isGuideCategory, type GuideContent } from '@/data/financeGuide';
 import { GUIDE_ARTICLES, type GuideBlock } from '@/data/guideArticles';
-import { recordGuideView } from '@/data/guideViews';
+import { useRecordGuideView } from '@/data/guideViews';
 import '@/styles/finance-guide.css';
 
 export default function FinanceGuideDetail() {
@@ -24,9 +24,10 @@ function DetailPage({ c }: { c: GuideContent }) {
 
   // 본문이 있는 글을 열면 조회수를 센다(서버가 방문자·글·날짜당 한 번만 센다)
   const hasArticle = Boolean(article);
+  const recordView = useRecordGuideView();
   useEffect(() => {
-    if (hasArticle) recordGuideView(c.id);
-  }, [c.id, hasArticle]);
+    if (hasArticle) recordView(c.id);
+  }, [c.id, hasArticle, recordView]);
 
   // 다른 콘텐츠로 넘어오면 맨 위부터 읽게 한다
   useEffect(() => {

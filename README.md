@@ -5,7 +5,7 @@
 - 웹: Vite + React + TypeScript · React Router · TanStack Query
 - 시연(`/m`): Expo 웹(예시 데이터, 서버 호출 없음)
 - 운영 두 곳(10-22 기준, 자세한 것은 [웹 인수인계](docs/product/HANDOFF.md))
-  - https://solpa.shinhanacademy.co.kr: 웹 화면·웹 백엔드·DB를 한 VM에서 돌린다([`deploy/vm/README.md`](deploy/vm/README.md)). 웹 계정·웹 방침·앱 연동은 여기서만 동작한다. `main` 머지로 자동 반영되지 않고, VM에서 사람이 반영한다. 11-18 VM 종료 전에 AWS로 옮긴다
+  - https://solpa.shinhanacademy.co.kr: 웹 화면·웹 백엔드·DB를 한 VM에서 돌린다([`deploy/vm/README.md`](deploy/vm/README.md)). 웹 계정·웹 방침·앱 연동은 여기서만 동작한다. `main` 머지 후 CI가 성공하면 VM의 GitHub Actions 러너가 자동 반영한다(러너 설치 전에는 사람이 반영). 11-18 VM 종료 전에 AWS로 옮긴다
   - https://flexable-web-delta.vercel.app (시연 `/m`): `main` 머지 시 자동 배포. `VITE_API_URL`이 앱 서버를 가리켜 임시로 앱 계정으로 로그인되고, 웹 백엔드 API(시드머니 연동·시세·시뮬레이션·목표)는 없다([경계 문서](docs/product/04-service-boundaries.md) §4)
 - 앱·앱 서버: [`shinds-team7/flexable-app`](https://github.com/shinds-team7/flexable-app)(이전 이름 project2). 웹 서버는 이 저장소 `backend/`(웹 계정·소셜 로그인·앱 연동·시세·투자 시뮬레이션·사건 핀·목표와 AI 안내까지 구현. 적금·소식·결제 서버는 아직 없음)
 
@@ -102,7 +102,7 @@ npm run build      # dist/ = 웹 + dist/m(시연)
 
 Vercel 프로젝트 하나가 이 저장소의 `main`을 자동 배포한다(`vercel.json`: 설치·빌드 명령, `/m/*`는 시연 index로, 나머지는 웹 index로 rewrite).
 
-solpa(VM)는 `VITE_API_URL` 없이 빌드해 같은 출처 `/api/v1`(nginx → 웹 백엔드)을 부른다. Vercel 배포본은 `VITE_API_URL`로 앱 서버(project2)를 부르는 임시 구성이다. Vercel처럼 앱 서버를 부르는 배포에 새 도메인을 추가할 때 운영 담당자가 API 서버(project2)와 웹 환경설정을 함께 갱신한다. 아래는 절차이며 이번 문서 수정에서 운영 설정을 변경하거나 확인한 것은 아니다.
+solpa(VM) 자동 배포는 `.github/workflows/deploy.yml`이 맡는다([설치·운영](deploy/vm/README.md)). VM은 `VITE_API_URL` 없이 빌드해 같은 출처 `/api/v1`(nginx → 웹 백엔드)을 부른다. Vercel 배포본은 `VITE_API_URL`로 앱 서버(project2)를 부르는 임시 구성이다. Vercel처럼 앱 서버를 부르는 배포에 새 도메인을 추가할 때 운영 담당자가 API 서버(project2)와 웹 환경설정을 함께 갱신한다. 아래는 절차이며 이번 문서 수정에서 운영 설정을 변경하거나 확인한 것은 아니다.
 - 서버 `.env`의 `CORS_ORIGINS`에 웹 주소
 - `OAUTH_ALLOWED_REDIRECT_URIS`에 `https://<웹 주소>/oauth/callback`
 - 운영 웹 환경변수 `VITE_API_URL=https://flex-able-sh.duckdns.org`(도메인 구매 뒤 `https://api.<도메인>`)

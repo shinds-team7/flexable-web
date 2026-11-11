@@ -1137,17 +1137,36 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .it-intro{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;margin-top:24px}
 .it-intro-h{margin:0;font-size:40px;line-height:52px;font-weight:800;letter-spacing:-.02em}
 .it-intro-p{margin:0;font-size:16px;line-height:26px;font-weight:300;color:var(--text-secondary,inherit)}
-.it-entry{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px;width:100%;max-width:880px;margin:32px auto 0}
-.it-entry-card{display:flex;flex-direction:column;align-items:center;gap:12px;min-height:520px;padding:56px 40px 48px;border-radius:40px;color:#fff;text-decoration:none;box-shadow:0 12px 40px color-mix(in srgb,var(--entry) 28%,transparent);transition:transform 220ms var(--ease),box-shadow 220ms var(--ease)}
-.it-entry-card:is(:hover,:focus,:active){text-decoration:none}
-.it-entry-card.sky{--entry:var(--color-card-sky);background:var(--color-card-sky)}
-.it-entry-card.violet{--entry:var(--color-card-violet);background:var(--color-card-violet)}
-.it-entry-card:is(:hover,:focus-visible){transform:translateY(-6px);box-shadow:0 18px 48px color-mix(in srgb,var(--entry) 38%,transparent)}
-.it-entry-k{font-size:14px;font-weight:300}
-.it-entry-h{font-size:30px;line-height:38px;font-weight:800}
-.it-art{flex:none;width:100%;max-width:320px;height:auto;margin:auto 0;align-self:center}
-.it-entry-card.violet .it-art{max-width:288px}
-.it-entry-go{width:100%;padding:18px 0;border-radius:var(--radius-soft);background:rgb(255 255 255/.14);text-align:center;font-size:18px;font-weight:500}
+.it-entry{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;width:100%;max-width:960px;margin:16px auto 0}
+.it-entry-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px;min-height:480px;padding:36px 44px 40px;border:1px solid color-mix(in srgb,var(--card) 70%,transparent);border-radius:32px;color:var(--text);text-decoration:none;isolation:isolate;overflow:hidden;box-shadow:inset 0 1px 0 color-mix(in srgb,var(--card) 80%,transparent),0 16px 40px color-mix(in srgb,var(--entry) 16%,transparent);transition:transform 220ms var(--ease),box-shadow 220ms var(--ease)}
+.it-entry-card:is(:hover,:focus,:active){color:var(--text);text-decoration:none}
+/* 바탕: 파스텔 면(레퍼런스보다 한 단계 진하게). 하늘색은 보라를 조금 섞어 브랜드 블루 쪽 페리윙클로, 보라는 그대로 라벤더로.
+   위가 조금 밝고 아래로 진해진다. 표면색(--card)에 섞어 다크 테마에서도 맞는다 */
+.it-entry-card.sky{--entry:color-mix(in srgb,var(--color-card-sky) 80%,var(--color-card-violet));--tint-top:24%;--tint-bottom:36%}
+.it-entry-card.violet{--entry:var(--color-card-violet);--tint-top:20%;--tint-bottom:32%}
+/* 은은한 무늬: 오른쪽에서 크게 휘어 들어오는 밝은 띠, 왼쪽 아래의 옅은 곡선 띠, 그림 뒤 빛, 왼쪽 위 빛 */
+.it-entry-card:is(.sky,.violet){background:
+  radial-gradient(42% 26% at 50% 60%,color-mix(in srgb,var(--card) 55%,transparent),transparent 72%),
+  radial-gradient(150% 62% at 112% 74%,color-mix(in srgb,var(--card) 26%,transparent) 0 46%,color-mix(in srgb,var(--card) 10%,transparent) 50%,transparent 54%),
+  radial-gradient(130% 55% at -18% 96%,color-mix(in srgb,var(--card) 18%,transparent) 0 44%,transparent 49%),
+  radial-gradient(80% 50% at 0% 0%,color-mix(in srgb,var(--card) 40%,transparent),transparent 70%),
+  linear-gradient(180deg,color-mix(in srgb,var(--entry) var(--tint-top),var(--card)),color-mix(in srgb,var(--entry) var(--tint-bottom),var(--card)))}
+.it-entry-card:is(:hover,:focus-visible){transform:translateY(-6px);box-shadow:inset 0 1px 0 color-mix(in srgb,var(--card) 80%,transparent),0 22px 48px color-mix(in srgb,var(--entry) 24%,transparent)}
+/* 카드 위 분류는 알약 모양, 제목 아래 두 줄 설명 */
+.it-entry-k{display:inline-flex;align-items:center;height:32px;padding:0 14px;border-radius:999px;background:color-mix(in srgb,var(--entry) 16%,var(--card));color:color-mix(in srgb,var(--entry) 82%,var(--text));font-size:14px;font-weight:700}
+.it-entry-h{font-size:30px;line-height:38px;font-weight:800;text-align:center}
+.it-entry-d{font-size:16px;line-height:26px;text-align:center;color:var(--text-sub)}
+.it-art{flex:none;width:100%;max-width:300px;height:auto;margin:auto 0;align-self:center;filter:drop-shadow(0 14px 18px color-mix(in srgb,var(--entry) 22%,transparent))}
+.it-entry-card.violet .it-art{max-width:270px}
+/* 오른쪽 그림: 망원경 끝에 "발견" 표시(선 세 개)를 겹친다. 카드에 마우스를 올리면 한 번 더 톡 튄다 */
+.it-art-box{position:relative;display:block}
+.it-art-box img{display:block;width:100%;height:auto}
+.it-art-burst{position:absolute;left:83%;top:3%;width:20%;height:auto;overflow:visible;color:color-mix(in srgb,var(--entry) 85%,var(--text));transform-origin:0% 100%;animation:it-burst 520ms 200ms var(--ease) backwards}
+.it-entry-card:is(:hover,:focus-visible) .it-art-burst{animation:it-burst 520ms var(--ease)}
+@keyframes it-burst{0%{opacity:0;transform:scale(.4)}60%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.it-art-burst,.it-entry-card:is(:hover,:focus-visible) .it-art-burst{animation:none}}
+.it-entry-go{width:100%;padding:18px 0;border-radius:20px;background:color-mix(in srgb,var(--card) 88%,transparent);box-shadow:0 4px 14px color-mix(in srgb,var(--entry) 12%,transparent);text-align:center;font-size:18px;font-weight:700;color:color-mix(in srgb,var(--entry) 85%,var(--text));transition:background-color 180ms var(--ease)}
+.it-entry-card:is(:hover,:focus-visible) .it-entry-go{background:var(--card)}
 .it-mine-line{margin:24px 0 0;text-align:center}
 .it-about-page{width:100%;max-width:720px;margin:24px auto 0}
 @media (max-width:860px){.it-entry{grid-template-columns:minmax(0,1fr);gap:24px}.it-entry-card{min-height:420px}.it-intro-h{font-size:30px;line-height:40px}}
@@ -1533,3 +1552,39 @@ a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-un
 .ia-cta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px;border-radius:var(--radius-soft);background:var(--color-brand-subtle);font-weight:700}
 .ia-notice{display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:var(--radius-soft);background:var(--color-bg-subtle);color:var(--color-text-secondary);font-size:13px}
 @media (max-width:960px){.ia{grid-template-columns:minmax(0,1fr);gap:24px}.ia-toc{position:static}.ia-toc ol{flex-direction:row;flex-wrap:wrap;border-left:0;gap:6px 14px}.ia-toc a{padding-left:0}}
+/* 투자 성향 글꼴 크기: 금융 가이드(finance-guide.css)와 같은 단계로 맞춘다.
+   /type·/type/test·/type/choose·/type/:id(.it-page)는 가이드 메인·카테고리 화면, /type/about(.ia)은 가이드 상세 글 화면 기준 */
+.it-page{letter-spacing:-.02em}
+.it-page :is(input,select,button){letter-spacing:inherit}
+.it-page .page-title{font-size:32px;line-height:42px;font-weight:800;letter-spacing:-.03em}
+.it-page .page-head .page-desc{font-size:17px;line-height:26px;color:var(--color-text-secondary)}
+.it-page .it-sec .page-desc{font-size:15px;line-height:23px;color:var(--color-text-tertiary)}
+.it-page :is(.it-h2,.card h2){font-size:22px;line-height:30px;font-weight:800;letter-spacing:-.025em}
+.it-page :is(.it-kind h3,.link-card h3){font-size:18px;line-height:26px;font-weight:700;letter-spacing:-.025em}
+.it-page .link-card .sub{font-size:15px;line-height:22px}
+.it-page .card > p:not(.meta,.it-cap,.disclaimer){font-size:16px;line-height:24px}
+.it-page .it-one{font-size:18px;line-height:26px}
+.it-page .it-traits{font-size:15px}
+.it-page .it-ways{font-size:15px;line-height:24px}
+.it-page .it-intro-h{font-size:32px;line-height:42px;letter-spacing:-.03em}
+.it-page .it-intro-p{font-size:17px;line-height:26px}
+.it-page .it-entry-k{font-size:15px}
+.it-page .it-entry-h{font-size:30px;line-height:40px;letter-spacing:-.03em}
+.it-page .it-entry-go{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.it-page .it-q{font-size:22px;line-height:30px;font-weight:800;letter-spacing:-.025em}
+.it-page .it-area{height:26px;padding:0 9px;font-size:13px;font-weight:600}
+.it-page .it-qa .it-answer{font-size:16px}
+.ia-title .meta{font-size:15px;font-weight:700}
+.ia-title h1{font-size:clamp(32px,4vw,42px);line-height:1.3;font-weight:800;letter-spacing:-.02em}
+.ia-head h2{font-size:24px;line-height:1.4}
+.ia-prose,.ia-step,.ia-prose ul{font-size:17px;line-height:1.75}
+.ia-step h3{font-size:18px;line-height:1.6}
+.ia-notice{font-size:14px;line-height:1.7}
+.ia-notice ul{line-height:1.7}
+@media (max-width:767px){
+  .it-page .page-title,.it-page .it-intro-h{font-size:24px;line-height:32px}
+  .it-page .page-head .page-desc,.it-page .it-intro-p{font-size:15px;line-height:23px}
+  .it-page :is(.it-h2,.card h2){font-size:20px;line-height:28px}
+  .it-page .it-entry-h{font-size:24px;line-height:32px}
+}
+@media (max-width:480px){.ia-prose,.ia-step,.ia-prose ul{font-size:16px}}

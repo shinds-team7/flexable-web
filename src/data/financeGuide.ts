@@ -31,10 +31,8 @@ export type GuideContent = {
   /** 카드 아래 해시태그(# 없이) */
   tag: string;
   minutes: number;
-  /** 최신순 정렬용 게시 순서(클수록 최신). 예시 값 */
+  /** 최신순 정렬용 게시 순서(클수록 최신). 예시 값: 추천순(RECOMMENDED)에 든 글을 먼저 쓴 글(1~12, 기초일수록 작게)로, 나머지를 최근 글(13~18)로 매겼다 */
   order: number;
-  /** 카테고리 화면 '꼭 알아야 하는 지식'에 고정 */
-  pinned?: boolean;
   art: FinanceArtId;
 };
 
@@ -43,30 +41,30 @@ export type GuideContent = {
 export const GUIDE_CONTENTS: { isSample: true; items: GuideContent[] } = {
   isSample: true,
   items: [
-    // 금융 기초 (앞 4개가 '꼭 알아야 하는 지식')
-    { id: 'interest-rate', category: 'basic', pinned: true, art: 'percent', tag: '금리', minutes: 6, order: 18, title: '금리와 기준금리', desc: '금리의 뜻과 정해지는 원리, 기준금리가 예금·대출 금리에 주는 영향을 알아봐요.' },
-    { id: 'interest-income-tax', category: 'basic', pinned: true, art: 'calculator', tag: '세금', minutes: 4, order: 17, title: '이자소득세', desc: '예금·적금 이자에서 떼는 세금과 세후 이자 계산, 금융소득 2천만 원 기준을 알아봐요.' },
-    { id: 'simple-vs-compound', category: 'basic', pinned: true, art: 'jar', tag: '복리', minutes: 3, order: 16, title: '단리 vs 복리', desc: '단리와 복리의 차이를 같은 예시로 비교하고, 상품에서 확인할 점을 알아봐요.' },
-    { id: 'inflation-real-rate', category: 'basic', pinned: true, art: 'news', tag: '물가', minutes: 4, order: 15, title: '인플레이션과 실질금리', desc: '물가가 오르면 돈의 가치가 어떻게 변하는지, 명목금리와 실질금리의 차이를 알아봐요.' },
-    { id: 'exchange-rate', category: 'basic', art: 'wallet', tag: '환율', minutes: 4, order: 14, title: '환율', desc: '환율의 뜻과 정해지는 원리, 환율이 오를 때 생활에 생기는 변화를 알아봐요.' },
-    { id: 'gross-vs-net-pay', category: 'basic', art: 'wallet', tag: '월급', minutes: 5, order: 13, title: '세전 월급 vs 실수령액', desc: '월급에서 떼는 사회보험료와 세금, 실수령액이 줄어드는 이유를 알아봐요.' },
-    { id: 'year-end-tax', category: 'basic', art: 'calculator', tag: '연말정산', minutes: 4, order: 12, title: '연말정산', desc: '연말정산으로 세금을 돌려받거나 더 내는 이유와 소득공제·세액공제의 차이를 알아봐요.' },
-    { id: 'credit-score', category: 'basic', art: 'target', tag: '신용점수', minutes: 3, order: 11, title: '신용점수', desc: '신용점수가 무엇인지, 어디서 확인하고 어떻게 관리하는지 알아봐요.' },
-    { id: 'loan-rate-repayment', category: 'basic', art: 'percent', tag: '대출', minutes: 4, order: 10, title: '대출 금리와 상환 방식', desc: '고정·변동금리와 세 가지 상환 방식의 차이, 대출할 때 알아 둘 권리를 알아봐요.' },
-    // 저축과 투자 (앞 4개가 '꼭 알아야 하는 지식')
-    { id: 'saving-vs-investing', category: 'product', topic: 'saving', pinned: true, art: 'piggy', tag: '저축·투자', minutes: 4, order: 9, title: '저축 vs 투자', desc: '저축과 투자의 차이, 상품을 고를 때 볼 기준과 비상금의 역할을 알아봐요.' },
-    { id: 'deposit-vs-savings', category: 'product', topic: 'saving', pinned: true, art: 'piggy', tag: '예적금', minutes: 4, order: 8, title: '예금 vs 적금', desc: '예금과 적금의 차이, 적금 이자 계산과 우대금리·중도해지·예금자보호를 알아봐요.' },
-    { id: 'parking-vs-cma', category: 'product', topic: 'saving', pinned: true, art: 'jar', tag: 'CMA', minutes: 5, order: 7, title: '파킹통장 vs CMA', desc: '수시로 넣고 빼는 돈을 두는 파킹통장과 CMA의 차이, 예금자보호 여부를 알아봐요.' },
-    { id: 'housing-subscription', category: 'product', topic: 'saving', pinned: true, art: 'target', tag: '청약', minutes: 4, order: 6, title: '청약통장', desc: '주택청약종합저축의 가입·납입 조건, 소득공제와 예금자보호를 알아봐요.' },
-    { id: 'stock-basics', category: 'product', topic: 'investing', art: 'pie', tag: '주식', minutes: 6, order: 5, title: '주식 기초', desc: '주식이 무엇인지, 어떻게 사고파는지와 세금·위험을 알아봐요.' },
-    { id: 'kospi-vs-kosdaq', category: 'product', topic: 'investing', art: 'news', tag: '코스피', minutes: 5, order: 4, title: '코스피 vs 코스닥', desc: '두 주식시장의 차이와 주가지수를 계산하는 방식을 알아봐요.' },
-    { id: 'bond-basics', category: 'product', topic: 'investing', art: 'books', tag: '채권', minutes: 5, order: 3, title: '채권 기초', desc: '채권의 구조와 종류, 금리에 따라 가격이 바뀌는 이유를 알아봐요.' },
-    { id: 'fund-vs-etf', category: 'product', topic: 'investing', art: 'pie', tag: 'ETF', minutes: 6, order: 2, title: '펀드 vs ETF', desc: '펀드와 ETF의 구조, 사고파는 방법, 비용과 세금의 차이를 알아봐요.' },
-    { id: 'isa-vs-pension', category: 'product', topic: 'investing', art: 'books', tag: '연금', minutes: 5, order: 1, title: 'ISA vs 연금저축', desc: 'ISA와 연금저축의 세금 혜택, 유지 조건과 찾을 때 주의할 점을 비교해요.' },
+    // 금융 기초
+    { id: 'interest-rate', category: 'basic', art: 'percent', tag: '금리', minutes: 6, order: 1, title: '금리와 기준금리', desc: '금리의 뜻과 정해지는 원리, 기준금리가 예금·대출 금리에 주는 영향을 알아봐요.' },
+    { id: 'interest-income-tax', category: 'basic', art: 'calculator', tag: '세금', minutes: 4, order: 13, title: '이자소득세', desc: '예금·적금 이자에서 떼는 세금과 세후 이자 계산, 금융소득 2천만 원 기준을 알아봐요.' },
+    { id: 'simple-vs-compound', category: 'basic', art: 'jar', tag: '복리', minutes: 3, order: 3, title: '단리 vs 복리', desc: '단리와 복리의 차이를 같은 예시로 비교하고, 상품에서 확인할 점을 알아봐요.' },
+    { id: 'inflation-real-rate', category: 'basic', art: 'news', tag: '물가', minutes: 4, order: 14, title: '인플레이션과 실질금리', desc: '물가가 오르면 돈의 가치가 어떻게 변하는지, 명목금리와 실질금리의 차이를 알아봐요.' },
+    { id: 'exchange-rate', category: 'basic', art: 'wallet', tag: '환율', minutes: 4, order: 16, title: '환율', desc: '환율의 뜻과 정해지는 원리, 환율이 오를 때 생활에 생기는 변화를 알아봐요.' },
+    { id: 'gross-vs-net-pay', category: 'basic', art: 'wallet', tag: '월급', minutes: 5, order: 5, title: '세전 월급 vs 실수령액', desc: '월급에서 떼는 사회보험료와 세금, 실수령액이 줄어드는 이유를 알아봐요.' },
+    { id: 'year-end-tax', category: 'basic', art: 'calculator', tag: '연말정산', minutes: 4, order: 7, title: '연말정산', desc: '연말정산으로 세금을 돌려받거나 더 내는 이유와 소득공제·세액공제의 차이를 알아봐요.' },
+    { id: 'credit-score', category: 'basic', art: 'target', tag: '신용점수', minutes: 3, order: 15, title: '신용점수', desc: '신용점수가 무엇인지, 어디서 확인하고 어떻게 관리하는지 알아봐요.' },
+    { id: 'loan-rate-repayment', category: 'basic', art: 'percent', tag: '대출', minutes: 4, order: 18, title: '대출 금리와 상환 방식', desc: '고정·변동금리와 세 가지 상환 방식의 차이, 대출할 때 알아 둘 권리를 알아봐요.' },
+    // 저축과 투자
+    { id: 'saving-vs-investing', category: 'product', topic: 'saving', art: 'piggy', tag: '저축·투자', minutes: 4, order: 2, title: '저축 vs 투자', desc: '저축과 투자의 차이, 상품을 고를 때 볼 기준과 비상금의 역할을 알아봐요.' },
+    { id: 'deposit-vs-savings', category: 'product', topic: 'saving', art: 'piggy', tag: '예적금', minutes: 4, order: 4, title: '예금 vs 적금', desc: '예금과 적금의 차이, 적금 이자 계산과 우대금리·중도해지·예금자보호를 알아봐요.' },
+    { id: 'parking-vs-cma', category: 'product', topic: 'saving', art: 'jar', tag: 'CMA', minutes: 5, order: 6, title: '파킹통장 vs CMA', desc: '수시로 넣고 빼는 돈을 두는 파킹통장과 CMA의 차이, 예금자보호 여부를 알아봐요.' },
+    { id: 'housing-subscription', category: 'product', topic: 'saving', art: 'target', tag: '청약', minutes: 4, order: 8, title: '청약통장', desc: '주택청약종합저축의 가입·납입 조건, 소득공제와 예금자보호를 알아봐요.' },
+    { id: 'stock-basics', category: 'product', topic: 'investing', art: 'pie', tag: '주식', minutes: 6, order: 9, title: '주식 기초', desc: '주식이 무엇인지, 어떻게 사고파는지와 세금·위험을 알아봐요.' },
+    { id: 'kospi-vs-kosdaq', category: 'product', topic: 'investing', art: 'news', tag: '코스피', minutes: 5, order: 17, title: '코스피 vs 코스닥', desc: '두 주식시장의 차이와 주가지수를 계산하는 방식을 알아봐요.' },
+    { id: 'bond-basics', category: 'product', topic: 'investing', art: 'books', tag: '채권', minutes: 5, order: 11, title: '채권 기초', desc: '채권의 구조와 종류, 금리에 따라 가격이 바뀌는 이유를 알아봐요.' },
+    { id: 'fund-vs-etf', category: 'product', topic: 'investing', art: 'pie', tag: 'ETF', minutes: 6, order: 10, title: '펀드 vs ETF', desc: '펀드와 ETF의 구조, 사고파는 방법, 비용과 세금의 차이를 알아봐요.' },
+    { id: 'isa-vs-pension', category: 'product', topic: 'investing', art: 'books', tag: '연금', minutes: 5, order: 12, title: 'ISA vs 연금저축', desc: 'ISA와 연금저축의 세금 혜택, 유지 조건과 찾을 때 주의할 점을 비교해요.' },
   ],
 };
 
-/** 메인 추천 콘텐츠의 정렬(추천순이 기본). 조회순은 서버가 센 글별 조회수로 정렬한다. 카테고리 화면은 ContentSort(최신순·많이 본 순)를 그대로 쓴다 */
+/** 메인 추천 콘텐츠와 카테고리 화면의 정렬. 조회순은 서버가 센 글별 조회수로 정렬한다. 기본값은 메인과 카테고리 화면 모두 추천순 */
 export type MainSort = 'recommended' | 'latest' | 'popular';
 export const MAIN_SORT: Record<MainSort, { label: string; lead: string }> = {
   recommended: { label: '추천순', lead: '금융 공부가 처음이라면 꼭 알아야 할 기초부터 차근차근 시작하세요.' },
@@ -76,8 +74,8 @@ export const MAIN_SORT: Record<MainSort, { label: string; lead: string }> = {
 
 /** 추천순: 탭마다 편집으로 고른 글과 순서. 특정 상품 추천이 아니라 개념 글의 순서다 */
 export const RECOMMENDED: Record<'all' | 'basic' | GuideTopic, string[]> = {
-  all: ['interest-rate', 'simple-vs-compound', 'saving-vs-investing', 'deposit-vs-savings', 'parking-vs-cma', 'year-end-tax', 'stock-basics', 'gross-vs-net-pay'],
-  basic: ['interest-rate', 'simple-vs-compound', 'year-end-tax', 'gross-vs-net-pay'],
+  all: ['interest-rate', 'simple-vs-compound', 'saving-vs-investing', 'deposit-vs-savings', 'parking-vs-cma', 'gross-vs-net-pay', 'stock-basics', 'year-end-tax'],
+  basic: ['interest-rate', 'simple-vs-compound', 'gross-vs-net-pay', 'year-end-tax'],
   saving: ['deposit-vs-savings', 'parking-vs-cma', 'saving-vs-investing', 'housing-subscription'],
   investing: ['fund-vs-etf', 'stock-basics', 'isa-vs-pension', 'bond-basics'],
 };
@@ -85,7 +83,12 @@ export const RECOMMENDED: Record<'all' | 'basic' | GuideTopic, string[]> = {
 export const selectRecommended = (items: GuideContent[], key: keyof typeof RECOMMENDED): GuideContent[] => RECOMMENDED[key].flatMap((id) => items.find((c) => c.id === id) ?? []);
 
 export type ContentSort = 'latest' | 'popular';
-export const SORT_LABEL: Record<ContentSort, string> = { latest: '최신순', popular: '많이 본 순' };
+
+/** 카테고리 화면의 추천순: recommended에 든 글을 그 순서대로 먼저, 나머지는 최신순으로 뒤에 붙인다 */
+export function selectRecommendedFirst(items: GuideContent[], recommended: string[]): GuideContent[] {
+  const rank = (c: GuideContent) => (recommended.includes(c.id) ? recommended.indexOf(c.id) : recommended.length);
+  return [...items].sort((a, b) => rank(a) - rank(b) || b.order - a.order);
+}
 
 /** views는 서버가 센 글별 조회수. 조회수가 같으면 recommended에 든 글 먼저, 그것도 같으면 제목 가나다순 */
 export function selectContents(items: GuideContent[], cat: GuideCategory | 'all', sort: ContentSort, views: Record<string, number> = {}, recommended: string[] = []): GuideContent[] {
@@ -95,13 +98,7 @@ export function selectContents(items: GuideContent[], cat: GuideCategory | 'all'
     .sort((a, b) => (sort === 'latest' ? b.order - a.order : (views[b.id] ?? 0) - (views[a.id] ?? 0) || notRecommended(a) - notRecommended(b) || a.title.localeCompare(b.title, 'ko')));
 }
 
-/** 콘텐츠 제목·설명·태그에 검색어가 들어갔는지(띄어쓰기·대소문자 무시) */
-export function contentMatches(c: GuideContent, query: string): boolean {
-  const q = norm(query);
-  return !q || [c.title, c.desc, c.tag].some((t) => norm(t).includes(q));
-}
-
-export type GlossaryTerm = { term: string; aliases: string[]; desc: string; note?: string };
+export type GlossaryTerm ={ term: string; aliases: string[]; desc: string; note?: string };
 
 /** 검색으로 찾는 기본 용어 설명. 일반적인 구조만 적고 특정 상품 추천·수익 보장은 하지 않는다 */
 export const GLOSSARY: GlossaryTerm[] = [
@@ -143,28 +140,34 @@ const matchesJamo = (label: string, q: string) => {
   return [...n].some((_, i) => toJamo(n.slice(i)).startsWith(q));
 };
 
-/** 검색창 자동완성: 입력 중인 글자도 맞춘다(ㄱ·그·금·금ㄹ → 금리). 이름이 입력으로 시작하는 것 → 이름에 들어간 것 → 비슷한 말·태그로 맞는 것 순(브라우저 안에서만) */
-export function suggestGuide(input: string, limit = 8): GuideSuggestion[] {
+/** 검색창 자동완성: 입력 중인 글자도 맞춘다(ㄱ·그·금·금ㄹ → 금리). 이름이 입력으로 시작하는 것 → 이름에 들어간 것 → 비슷한 말·태그로 맞는 것 순(브라우저 안에서만).
+ *  category를 주면(카테고리 화면) 그 카테고리의 글만 찾고, 카테고리에 속하지 않는 용어 설명은 뺀다 */
+export function suggestGuide(input: string, limit = 8, category?: GuideCategory): GuideSuggestion[] {
   const q = toJamo(input);
   if (!q) return [];
   const rank = (label: string) => (toJamo(label).startsWith(q) ? 0 : matchesJamo(label, q) ? 1 : 2);
-  const terms = GLOSSARY.filter((g) => [g.term, ...g.aliases].some((t) => matchesJamo(t, q)))
-    .sort((a, b) => rank(a.term) - rank(b.term))
-    .map((g): GuideSuggestion => ({ kind: 'term', label: g.term }));
+  const terms = category
+    ? []
+    : GLOSSARY.filter((g) => [g.term, ...g.aliases].some((t) => matchesJamo(t, q)))
+        .sort((a, b) => rank(a.term) - rank(b.term))
+        .map((g): GuideSuggestion => ({ kind: 'term', label: g.term }));
   const contents = GUIDE_CONTENTS.items
-    .filter((c) => [c.title, c.tag].some((t) => matchesJamo(t, q)))
+    .filter((c) => (!category || c.category === category) && [c.title, c.tag].some((t) => matchesJamo(t, q)))
     .sort((a, b) => rank(a.title) - rank(b.title) || b.order - a.order)
     .map((c): GuideSuggestion => ({ kind: 'content', label: c.title, content: c }));
   return [...terms, ...contents].slice(0, limit);
 }
 
-/** 이 화면 안의 용어 설명·콘텐츠에서 검색어가 들어간 것을 찾는다(브라우저 안에서만, 검색어는 저장·전송하지 않음) */
-export function searchGuide(query: string): GuideSearchResult {
+/** 이 화면 안의 용어 설명·콘텐츠에서 검색어가 들어간 것을 찾는다(브라우저 안에서만, 검색어는 저장·전송하지 않음).
+ *  category를 주면(카테고리 화면) 그 카테고리의 글만 찾고 용어 설명은 뺀다 */
+export function searchGuide(query: string, category?: GuideCategory): GuideSearchResult {
   const q = norm(query);
   if (!q) return { terms: [], contents: [] };
   const has = (...texts: string[]) => texts.some((t) => norm(t).includes(q));
   return {
-    terms: GLOSSARY.filter((g) => has(g.term, ...g.aliases) || g.aliases.some((a) => q.includes(norm(a)))),
-    contents: GUIDE_CONTENTS.items.filter((c) => has(c.title, c.desc, CATEGORY_LABEL[c.category])).sort((a, b) => b.order - a.order),
+    terms: category ? [] : GLOSSARY.filter((g) => has(g.term, ...g.aliases) || g.aliases.some((a) => q.includes(norm(a)))),
+    contents: GUIDE_CONTENTS.items
+      .filter((c) => (!category || c.category === category) && has(c.title, c.tag, c.desc, CATEGORY_LABEL[c.category]))
+      .sort((a, b) => b.order - a.order),
   };
 }

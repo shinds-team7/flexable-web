@@ -28,6 +28,19 @@ class ProposalsTest {
 	}
 
 	@Test
+	void 적금_CMA_비중_합이_큰_조합부터_줄_세우고_같으면_낸_순서를_지킨다() {
+		List<Proposals.Draft> mixed = List.of(
+				new Proposals.Draft("bold", "공격", "설명", "해설이에요", Map.of("SAVINGS", 10, "CMA", 10, "US_INDEX_ETF", 80)),
+				new Proposals.Draft("steady", "안정", "설명", "해설이에요", Map.of("SAVINGS", 70, "CMA", 30)),
+				new Proposals.Draft("spread", "균형", "설명", "해설이에요", Map.of("SAVINGS", 40, "CMA", 10, "KR_INDEX_ETF", 50)));
+		assertThat(Proposals.check(mixed, ProposalText.Facts.NONE).plans()).extracting(Proposals.Plan::id).containsExactly("steady", "spread", "bold");
+		// 합이 같으면(적금 100 · CMA 100) 제안기가 낸 순서
+		assertThat(Proposals.check(drafts("조합", "설명", "해설"), ProposalText.Facts.NONE).plans()).extracting(Proposals.Plan::id).containsExactly("s1", "s2", "s3");
+		// 데모 조합은 이미 안정 → 균형 → 공격 순서다
+		assertThat(Proposals.validate(Proposals.DEMO).orElseThrow()).extracting(Proposals.Plan::id).containsExactly("steady", "spread", "bold");
+	}
+
+	@Test
 	void 해설은_길이_제한이_없고_문단_줄바꿈을_유지한다() {
 		String longText = "가".repeat(1500) + "\n\n" + "나".repeat(1500);
 		Proposals.Checked checked = Proposals.check(drafts("조합", "설명", longText), ProposalText.Facts.NONE);

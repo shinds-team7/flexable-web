@@ -567,6 +567,19 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
+	void AI가_순서를_섞어_내도_위험이_낮은_조합부터_응답하고_재사용할_때도_같다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		// 공격 → 안정 → 균형 순서로 낸다. 적금·CMA 비중 합이 큰 순(안정 → 균형 → 공격)으로 바뀌어야 한다
+		when(proposer.propose(any())).thenReturn(List.of(THIRD, GOOD.get(0), GOOD.get(1)));
+		String token = signup();
+		String first = member(BODY.formatted("목돈", 17_300_000, 12), token, 200);
+		assertThat((List<String>) JsonPath.read(first, "$.scenarios[*].id")).containsExactly("a", "b", "c");
+		String again = member(BODY.formatted("목돈", 17_300_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
+		assertThat((List<String>) JsonPath.read(again, "$.scenarios[*].id")).containsExactly("a", "b", "c");
+	}
+
+	@Test
 	void 다른_회원은_같은_조건이어도_새로_부르고_차감한다() throws Exception {
 		when(proposer.enabled()).thenReturn(true);
 		when(proposer.propose(any())).thenReturn(GOOD);

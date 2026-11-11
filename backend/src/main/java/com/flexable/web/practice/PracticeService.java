@@ -62,7 +62,9 @@ public class PracticeService {
         return new Categories(groups.values().stream().map(ds -> {
             var i = ds.getFirst().instrument();
             if (ds.stream().anyMatch(d -> !d.instrument().categoryName().equals(i.categoryName()))) throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
-            return new Category(i.categoryCode(), i.categoryName(), i.classificationVersion(), ds.size());
+            var stocks = ds.stream().map(d -> new Stock(d.instrument().code(), d.instrument().name()))
+                    .sorted(Comparator.comparing(Stock::name).thenComparing(Stock::code)).toList();
+            return new Category(i.categoryCode(), i.categoryName(), i.classificationVersion(), ds.size(), stocks);
         }).toList(), sample);
     }
     public synchronized Started start(Start input) {
@@ -76,7 +78,11 @@ public class PracticeService {
         if (sessions.size() >= capacity) throw new ApiException(ErrorCode.PRACTICE_CAPACITY);
         var choices = eligible().stream().filter(d -> d.instrument().categoryCode().equals(input.categoryCode())).toList();
         if (choices.isEmpty()) throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
-        var session = new Session(input, choices.get(random.nextInt(choices.size())), clock.instant().plusSeconds(1800));
+        // 고른 종목은 그 업종의 지금 후보여야 한다. 아니면 다른 종목으로 바꾸지 않고 거절한다
+        var picked = input.stockCode() == null ? choices.get(random.nextInt(choices.size()))
+                : choices.stream().filter(d -> d.instrument().code().equals(input.stockCode())).findFirst()
+                        .orElseThrow(() -> ApiException.invalid("stockCode", "이 업종에서 고를 수 있는 종목이 아니에요"));
+        var session = new Session(input, picked, clock.instant().plusSeconds(1800));
         byte[] bytes = new byte[32]; random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         sessions.put(token, session); starts.put(input.startId(), token);

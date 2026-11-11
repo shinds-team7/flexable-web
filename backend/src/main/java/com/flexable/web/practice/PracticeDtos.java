@@ -9,7 +9,8 @@ import com.flexable.web.market.PracticeMarketData.Instrument;
 
 public final class PracticeDtos {
     private PracticeDtos() { }
-    public record Start(@NotNull UUID startId, @NotBlank @Size(max=32) String categoryCode,
+    /** stockCode: 고른 종목. null이면 업종 후보 중 균등 무작위 */
+    public record Start(@NotNull UUID startId, @NotBlank @Size(max=32) String categoryCode, @Size(min=1, max=12) String stockCode,
             @NotNull @DecimalMin("10000") @DecimalMax("100000000") @Digits(integer=9, fraction=0) BigDecimal initialAmount) { }
     public record Token(@NotBlank @Size(min=43,max=128) String sessionToken) { }
     public record Command(@NotBlank @Size(min=43,max=128) String sessionToken, @NotNull UUID commandId,
@@ -19,7 +20,9 @@ public final class PracticeDtos {
             @NotNull Prediction prediction, @NotNull Action action, @NotNull Integer allocationPercent) { }
     public enum Prediction { POSITIVE, NEGATIVE }
     public enum Action { BUY, SELL, HOLD }
-    public record Category(String code, String name, String classificationVersion, int eligibleCount) { }
+    public record Stock(String code, String name) { }
+    /** stocks: 지금 시작할 수 있는 후보 종목, 이름 순(같으면 코드 순) */
+    public record Category(String code, String name, String classificationVersion, int eligibleCount, List<Stock> stocks) { }
     public record Categories(List<Category> categories, boolean isSample) { }
     public record Started(String sessionToken, String expiresAt, Snapshot snapshot) { }
     public record Portfolio(long cash, long shares, long stockValue, long total, long profit, BigDecimal returnRate) { }

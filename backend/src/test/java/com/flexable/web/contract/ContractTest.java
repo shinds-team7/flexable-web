@@ -520,6 +520,27 @@ class ContractTest {
 	}
 
 	@Test
+	void 사건_퀴즈_시뮬레이션_종목_고르기() throws Exception {
+		String categories = body(call(get("/api/v1/practice/categories"), 200));
+		String category = JsonPath.read(categories, "$.categories[0].code");
+		String other = JsonPath.read(categories, "$.categories[1].code");
+		List<String> names = JsonPath.read(categories, "$.categories[0].stocks[*].name");
+		assertThat(names).hasSize((Integer) JsonPath.read(categories, "$.categories[0].eligibleCount")).isSorted();
+		String start = "{\"startId\":\"%s\",\"categoryCode\":\"%s\",\"stockCode\":\"%s\",\"initialAmount\":1000000}";
+		// 고른 종목으로 시작한다(후보마다 확인해 무작위로 맞은 것이 아님을 본다)
+		for (String code : JsonPath.<List<String>>read(categories, "$.categories[0].stocks[*].code")) {
+			String started = body(call(json(post("/api/v1/practice/start"), start.formatted(UUID.randomUUID(), category, code)), 200));
+			assertThat((String) JsonPath.read(started, "$.snapshot.instrument.code")).isEqualTo(code);
+			call(json(post("/api/v1/practice/end"), "{\"sessionToken\":\"" + JsonPath.read(started, "$.sessionToken") + "\"}"), 204);
+		}
+		// 다른 업종의 종목, 후보에 없는 종목은 대체하지 않고 400
+		String otherStock = JsonPath.read(categories, "$.categories[1].stocks[0].code");
+		assertThat(other).isNotEqualTo(category);
+		call(json(post("/api/v1/practice/start"), start.formatted(UUID.randomUUID(), category, otherStock)), 400);
+		call(json(post("/api/v1/practice/start"), start.formatted(UUID.randomUUID(), category, "999999")), 400);
+	}
+
+	@Test
 	void 가상_시뮬레이션() throws Exception {
 		MvcResult status = call(get("/api/v1/virtual-sim/status"), 200);
 		assertThat((Boolean) JsonPath.read(body(status), "$.available")).isTrue();

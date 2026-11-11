@@ -20,7 +20,10 @@ type Pending = { path: 'start' | 'step' | 'decision'; body: unknown };
 // 과거 시장 연습. 탭을 옮겨도 진행을 잃지 않도록 숨겨 둔 채 유지하고, 숨겨지면 재생만 멈춘다
 function PastMarketPractice({ active }: { active: boolean }) {
   const [catalog, setCatalog] = useState<CategoryResponse | null>(null);
-  const [category, setCategory] = useState('');
+  // 고른 업종과 종목(stock이 null이면 그 업종 안에서 무작위로 받기). 처음에는 아무것도 고르지 않는다
+  const [pick, setPick] = useState<{ category: string; stock: string | null } | null>(null);
+  // 펼친 업종(한 번에 하나)
+  const [open, setOpen] = useState<string | null>(null);
   const [amount, setAmount] = useState('1000000');
   const [snapshot, setSnapshot] = useState<PracticeSnapshot | null>(null);
   // 진행 응답으로 받은 구간을 하루씩 그리는 중이면 그 직전 상태와 지금까지 보여 준 봉 수
@@ -40,7 +43,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
   const playButton = useRef<HTMLButtonElement>(null);
   const latest = useRef<PracticeSnapshot | null>(null);
   const setup = useRef<HTMLElement>(null);
-  // 다시 설정으로 돌아오면 고른 업종에 포커스를 둔다(키보드로 바로 다른 업종을 고를 수 있게)
+  // 다시 설정으로 돌아오면 고른 종목에 포커스를 둔다(키보드로 바로 다른 종목을 고를 수 있게)
   const focusSetup = useRef(false);
   // 선택 기록과 차트 사건 기간 띠를 같은 번호로 함께 강조한다
   const [activeBand, setActiveBand] = useState<number | null>(null);
@@ -53,7 +56,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
 
   const loadCategories = useCallback(async () => {
     const current = generation.current;
-    try { const data = await getCategories(); if (current === generation.current) { setCatalog(data); setCategory(c => c || data.categories[0]?.code || ''); setError(''); } }
+    try { const data = await getCategories(); if (current === generation.current) { setCatalog(data); setOpen(o => o ?? data.categories[0]?.code ?? null); setError(''); } }
     catch (e) { if (current === generation.current) setError(errorText(e)); }
   }, []);
   useEffect(() => { void loadCategories(); return () => {
@@ -140,19 +143,21 @@ function PastMarketPractice({ active }: { active: boolean }) {
   const reset = () => {
     generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
     setActiveBand(null); setPinnedBand(null); focusSetup.current = true;
+    if (pick) setOpen(pick.category);
     const old = token.current; token.current = null;
     if (old) void practice('end', { sessionToken: old }).catch(() => {});
   };
   useEffect(() => {
     if (snapshot || !focusSetup.current) return;
     focusSetup.current = false;
-    setup.current?.querySelector<HTMLInputElement>('input[name="industry"]:checked')?.focus();
+    setup.current?.querySelector<HTMLInputElement>('input[name="practiceStock"]:checked')?.focus();
   }, [snapshot]);
   const start = (event: React.FormEvent) => {
     event.preventDefault();
     const value = Number(amount);
     if (!Number.isInteger(value) || value < 10000 || value > 100000000) { setError('투자금은 1만 원부터 1억 원까지 원 단위로 입력해 주세요.'); return; }
-    void send({ path: 'start', body: { startId: crypto.randomUUID(), categoryCode: category, initialAmount: value } });
+    if (!pick) return;
+    void send({ path: 'start', body: { startId: crypto.randomUUID(), categoryCode: pick.category, ...(pick.stock ? { stockCode: pick.stock } : {}), initialAmount: value } });
   };
   const choose = (event: React.FormEvent) => {
     event.preventDefault();
@@ -182,17 +187,32 @@ function PastMarketPractice({ active }: { active: boolean }) {
     <div className="practice-workspace">
       <aside className="practice-setup" ref={setup}>
         {!snapshot ? <>
-          <div className="practice-setup-title"><h2>어떤 산업을 만나볼까요?</h2>{catalog && catalog.categories.length > 0 && <span>업종 {catalog.categories.length}개</span>}</div>
+          <div className="practice-setup-title"><h2>어떤 종목을 만나볼까요?</h2>{catalog && catalog.categories.length > 0 && <span>업종 {catalog.categories.length}개</span>}</div>
           <form onSubmit={start}>
             <fieldset disabled={busy}><legend className="sr-only">회사 카테고리</legend>
-              {!catalog ? <p role="status">업종을 불러오고 있어요…</p> : catalog.categories.length === 0 ? <p>시세와 사건 자료를 준비하고 있어요. 잠시 후 다시 확인해 주세요.</p> : <div className="practice-category-list">{catalog.categories.map(c => <label className={`practice-category ${category === c.code ? 'selected' : ''}`} key={c.code}>
-                <input type="radio" name="industry" value={c.code} checked={category === c.code} onChange={() => setCategory(c.code)} /><span><b>{c.name}</b><small>{c.eligibleCount}개 종목 중 무작위</small></span><span className="practice-category-check" aria-hidden="true">{category === c.code ? '●' : '○'}</span>
-              </label>)}</div>}
+              {!catalog ? <p role="status">업종을 불러오고 있어요…</p> : catalog.categories.length === 0 ? <p>시세와 사건 자료를 준비하고 있어요. 잠시 후 다시 확인해 주세요.</p> : <div className="practice-category-list">{catalog.categories.map(c => {
+                // 업종을 누르면 펼쳐지고, 펼친 업종 아래에서 종목(또는 무작위로 받기)을 고른다. 고른 것은 접어도 남는다
+                const expanded = open === c.code, chosen = pick?.category === c.code ? pick : null;
+                const chosenName = chosen && (chosen.stock ? c.stocks.find(s => s.code === chosen.stock)?.name : '무작위로 받기');
+                return <div className={`practice-category-group ${expanded ? 'open' : ''}`} key={c.code}>
+                  <button type="button" className={`practice-category ${chosen ? 'selected' : ''}`} aria-expanded={expanded} aria-controls={`practice-stocks-${c.code}`} onClick={() => setOpen(expanded ? null : c.code)}>
+                    <span><b>{c.name}</b><small>{chosenName ? `선택: ${chosenName}` : `${c.eligibleCount}개 종목`}</small></span><span className="practice-category-check" aria-hidden="true">{expanded ? '▴' : '▾'}</span>
+                  </button>
+                  {expanded && <div className="practice-stock-list" id={`practice-stocks-${c.code}`} role="radiogroup" aria-label={`${c.name} 종목`}>
+                    {[{ code: null, name: '무작위로 받기', note: `${c.eligibleCount}개 중 하나` }, ...c.stocks.map(s => ({ code: s.code as string | null, name: s.name, note: s.code }))].map(s => {
+                      const checked = chosen?.stock === s.code;
+                      return <label className={`practice-stock ${checked ? 'selected' : ''} ${s.code ? '' : 'random'}`} key={s.code ?? '*'}>
+                        <input type="radio" name="practiceStock" value={s.code ?? ''} checked={checked} onChange={() => setPick({ category: c.code, stock: s.code })} /><span>{s.name}</span><small>{s.note}</small><span className="practice-category-check" aria-hidden="true">{checked ? '●' : '○'}</span>
+                      </label>;
+                    })}
+                  </div>}
+                </div>;
+              })}</div>}
               <div className="practice-amount-label"><label htmlFor="practiceAmount">연습할 투자금</label><small id="practiceAmountHelp">1만 원 ~ 1억 원</small></div>
               <div className="practice-amount"><input id="practiceAmount" type="text" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))} maxLength={9} aria-describedby="practiceAmountHelp" /><span>원</span></div>
               <div className="practice-amount-presets">{[1000000, 5000000, 10000000].map(n => <button key={n} type="button" onClick={() => setAmount(String(n))}>{fmt.format(n / 10000)}만</button>)}</div>
             </fieldset>
-            <button className="btn btn-primary practice-start" type="submit" disabled={busy || !category || !catalog?.categories.length}>{busy ? '연습 준비 중…' : '시뮬레이션 시작'}</button>
+            <button className="btn btn-primary practice-start" type="submit" disabled={busy || !pick || !catalog?.categories.length}>{busy ? '연습 준비 중…' : '시뮬레이션 시작'}</button>
             <p className="practice-allocation">처음에는 투자금의 50%로 주식을 사고, 나머지는 추가 매수를 위한 현금으로 남겨요.</p>
           </form>
         </> : <section className="practice-summary" aria-labelledby="practiceSummaryTitle">

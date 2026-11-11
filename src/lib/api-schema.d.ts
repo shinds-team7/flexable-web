@@ -201,7 +201,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 준비된 업종과 후보 종목 수 */
+        /** 준비된 업종과 업종별 후보 종목 */
         get: {
             parameters: {
                 query?: never;
@@ -211,7 +211,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description 후보가 없으면 categories는 빈 배열. 키움 업종명 정규화와 내부 코드 생성은 결정 기록 참조 */
+                /** @description 후보가 없으면 categories는 빈 배열. 키움 업종명 정규화와 내부 코드 생성은 결정 기록 참조. stocks는 그 업종에서 지금 시작할 수 있는 후보 종목 전체이고 이름 순(같으면 코드 순), 개수는 eligibleCount와 같다 */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -224,6 +224,10 @@ export interface paths {
                                 name: string;
                                 classificationVersion: string;
                                 eligibleCount: number;
+                                stocks: {
+                                    code: string;
+                                    name: string;
+                                }[];
                             }[];
                         };
                     };
@@ -249,8 +253,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 무작위 종목 선정, 최초 매수와 첫 봉. 로그인·영구 저장 없음
-         * @description 동일 startId와 동일 입력은 세션 생존 중 같은 시작 응답. 같은 ID·다른 입력은 409. 종료·만료 후 같은 ID는 새 실행이다. 성공 응답은 no-store. 동시 재전송도 세션 하나만 생성한다.
+         * 고른 종목(없으면 업종 안 무작위)으로 최초 매수와 첫 봉. 로그인·영구 저장 없음
+         * @description 동일 startId와 동일 입력은 세션 생존 중 같은 시작 응답. 같은 ID·다른 입력은 409. 종료·만료 후 같은 ID는 새 실행이다. 성공 응답은 no-store. 동시 재전송도 세션 하나만 생성한다. stockCode가 있으면 그 종목으로 시작하고, 없으면 업종 후보 중 균등 무작위다. stockCode가 그 업종의 지금 후보(/practice/categories의 stocks)가 아니면(다른 업종 종목 포함) 400 VALIDATION_FAILED이고 다른 종목이나 예시 자료로 대체하지 않는다. 업종 후보가 0개면 stockCode와 관계없이 503.
          */
         post: {
             parameters: {
@@ -265,6 +269,8 @@ export interface paths {
                         /** Format: uuid */
                         startId: string;
                         categoryCode: string;
+                        /** @description 고른 종목 코드. 생략하면 업종 안 무작위 */
+                        stockCode?: string;
                         /** Format: int64 */
                         initialAmount: number;
                     };

@@ -907,7 +907,7 @@ paths:
         - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
         - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
         - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
-        - 기한은 개월 수(6~36)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
+        - 기한은 개월 수(6~60, 11-11 #406에서 36 → 60)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
         - 월 납입 가능액(monthlyBudget)은 선택이다. 필요 월 금액 계산은 바꾸지 않고 시나리오마다 비교만 한다(withinBudget·overBudgetBy). 가능액 밖인 시나리오는 서버가 정해 둔 대안 문장을 해설 fit 칸 끝과 explanation 끝에 붙인다(§7-5). 회원이면 AI에도 보낸다(§7-6).
       security: []
       requestBody:
@@ -921,7 +921,7 @@ paths:
               properties:
                 name: { type: string, minLength: 1, maxLength: 20, description: '앞뒤 공백을 뺀 1~20자' }
                 targetAmount: { type: integer, format: int64, minimum: 1000000, maximum: 1000000000 }
-                months: { type: integer, minimum: 6, maximum: 36, description: '기한(개월). 화면은 연·월로 받아 개월로 보낸다' }
+                months: { type: integer, minimum: 6, maximum: 60, description: '기한(개월). 화면은 연·월로 받아 개월로 보낸다' }
                 monthlyBudget: { type: integer, format: int64, nullable: true, minimum: 10000, maximum: 1000000000, multipleOf: 1000, description: '월 납입 가능액(선택, 천 원 단위, 1만 원~목표 금액). 빼거나 null이면 지금과 같이 계산한다. 목표 금액보다 크면 400 monthlyBudget(policies §7-1)' }
       responses:
         '200':
@@ -2364,7 +2364,7 @@ components:
         resultId: { type: string, description: '이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8)' }
         name: { type: string }
         targetAmount: { type: integer, format: int64 }
-        months: { type: integer, description: '기한(개월, 6~36)' }
+        months: { type: integer, description: '기한(개월, 6~60)' }
         monthlyBudget: { type: integer, format: int64, nullable: true, description: '요청의 월 납입 가능액. 넣지 않았으면 null' }
         proposer: { type: string, enum: [AI, DEMO], description: 'DEMO면 화면에 "AI 연결 전 예시 조합" 표시' }
         fallbackReason: { type: string, nullable: true, enum: [AI_UNAVAILABLE, GUEST, LIMIT, DAILY_CAP, AI_FAILED, AI_REJECTED, null], description: 'proposer=DEMO일 때 이유(policies §7-6). AI_UNAVAILABLE 키 없음, GUEST 비회원, LIMIT 회원 하루 횟수 소진, DAILY_CAP 서비스 전체 하루 상한, AI_FAILED 호출 실패, AI_REJECTED 규칙 위반. AI면 null' }

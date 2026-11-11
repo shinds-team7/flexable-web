@@ -75,10 +75,12 @@ public class GoalScenarioService {
 	private final ScenarioResultCache results;
 	private final ScenarioAiQuota quota;
 	private final GoalScenarioAiProperties aiProps;
+	private final TypeRoleStore typeRoles;
 
 	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results,
-			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps) {
+			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps, TypeRoleStore typeRoles) {
 		this.aiProps = aiProps;
+		this.typeRoles = typeRoles;
 		this.market = market;
 		this.savings = savings;
 		this.proposer = proposer;
@@ -94,8 +96,11 @@ public class GoalScenarioService {
 			List<FixedCandidate> moreSavings, Map<ProductType, List<Item>> moreItems) {
 	}
 
-	/** 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수, 이전 AI 조합을 다시 썼는지. */
-	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage, boolean reused) {
+	/**
+	 * 쓸 조합과, 데모로 바꿨다면 그 이유(AI면 null), 회원이면 남은 AI 횟수, 이전 AI 조합을 다시 썼는지.
+	 * path는 시간 로그용 분류다: ai-short(미리 만든 유형 해설, #417)·ai-full·reused·demo.
+	 */
+	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage, boolean reused, String path) {
 	}
 
 	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(데모 조합, GUEST). */
@@ -105,21 +110,29 @@ public class GoalScenarioService {
 		int months = req.months();
 		Long budget = req.monthlyBudget();
 
+		long started = System.nanoTime();
 		// 기준일 = 수집된 마지막 거래일. 수익률은 그 직전 달까지 60개월
 		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
 		YearMonth last = YearMonth.from(asOf).minusMonths(1);
 		Picked picked = pick(months, last);
+		long pickedAt = System.nanoTime();
 		int[][] draws = draws(blocks(months));
 		Map<String, BigDecimal[]> factors = new HashMap<>();
 		for (ProductType t : INVEST) {
 			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws, months)));
 		}
+		long drawnAt = System.nanoTime();
 
 		Chosen chosen = choose(target, months, budget, asOf, userId, picked);
+		long choseAt = System.nanoTime();
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Plan plan : chosen.plans()) {
 			scenarios.add(scenario(plan, target, months, picked, factors).withBudget(budget));
 		}
+		long calculatedAt = System.nanoTime();
+		// 단계별 시간만 남긴다(#417). 목표 금액·기한·이름·회원 정보는 남기지 않는다(policies §7-6)
+		log.info("goal scenario timing: path={} pickMs={} drawMs={} chooseMs={} calcMs={} totalMs={}", chosen.path(), ms(started, pickedAt),
+				ms(pickedAt, drawnAt), ms(drawnAt, choseAt), ms(choseAt, calculatedAt), ms(started, calculatedAt));
 		List<String> assumptions = picked.savingTerm() < months
 				? java.util.stream.Stream.concat(ASSUMPTIONS.stream(), java.util.stream.Stream.of(AFTER_MATURITY)).toList()
 				: ASSUMPTIONS;
@@ -161,11 +174,15 @@ public class GoalScenarioService {
 		}
 		else {
 			ProposalText.Facts facts = facts(target, months, budget, picked);
-			// 재사용은 같은 프롬프트 버전으로 만든 조합만(#406). 버전을 모르는 제안기는 "unknown"으로 두고, 버전이 없는 옛 행(null)은 맞지 않는다
-			String version = java.util.Objects.requireNonNullElse(p.version(), "unknown");
-			Optional<List<Plan>> reused = quota.cached(userId, target, months, budget, asOf, version).map(d -> Proposals.check(d, facts).plans());
+			// 다섯 유형 해설이 모두 미리 만들어져 있으면 짧은 길(#417): AI는 비중과 시나리오 칸만 쓴다. 하나라도 없으면 지금처럼 다 쓴다
+			Map<ProductType, TypeRoleStore.Role> stored = storedRoles(p, picked, months);
+			String fullVersion = java.util.Objects.requireNonNullElse(p.version(), "unknown");
+			String version = stored != null ? p.shortVersion() : fullVersion;
+			// 재사용은 지금 쓰는 프롬프트 버전(짧은 길·긴 길)으로 만든 조합만(#406·#417). 버전을 모르는 제안기는 "unknown"으로 두고, 버전이 없는 옛 행(null)은 맞지 않는다
+			List<String> versions = p.shortVersion() == null ? List.of(fullVersion) : List.of(fullVersion, p.shortVersion());
+			Optional<List<Plan>> reused = quota.cached(userId, target, months, budget, asOf, versions).map(d -> Proposals.check(d, facts).plans());
 			if (reused.isPresent()) {
-				return new Chosen(reused.get(), null, usage(userId), true);
+				return new Chosen(reused.get(), null, usage(userId), true, "reused");
 			}
 			ScenarioAiQuota.Reserve r = quota.reserve(userId);
 			if (r == ScenarioAiQuota.Reserve.GONE) {
@@ -174,12 +191,14 @@ public class GoalScenarioService {
 			}
 			if (r == ScenarioAiQuota.Reserve.OK) {
 				try {
-					List<Proposals.Draft> drafts = p.propose(new ScenarioProposer.Input(target, months, budget, stats(picked, months)));
+					ScenarioProposer.Input input = new ScenarioProposer.Input(target, months, budget, stats(picked, months));
+					List<Proposals.Draft> drafts = stored != null ? p.proposeShort(input, stored) : p.propose(input);
+					// 미리 만든 유형 해설도 이 요청의 사실(기한·비중)로 한 번 더 검사한다
 					Proposals.Checked checked = Proposals.check(drafts, facts);
 					if (checked.plans() != null) {
 						checked.removed().forEach(n -> log.warn("goal scenario AI sentence removed: {}", n.logLine(aiProps.logRejected())));
 						quota.cache(userId, target, months, budget, asOf, drafts, "openai", version);
-						return new Chosen(checked.plans(), null, usage(userId), false);
+						return new Chosen(checked.plans(), null, usage(userId), false, stored != null ? "ai-short" : "ai-full");
 					}
 					// 어긴 규칙·위치만 남긴다. 옵션을 켜면 걸린 칸의 문구도 남긴다(목표 이름·회원 번호는 남기지 않음)
 					log.warn("goal scenario AI rejected: {}", checked.logLine(aiProps.logRejected()));
@@ -196,7 +215,11 @@ public class GoalScenarioService {
 			}
 		}
 		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason,
-				userId == null ? null : usage(userId), false);
+				userId == null ? null : usage(userId), false, "demo");
+	}
+
+	private static long ms(long from, long to) {
+		return (to - from) / 1_000_000;
 	}
 
 	/**
@@ -242,8 +265,7 @@ public class GoalScenarioService {
 				? ", 만기 " + picked.savingTerm() + "개월, 만기 뒤 남은 " + (months - picked.savingTerm()) + "개월은 CMA 예시 금리로 계산"
 				: ", 만기 " + picked.savingTerm() + "개월";
 		out.add(new ScenarioProposer.TypeStat("SAVINGS", "은행 정액적립식 적금(" + s.company() + " " + s.name() + ")" + term + ", 금리 확정, 이자 15.4% 과세",
-				rate(s), null, null, null, picked.moreSavings().stream()
-					.map(m -> new ScenarioProposer.AltStat(m.name(), m.company(), rate(m), null, null, null)).toList()));
+				rate(s), null, null, null, savingAlternatives(picked)));
 		out.add(new ScenarioProposer.TypeStat("CMA", "수시 입출금 CMA, 예시 금리, 이자 15.4% 과세", CMA_RATE.toPlainString(), null, null, null, List.of()));
 		for (ProductType t : INVEST) {
 			List<BigDecimal[]> series = picked.items().get(t).stream().map(i -> picked.returns().get(i.code())).toList();
@@ -259,6 +281,77 @@ public class GoalScenarioService {
 				return new ScenarioProposer.AltStat(i.name(), null, null, fmt(mean(r)), fmt(stdev(r)), fmt(maxDrawdown(r)));
 			}).toList();
 			out.add(new ScenarioProposer.TypeStat(t.name(), desc, null, fmt(mean(avg)), fmt(stdev(avg)), fmt(maxDrawdown(avg)), more));
+		}
+		return out;
+	}
+
+	private static List<ScenarioProposer.AltStat> savingAlternatives(Picked picked) {
+		return picked.moreSavings().stream().map(m -> new ScenarioProposer.AltStat(m.name(), m.company(), rate(m), null, null, null)).toList();
+	}
+
+	/**
+	 * 이 기한의 유형 해설 대상 다섯 개(#417). 투자 유형·CMA는 AI에게 보내는 유형 사실과 같고, 적금은 기한마다 다른 "남은 달" 대신
+	 * 만기가 기한보다 짧은지(afterMaturity)만 담는다.
+	 */
+	private static List<TypeRoleSubject> subjects(Picked picked, int months) {
+		List<TypeRoleSubject> out = new ArrayList<>();
+		FixedCandidate s = picked.saving();
+		out.add(TypeRoleSubject.of(ProductType.SAVINGS, new TypeRoleSubject.Input("SAVINGS",
+				"은행 정액적립식 적금(" + s.company() + " " + s.name() + "), 만기 " + picked.savingTerm() + "개월, 금리 확정, 이자 15.4% 과세", rate(s), null,
+				null, null, savingAlternatives(picked), picked.savingTerm() < months)));
+		for (ScenarioProposer.TypeStat t : stats(picked, months)) {
+			if (!t.type().equals(ProductType.SAVINGS.name())) {
+				out.add(TypeRoleSubject.of(ProductType.valueOf(t.type()), new TypeRoleSubject.Input(t.type(), t.description(), t.ratePercent(),
+						t.meanMonthlyReturn(), t.monthlyVolatility(), t.maxDrawdown(), t.alternatives(), null)));
+			}
+		}
+		return out;
+	}
+
+	/** 미리 만들 유형 해설 대상과 그 해설을 검사할 사실(기한 60개월, 금액 없음). */
+	record TypeRoleTarget(TypeRoleSubject subject, ProposalText.Facts facts) {
+	}
+
+	/**
+	 * worker가 미리 만들 유형 해설 대상 전부(#417). 기한 6~60개월마다 고르는 적금과 만기 경우를 모으고, 같은 자료(지문)는 한 번만 둔다.
+	 * 투자 유형 상품은 기한과 상관없어 한 번만 고른다.
+	 */
+	List<TypeRoleTarget> typeRoleTargets() {
+		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
+		InvestPick inv = invest(YearMonth.from(asOf).minusMonths(1));
+		Map<Integer, List<FixedCandidate>> openFixed = new HashMap<>();
+		Map<String, TypeRoleTarget> out = new java.util.LinkedHashMap<>();
+		for (int months = MIN_MONTHS; months <= MAX_MONTHS; months++) {
+			SavingPick sp;
+			try {
+				sp = saving(months, (term, n) -> openFixed.computeIfAbsent(term, t -> savings.openFixed(t, n)));
+			}
+			catch (ApiException e) {
+				// 이 기한에 맞는 적금이 없으면 요청도 503이라 해설이 필요 없다
+				continue;
+			}
+			Picked p = pick(sp, inv);
+			ProposalText.Facts f = facts(0, MAX_MONTHS, null, p);
+			for (TypeRoleSubject s : subjects(p, months)) {
+				out.putIfAbsent(s.type() + ":" + s.fingerprint(), new TypeRoleTarget(s, f));
+			}
+		}
+		return List.copyOf(out.values());
+	}
+
+	/** 이 요청의 다섯 유형 해설이 모두 저장돼 있으면 그 해설, 하나라도 없으면 null(지금처럼 AI가 유형 해설까지 쓴다, #417). */
+	private Map<ProductType, TypeRoleStore.Role> storedRoles(ScenarioProposer p, Picked picked, int months) {
+		String version = p.typeRoleVersion();
+		if (version == null || p.shortVersion() == null) {
+			return null;
+		}
+		Map<ProductType, TypeRoleStore.Role> out = new EnumMap<>(ProductType.class);
+		for (TypeRoleSubject s : subjects(picked, months)) {
+			Optional<TypeRoleStore.Role> role = typeRoles.find(version, s.type(), s.fingerprint());
+			if (role.isEmpty()) {
+				return null;
+			}
+			out.put(s.type(), role.get());
 		}
 		return out;
 	}
@@ -320,11 +413,23 @@ public class GoalScenarioService {
 	 * 적금·지수 ETF는 다음 순위를 함께 볼 상품으로 최대 2개까지 고른다. 모자라면 있는 만큼만 쓰고 503으로 만들지 않는다.
 	 */
 	private Picked pick(int months, YearMonth last) {
-		// 적금 만기는 기한 이하인 만기 중 조건에 맞는 상품이 있는 가장 긴 것(policies §7-2)
+		return pick(saving(months, savings::openFixed), invest(last));
+	}
+
+	/** 기한에 맞춰 고른 적금 후보(1순위 + 함께 볼 상품)와 만기. */
+	private record SavingPick(List<FixedCandidate> fixed, int term) {
+	}
+
+	/** 기한과 상관없이 고르는 투자 유형 상품과 그 수익률. */
+	private record InvestPick(List<InstrumentView> kr, List<InstrumentView> us, List<InstrumentView> kospi, Map<String, BigDecimal[]> returns) {
+	}
+
+	/** 적금 만기는 기한 이하인 만기 중 조건에 맞는 상품이 있는 가장 긴 것(policies §7-2). openFixed는 (만기, 개수) → 후보. */
+	private static SavingPick saving(int months, java.util.function.BiFunction<Integer, Integer, List<FixedCandidate>> openFixed) {
 		List<FixedCandidate> fixed = List.of();
 		int term = months;
 		for (; term > 0; term--) {
-			fixed = savings.openFixed(term, CANDIDATES);
+			fixed = openFixed.apply(term, CANDIDATES);
 			if (!fixed.isEmpty()) {
 				break;
 			}
@@ -332,7 +437,10 @@ public class GoalScenarioService {
 		if (fixed.isEmpty()) {
 			throw new ApiException(ErrorCode.MARKET_UNAVAILABLE, "조건에 맞는 적금 공시가 아직 없어요", Map.of("field", "SAVINGS"));
 		}
-		FixedCandidate saving = fixed.getFirst();
+		return new SavingPick(fixed, term);
+	}
+
+	private InvestPick invest(YearMonth last) {
 		Map<String, BigDecimal[]> returns = new HashMap<>();
 		List<InstrumentView> etfs = market.board(Board.ETF).items();
 		List<InstrumentView> kr = withHistory(etfs.stream().filter(i -> i.name().strip().endsWith("200")).toList(), 1, CANDIDATES, last, returns,
@@ -341,6 +449,17 @@ public class GoalScenarioService {
 				ProductType.US_INDEX_ETF);
 		List<InstrumentView> kospi = withHistory(market.board(Board.KOSPI).items().stream().filter(i -> !preferred(i.name())).toList(), 5, 5, last,
 				returns, ProductType.KOSPI_TOP5);
+		return new InvestPick(kr, us, kospi, returns);
+	}
+
+	private static Picked pick(SavingPick s, InvestPick inv) {
+		List<FixedCandidate> fixed = s.fixed();
+		int term = s.term();
+		FixedCandidate saving = fixed.getFirst();
+		List<InstrumentView> kr = inv.kr();
+		List<InstrumentView> us = inv.us();
+		List<InstrumentView> kospi = inv.kospi();
+		Map<String, BigDecimal[]> returns = inv.returns();
 		Map<ProductType, List<Item>> items = new EnumMap<>(ProductType.class);
 		items.put(ProductType.SAVINGS, List.of(new Item(saving.productId(), saving.name(), saving.company())));
 		items.put(ProductType.CMA, List.of(new Item(null, "CMA", null)));

@@ -170,6 +170,45 @@ class RestGoalScenarioAiClientTest {
 		assertThat(savings).containsEntry("additionalProperties", false);
 	}
 
+	/** #417: 짧은 길(v13)은 유형별 칸 없이 받고 응답 상한이 3000이다. 유형 해설을 되풀이하지 말라고 안내한다. */
+	@Test
+	@SuppressWarnings("unchecked")
+	void 짧은_프롬프트_v13은_유형별_칸_없이_받는다() {
+		assertThat(client.shortPromptVersion()).isEqualTo("goal-scenario-v13");
+		assertThat(RestGoalScenarioAiClient.SHORT_PROMPT).startsWith("goal-scenario-v13.").doesNotContain("typeRoles")
+			.contains("유형 하나하나의 설명이나 업황 전망을 되풀이하지 말고").contains("마지막 1~2년").contains("'목표 금액을 보장해요'라고 쓰지 않아요");
+		server.expect(requestTo("https://example.com/v1/chat/completions"))
+			.andExpect(jsonPath("$.max_completion_tokens").value(3000))
+			.andExpect(jsonPath("$.messages[0].content").value(RestGoalScenarioAiClient.SHORT_PROMPT))
+			.andExpect(jsonPath("$.response_format.json_schema.schema.properties.scenarios.items.properties.typeRoles").doesNotExist())
+			.andExpect(jsonPath("$.response_format.json_schema.schema.properties.scenarios.items.required.length()").value(7))
+			.andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"stop","message":{"content":"{}","refusal":null}}]}
+				""", MediaType.APPLICATION_JSON));
+		client.proposeShort("{}");
+		server.verify();
+	}
+
+	/** #417: 유형 해설은 유형 하나씩, 그 유형의 모범 예시만 붙여 세 칸으로 받는다. */
+	@Test
+	void 유형_해설은_그_유형의_예시만_붙여_세_칸으로_받는다() {
+		assertThat(client.typeRolePromptVersion()).isEqualTo("goal-type-role-v1");
+		assertThat(RestGoalScenarioAiClient.TYPE_ROLE_EXAMPLES).containsOnlyKeys(RestGoalScenarioAiClient.TYPES);
+		RestGoalScenarioAiClient.TYPE_ROLE_EXAMPLES.values().forEach(e -> assertThat(e).contains("{비중}%로,"));
+		// 운영에서 지워지던 "목표 금액을 보장" 대신 원금과 약정 이자로 쓴다
+		assertThat(RestGoalScenarioAiClient.TYPE_ROLE_EXAMPLES.get("SAVINGS")).contains("원금과 약정 이자가 정해져").doesNotContain("보장");
+		server.expect(requestTo("https://example.com/v1/chat/completions"))
+			.andExpect(jsonPath("$.max_completion_tokens").value(1500))
+			.andExpect(jsonPath("$.messages[0].content").value(RestGoalScenarioAiClient.TYPE_ROLE_PROMPT + RestGoalScenarioAiClient.TYPE_ROLE_EXAMPLES.get("CMA")))
+			.andExpect(jsonPath("$.response_format.json_schema.name").value("goal_type_role"))
+			.andExpect(jsonPath("$.response_format.json_schema.schema.required.length()").value(3))
+			.andRespond(withSuccess("""
+				{"choices":[{"finish_reason":"stop","message":{"content":"{}","refusal":null}}]}
+				""", MediaType.APPLICATION_JSON));
+		client.typeRole("CMA", "{}");
+		server.verify();
+	}
+
 	@Test
 	void 응답_토큰_상한은_6000이다() {
 		server.expect(requestTo("https://example.com/v1/chat/completions"))

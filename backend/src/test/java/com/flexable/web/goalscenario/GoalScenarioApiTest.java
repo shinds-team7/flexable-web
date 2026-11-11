@@ -2,6 +2,7 @@ package com.flexable.web.goalscenario;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.reset;
@@ -464,6 +465,67 @@ class GoalScenarioApiTest {
 		verify(proposer, times(2)).propose(any());
 		// 남은 횟수: 새로 받은 두 번만 차감
 		assertThat((Integer) JsonPath.read(third, "$.aiUsage.remainingToday")).isEqualTo((Integer) JsonPath.read(first, "$.aiUsage.remainingToday") - 1);
+	}
+
+	@Autowired
+	GoalScenarioService service;
+	@Autowired
+	TypeRoleStore typeRoles;
+	@Autowired
+	ScenarioAiQuota quota;
+
+	/**
+	 * #417: 이 요청의 다섯 유형 해설이 모두 미리 만들어져 있으면 짧은 길(proposeShort)로 받고, 하나라도 없으면 지금처럼 propose.
+	 * 재사용은 짧은 길·긴 길 버전 모두 맞는다.
+	 */
+	@Test
+	@SuppressWarnings("unchecked")
+	void 유형_해설이_모두_저장돼_있으면_짧은_길로_받는다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.version()).thenReturn("goal-scenario-full");
+		when(proposer.shortVersion()).thenReturn("goal-scenario-short");
+		when(proposer.typeRoleVersion()).thenReturn("goal-type-role-417");
+		when(proposer.propose(any())).thenReturn(PARTS);
+		when(proposer.proposeShort(any(), any())).thenReturn(PARTS);
+		List<GoalScenarioService.TypeRoleTarget> targets = service.typeRoleTargets();
+		TypeRoleStore.Role role = new TypeRoleStore.Role("적금은 쌓아 두는 몫이에요.", "적금은 {비중}%로, 금리가 정해져 있어요.", "다만 중도에 해지하면 이자가 줄어들 수 있어요.");
+		// 적금 해설이 없으면 긴 길
+		targets.stream().filter(t -> t.subject().type() != ProductType.SAVINGS)
+			.forEach(t -> typeRoles.save("goal-type-role-417", t.subject().type(), t.subject().fingerprint(), role, "test"));
+		String token = signup();
+		member(BODY.formatted("목돈", 15_400_000, 12), token, 200);
+		verify(proposer, times(1)).propose(any());
+		verify(proposer, never()).proposeShort(any(), any());
+		assertThat(jdbc.queryForObject("select prompt_version from goal_scenario_ai_cache where target_amount = ?", String.class, 15_400_000L))
+			.isEqualTo("goal-scenario-full");
+
+		targets.forEach(t -> typeRoles.save("goal-type-role-417", t.subject().type(), t.subject().fingerprint(), role, "test"));
+		member(BODY.formatted("목돈", 15_500_000, 12), token, 200);
+		org.mockito.ArgumentCaptor<Map<ProductType, TypeRoleStore.Role>> roles = org.mockito.ArgumentCaptor.forClass(Map.class);
+		verify(proposer, times(1)).proposeShort(any(), roles.capture());
+		assertThat(roles.getValue()).containsOnlyKeys(ProductType.values());
+		verify(proposer, times(1)).propose(any());
+		assertThat(jdbc.queryForObject("select prompt_version from goal_scenario_ai_cache where target_amount = ?", String.class, 15_500_000L))
+			.isEqualTo("goal-scenario-short");
+
+		// 긴 길로 만든 조합도, 짧은 길로 만든 조합도 다시 부르지 않고 재사용한다
+		assertThat((Boolean) JsonPath.read(member(BODY.formatted("목돈", 15_400_000, 12), token, 200), "$.aiReused")).isTrue();
+		assertThat((Boolean) JsonPath.read(member(BODY.formatted("목돈", 15_500_000, 12), token, 200), "$.aiReused")).isTrue();
+		verify(proposer, times(1)).proposeShort(any(), any());
+		verify(proposer, times(1)).propose(any());
+	}
+
+	/** #417: 미리 만드는 호출은 서비스 전체 횟수만 세고, 전체 상한에 닿으면 예약하지 않는다. */
+	@Test
+	void 유형_해설_호출은_서비스_전체_횟수만_센다() {
+		java.util.function.Supplier<Integer> daily = () -> jdbc.query("select count from goal_scenario_ai_daily where usage_date = ?",
+				rs -> rs.next() ? rs.getInt(1) : 0, quota.today());
+		int before = daily.get();
+		when(aiProps.dailyCap()).thenReturn(before + 1);
+		assertThat(quota.reserveService()).isTrue();
+		assertThat(daily.get()).isEqualTo(before + 1);
+		assertThat(quota.reserveService()).isFalse();
+		assertThat(daily.get()).isEqualTo(before + 1);
 	}
 
 	@Test

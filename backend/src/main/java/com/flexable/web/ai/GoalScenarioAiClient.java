@@ -16,13 +16,33 @@ public interface GoalScenarioAiClient {
 
 	boolean enabled();
 
-	/** 지금 쓰는 프롬프트 버전(예: goal-scenario-v12). 재사용 조합의 버전 비교에 쓴다(#406). */
+	/** 유형 해설을 함께 쓰는 프롬프트 버전(예: goal-scenario-v12). 재사용 조합의 버전 비교에 쓴다(#406). */
 	default String promptVersion() {
 		return null;
 	}
 
 	/** inputJson을 보내고 구조화 출력(JSON 문자열)을 돌려준다. 실패하면 Failed. */
 	Result propose(String inputJson);
+
+	/** 유형 해설을 미리 만들어 둔 경우의 짧은 프롬프트 버전(#417). 유형별 칸 없이 비중과 시나리오 칸만 받는다. */
+	default String shortPromptVersion() {
+		return null;
+	}
+
+	/** 짧은 프롬프트로 시나리오 3개(비중·제목·설명·reason·comparison·fit)를 받는다(#417). 응답에 typeRoles·roles가 없다. */
+	default Result proposeShort(String inputJson) {
+		throw new Failed("NO_KEY");
+	}
+
+	/** 미리 만드는 유형 해설의 프롬프트 버전(#417). */
+	default String typeRolePromptVersion() {
+		return null;
+	}
+
+	/** 유형 하나(type은 유형 코드)의 해설(reason·basis·outlook)을 받는다(#417). 입력은 유형 자료뿐이고 회원·목표 정보가 없다. */
+	default Result typeRole(String type, String inputJson) {
+		throw new Failed("NO_KEY");
+	}
 
 	public record Result(String content, String model, Integer promptTokens, Integer completionTokens) {
 	}

@@ -87,6 +87,18 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		});
 	}
 
+	/**
+	 * 회원 몫 없이 서비스 전체 1회만 예약한다(미리 만드는 유형 해설, #417). 전체 상한에 걸리면 false.
+	 * 결과를 못 받아도 되돌리지 않는다(비용 상한).
+	 */
+	boolean reserveService() {
+		LocalDate day = today();
+		return tx.execute(ignored -> {
+			jdbc.update("INSERT INTO goal_scenario_ai_daily (usage_date, count) VALUES (?, 0) ON DUPLICATE KEY UPDATE count = count", day);
+			return jdbc.update("UPDATE goal_scenario_ai_daily SET count = count + 1 WHERE usage_date = ? AND count < ?", day, props.dailyCap()) > 0;
+		});
+	}
+
 	/** AI가 결과를 주지 못했을 때(호출 실패·규칙 위반) 회원 몫 1회를 되돌린다. 서비스 전체 횟수는 비용 상한이라 되돌리지 않는다. */
 	void refund(long userId) {
 		jdbc.update("UPDATE goal_scenario_ai_usage SET count = count - 1 WHERE usage_date = ? AND user_id = ? AND count > 0", today(), userId);
@@ -103,11 +115,19 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	 * (V37 전에 저장된 조합도 0이다).
 	 */
 	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, String promptVersion) {
+		return cached(userId, targetAmount, months, monthlyBudget, asOf, List.of(promptVersion));
+	}
+
+	/** promptVersions 중 하나로 만든 조합만 다시 쓴다(유형 해설을 미리 만든 짧은 길과 긴 길, #417). */
+	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf,
+			List<String> promptVersions) {
 		// 프롬프트 버전이 다른 조합(V38 전 조합은 null)은 다시 쓰지 않는다(#406)
+		List<Object> args = new java.util.ArrayList<>(List.of(userId, targetAmount, months, budgetKey(monthlyBudget), asOf));
+		args.addAll(promptVersions);
 		List<String> rows = jdbc.queryForList(
 				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?"
-						+ " AND prompt_version = ?",
-				String.class, userId, targetAmount, months, budgetKey(monthlyBudget), asOf, promptVersion);
+						+ " AND prompt_version IN (" + String.join(", ", java.util.Collections.nCopies(promptVersions.size(), "?")) + ")",
+				String.class, args.toArray());
 		if (rows.isEmpty()) {
 			return Optional.empty();
 		}

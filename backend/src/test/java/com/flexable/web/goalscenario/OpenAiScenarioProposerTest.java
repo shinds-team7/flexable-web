@@ -77,6 +77,29 @@ class OpenAiScenarioProposerTest {
 		assertThat(drafts.get(2).parts().roles()).isEqualTo("라");
 	}
 
+	/** #417: 짧은 길은 typeRoles 없이 오고, roles는 미리 만든 해설에 그 시나리오의 비중을 넣어 같은 순서·규칙으로 합친다. */
+	@Test
+	void 미리_만든_유형_해설에_비중을_넣어_roles를_만든다() {
+		String content = """
+				{"scenarios":[
+				 {"id":"s1","title":"나눠서","summary":"지수 ETF를 섞어요","reason":"나눠 담아요","comparison":"중간이에요","fit":"기다릴 수 있는 분께 맞아요",
+				  "mix":{"SAVINGS":40,"CMA":0,"KR_INDEX_ETF":30,"US_INDEX_ETF":0,"KOSPI_TOP5":30}}]}
+				""";
+		java.util.Map<ProductType, TypeRoleStore.Role> stored = new java.util.EnumMap<>(ProductType.class);
+		stored.put(ProductType.SAVINGS, new TypeRoleStore.Role("적금은 쌓아 두는 몫이에요.", "적금은 {비중}%로, 금리가 정해져 있어요.", "다만 해지하면 줄어들 수 있어요."));
+		stored.put(ProductType.CMA, new TypeRoleStore.Role("CMA는 꺼내 쓸 자리예요.", "CMA는 {비중}%로, 수시로 넣고 빼요.", ""));
+		stored.put(ProductType.KR_INDEX_ETF, new TypeRoleStore.Role("국내 지수 ETF는 성장 몫이에요.", "국내 지수 ETF는 {비중}%로, 나눠 담아요.", ""));
+		stored.put(ProductType.US_INDEX_ETF, new TypeRoleStore.Role("미국 지수 ETF는 나누는 몫이에요.", "미국 지수 ETF는 {비중}%로, 환율 영향을 받아요.", ""));
+		stored.put(ProductType.KOSPI_TOP5, new TypeRoleStore.Role("코스피 대형주는 집중 몫이에요.", "코스피 대형주는 {비중}%로, 크게 흔들려요", "실적이 좋아지면 오를 수 있어요."));
+		Proposals.Parts parts = OpenAiScenarioProposer.parse(content, stored).getFirst().parts();
+		// 비중 0인 CMA·미국은 빼고, 빈 전망 칸도 빼며, 마침표 없는 칸 끝에는 마침표
+		assertThat(parts.roles()).isEqualTo(String.join("\n",
+				"적금은 쌓아 두는 몫이에요. 적금은 40%로, 금리가 정해져 있어요. 다만 해지하면 줄어들 수 있어요.",
+				"국내 지수 ETF는 성장 몫이에요. 국내 지수 ETF는 30%로, 나눠 담아요.",
+				"코스피 대형주는 집중 몫이에요. 코스피 대형주는 30%로, 크게 흔들려요. 실적이 좋아지면 오를 수 있어요."));
+		assertThat(parts.reason()).isEqualTo("나눠 담아요");
+	}
+
 	@Test
 	void 비중이_정수가_아니면_검사에서_걸린다() {
 		String content = """

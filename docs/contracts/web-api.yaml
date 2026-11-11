@@ -283,9 +283,11 @@ paths:
   /virtual-sim/start:
     post:
       tags: [virtual-sim]
-      summary: '가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 로그인·영구 저장 없음'
-      description: 'startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년. 새 세션 시작은 클라이언트(접속 IP)마다 10분에 20번까지이고 넘으면 429 TOO_MANY_ATTEMPTS(retryAfterSeconds). 같은 startId 재전송은 세지 않는다'
-      security: []
+      summary: '가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 1배는 로그인 없이, 레버리지 2·3배는 회원만. 영구 저장 없음'
+      description: 'startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다(leverage를 생략한 요청과 1은 같은 입력). 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년. 새 세션 시작은 클라이언트(접속 IP)마다 10분에 20번까지이고 넘으면 429 TOO_MANY_ATTEMPTS(retryAfterSeconds). 같은 startId 재전송은 세지 않는다. 레버리지 판(policies §8-9): leverage 2·3이면 기초 종목 봉을 배율 가격으로 바꿔 매매·평가하고, 로그인 토큰이 없으면 401 UNAUTHORIZED. 1·2·3 밖은 400'
+      security:
+        - {}
+        - bearer: []
       requestBody:
         required: true
         content:
@@ -297,6 +299,7 @@ paths:
               properties:
                 startId: { type: string, format: uuid }
                 initialAmount: { type: integer, format: int64, minimum: 10000, maximum: 100000000 }
+                leverage: { type: integer, enum: [1, 2, 3], default: 1, description: '레버리지 배율(policies §8-9). 생략하면 1. 판 중간에 바꿀 수 없다. 2·3은 회원만' }
       responses:
         '200':
           description: 'version=0, 첫 봉만 공개. sessionToken은 256비트 이상 임의 토큰, expiresAt은 시작 후 30분'
@@ -311,6 +314,7 @@ paths:
                   expiresAt: { type: string, format: date-time }
                   snapshot: { $ref: '#/components/schemas/VirtualSimSnapshot' }
         '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
@@ -572,6 +576,7 @@ paths:
               required: [startId]
               properties:
                 startId: { type: string, format: uuid }
+                leverage: { type: integer, enum: [1], description: '대회 판은 레버리지가 없다(policies §8-9). 생략하거나 1만, 다른 값은 400 VALIDATION_FAILED' }
       responses:
         '200':
           description: 'version=0, 첫 봉만 공개. snapshot은 contest가 반드시 있는 VirtualContestRoundSnapshot이다. 이 세션이 끝나면(완주·end·30분 만료·서버 재시작·대회 마감) 서버가 남은 봉을 끝까지 돌려 마지막 봉 총자산을 새 대회 잔액으로 한 번만 반영한다. 하루 점수·주간 승급·강등은 날·주가 끝난 뒤 정한다(policies §8-8)'
@@ -1900,7 +1905,7 @@ components:
     VirtualSimSnapshot:
       type: object
       additionalProperties: false
-      required: [version, status, company, generator, ruleset, initialAmount, isSample, totalDays, candles, frames, portfolio, event, decisions, notice, sources]
+      required: [version, status, company, generator, ruleset, initialAmount, isSample, leverage, leverageResult, totalDays, candles, frames, portfolio, event, decisions, notice, sources]
       properties:
         version: { type: integer, minimum: 0 }
         status: { type: string, enum: [RUNNING, AWAITING_DECISION, FINISHED] }
@@ -1934,6 +1939,16 @@ components:
         initialAmount: { type: integer, format: int64, minimum: 10000, description: '이 실행의 투자금. 일반 세션은 /virtual-sim/start의 initialAmount(10,000~100,000,000), 대회 판은 시작한 대회 잔액(1,000,000 이상, 상한 없음)' }
         isSample: { type: boolean, description: '예시 작성기·예시 룰셋으로 만든 학습용 자료. AI 생성 여부는 generator.aiGenerated' }
         contest: { $ref: '#/components/schemas/VirtualSimContestRound' }
+        leverage: { type: integer, enum: [1, 2, 3], description: '이 판의 레버리지 배율(policies §8-9). 대회 판은 늘 1. 2·3이면 candles·frames·portfolio·event.orderLimits·체결 가격은 기초 종목의 하루 등락률에 배율을 곱해 매일 다시 맞춘 가격이다' }
+        leverageResult:
+          type: object
+          nullable: true
+          additionalProperties: false
+          description: 'leverage가 2·3이고 status=FINISHED일 때만. 같은 구간(첫 봉 시가 → 마지막 봉 종가)의 기초 종목 수익률과 레버리지 가격 수익률(소수 4자리 내림). 사용자의 손익·수익률은 portfolio. 그 밖에는 null'
+          required: [underlyingReturnRate, leveragedReturnRate]
+          properties:
+            underlyingReturnRate: { type: number }
+            leveragedReturnRate: { type: number }
         totalDays: { type: integer, minimum: 120, maximum: 250, description: '이번 실행의 전체 거래일 수(평일만 센 가상 날짜). 가격·사건은 공개한 봉까지만 준다' }
         candles:
           type: array
@@ -1991,7 +2006,7 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [eventId, category, categoryName, title, date, prediction, action, quantity, execution, executedDate, executedPrice, executedShares, outcome, outcomeDate, subsequentReturnRate, reactionReturnRate, nextWeekReturnRate, movement, categoryUpShare, categoryDownShare, categorySampleCount, trend, trendOutcome]
+            required: [eventId, category, categoryName, title, date, prediction, action, quantity, execution, executedDate, executedPrice, executedShares, outcome, outcomeDate, subsequentReturnRate, reactionReturnRate, nextWeekReturnRate, movement, categoryUpShare, categoryDownShare, categorySampleCount, trend, trendOutcome, leveragedReactionReturnRate, leveragedNextWeekReturnRate]
             properties:
               eventId: { type: string }
               category: { $ref: '#/components/schemas/VirtualSimCategory' }
@@ -2016,7 +2031,9 @@ components:
               categorySampleCount: { type: integer, nullable: true, minimum: 1, description: '판정 뒤만. categoryUpShare·categoryDownShare를 센 공시 수. 판정 전에는 null' }
               trend: { type: string, nullable: true, enum: [UP, DOWN, MIXED, null], description: '판정 뒤만. 그 유형의 경향(policies §8-6). vsim-rules-v3부터 공시 반응 측정 v2의 반응 창 근거 유형(공급 계약·자기주식 취득·시설·지분 투자)은 UP, 나머지는 MIXED로 고정한다(시장 조정 측정이라 categoryUpShare가 0.5 아래여도 UP일 수 있다). 판정 전에는 null' }
               trendOutcome: { type: string, nullable: true, enum: [CORRECT, INCORRECT, NEUTRAL, null], description: '늘 null(11-05 일반 세션 채점 없음, #253). 대회 판도 null. 유형의 경향은 trend로 본다' }
-        notice: { type: string, description: '서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 공시 직후·그다음 주 움직임과 유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임(사건 날과 그 뒤 5거래일은 같은 유형 과거 공시 당일과 그 뒤 움직임, 시장 전체 몫을 빼지 않음), 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외' }
+              leveragedReactionReturnRate: { type: number, nullable: true, description: '레버리지 판(leverage 2·3)의 판정 뒤만. reactionReturnRate와 같은 구간의 레버리지 가격 등락(소수 4자리 내림, policies §8-9). subsequentReturnRate·reactionReturnRate·nextWeekReturnRate·movement·유형 통계는 기초 종목 기준이다. 1배 판·판정 전에는 null' }
+              leveragedNextWeekReturnRate: { type: number, nullable: true, description: '레버리지 판(leverage 2·3)의 판정 뒤만. nextWeekReturnRate와 같은 구간의 레버리지 가격 등락(소수 4자리 내림). 1배 판·판정 전에는 null' }
+        notice: { type: string, description: '서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 공시 직후·그다음 주 움직임과 유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임(사건 날과 그 뒤 5거래일은 같은 유형 과거 공시 당일과 그 뒤 움직임, 시장 전체 몫을 빼지 않음), 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 레버리지 판(leverage 2·3): 일반 문장 끝에 배율 가격으로 매매·평가함, 차입·이자·반대매매 없음, 운용보수·추적 오차를 넣지 않아 실제 레버리지 ETF와 다를 수 있음을 붙인다(policies §8-9). 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외' }
         sources:
           type: array
           minItems: 1

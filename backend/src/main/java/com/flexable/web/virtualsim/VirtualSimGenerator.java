@@ -51,7 +51,8 @@ public final class VirtualSimGenerator {
 	public record Planned(int index, VirtualSimCategory category, String title, int[] path) {
 	}
 
-	public record Plan(List<Candle> candles, List<Planned> events) {
+	/** startPrice: 첫 봉의 전날 종가로 쓴 시작가 P_0(레버리지 판 가격의 첫 기준, policies §8-9) */
+	public record Plan(List<Candle> candles, List<Planned> events, long startPrice) {
 	}
 
 	/** 기준 연도 = 세션 시작일(KST) 연도 + 10 */
@@ -193,6 +194,7 @@ public final class VirtualSimGenerator {
 				eventPath[e.index() + k] = e.path();
 			}
 		}
+		long startPrice = price;
 		List<Candle> candles = new ArrayList<>(length);
 		for (int i = 0; i < length; i++) {
 			int g = grade.g()[rnd.nextInt(grade.g().length)];
@@ -203,7 +205,7 @@ public final class VirtualSimGenerator {
 			candles.add(c);
 			price = c.close();
 		}
-		return new Plan(List.copyOf(candles), List.copyOf(events));
+		return new Plan(List.copyOf(candles), List.copyOf(events), startPrice);
 	}
 
 	/** from에서 아직 고르지 않은 유형 count개를 하나씩 뽑아 chosen에 더한다 */

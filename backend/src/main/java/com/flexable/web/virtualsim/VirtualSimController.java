@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,9 +41,10 @@ public class VirtualSimController {
 		return response(service.status());
 	}
 
+	/** 로그인 없이 쓰지만, 레버리지 2·3배는 회원만이라 로그인 토큰이 있으면 회원으로 본다(policies §8-9) */
 	@PostMapping("/start")
-	public ResponseEntity<Started> start(@Valid @RequestBody Start input, HttpServletRequest request) {
-		return response(service.start(input, request.getRemoteAddr()));
+	public ResponseEntity<Started> start(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Start input, HttpServletRequest request) {
+		return response(service.start(input, request.getRemoteAddr(), jwt != null));
 	}
 
 	@PostMapping("/state")

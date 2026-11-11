@@ -303,6 +303,57 @@ class VirtualSimPolicyTest {
 		}
 	}
 
+	// ───────── 8-9 레버리지 판 ─────────
+
+	private static Candle candle(String date, JsonNode c) {
+		return new Candle(date, c.get("open").asLong(), c.get("high").asLong(), c.get("low").asLong(), c.get("close").asLong());
+	}
+
+	@Test
+	void leverage_prices_and_paths() throws Exception {
+		JsonNode l = root().get("leverage");
+		assertThat(ints(l.get("allowed"))).containsExactly(VirtualSimLeverage.MIN, 2, VirtualSimLeverage.MAX);
+		assertThat(new VirtualSimDtos.Start(java.util.UUID.randomUUID(), new BigDecimal("1000000")).multiple()).isEqualTo(l.get("default").asInt());
+		for (JsonNode c : l.get("prices")) {
+			assertThat(VirtualSimLeverage.price(c.get("prevLeveraged").asLong(), c.get("prevBase").asLong(), c.get("base").asLong(), c.get("k").asInt()))
+				.as(c.toString()).isEqualTo(c.get("expected").asLong());
+		}
+		for (JsonNode c : l.get("paths")) {
+			List<Candle> base = new ArrayList<>(), expected = new ArrayList<>();
+			for (int i = 0; i < c.get("base").size(); i++) {
+				String date = LocalDate.of(2036, 3, 17).plusDays(i).toString();
+				base.add(candle(date, c.get("base").get(i)));
+				expected.add(candle(date, c.get("expected").get(i)));
+			}
+			List<Candle> leveraged = VirtualSimLeverage.convert(base, c.get("startPrice").asLong(), c.get("k").asInt());
+			assertThat(leveraged).as(c.toString()).isEqualTo(expected);
+			assertThat(leveraged).allSatisfy(x -> assertThat(x.valid()).isTrue());
+			assertThat(VirtualSimService.span(base)).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("underlyingReturnRate").asString()));
+			assertThat(VirtualSimService.span(leveraged)).as(c.toString()).isEqualByComparingTo(new BigDecimal(c.get("leveragedReturnRate").asString()));
+		}
+		assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> VirtualSimLeverage.convert(List.of(), 10000, 4)))
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	/** 예시 룰셋으로 만든 구간: 1배는 기초 봉 그대로, 2·3배는 모든 봉이 1 이상이고 봉 순서를 지킨다 */
+	@Test
+	void leverage_on_generated_plans() {
+		VirtualSimRuleset rules = VirtualSimSample.ruleset();
+		Set<VirtualSimCategory> available = rules.categories().stream().map(CategoryStats::category).collect(java.util.stream.Collectors.toSet());
+		for (long seed = 1; seed <= 200; seed++) {
+			Plan plan = VirtualSimGenerator.generate(seed, rules, available, LocalDate.of(2026, 11, 11));
+			assertThat(VirtualSimLeverage.convert(plan.candles(), plan.startPrice(), 1)).isEqualTo(plan.candles());
+			for (int k = 2; k <= VirtualSimLeverage.MAX; k++) {
+				List<Candle> leveraged = VirtualSimLeverage.convert(plan.candles(), plan.startPrice(), k);
+				assertThat(leveraged).hasSameSizeAs(plan.candles());
+				assertThat(leveraged).allSatisfy(x -> assertThat(x.valid()).as("seed " + x).isTrue());
+				for (int i = 0; i < leveraged.size(); i++) {
+					assertThat(leveraged.get(i).date()).isEqualTo(plan.candles().get(i).date());
+				}
+			}
+		}
+	}
+
 	// ───────── 생성 성질(예시 룰셋, 시드 여러 개) ─────────
 
 	@Test

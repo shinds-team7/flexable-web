@@ -170,6 +170,59 @@
       { "cash": 2000, "shares": 0, "referencePrice": 3000, "action": "BUY", "quantity": 1, "limits": { "maxBuyShares": 0, "maxSellShares": 0 }, "expected": "INVALID" }
     ]
   },
+  "leverage": {
+    "status": "IMPLEMENTED",
+    "note": "policies §8-9(11-11 #419 사용자 결정). 일반 판만, 회원만 2·3배. 레버리지 ETF 방식(차입·이자·반대매매 없음, 운용보수·괴리·세금 없음). 기초 종목 전날 종가 C, 레버리지 전날 종가 L, 그날 기초 가격 X(시가·고가·저가·종가 각각) → max(1, floor(L × (C + k × (X − C)) / C)). 첫 봉의 C·L은 시작가. 구간 수익률은 첫 봉 시가 → 마지막 봉 종가(소수 4자리 내림)",
+    "allowed": [1, 2, 3],
+    "default": 1,
+    "accessNote": "회원·대회 판 확인은 ContractTest(가상_시뮬레이션_레버리지·가상_시뮬레이션_대회)와 VirtualSimServiceTest가 본다",
+    "access": [
+      { "member": false, "leverage": null, "expected": 200 },
+      { "member": false, "leverage": 1, "expected": 200 },
+      { "member": false, "leverage": 2, "expected": 401 },
+      { "member": false, "leverage": 3, "expected": 401 },
+      { "member": true, "leverage": 3, "expected": 200 },
+      { "member": true, "leverage": 4, "expected": 400 },
+      { "contest": true, "leverage": 1, "expected": "허용" },
+      { "contest": true, "leverage": 2, "expected": 400 }
+    ],
+    "prices": [
+      { "prevLeveraged": 10000, "prevBase": 10000, "base": 11000, "k": 2, "expected": 12000 },
+      { "prevLeveraged": 12000, "prevBase": 11000, "base": 9900, "k": 2, "expected": 9600 },
+      { "prevLeveraged": 10000, "prevBase": 10000, "base": 11000, "k": 3, "expected": 13000 },
+      { "prevLeveraged": 13000, "prevBase": 11000, "base": 9900, "k": 3, "expected": 9100 },
+      { "prevLeveraged": 10000, "prevBase": 10000, "base": 7000, "k": 3, "expected": 1000, "note": "하루 −30%에 3배여도 −90%" },
+      { "prevLeveraged": 5, "prevBase": 10000, "base": 7000, "k": 3, "expected": 1, "note": "내림이 0이 되면 1" },
+      { "prevLeveraged": 7777, "prevBase": 3333, "base": 3400, "k": 2, "expected": 8089 },
+      { "prevLeveraged": 10000, "prevBase": 10000, "base": 10250, "k": 1, "expected": 10250, "note": "1배는 기초 가격 그대로" }
+    ],
+    "paths": [
+      {
+        "k": 2, "startPrice": 10000,
+        "base": [ { "open": 10000, "high": 11000, "low": 10000, "close": 11000 }, { "open": 11000, "high": 11000, "low": 9900, "close": 9900 } ],
+        "expected": [ { "open": 10000, "high": 12000, "low": 10000, "close": 12000 }, { "open": 12000, "high": 12000, "low": 9600, "close": 9600 } ],
+        "underlyingReturnRate": -0.01, "leveragedReturnRate": -0.04
+      },
+      {
+        "k": 3, "startPrice": 10000,
+        "base": [ { "open": 10000, "high": 11000, "low": 10000, "close": 11000 }, { "open": 11000, "high": 11000, "low": 9900, "close": 9900 } ],
+        "expected": [ { "open": 10000, "high": 13000, "low": 10000, "close": 13000 }, { "open": 13000, "high": 13000, "low": 9100, "close": 9100 } ],
+        "underlyingReturnRate": -0.01, "leveragedReturnRate": -0.09
+      },
+      {
+        "k": 3, "startPrice": 10000,
+        "base": [ { "open": 9000, "high": 10500, "low": 7000, "close": 7000 } ],
+        "expected": [ { "open": 7000, "high": 11500, "low": 1000, "close": 1000 } ],
+        "underlyingReturnRate": -0.2223, "leveragedReturnRate": -0.8572,
+        "note": "시가가 시작가보다 낮게 열린 봉. 저가 ≤ 시가·종가 ≤ 고가가 그대로"
+      }
+    ],
+    "properties": [
+      "예시 룰셋으로 만든 구간을 1배로 바꾸면 기초 봉과 완전히 같다",
+      "2·3배로 바꾼 모든 봉이 1 ≤ low ≤ min(open, close) ≤ max(open, close) ≤ high다",
+      "매매·평가(§5·8-7)는 바꾼 가격을 그대로 쓴다. 판정 뒤 movement·reactionReturnRate·nextWeekReturnRate·유형 통계는 기초 종목 기준이고, 2·3배면 같은 두 구간의 레버리지 가격 등락을 leveragedReactionReturnRate·leveragedNextWeekReturnRate로 함께 준다"
+    ]
+  },
   "generation": {
     "note": "예시 룰셋(fake)으로 시드 여러 개를 돌려 확인하는 성질. 값은 고정하지 않는다",
     "properties": [

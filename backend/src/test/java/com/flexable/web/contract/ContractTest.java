@@ -612,6 +612,40 @@ class ContractTest {
 		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
 		call(json(post("/api/v1/virtual-sim/end"), tokenBody), 204);
 		call(json(post("/api/v1/virtual-sim/state"), tokenBody), 410);
+		assertThat((Integer) JsonPath.read(snapshot, "$.leverage")).isEqualTo(1);
+		assertThat((Object) JsonPath.read(snapshot, "$.leverageResult")).isNull();
+	}
+
+	@Test
+	void 가상_시뮬레이션_레버리지() throws Exception {
+		String head = "{\"startId\":\"%s\",\"initialAmount\":1000000";
+		// 비회원은 2·3배 401, 1배는 로그인 없이. 배율 밖은 400
+		call(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":2}"), 401);
+		call(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":3}"), 401);
+		String one = body(call(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":1}"), 200));
+		assertThat((Integer) JsonPath.read(one, "$.snapshot.leverage")).isEqualTo(1);
+		call(json(post("/api/v1/virtual-sim/end"), "{\"sessionToken\":\"" + JsonPath.read(one, "$.sessionToken") + "\"}"), 204);
+		String member = signup();
+		call(auth(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":4}"), member), 400);
+		// 생략은 1배, 명시적 null은 400(회원·비회원 모두)
+		call(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":null}"), 400);
+		call(auth(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":null}"), member), 400);
+
+		String started = body(call(auth(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":3}"), member), 200));
+		assertThat((Integer) JsonPath.read(started, "$.snapshot.leverage")).isEqualTo(3);
+		assertThat((Object) JsonPath.read(started, "$.snapshot.leverageResult")).isNull();
+		String token = JsonPath.read(started, "$.sessionToken");
+		String snapshot = body(call(json(post("/api/v1/virtual-sim/state"), "{\"sessionToken\":\"" + token + "\"}"), 200));
+		while (!"FINISHED".equals(JsonPath.read(snapshot, "$.status"))) {
+			int version = JsonPath.read(snapshot, "$.version");
+			snapshot = "RUNNING".equals(JsonPath.read(snapshot, "$.status")) ? body(call(json(post("/api/v1/virtual-sim/step"), command(token, version)), 200))
+					: body(call(json(post("/api/v1/virtual-sim/decision"), "{\"sessionToken\":\"" + token + "\",\"commandId\":\"" + UUID.randomUUID()
+							+ "\",\"expectedVersion\":" + version + ",\"eventId\":\"" + JsonPath.read(snapshot, "$.event.id") + "\",\"action\":\"HOLD\",\"quantity\":0}"), 200));
+		}
+		assertThat((Object) JsonPath.read(snapshot, "$.leverageResult.leveragedReturnRate")).isNotNull();
+		List<Map<String, Object>> decisions = JsonPath.read(snapshot, "$.decisions");
+		assertThat(decisions).allSatisfy(d -> assertThat(d.get("leveragedReactionReturnRate")).isNotNull());
+		call(json(post("/api/v1/virtual-sim/end"), "{\"sessionToken\":\"" + token + "\"}"), 204);
 	}
 
 	@Test
@@ -630,6 +664,9 @@ class ContractTest {
 		assertThat((Object) JsonPath.read(before, "$.current")).isNull();
 		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\"}"), token), 409);
 		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"nope\"}"), token), 400);
+		// 대회 판은 레버리지가 없다(policies §8-9)
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\",\"leverage\":2}"), token), 400);
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\",\"leverage\":null}"), token), 400);
 
 		String placement = body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), token), 200));
 		String placementId = JsonPath.read(placement, "$.placementId");

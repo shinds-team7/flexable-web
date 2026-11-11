@@ -541,8 +541,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 로그인·영구 저장 없음
-         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다. 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년. 새 세션 시작은 클라이언트(접속 IP)마다 10분에 20번까지이고 넘으면 429 TOO_MANY_ATTEMPTS(retryAfterSeconds). 같은 startId 재전송은 세지 않는다
+         * 가상 종목 하나를 무작위로 받고 최초 매수와 첫 봉. 1배는 로그인 없이, 레버리지 2·3배는 회원만. 영구 저장 없음
+         * @description startId 중복 처리·no-store·동시 재전송은 /practice/start와 같다(leverage를 생략한 요청과 1은 같은 입력). 서버가 시드로 구간(120~250거래일)·사건 위치(3~5개)·OHLC를 만들고 시드는 내보내지 않는다. 날짜는 세션 시작일(KST) 연도 + 10년. 새 세션 시작은 클라이언트(접속 IP)마다 10분에 20번까지이고 넘으면 429 TOO_MANY_ATTEMPTS(retryAfterSeconds). 같은 startId 재전송은 세지 않는다. 레버리지 판(policies §8-9): leverage 2·3이면 기초 종목 봉을 배율 가격으로 바꿔 매매·평가하고, 로그인 토큰이 없으면 401 UNAUTHORIZED. 1·2·3 밖은 400
          */
         post: {
             parameters: {
@@ -558,6 +558,12 @@ export interface paths {
                         startId: string;
                         /** Format: int64 */
                         initialAmount: number;
+                        /**
+                         * @description 레버리지 배율(policies §8-9). 생략하면 1. 판 중간에 바꿀 수 없다. 2·3은 회원만
+                         * @default 1
+                         * @enum {integer}
+                         */
+                        leverage?: 1 | 2 | 3;
                     };
                 };
             };
@@ -577,6 +583,7 @@ export interface paths {
                     };
                 };
                 400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
                 409: components["responses"]["Error"];
                 429: components["responses"]["Error"];
                 503: components["responses"]["Error"];
@@ -1110,6 +1117,11 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         startId: string;
+                        /**
+                         * @description 대회 판은 레버리지가 없다(policies §8-9). 생략하거나 1만, 다른 값은 400 VALIDATION_FAILED
+                         * @enum {integer}
+                         */
+                        leverage?: 1;
                     };
                 };
             };
@@ -3780,6 +3792,16 @@ export interface components {
             /** @description 예시 작성기·예시 룰셋으로 만든 학습용 자료. AI 생성 여부는 generator.aiGenerated */
             isSample: boolean;
             contest?: components["schemas"]["VirtualSimContestRound"];
+            /**
+             * @description 이 판의 레버리지 배율(policies §8-9). 대회 판은 늘 1. 2·3이면 candles·frames·portfolio·event.orderLimits·체결 가격은 기초 종목의 하루 등락률에 배율을 곱해 매일 다시 맞춘 가격이다
+             * @enum {integer}
+             */
+            leverage: 1 | 2 | 3;
+            /** @description leverage가 2·3이고 status=FINISHED일 때만. 같은 구간(첫 봉 시가 → 마지막 봉 종가)의 기초 종목 수익률과 레버리지 가격 수익률(소수 4자리 내림). 사용자의 손익·수익률은 portfolio. 그 밖에는 null */
+            leverageResult: {
+                underlyingReturnRate: number;
+                leveragedReturnRate: number;
+            } | null;
             /** @description 이번 실행의 전체 거래일 수(평일만 센 가상 날짜). 가격·사건은 공개한 봉까지만 준다 */
             totalDays: number;
             /** @description 공개된 봉만 날짜 오름차순. 날짜는 세션 시작일 연도 + 10년의 가상 날짜(평일). 서버가 룰셋으로 만든 값 */
@@ -3897,8 +3919,12 @@ export interface components {
                  * @enum {string|null}
                  */
                 trendOutcome: "CORRECT" | "INCORRECT" | "NEUTRAL" | null;
+                /** @description 레버리지 판(leverage 2·3)의 판정 뒤만. reactionReturnRate와 같은 구간의 레버리지 가격 등락(소수 4자리 내림, policies §8-9). subsequentReturnRate·reactionReturnRate·nextWeekReturnRate·movement·유형 통계는 기초 종목 기준이다. 1배 판·판정 전에는 null */
+                leveragedReactionReturnRate: number | null;
+                /** @description 레버리지 판(leverage 2·3)의 판정 뒤만. nextWeekReturnRate와 같은 구간의 레버리지 가격 등락(소수 4자리 내림). 1배 판·판정 전에는 null */
+                leveragedNextWeekReturnRate: number | null;
             }[];
-            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 공시 직후·그다음 주 움직임과 유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임(사건 날과 그 뒤 5거래일은 같은 유형 과거 공시 당일과 그 뒤 움직임, 시장 전체 몫을 빼지 않음), 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
+            /** @description 서버 고정 문장. 일반 세션은 isSample로 고르고, 대회 판(contest가 있음)은 대회 문장을 isSample로 고른다(결정 기록 2026-11-05-virtual-sim-contest 3-13). 실제 세션: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음, 실제 공시 제목 형식·글에 좋고 나쁨 없음, 채점하지 않음, 공시 직후·그다음 주 움직임과 유형 통계를 보임, 실제 시장 통계(수집 종목 5년 공시 전체)로 만든 가상 움직임(사건 날과 그 뒤 5거래일은 같은 유형 과거 공시 당일과 그 뒤 움직임, 시장 전체 몫을 빼지 않음), 표본 한계, 비권유, 세금/수수료/배당 제외. 예시 세션(isSample=true): AI·실제 시장 통계 문구 대신 정해진 틀의 예시 글·학습용 예시 통계라고 밝힌다. 문장은 결정 기록 2026-11-04-virtual-simulation 6. 레버리지 판(leverage 2·3): 일반 문장 끝에 배율 가격으로 매매·평가함, 차입·이자·반대매매 없음, 운용보수·추적 오차를 넣지 않아 실제 레버리지 ETF와 다를 수 있음을 붙인다(policies §8-9). 대회 판: 가상 종목·사건(실제 기업 아님), AI 생성·검수 없음(예시면 정해진 틀), 대회 판은 채점하지 않고 판이 끝난 잔액·하루 목표 점수로만 겨룸, 실제 시장 통계(예시면 예시 통계)로 만든 가상 움직임, 표본 한계, 순위·점수는 수익을 뜻하지 않음, 비권유, 세금/수수료/배당 제외 */
             notice: string;
             sources: string[];
         };

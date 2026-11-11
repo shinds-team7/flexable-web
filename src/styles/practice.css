@@ -233,3 +233,24 @@
 .practice-pinned p { margin:0; color:var(--color-text-secondary); }
 .practice-pinned b { color:var(--color-brand-text); margin-right:calc(var(--density-gap)/4); }
 .practice-pinned span { display:flex; gap:calc(var(--density-gap)/3); }
+/* 가상 시뮬레이션 레버리지 판(policies §8-9): 배율 고르기(2·3배는 회원만)·위험 고지·"레버리지 N배 · 가상" 배지·결과 구간 수익률 비교 */
+.vsim-leverage { margin-top:var(--density-gap); }
+.vsim-leverage-options { display:flex; gap:calc(var(--density-gap)/4); }
+.vsim-leverage-options label { flex:1; position:relative; display:flex; justify-content:center; border:1px solid var(--color-border); border-radius:var(--radius-xs); padding:calc(var(--density-gap)/3) 0; background:var(--color-surface); color:var(--color-text-secondary); font-size:12px; cursor:pointer; }
+.vsim-leverage-options label.selected { border-color:var(--color-brand-primary); color:var(--color-brand-primary); background:var(--color-brand-subtle); font-weight:600; }
+.vsim-leverage-options input { position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+.vsim-leverage-options label:has(input:disabled) { color:var(--color-text-tertiary); background:var(--color-bg-subtle); cursor:not-allowed; }
+.vsim-leverage-options input:disabled { cursor:not-allowed; }
+.vsim-leverage-options label:has(input:focus-visible) { outline:2px solid var(--color-focus); outline-offset:2px; }
+.vsim-leverage-login { display:flex; align-items:center; justify-content:space-between; gap:calc(var(--density-gap)/2); margin:calc(var(--density-gap)/3) 0 0; font-size:12px; color:var(--color-text-secondary); }
+.vsim-leverage-risk { margin:calc(var(--density-gap)/3) 0 0; font-size:12px; line-height:1.7; color:var(--color-text-tertiary); }
+.vsim-leverage-badge { display:inline-flex; align-items:center; height:20px; padding:0 6px; border-radius:var(--radius-xs); border:1px solid var(--color-brand-primary); color:var(--color-brand-primary); font-size:11px; font-weight:700; line-height:1; white-space:nowrap; vertical-align:middle; }
+.vsim-leverage-compare { display:grid; gap:calc(var(--density-gap)/3); margin:0 0 calc(var(--density-gap)/2); padding:calc(var(--density-gap)/2); border:1px solid var(--color-border); border-radius:var(--radius-soft-sm); }
+.vsim-leverage-compare>div { display:flex; justify-content:space-between; align-items:baseline; gap:calc(var(--density-gap)/2); font-size:13px; }
+.vsim-leverage-compare dt { color:var(--color-text-tertiary); white-space:nowrap; }
+.vsim-leverage-compare dd { margin:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.vsim-leverage-compare-mine { padding-top:calc(var(--density-gap)/3); border-top:1px solid var(--color-border); }
+.vsim-leverage-compare small { font-size:11px; color:var(--color-text-tertiary); }
+.vsim-leverage-result { display:grid; gap:calc(var(--density-gap)/3); margin-top:var(--density-gap); padding:calc(var(--density-gap)/2) var(--density-gap); border:1px solid var(--color-border); border-radius:var(--radius-soft-sm); background:var(--color-bg-subtle); }
+.vsim-leverage-result p { margin:0; font-size:13px; line-height:1.7; color:var(--color-text-primary); }
+.vsim-leverage-result .vsim-leverage-badge { justify-self:start; }

@@ -76,8 +76,8 @@ export const MAIN_SORT: Record<MainSort, { label: string; lead: string }> = {
 
 /** 추천순: 탭마다 편집으로 고른 글과 순서. 특정 상품 추천이 아니라 개념 글의 순서다 */
 export const RECOMMENDED: Record<'all' | 'basic' | GuideTopic, string[]> = {
-  all: ['interest-rate', 'simple-vs-compound', 'saving-vs-investing', 'deposit-vs-savings', 'parking-vs-cma', 'year-end-tax', 'stock-basics', 'gross-vs-net-pay'],
-  basic: ['interest-rate', 'simple-vs-compound', 'year-end-tax', 'gross-vs-net-pay'],
+  all: ['interest-rate', 'simple-vs-compound', 'saving-vs-investing', 'deposit-vs-savings', 'parking-vs-cma', 'gross-vs-net-pay', 'stock-basics', 'year-end-tax'],
+  basic: ['interest-rate', 'simple-vs-compound', 'gross-vs-net-pay', 'year-end-tax'],
   saving: ['deposit-vs-savings', 'parking-vs-cma', 'saving-vs-investing', 'housing-subscription'],
   investing: ['fund-vs-etf', 'stock-basics', 'isa-vs-pension', 'bond-basics'],
 };

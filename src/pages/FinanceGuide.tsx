@@ -1,5 +1,5 @@
 // 금융 가이드(/guide). 상단 메뉴 '금융정보'(/finance)와는 다른 화면. AI 계획에서 예적금·주식·ETF 등을 고르기 전에, 처음 쓰는 사람에게 개념을 안내한다.
-// 경로 표시·제목·검색 → 검색 결과(용어 설명) → 카테고리 카드 → 추천 콘텐츠(탭·정렬) → AI 목표 달성 안내 띠.
+// 경로 표시·제목·검색 → 검색 결과(용어 설명) → 카테고리 카드 → 추천 콘텐츠(정렬) → AI 목표 달성 안내 띠.
 // 카테고리 카드는 카테고리 화면(/guide/:category)으로, 콘텐츠 카드·검색 결과는 콘텐츠 상세(/guide/:category/:id)로 간다. 검색어는 브라우저 메모리에만 있고 저장·전송하지 않는다.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -16,30 +16,16 @@ import {
   selectRecommended,
   suggestGuide,
   TOPIC_LABEL,
-  type GuideContent,
   type GuideSuggestion,
-  type GuideTopic,
   type MainSort,
 } from '@/data/financeGuide';
 import { useGuideViews } from '@/data/guideViews';
 import { won } from '@/lib/format';
 import '@/styles/finance-guide.css';
 
-type Tab = 'all' | GuideTopic | 'basic';
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'all', label: '전체' },
-  { id: 'basic', label: CATEGORY_LABEL.basic },
-  { id: 'saving', label: TOPIC_LABEL.saving },
-  { id: 'investing', label: TOPIC_LABEL.investing },
-];
-
-const inTab = (c: GuideContent, tab: Tab) => tab === 'all' || (tab === 'basic' ? c.category === 'basic' : c.topic === tab);
-
 export default function FinanceGuide() {
   const [input, setInput] = useState('');
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<Tab>('all');
   const resultsRef = useRef<HTMLElement>(null);
   const [scrollResults, setScrollResults] = useState(false);
 
@@ -102,7 +88,7 @@ export default function FinanceGuide() {
           </ul>
         </section>
 
-        <Contents tab={tab} onTab={setTab} />
+        <Contents />
 
         <section className="fin-cta" aria-labelledby="fin-cta">
           <TargetArt />
@@ -203,25 +189,18 @@ function SearchBox({ value, onInput, onSearch }: { value: string; onInput: (v: s
   );
 }
 
-/** 추천 콘텐츠: 전체·금융 기초·저축·투자 탭, 추천순(기본)·최신순·조회순 정렬, 4열 카드로 전체 탭은 8개, 나머지 탭은 4개까지. 분류 표시 색은 위 카테고리 카드와 맞춘다 */
-const contentCount = (tab: Tab) => (tab === 'all' ? 8 : 4);
-function Contents({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+/** 추천 콘텐츠: 추천순(기본)·최신순·조회순 정렬, 4열 카드 8개. 분류 표시 색은 위 카테고리 카드와 맞춘다. 분야별로 보려면 위 카테고리 카드로 간다 */
+const MAIN_CONTENT_COUNT = 8;
+function Contents() {
   const [sort, setSort] = useState<MainSort>('recommended');
   const views = useGuideViews();
-  const filtered = GUIDE_CONTENTS.items.filter((c) => inTab(c, tab));
-  const items = (sort === 'recommended' ? selectRecommended(filtered, tab) : selectContents(filtered, 'all', sort, views ?? {}, RECOMMENDED[tab])).slice(0, contentCount(tab));
+  const all = GUIDE_CONTENTS.items;
+  const items = (sort === 'recommended' ? selectRecommended(all, 'all') : selectContents(all, 'all', sort, views ?? {}, RECOMMENDED.all)).slice(0, MAIN_CONTENT_COUNT);
   return (
     <section className="fin-sec fin-contents" aria-labelledby="fin-contents">
       <div className="fin-contents-top">
         <div className="fin-contents-head">
           <h2 id="fin-contents">추천 콘텐츠</h2>
-          <div className="fin-tabs" role="group" aria-label="카테고리">
-            {TABS.map((t) => (
-              <button key={t.id} type="button" className="fin-tab" aria-pressed={tab === t.id} onClick={() => onTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="fin-contents-sub">
           <p className="fin-contents-lead">{MAIN_SORT[sort].lead}</p>

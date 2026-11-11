@@ -68,16 +68,12 @@
 .fin-topic-body span{font-size:14px;line-height:22px;color:var(--color-text-secondary)}
 .fin-topic-art{flex:0 0 auto;width:80px;height:67px}
 .fin-topic .fin-crumb-sep{flex:0 0 auto;width:20px;height:20px;color:var(--color-text-secondary)}
-.fin-topic:focus-visible,.fin-content-main:focus-visible,.fin-tab:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+.fin-topic:focus-visible,.fin-content-main:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
 
 /* 추천 콘텐츠 */
 .fin-contents{scroll-margin-top:calc(var(--nav-h) + 16px)}
 .fin-results{scroll-margin-top:calc(var(--nav-h) + 16px)}
 .fin-contents-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.fin-tabs{display:flex;gap:4px;flex-wrap:wrap}
-.fin-tab{height:28px;padding:0 12px;border-radius:999px;border:0;background:var(--color-bg-subtle);color:var(--color-text-secondary);font-size:13px;font-weight:700;cursor:pointer;transition:background-color 140ms var(--ease),color 140ms var(--ease)}
-.fin-tab:hover{color:var(--color-text-primary)}
-.fin-tab[aria-pressed="true"]{background:var(--color-brand-primary);color:var(--color-on-brand)}
 .fin-sort{margin-left:auto}
 .fin-sort select{height:32px;padding:0 4px;border:0;background:none;font:inherit;font-size:13px;font-weight:600;color:var(--color-text-secondary);cursor:pointer}
 .fin-contents-top{display:flex;flex-direction:column;gap:10px}

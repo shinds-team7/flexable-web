@@ -409,19 +409,31 @@ final class ProposalText {
 		return false;
 	}
 
+	/**
+	 * 숫자가 어느 통계인지: 숫자 앞에 있는 종류 단어 중 가장 가까운 것, 앞에 없으면 뒤에 있는 단어 중 가장 가까운 것.
+	 * 이름을 값 앞에 쓰는 표기("월 평균 수익률은 2.11%이고 변동폭은 10.53%예요")에서 뒤 단어가 더 가까워도 앞 단어를 따른다(PR #401 리뷰).
+	 */
 	private static StatKind nearestKind(String sentence, int start, int end) {
-		StatKind nearest = null;
-		int best = Integer.MAX_VALUE;
+		StatKind before = null;
+		StatKind after = null;
+		int bestBefore = Integer.MAX_VALUE;
+		int bestAfter = Integer.MAX_VALUE;
 		for (StatKind kind : StatKind.values()) {
 			for (int i = sentence.indexOf(kind.word); i >= 0; i = sentence.indexOf(kind.word, i + 1)) {
-				int distance = i < start ? start - (i + kind.word.length()) : i - end;
-				if (distance < best) {
-					best = distance;
-					nearest = kind;
+				if (i < start) {
+					int distance = start - (i + kind.word.length());
+					if (distance < bestBefore) {
+						bestBefore = distance;
+						before = kind;
+					}
+				}
+				else if (i - end < bestAfter) {
+					bestAfter = i - end;
+					after = kind;
 				}
 			}
 		}
-		return nearest;
+		return before != null ? before : after;
 	}
 
 	private static int sentenceStart(String t, int pos) {

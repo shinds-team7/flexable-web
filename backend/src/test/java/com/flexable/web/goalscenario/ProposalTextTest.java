@@ -257,6 +257,27 @@ class ProposalTextTest {
 		assertThat(ProposalText.clean(text, other, mix).removed()).extracting(ProposalText.Removed::problem).containsExactly("TEXT_NUMBER");
 	}
 
+	/** 종류 단어는 숫자 앞을 먼저 본다. 뒤 단어가 더 가까워도 앞 단어를 따른다(PR #401 리뷰). */
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"월 평균 수익률은 2.11%이고 변동폭은 10.53%예요.",
+			"평균 수익률은 2.11%, 변동폭 10.53%예요.",
+			"월 평균 2.11%에 변동 폭은 10.53%예요.",
+			"10.53% 정도 변동이 있었어요." })
+	void 종류_단어는_숫자_앞을_먼저_본다(String text) {
+		ProposalText.Facts facts = new ProposalText.Facts(FACTS.targetAmount(), FACTS.months(), FACTS.names(), FACTS.percents(),
+				Map.of(ProposalText.StatKind.MEAN, List.of(new BigDecimal("2.1072")), ProposalText.StatKind.VOLATILITY, List.of(new BigDecimal("10.5281"))));
+		assertThat(ProposalText.problem(text, facts, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "월 평균 수익률은 10.53%이고 변동폭은 2.11%예요.", "월 변동폭은 2.11%예요." })
+	void 앞_단어와_값이_다르면_막힘(String text) {
+		ProposalText.Facts facts = new ProposalText.Facts(FACTS.targetAmount(), FACTS.months(), FACTS.names(), FACTS.percents(),
+				Map.of(ProposalText.StatKind.MEAN, List.of(new BigDecimal("2.1072")), ProposalText.StatKind.VOLATILITY, List.of(new BigDecimal("10.5281"))));
+		assertThat(ProposalText.problem(text, facts, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
 	@Test
 	void 비중_하나뿐인_시나리오는_합이_없다() {
 		assertThat(ProposalText.problem("나머지 200%예요.", FACTS, List.of(100))).isEqualTo("TEXT_NUMBER");

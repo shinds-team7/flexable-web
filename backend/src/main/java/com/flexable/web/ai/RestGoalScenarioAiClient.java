@@ -28,12 +28,12 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 	private static final Logger log = LoggerFactory.getLogger(RestGoalScenarioAiClient.class);
-	static final String PROMPT_VERSION = "goal-scenario-v10";
+	static final String PROMPT_VERSION = "goal-scenario-v11";
 	/** 시나리오 전부를 합친 응답 상한. 해설은 글자 수 검사가 없어 이 값이 비용과 응답 시간을 막는다. 넘으면 TRUNCATED. */
 	static final int MAX_COMPLETION_TOKENS = 6000;
 	static final List<String> TYPES = List.of("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
 	static final String PROMPT = """
-			goal-scenario-v10. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 정확히 세 개 만들어요.
+			goal-scenario-v11. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 정확히 세 개 만들어요.
 			상품 유형: SAVINGS(은행 적금, 금리 확정), CMA(수시 입출금, 예시 금리라 바뀔 수 있음), KR_INDEX_ETF(국내 대표 지수 ETF),
 			US_INDEX_ETF(미국 대표 지수 ETF, 국내 상장), KOSPI_TOP5(코스피 시가총액 상위 다섯 종목에 같은 금액).
 			입력의 stats는 서버가 지난 육십 개월 월 수익률로 계산한 유형별 평균·변동폭·최대 하락이에요. 이 값을 근거로 비중을 정해요.
@@ -82,6 +82,7 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 			  comparison: 다른 시나리오와 위험과 비중이 무엇이 다른지. 두 문장.
 			  fit: 기한이 다가올 때 주의할 점과 어떤 사람에게 맞는지. 두세 문장. 기한 길이에 따라 주의점을 달리 써요.
 			    기한이 1년 이하면 투자 몫이 떨어졌을 때 회복을 기다릴 시간이 짧다는 점을 써요. 기한이 2~3년이면 기한이 다가올 때 투자 몫을 적금·CMA로 옮기는 시점을 생각해 보라고 써요.
+			    기한이 4~5년이면 기간이 길어 떨어진 뒤 회복을 기다릴 여유가 더 있지만, 마지막 1~2년에는 투자 몫을 적금·CMA로 옮기는 시점을 생각해 보라고 써요. 적금 만기가 기한보다 짧아 남은 기간을 CMA로 이어 가는 몫이 커진다는 점도 짚어요.
 			- 숫자는 입력에 있는 값을 그대로 옮겨 쓸 때만 써요: 상품·지수 이름, 기한, 목표 금액, 월 납입 가능액, 적금·CMA 금리, 세율, 이 시나리오의 비중(예: mix의 SAVINGS가 70이면 '적금 70%'), stats와 alternatives의 금리·평균·변동폭·최대 하락.
 			  stats의 값은 소수예요(0.05는 5%). '지난 60개월 최대 하락 23.45%'처럼 %로 바꿔 소수 둘째 자리까지 쓰고, 지난 60개월 자료임을 밝혀요. 수치 바로 앞에 '월 평균', '월 변동폭', '최대 하락' 중 맞는 말을 함께 써요.
 			  전망은 숫자 없이 typeRoles의 outlook으로만 쓰고, 바로 뒤에 위험 문장을 붙여요. 화면은 AI가 쓴 일반적인 전망이라는 안내를 함께 보여 줘요.
@@ -119,6 +120,11 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 	@Override
 	public boolean enabled() {
 		return props.configured();
+	}
+
+	@Override
+	public String promptVersion() {
+		return PROMPT_VERSION;
 	}
 
 	@Override

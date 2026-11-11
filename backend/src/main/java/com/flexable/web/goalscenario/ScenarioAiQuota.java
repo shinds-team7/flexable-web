@@ -102,10 +102,12 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	 * 같은 회원이 같은 목표 금액·기한(개월)·월 납입 가능액·자료 기준일로 받은 AI 초안. 가능액이 없으면 칸에 0을 두고 0끼리 같은 조건으로 본다
 	 * (V37 전에 저장된 조합도 0이다).
 	 */
-	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf) {
+	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, String promptVersion) {
+		// 프롬프트 버전이 다른 조합(V38 전 조합은 null)은 다시 쓰지 않는다(#406)
 		List<String> rows = jdbc.queryForList(
-				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?",
-				String.class, userId, targetAmount, months, budgetKey(monthlyBudget), asOf);
+				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?"
+						+ " AND prompt_version = ?",
+				String.class, userId, targetAmount, months, budgetKey(monthlyBudget), asOf, promptVersion);
 		if (rows.isEmpty()) {
 			return Optional.empty();
 		}
@@ -117,11 +119,23 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		}
 	}
 
-	/** 검증을 통과한 AI 초안만 저장한다. 동시에 저장하면 먼저 들어간 것을 둔다. */
-	void cache(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, List<Proposals.Draft> drafts, String model) {
-		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, monthly_budget, as_of, drafts, model, created_at) "
-				+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, months, budgetKey(monthlyBudget),
-				asOf, JSON.writeValueAsString(drafts), model, Timestamp.from(clock.instant()));
+	/**
+	 * 검증을 통과한 AI 초안만 저장한다. 같은 조건에 다른 프롬프트 버전(또는 버전 없는 옛 행)이 있으면 새 초안으로 덮어쓴다(#406).
+	 * 같은 버전끼리 동시에 저장하면 먼저 들어간 것을 둔다.
+	 */
+	void cache(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, List<Proposals.Draft> drafts, String model,
+			String promptVersion) {
+		String json = JSON.writeValueAsString(drafts);
+		Timestamp now = Timestamp.from(clock.instant());
+		int replaced = jdbc.update("UPDATE goal_scenario_ai_cache SET drafts = ?, model = ?, prompt_version = ?, created_at = ?"
+				+ " WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?"
+				+ " AND (prompt_version IS NULL OR prompt_version <> ?)",
+				json, model, promptVersion, now, userId, targetAmount, months, budgetKey(monthlyBudget), asOf, promptVersion);
+		if (replaced == 0) {
+			jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, monthly_budget, as_of, drafts, model, prompt_version, created_at) "
+					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, months, budgetKey(monthlyBudget),
+					asOf, json, model, promptVersion, now);
+		}
 	}
 
 	/** 기본 키 칸이라 null을 둘 수 없어 가능액이 없으면 0으로 둔다(가능액은 1만 원 이상이라 겹치지 않는다). */

@@ -16,6 +16,11 @@ public interface GoalScenarioAiClient {
 
 	boolean enabled();
 
+	/** 지금 쓰는 프롬프트 버전(예: goal-scenario-v11). 재사용 조합의 버전 비교에 쓴다(#406). */
+	default String promptVersion() {
+		return null;
+	}
+
 	/** inputJson을 보내고 구조화 출력(JSON 문자열)을 돌려준다. 실패하면 Failed. */
 	Result propose(String inputJson);
 

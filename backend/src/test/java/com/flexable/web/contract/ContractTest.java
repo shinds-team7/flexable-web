@@ -627,6 +627,9 @@ class ContractTest {
 		call(json(post("/api/v1/virtual-sim/end"), "{\"sessionToken\":\"" + JsonPath.read(one, "$.sessionToken") + "\"}"), 204);
 		String member = signup();
 		call(auth(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":4}"), member), 400);
+		// 생략은 1배, 명시적 null은 400(회원·비회원 모두)
+		call(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":null}"), 400);
+		call(auth(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":null}"), member), 400);
 
 		String started = body(call(auth(json(post("/api/v1/virtual-sim/start"), head.formatted(UUID.randomUUID()) + ",\"leverage\":3}"), member), 200));
 		assertThat((Integer) JsonPath.read(started, "$.snapshot.leverage")).isEqualTo(3);
@@ -663,6 +666,7 @@ class ContractTest {
 		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"nope\"}"), token), 400);
 		// 대회 판은 레버리지가 없다(policies §8-9)
 		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\",\"leverage\":2}"), token), 400);
+		call(auth(json(post("/api/v1/virtual-sim/contests/current/rounds"), "{\"startId\":\"" + UUID.randomUUID() + "\",\"leverage\":null}"), token), 400);
 
 		String placement = body(call(auth(post("/api/v1/virtual-sim/contests/current/placement"), token), 200));
 		String placementId = JsonPath.read(placement, "$.placementId");

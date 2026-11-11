@@ -20,16 +20,18 @@ import com.flexable.web.practice.PracticeDtos.Frame;
 import com.flexable.web.practice.PracticeDtos.Portfolio;
 import com.flexable.web.practice.PracticeDtos.Prediction;
 
+import tools.jackson.databind.annotation.JsonDeserialize;
+
 /** /virtual-sim/* 요청·응답(docs/contracts/web-api.yaml VirtualSimSnapshot). 토큰·명령·자산 모양은 과거 시장 연습(PracticeDtos)과 같다 */
 public final class VirtualSimDtos {
 
 	private VirtualSimDtos() {
 	}
 
-	/** leverage: 레버리지 배율 1·2·3(없으면 1, policies §8-9). 2·3은 회원만 */
+	/** leverage: 레버리지 배율 1·2·3(생략하면 1, 명시적 null은 400, policies §8-9). 2·3은 회원만 */
 	public record Start(@NotNull UUID startId,
 			@NotNull @DecimalMin("10000") @DecimalMax("100000000") @Digits(integer = 9, fraction = 0) BigDecimal initialAmount,
-			@Min(VirtualSimLeverage.MIN) @Max(VirtualSimLeverage.MAX) Integer leverage) {
+			@JsonDeserialize(using = LeverageDeserializer.class) @Min(VirtualSimLeverage.MIN) @Max(VirtualSimLeverage.MAX) Integer leverage) {
 
 		public Start(UUID startId, BigDecimal initialAmount) {
 			this(startId, initialAmount, null);

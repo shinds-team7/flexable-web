@@ -12,6 +12,8 @@ import jakarta.validation.constraints.Size;
 import com.flexable.web.practice.PracticeDtos.Prediction;
 import com.flexable.web.virtualsim.VirtualSimDtos.Snapshot;
 
+import tools.jackson.databind.annotation.JsonDeserialize;
+
 /** 가상 시뮬레이션 대회 요청·응답(docs/contracts/web-api.yaml VirtualContest*). 금액·수익률·점수는 모두 서버 계산 */
 public final class VirtualContestDtos {
 
@@ -83,8 +85,8 @@ public final class VirtualContestDtos {
 
 	// ───────── 판 ─────────
 
-	/** leverage: 대회 판은 레버리지가 없어 1만 받는다(생략하면 1, 다른 값은 400, policies §8-9) */
-	public record RoundStart(@NotNull UUID startId, Integer leverage) {
+	/** leverage: 대회 판은 레버리지가 없어 1만 받는다(생략하면 1, 명시적 null·다른 값은 400, policies §8-9) */
+	public record RoundStart(@NotNull UUID startId, @JsonDeserialize(using = LeverageDeserializer.class) Integer leverage) {
 	}
 
 	public record RoundInfo(int roundNumber, long startBalance, int roundsLeftToday) {

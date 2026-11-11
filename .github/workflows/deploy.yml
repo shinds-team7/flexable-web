@@ -1,0 +1,88 @@
+# 웹 VM 자동 배포(docs/decisions/2026-11-10-vm-cd-github-actions.md, 설치·운영은 deploy/vm/README.md).
+# main의 CI가 성공하면 VM 러너가 deploy/vm/deploy.sh를 실행한다. Vercel 배포와는 별개다.
+# 공개 저장소이므로 VM 러너에서는 main에 들어간 커밋만 실행하고, 로그에 컨테이너 로그·환경변수를 남기지 않는다.
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 바뀐 내용이 없어도 다시 빌드·재시작
+        type: boolean
+        default: false
+
+# 동시에 배포하지 않는다. 대기 중인 배포는 더 새로운 커밋의 배포로 바뀐다(변경은 마지막 성공 커밋부터 계산).
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  gate:
+    # fork PR의 브랜치 이름이 main이어도 실행되지 않게 이벤트와 저장소까지 확인한다.
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    steps:
+      - id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            sha="$GITHUB_SHA"
+            passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$sha" --event push --status success --json databaseId --jq length)"
+            if [ "$passed" -lt 1 ]; then
+              echo "::error::이 커밋은 main CI 성공 기록이 없어요."
+              exit 1
+            fi
+          else
+            sha="$RUN_SHA"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  plan:
+    needs: gate
+    runs-on: [self-hosted, flexable-vm]
+    timeout-minutes: 5
+    outputs:
+      deploy: ${{ steps.plan.outputs.deploy }}
+      migration: ${{ steps.plan.outputs.migration }}
+    steps:
+      - id: plan
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+          DEPLOY_FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          git -C "$HOME/flexable-web" fetch --quiet origin main
+          git -C "$HOME/flexable-web" show "$SHA:deploy/vm/deploy.sh" > "$RUNNER_TEMP/deploy.sh"
+          bash "$RUNNER_TEMP/deploy.sh" plan "$SHA" >> "$GITHUB_OUTPUT"
+
+  apply:
+    needs: [gate, plan]
+    if: needs.plan.outputs.deploy == 'true'
+    runs-on: [self-hosted, flexable-vm]
+    timeout-minutes: 60
+    # production-migration에는 승인자를 지정한다. 새 DB 마이그레이션이 있으면 승인 후에만 진행된다.
+    environment: ${{ needs.plan.outputs.migration == 'true' && 'production-migration' || 'production' }}
+    steps:
+      - env:
+          SHA: ${{ needs.gate.outputs.sha }}
+          DEPLOY_FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          git -C "$HOME/flexable-web" fetch --quiet origin main
+          git -C "$HOME/flexable-web" show "$SHA:deploy/vm/deploy.sh" > "$RUNNER_TEMP/deploy.sh"
+          bash "$RUNNER_TEMP/deploy.sh" apply "$SHA"

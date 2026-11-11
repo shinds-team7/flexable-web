@@ -442,7 +442,7 @@ F7 문서 변경 뒤 재확인: `npm.cmd run check:api`·`npm.cmd run typecheck`
 - [x] 15:52:27 사건 작업 SUCCESS(사건 4,359건, 근거 확인 78건, 실패 0건).
 - [x] 업종 목록 초기 빈 응답 이후 사용자 확인으로 전체 목록 적재·표시 완료. 운영 업종 수집·조회는 완료 처리.
 
-운영 주소는 `https://solpa.shinhanacademy.co.kr`, 구성은 Ubuntu VM의 web·api·MySQL 8.4·선택 worker다. 명령 정본은 [VM README](../../deploy/vm/README.md)다. **main 머지는 Vercel 자동 배포 경로이고 solpa 반영은 수동이다.** Vercel의 `VITE_API_URL`은 웹 백엔드 사용 여부와 함께 배포별로 확인한다. Vercel 화면만으로 웹 서버 기능 완료를 판정하지 않는다.
+운영 주소는 `https://solpa.shinhanacademy.co.kr`, 구성은 Ubuntu VM의 web·api·MySQL 8.4·선택 worker다. 명령 정본은 [VM README](../../deploy/vm/README.md)다. **main 머지는 Vercel 자동 배포 경로이고, solpa는 CI 성공 뒤 GitHub Actions VM 러너가 반영한다(러너 설치 전에는 수동).** Vercel의 `VITE_API_URL`은 웹 백엔드 사용 여부와 함께 배포별로 확인한다. Vercel 화면만으로 웹 서버 기능 완료를 판정하지 않는다.
 
 10-28 회사 PC에서 SSH 접속해 기존 VM main d2ce523·Flyway V15를 직접 확인했다. main 77fa0d3(#101·#106·#108·#112)을 백업 후 순차 빌드·배포했고 web/api/worker 실행·db healthy·health UP을 확인했다. 백업은 backups/flexable_web-20261028-100315.sql.gz, gzip 무결성·CREATE TABLE 포함을 검사했다. 최종 main 52d1e0c(#103·#117 포함)도 백업 backups/flexable_web-20261028-101718.sql.gz의 무결성·테이블 포함을 확인한 뒤 api → web 순서로 빌드하고 worker와 함께 반영했다. 커밋 일치·health UP·네 서비스 실행·Flyway V15 성공을 재확인했다. main CI도 통과했다. 환경변수 값·운영 DB를 직접 수정하지 않았다(검증용 임시 웹 계정·세션은 생성 후 API로 삭제).
 
@@ -467,7 +467,7 @@ F7 문서 변경 뒤 재확인: `npm.cmd run check:api`·`npm.cmd run typecheck`
 - [ ] worker의 기존 키·수집 동작을 운영 담당이 확인한다: `FINLIFE_API_KEY`·`YOUTHCENTER_API_KEY`·`KIWOOM_APP_KEY`·`KIWOOM_SECRET_KEY`·`KRX_AUTH_KEY`·`DART_API_KEY`, 그리고 #93의 `GEMINI_API_KEY`(VM `.env`에 사람이 넣는다. 없으면 요약 없이 게시). 값은 저장소·문서·채팅에 적지 않는다. 키가 없어 건너뛴 실행을 적재 성공으로 기록하지 않는다.
 - [x] 로그인·미연동 직접 수정/재조회/되돌리기·앱 쓰기 성공/예산 미설정 fallback·적금·소식·퀴즈 API를 위 표 범위로 확인했다. 기존 앱 연동 실기기 확인은 반복 미완료로 올리지 않는다.
 - [ ] 남은 휴대폰 화면·퀴즈 화면은 따로 확인한다. 요약 최신 실행은 SUCCESS로 확인했다.
-- [ ] solpa 자동 배포(CI/CD)는 미구현. 도입 시 CI 성공 → 백업 성공 확인 → 순차 반영 → health 확인으로 만들고, 11-18 AWS 이전 계획과 함께 정한다.
+- [ ] solpa 자동 배포(#386): `deploy.yml`·`deploy.sh`를 추가했다(CI 성공 → 백업 성공 확인 → 순차 반영 → health 확인). 남은 일(사람): VM 러너 설치, Environment·fork PR 승인 설정, 첫 실제 배포 확인. 절차는 [VM README](../../deploy/vm/README.md) "업데이트".
 
 
 10-28 실제 검증(회원의 기존 데이터를 바꾸지 않음):

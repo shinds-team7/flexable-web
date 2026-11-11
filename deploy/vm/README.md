@@ -1,6 +1,6 @@
 # 웹 VM 배포
 
-아카데미에서 받은 웹 VM(2026-10-21)에 웹 화면·웹 백엔드·웹 DB를 Docker Compose로 띄운다. 서버 작업과 비밀 값 입력은 사람이 한다(AGENTS.md "하지 않는 것").
+아카데미에서 받은 웹 VM(2026-10-21)에 웹 화면·웹 백엔드·웹 DB를 Docker Compose로 띄운다. `main` 배포는 GitHub Actions가 VM 러너에서 실행하고, 러너 설치·비밀 값 입력 같은 서버 작업은 사람이 한다(AGENTS.md "하지 않는 것").
 
 ## 서버
 
@@ -28,6 +28,7 @@ web (nginx, 호스트 80) ── /api/ ──▶ api (웹 백엔드 :8080) ─�
 | `.env.example` | 환경변수 양식(이름만). 설명은 [backend/README](../../backend/README.md) "환경 변수" |
 | `backup.sh` | DB 덤프를 `backups/`에 만들고 만든 지 7일 된 것을 지운다(매일 cron) |
 | `purge-logs.sh` | 컨테이너 접속·오류 기록을 비운다(매주 root cron, 방침의 '최대 7일') |
+| `deploy.sh` | 백업 확인 → 코드 반영 → 순차 빌드 → 재시작 → health 확인. `.github/workflows/deploy.yml`이 실행한다 |
 
 ## 처음 띄우기
 
@@ -45,13 +46,23 @@ curl -s localhost/api/v1/health  # {"status":"UP"}
 
 ## 업데이트
 
+`main`의 CI가 성공하면 `.github/workflows/deploy.yml`이 VM 러너에서 `deploy.sh`를 실행한다([결정](../../docs/decisions/2026-11-10-vm-cd-github-actions.md)). 문서·테스트만 바뀐 커밋은 건너뛴다. 새 마이그레이션이 있으면 Actions 화면에서 승인해야 진행된다. 실패하면 자동으로 되돌리지 않으니 VM에서 `docker compose logs api --tail 100`을 본다.
+
+처음 한 번(사람이 한다):
+
+1. 저장소 **Settings → Actions → Runners → New self-hosted runner**의 Linux 명령을 VM에서 실행한다. `./config.sh`에 `--labels flexable-vm`을 더한다.
+2. `~/actions-runner`에서 `sudo ./svc.sh install student`, `sudo ./svc.sh start`로 서비스로 켠다. 이 계정은 docker를 쓸 수 있어야 한다.
+3. **Settings → Actions → General**의 fork PR 승인을 **Require approval for all external contributors**로 둔다.
+4. **Settings → Environments**에 `production-migration`을 만들고 Required reviewers를 지정한다. `production`은 승인 없이 쓴다.
+
+Actions의 **deploy → Run workflow**로 `main`을 수동 배포할 수 있다(CI 성공 기록 필요). 러너를 쓸 수 없을 때는 VM에서 직접 실행한다.
+
 ```bash
-cd ~/flexable-web && git pull
-cd deploy/vm && docker compose up -d --build
-docker image prune -f
+cd ~/flexable-web && git fetch origin main
+bash <(git show origin/main:deploy/vm/deploy.sh) apply origin/main
 ```
 
-DB 구조는 웹 백엔드가 켜질 때 Flyway가 바꾼다. 업데이트 전에 `./backup.sh`를 한 번 돌린다.
+DB 구조는 웹 백엔드가 켜질 때 Flyway가 바꾼다. `deploy.sh`가 그 전에 백업을 만들고 내용을 확인한다.
 
 ## 백업
 

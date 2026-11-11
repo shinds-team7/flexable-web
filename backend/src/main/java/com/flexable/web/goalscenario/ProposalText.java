@@ -83,6 +83,8 @@ final class ProposalText {
 	private static final Pattern MONEY_UNIT = Pattern.compile("^\\s*(억|천만|백만|만|천|원)");
 	private static final Pattern PERCENT_UNIT = Pattern.compile("^\\s*(%|퍼센트|프로)");
 	private static final Pattern DURATION_UNIT = Pattern.compile("^\\s*(년|개월|달)");
+	/** 기간 범위("1~2년", "3~6개월")의 뒤쪽. 단위는 뒤에만 붙는다(#417). */
+	private static final Pattern DURATION_RANGE = Pattern.compile("^\\s*[~～\\-–]\\s*(\\d+)\\s*(년|개월|달)");
 	private static final Pattern COUNT_UNIT = Pattern.compile("^\\s*(종목|개|가지)");
 	/** "보장"·"확실" 바로 뒤(띄어쓰기 무시)에 오면 부정문으로 본다. */
 	private static final String[] NEGATIONS = { "되지않", "하지않", "되지는않", "하지는않", "되진않", "하진않", "치않", "되지못", "하지못", "이없", "은없", "는없",
@@ -253,6 +255,16 @@ final class ProposalText {
 			else if ((unit = DURATION_UNIT.matcher(rest)).find()) {
 				BigDecimal months = unit.group(1).equals("년") ? n.multiply(BigDecimal.valueOf(12)) : n;
 				if (n.scale() > 0 || months.signum() <= 0 || months.compareTo(BigDecimal.valueOf(facts.months())) > 0) {
+					return false;
+				}
+				from = m.end() + unit.end();
+			}
+			else if ((unit = DURATION_RANGE.matcher(rest)).find()) {
+				// 앞뒤 두 기간이 모두 기한 안이어야 한다("마지막 1~2년", #417)
+				boolean years = unit.group(2).equals("년");
+				BigDecimal lo = years ? n.multiply(BigDecimal.valueOf(12)) : n;
+				BigDecimal hi = years ? new BigDecimal(unit.group(1)).multiply(BigDecimal.valueOf(12)) : new BigDecimal(unit.group(1));
+				if (n.scale() > 0 || lo.signum() <= 0 || lo.compareTo(hi) > 0 || hi.compareTo(BigDecimal.valueOf(facts.months())) > 0) {
 					return false;
 				}
 				from = m.end() + unit.end();

@@ -25,10 +25,12 @@ const AI_REUSE_TIP = '같은 조건으로 만든 AI 조합은 횟수가 차감�
 /** AI 해설의 전망 고지(policies §7-6, #398). 전망은 AI 학습 지식으로만 쓴다. */
 const AI_OUTLOOK_NOTICE = '전망은 AI가 학습한 일반적인 내용이에요. 최신 뉴스나 실적을 확인한 것이 아니고 수익을 보장하지 않아요.';
 /** 유형별 역할 문단의 첫머리(띄어쓰기 뺌)로 어느 유형인지 찾는다. 프롬프트 v9는 유형마다 문단을 유형 이름으로 시작하게 한다. */
+// 유형 이름 바로 뒤에 "은/는"이 와야 한다. "적금·CMA는"처럼 여러 유형을 묶어 시작하는 문단은 한 유형 문단이 아니다(#402).
 const ROLE_PREFIX: [ScenarioProductType, RegExp][] = [
-  ['SAVINGS', /^적금/], ['CMA', /^CMA/i], ['KR_INDEX_ETF', /^국내(대표)?(지수)?ETF/i], ['US_INDEX_ETF', /^미국(대표)?(지수)?ETF/i], ['KOSPI_TOP5', /^코스피(대형주|상위)/],
+  ['SAVINGS', /^적금[은는]/], ['CMA', /^CMA[은는]/i], ['KR_INDEX_ETF', /^국내(대표)?(지수)?ETF[은는]/i], ['US_INDEX_ETF', /^미국(대표)?(지수)?ETF[은는]/i],
+  ['KOSPI_TOP5', /^코스피(대형주|상위(5|다섯)?(개)?종목)[은는]/],
 ];
-/** 이 시나리오에 비중이 있는 유형만 소제목을 붙인다. 이름으로 시작하지 않는 문단은 소제목 없이 보여 준다. */
+/** 이 시나리오에 비중이 있는 유형만 소제목을 붙인다. 이름으로 시작하지 않는 문단은 소제목 없이 보여 준다. 데모 조합은 부르지 않는다. */
 function roleType(line: string, plan: GoalScenario): ScenarioProductType | null {
   const head = line.replace(/\s+/g, '');
   const found = ROLE_PREFIX.find(([, re]) => re.test(head))?.[0];
@@ -170,7 +172,8 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
           <h4 className="gp-h4">{label}</h4>
           {/* 줄마다 문단을 띄운다. 유형별 역할은 문단이 유형 이름으로 시작하면 그 유형 소제목을 붙인다(#398) */}
           {(plan.explanationParts?.[k] ?? '').split(/\n+/).filter((line) => line.trim()).map((line, i) => {
-            const type = k === 'roles' ? roleType(line, plan) : null;
+            // 데모 조합 해설은 유형마다 나눈 글이 아니라 소제목을 붙이지 않는다(#402)
+            const type = k === 'roles' && !demo ? roleType(line, plan) : null;
             return <Fragment key={i}>{type && <h5 className="gp-h5">{TYPE_LABEL[type]}</h5>}<p>{line}</p></Fragment>;
           })}
         </section>)

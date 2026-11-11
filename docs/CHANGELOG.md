@@ -6,7 +6,7 @@
 
 ## 2026-11-11
 
-- [Closes #406] 목표 시나리오 **기한 최대를 3년에서 5년(6~60개월)**으로 늘린다([결정](decisions/2026-10-29-goal-scenarios.md) "11-11 기한 최대 5년·재사용 프롬프트 버전", #301 결정을 바꿈). 계산 방법은 그대로이고 프롬프트를 `goal-scenario-v11`로 올려 `fit`에 4~5년 안내만 더했다(v10 내용 유지). AI 조합 재사용에 프롬프트 버전을 더해(Flyway V38 `goal_scenario_ai_cache.prompt_version`) 버전이 다르면 새로 받아 덮어쓴다. policies §7-6을 v10(#402, PR #404) 구현에 맞췄다(`typeRoles`, 유형 소제목은 이름+은/는일 때만·데모 없음). 계약 `months` maximum 36 → 60, policies §7-1·§7-6·§7-7, PRD F7, `goal-scenarios.json`(최대 60, 61개월 400, 54·60개월 경로 5묶음). 화면은 연 선택 0~5와 안내 문구. 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [#408, Closes #406] 목표 시나리오 **기한 최대를 3년에서 5년(6~60개월)**으로 늘린다([결정](decisions/2026-10-29-goal-scenarios.md) "11-11 기한 최대 5년·재사용 프롬프트 버전", #301 결정을 바꿈). 계산 방법은 그대로이고 프롬프트를 `goal-scenario-v11`로 올려 `fit`에 4~5년 안내만 더했다(v10 내용 유지). AI 조합 재사용에 프롬프트 버전을 더해(Flyway V38 `goal_scenario_ai_cache.prompt_version`) 버전이 다르면 새로 받아 덮어쓴다. policies §7-6을 v10(#402, PR #404) 구현에 맞췄다(`typeRoles`, 유형 소제목은 이름+은/는일 때만·데모 없음). 계약 `months` maximum 36 → 60, policies §7-1·§7-6·§7-7, PRD F7, `goal-scenarios.json`(최대 60, 61개월 400, 54·60개월 경로 5묶음). 화면은 연 선택 0~5와 안내 문구. 개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Closes #386] 웹 VM 자동 배포를 GitHub Actions로 정하고 구현했다([결정](decisions/2026-11-10-vm-cd-github-actions.md)). `main` CI 성공 후 VM 러너가 백업 확인 → 순차 빌드 → 재시작 → health 확인을 실행하고, 새 마이그레이션은 사람 승인 후 진행한다. `ci.yml`·Vercel·앱 서버·개인정보 처리 항목 변화 없음. 러너 설치 전까지는 수동 배포 유지 — 영향: 전체(배포 절차)
 
 ## 2026-11-10

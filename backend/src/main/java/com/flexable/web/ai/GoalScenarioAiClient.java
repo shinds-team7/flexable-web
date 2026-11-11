@@ -16,7 +16,7 @@ public interface GoalScenarioAiClient {
 
 	boolean enabled();
 
-	/** 지금 쓰는 프롬프트 버전(예: goal-scenario-v11). 재사용 조합의 버전 비교에 쓴다(#406). */
+	/** 지금 쓰는 프롬프트 버전(예: goal-scenario-v12). 재사용 조합의 버전 비교에 쓴다(#406). */
 	default String promptVersion() {
 		return null;
 	}

@@ -185,7 +185,19 @@ final class Proposals {
 			String explanation = parts == null ? kept.getFirst() : parts.joined();
 			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), explanation, parts, mix));
 		}
-		return new Checked(out, null, null, removed);
+		return new Checked(byRisk(out), null, null, removed);
+	}
+
+	/**
+	 * 위험이 낮은 조합부터(안정 → 균형 → 공격) PLAN 01·02·03이 되게 적금·CMA 비중 합이 큰 순으로 줄 세운다.
+	 * 합이 같으면 제안기가 낸 순서를 지킨다(안정 정렬). 프롬프트도 같은 순서를 부탁하지만 응답 순서를 믿지 않는다.
+	 */
+	static List<Plan> byRisk(List<Plan> plans) {
+		return plans.stream().sorted(java.util.Comparator.comparingInt(Proposals::fixedShare).reversed()).toList();
+	}
+
+	private static int fixedShare(Plan plan) {
+		return plan.mix().getOrDefault(ProductType.SAVINGS, 0) + plan.mix().getOrDefault(ProductType.CMA, 0);
 	}
 
 	/** 문구 규칙을 어기면 이유 코드, 지키면 null. */

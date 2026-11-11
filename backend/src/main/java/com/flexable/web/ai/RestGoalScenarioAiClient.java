@@ -28,12 +28,12 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 	private static final Logger log = LoggerFactory.getLogger(RestGoalScenarioAiClient.class);
-	static final String PROMPT_VERSION = "goal-scenario-v11";
+	static final String PROMPT_VERSION = "goal-scenario-v12";
 	/** 시나리오 전부를 합친 응답 상한. 해설은 글자 수 검사가 없어 이 값이 비용과 응답 시간을 막는다. 넘으면 TRUNCATED. */
 	static final int MAX_COMPLETION_TOKENS = 6000;
 	static final List<String> TYPES = List.of("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
 	static final String PROMPT = """
-			goal-scenario-v11. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 정확히 세 개 만들어요.
+			goal-scenario-v12. 사용자의 목표 금액과 기한에 맞춰, 아래 상품 유형 다섯 개의 비중을 정한 서로 다른 시나리오를 정확히 세 개 만들어요.
 			상품 유형: SAVINGS(은행 적금, 금리 확정), CMA(수시 입출금, 예시 금리라 바뀔 수 있음), KR_INDEX_ETF(국내 대표 지수 ETF),
 			US_INDEX_ETF(미국 대표 지수 ETF, 국내 상장), KOSPI_TOP5(코스피 시가총액 상위 다섯 종목에 같은 금액).
 			입력의 stats는 서버가 지난 육십 개월 월 수익률로 계산한 유형별 평균·변동폭·최대 하락이에요. 이 값을 근거로 비중을 정해요.
@@ -45,6 +45,7 @@ public class RestGoalScenarioAiClient implements GoalScenarioAiClient {
 			규칙:
 			- mix의 다섯 값은 0 이상 100 이하 정수이고 합은 정확히 100이에요.
 			- 시나리오끼리 위험 정도가 분명히 달라야 해요. 하나는 값이 크게 흔들리지 않는 SAVINGS·CMA 비중이 높은 조합으로 해요.
+			- 시나리오는 위험이 낮은 것부터 내요. s1은 SAVINGS·CMA 비중 합이 가장 높은 가장 안정적인 조합, s2는 그 중간인 균형 잡힌 조합, s3는 SAVINGS·CMA 비중 합이 가장 낮은 가장 적극적인 조합이에요.
 			- 기한이 짧을수록 변동이 큰 유형의 비중을 낮춰요. 한 유형에 지나치게 몰지 않아요.
 			- id는 s1, s2, s3 순서예요. 한국어 '~해요'체로 쓰고, 글자 수(띄어쓰기 포함)를 꼭 지켜요:
 			  title은 열다섯 자 안팎(최대 스무 자), summary는 서른 자 안팎(최대 마흔 자).

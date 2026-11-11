@@ -101,11 +101,13 @@ class RestGoalScenarioAiClientTest {
 	}
 
 	@Test
-	void 프롬프트_v11은_v10_내용을_유지하고_4_5년_기한_안내를_더한다() {
-		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v11");
+	void 프롬프트_v12는_v11_내용을_유지하고_위험_낮은_순서를_부탁한다() {
+		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v12");
 		// 재사용 조합의 버전 비교에 쓰는 값(#406)
-		assertThat(client.promptVersion()).isEqualTo("goal-scenario-v11");
-		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v11.")
+		assertThat(client.promptVersion()).isEqualTo("goal-scenario-v12");
+		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v12.")
+			// 위험이 낮은 것부터 s1·s2·s3(서버도 같은 순서로 다시 줄 세운다)
+			.contains("시나리오는 위험이 낮은 것부터 내요. s1은 SAVINGS·CMA 비중 합이 가장 높은 가장 안정적인 조합")
 			// #406: 기한 최대 5년. 4~5년 fit 안내만 더하고 아래 v10 문구(유형별 칸·분량·모범 예시·전망 규칙)는 그대로다
 			.contains("기한이 4~5년이면 기간이 길어 떨어진 뒤 회복을 기다릴 여유가 더 있지만, 마지막 1~2년에는 투자 몫을 적금·CMA로 옮기는 시점")
 			// #398: 만기 뒤 남은 달, 기한 말 하락 조건문, 기한 길이별 주의점, 서버가 보여 주는 숫자, 늘린 부정문 예시
@@ -187,7 +189,7 @@ class RestGoalScenarioAiClientTest {
 				 "usage":{"prompt_tokens":321,"completion_tokens":4567}}
 				""", MediaType.APPLICATION_JSON));
 		client.propose("{\"targetAmount\":15000000,\"months\":12,\"monthlyBudget\":500000}");
-		assertThat(output).containsPattern("goal scenario AI call: version=goal-scenario-v11 promptTokens=321 completionTokens=4567 elapsedMs=\\d+")
+		assertThat(output).containsPattern("goal scenario AI call: version=goal-scenario-v12 promptTokens=321 completionTokens=4567 elapsedMs=\\d+")
 			.doesNotContain("15000000").doesNotContain("500000").doesNotContain("secret-text").doesNotContain("fake-test-key");
 	}
 

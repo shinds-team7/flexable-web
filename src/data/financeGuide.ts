@@ -167,7 +167,7 @@ export function searchGuide(query: string, category?: GuideCategory): GuideSearc
   return {
     terms: category ? [] : GLOSSARY.filter((g) => has(g.term, ...g.aliases) || g.aliases.some((a) => q.includes(norm(a)))),
     contents: GUIDE_CONTENTS.items
-      .filter((c) => (!category || c.category === category) && has(c.title, c.desc, CATEGORY_LABEL[c.category]))
+      .filter((c) => (!category || c.category === category) && has(c.title, c.tag, c.desc, CATEGORY_LABEL[c.category]))
       .sort((a, b) => b.order - a.order),
   };
 }

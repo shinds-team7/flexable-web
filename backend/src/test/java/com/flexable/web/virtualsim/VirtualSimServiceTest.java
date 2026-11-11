@@ -185,4 +185,62 @@ class VirtualSimServiceTest {
 		clock.now = clock.now.plus(VirtualSimStartLimiter.WINDOW).plusSeconds(1);
 		assertThat(service.start(start(), "1.1.1.1")).isNotNull();
 	}
+	/** 끝날 때까지 사건마다 유지로 진행한다 */
+	private static Snapshot playToEnd(VirtualSimService service, String token) {
+		Snapshot s = service.state(token);
+		while (!"FINISHED".equals(s.status())) {
+			s = "RUNNING".equals(s.status()) ? service.step(new Command(token, UUID.randomUUID(), s.version()))
+					: service.decide(new Decision(token, UUID.randomUUID(), s.version(), s.event().id(), Action.HOLD, 0L));
+		}
+		return s;
+	}
+
+	@Test
+	void 레버리지_판은_회원만이고_기초_종목_기준_등락과_함께_레버리지_등락을_준다() {
+		VirtualSimStore store = mock(VirtualSimStore.class);
+		when(store.companies(true, VirtualSimChecker.VERSION)).thenReturn(List.of(company(true, VirtualSimCategory.SUPPLY_CONTRACT,
+				VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.NEW_SHARES, VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND)));
+		MovableClock clock = new MovableClock();
+		var service = new VirtualSimService(store, new VirtualSimStartLimiter(clock), clock, "fake", 100);
+		// 비회원은 2·3배 401, 1배(생략 포함)는 그대로
+		for (int k = 2; k <= 3; k++) {
+			Start leveraged = new Start(UUID.randomUUID(), new BigDecimal("1000000"), k);
+			assertThatThrownBy(() -> service.start(leveraged, "1.1.1.1", false)).isInstanceOfSatisfying(ApiException.class,
+					e -> assertThat(e.code()).isEqualTo(ErrorCode.UNAUTHORIZED));
+		}
+		Start plain = start();
+		var one = service.start(plain, "1.1.1.1", false);
+		assertThat(one.snapshot().leverage()).isEqualTo(1);
+		// 생략과 1은 같은 입력(같은 startId 재전송)
+		assertThat(service.start(new Start(plain.startId(), plain.initialAmount(), 1), "1.1.1.1").sessionToken()).isEqualTo(one.sessionToken());
+		Snapshot oneEnd = playToEnd(service, one.sessionToken());
+		assertThat(oneEnd.leverageResult()).isNull();
+		assertThat(oneEnd.notice()).isEqualTo(VirtualSimService.SAMPLE_NOTICE);
+		assertThat(oneEnd.decisions()).allSatisfy(d -> {
+			assertThat(d.leveragedReactionReturnRate()).isNull();
+			assertThat(d.leveragedNextWeekReturnRate()).isNull();
+		});
+
+		for (int k = 2; k <= 3; k++) {
+			var started = service.start(new Start(UUID.randomUUID(), new BigDecimal("1000000"), k), "1.1.1.1", true);
+			Snapshot first = started.snapshot();
+			assertThat(first.leverage()).isEqualTo(k);
+			assertThat(first.leverageResult()).isNull();
+			// 최초 매수는 레버리지 가격의 첫 봉 시가
+			assertThat(first.portfolio().shares()).isEqualTo(500_000 / first.candles().getFirst().open());
+			Snapshot end = playToEnd(service, started.sessionToken());
+			assertThat(end.candles()).allSatisfy(c -> assertThat(c.valid()).isTrue());
+			assertThat(end.leverageResult()).isNotNull();
+			assertThat(end.leverageResult().leveragedReturnRate()).isEqualByComparingTo(VirtualSimService.span(end.candles()));
+			assertThat(end.notice()).isEqualTo(VirtualSimService.SAMPLE_NOTICE + VirtualSimService.LEVERAGE_NOTICE.formatted(k, k));
+			assertThat(end.decisions()).isNotEmpty().allSatisfy(d -> {
+				assertThat(d.movement()).isIn("UP", "DOWN", "FLAT");
+				assertThat(d.reactionReturnRate()).isNotNull();
+				assertThat(d.leveragedReactionReturnRate()).isNotNull();
+				assertThat(d.leveragedNextWeekReturnRate()).isNotNull();
+			});
+			// 평가는 레버리지 가격 종가
+			assertThat(end.portfolio().stockValue()).isEqualTo(end.portfolio().shares() * end.candles().getLast().close());
+		}
+	}
 }

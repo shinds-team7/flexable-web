@@ -46,6 +46,7 @@ import com.flexable.web.virtualsim.VirtualSimStore.Company;
  * VIRTUAL_SIM_SOURCE=fake면 예시 룰셋·예시 회사만, 아니면 실제 것만 쓴다(한 실행에 섞지 않음). 세션 시작에서 AI를 부르지 않는다.
  * 대회 판(decisions/2026-11-05-virtual-sim-contest 3-8)도 같은 세션으로 진행한다. VirtualContestService가 판을 만들어 넣고(startContest),
  * 매매 제출·완주·종료·만료를 RoundListener로 알려 DB의 판 기록을 바꾸게 한다. 일반·대회 판 모두 채점하지 않는다(outcome·trendOutcome null).
+ * 일반 판은 레버리지 2·3배(회원만, policies §8-9)로 시작할 수 있고, 그때는 기초 종목 봉을 배율 가격으로 바꿔 매매·평가한다. 대회 판은 늘 1배다.
  */
 @Service
 @EnableScheduling
@@ -55,6 +56,8 @@ public class VirtualSimService {
 	static final String SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 사건 날과 그 뒤 움직임은 예시 통계에서 무작위로 뽑았고, 채점하지 않아요. 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	static final String CONTEST_NOTICE = "가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 AI가 만들었고 사람이 검수하지 않았어요. 사건 제목은 실제 공시 제목 형식이고 글에는 좋고 나쁨을 담지 않았어요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 가격은 실제 시장 통계로 만든 가상 움직임이고, 사건 날과 그 뒤 5거래일 움직임은 같은 유형의 과거 공시 당일과 그 뒤 움직임에서 무작위로 뽑았어요. 통계는 시가총액 상위 수집 종목의 최근 5년 공시로 만들어 시장 전체를 대표하지 않아요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
 	static final String CONTEST_SAMPLE_NOTICE = "학습용 예시 자료로 만든 가상 종목·가상 사건이며 실제 기업이 아니에요. 회사 이름·소개·사건 문장은 정해진 틀로 만든 예시이고, 가격은 실제 시장 통계가 아닌 학습용 예시 통계로 만든 가상 움직임이에요. 대회 판은 채점하지 않고, 판이 끝난 잔액과 하루 목표 점수로만 겨뤄요. 대회 순위·점수는 앞으로의 수익을 뜻하지 않고 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.";
+	/** 레버리지 판(2·3배)이면 notice 끝에 붙인다(policies §8-9). %d: 배율 */
+	static final String LEVERAGE_NOTICE = " 레버리지 %d배 판은 기초 종목의 하루 등락률에 %d배를 곱해 매일 다시 맞춘 가상 가격으로 매매하고 평가해요. 돈을 빌리는 방식이 아니라 차입·이자·반대매매는 없고, 운용보수·추적 오차는 넣지 않아 실제 레버리지 ETF와 다를 수 있어요.";
 	private static final Logger log = LoggerFactory.getLogger(VirtualSimService.class);
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 	private static final int MAX_COMMANDS = 128;
@@ -110,7 +113,9 @@ public class VirtualSimService {
 		final Instant expires;
 		final Company company;
 		final VirtualSimRuleset rules;
+		/** 매매·평가에 쓰는 가격(레버리지 판이면 배율 가격, policies §8-9)과 기초 종목 가격. 1배면 같은 목록 */
 		final List<Candle> candles;
+		final List<Candle> base;
 		final List<Question> questions = new ArrayList<>();
 		final Map<UUID, Saved> commands = new HashMap<>();
 		final List<Result> decisions = new ArrayList<>();
@@ -130,7 +135,8 @@ public class VirtualSimService {
 			this.expires = expires;
 			this.company = company;
 			this.rules = rules;
-			this.candles = plan.candles();
+			this.base = plan.candles();
+			this.candles = VirtualSimLeverage.convert(base, plan.startPrice(), input.multiple());
 			for (int k = 0; k < plan.events().size(); k++) {
 				Planned p = plan.events().get(k);
 				questions.add(new Question(p, "ve" + (k + 1), company.bodies().get(p.category()), rules.stats(p.category()).orElseThrow()));
@@ -167,8 +173,20 @@ public class VirtualSimService {
 		return new Status(rules().map(r -> !candidates(r).isEmpty()).orElse(false), sample);
 	}
 
-	/** client: 시작 횟수를 세는 클라이언트 값(접속 IP). 메모리에서 10분만 센다(VirtualSimStartLimiter) */
-	public synchronized Started start(Start input, String client) {
+	public Started start(Start input, String client) {
+		return start(input, client, false);
+	}
+
+	/**
+	 * client: 시작 횟수를 세는 클라이언트 값(접속 IP). 메모리에서 10분만 센다(VirtualSimStartLimiter). member: 로그인한 회원인지.
+	 * 레버리지 2·3배는 회원만(비회원 401, policies §8-9)
+	 */
+	public synchronized Started start(Start input, String client, boolean member) {
+		if (input.multiple() > 1 && !member) {
+			throw new ApiException(ErrorCode.UNAUTHORIZED, "레버리지 2배·3배는 로그인한 회원만 쓸 수 있어요");
+		}
+		// 배율을 생략한 요청과 1을 보낸 요청은 같은 입력이다(같은 startId 재전송 비교)
+		input = new Start(input.startId(), input.initialAmount(), input.multiple());
 		clean();
 		String prior = starts.get(input.startId());
 		if (prior != null) {
@@ -188,8 +206,19 @@ public class VirtualSimService {
 			throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
 		}
 		Company company = choices.get(random.nextInt(choices.size()));
-		Plan plan = VirtualSimGenerator.generate(random.nextLong(), rules, company.bodies().keySet(), LocalDate.now(clock.withZone(SEOUL)));
-		Session session = new Session(input, clock.instant().plusSeconds(1800), company, rules, plan);
+		Session session = null;
+		// 레버리지 가격이 long을 넘는 구간(드묾)은 버리고 다시 만든다
+		for (int tries = 0; session == null; tries++) {
+			Plan plan = VirtualSimGenerator.generate(random.nextLong(), rules, company.bodies().keySet(), LocalDate.now(clock.withZone(SEOUL)));
+			try {
+				session = new Session(input, clock.instant().plusSeconds(1800), company, rules, plan);
+			}
+			catch (ArithmeticException e) {
+				if (tries >= 9) {
+					throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
+				}
+			}
+		}
 		byte[] bytes = new byte[32];
 		random.nextBytes(bytes);
 		String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -256,7 +285,7 @@ public class VirtualSimService {
 		if (sessions.size() >= capacity) {
 			throw new ApiException(ErrorCode.PRACTICE_CAPACITY);
 		}
-		Session session = new Session(new Start(UUID.randomUUID(), BigDecimal.valueOf(initial)), expires, company, rules, plan, link);
+		Session session = new Session(new Start(UUID.randomUUID(), BigDecimal.valueOf(initial), 1), expires, company, rules, plan, link);
 		byte[] bytes = new byte[32];
 		random.nextBytes(bytes);
 		String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -354,20 +383,24 @@ public class VirtualSimService {
 				s.holding = trade.holding();
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
 						r.action() == Action.HOLD ? "HOLD" : trade.shares() == 0 ? "NO_FILL" : "FILLED", candle.date(), candle.open(), trade.shares(), null,
-						null, null, null, null, null, null, null, null, null, null);
+						null, null, null, null, null, null, null, null, null, null, null, null);
 			}
 			int baseline = s.decisionIndices.get(n);
 			if (s.index == baseline + VirtualSimRules.FOLLOW_DAYS) {
-				long price = s.candles.get(baseline).close();
+				// 움직임·등락·유형 통계는 기초 종목 기준이다. 레버리지 판은 같은 두 구간의 레버리지 가격 등락을 함께 준다(policies §8-9)
+				long price = s.base.get(baseline).close(), close = s.base.get(s.index).close();
 				// 공시 직후 = 사건 봉 전날 종가 → 다음 봉 종가, 그다음 주 = 다음 봉 종가 → 5번째 후속 봉 종가(11-10, 배치고사 결과와 같은 두 구간)
-				long prev = s.candles.get(baseline - 1).close(), next = s.candles.get(baseline + 1).close();
+				long prev = s.base.get(baseline - 1).close(), next = s.base.get(baseline + 1).close();
+				boolean leveraged = s.input.multiple() > 1;
+				long prevL = s.candles.get(baseline - 1).close(), nextL = s.candles.get(baseline + 1).close();
 				String eventId = r.eventId();
 				CategoryStats stats = s.questions.stream().filter(q -> q.id().equals(eventId)).findFirst().orElseThrow().stats();
 				// 일반·대회 모두 채점하지 않는다(policies §8-6, 11-05): 이번 결과·경향 채점은 null, 이번 움직임·유형 통계는 보인다
 				r = new Result(r.eventId(), r.category(), r.categoryName(), r.title(), r.date(), r.prediction(), r.action(), r.quantity(),
 						r.execution(), r.executedDate(), r.executedPrice(), r.executedShares(), null, candle.date(),
-						PracticeEngine.rate(candle.close() - price, price), PracticeEngine.rate(next - prev, prev), PracticeEngine.rate(candle.close() - next, next),
-						movement(prev, next), stats.upShare(), VirtualSimRules.upShare(stats.paths(), stats.down()), stats.paths(), stats.trend(), null);
+						PracticeEngine.rate(close - price, price), PracticeEngine.rate(next - prev, prev), PracticeEngine.rate(close - next, next),
+						movement(prev, next), stats.upShare(), VirtualSimRules.upShare(stats.paths(), stats.down()), stats.paths(), stats.trend(), null,
+						leveraged ? PracticeEngine.rate(nextL - prevL, prevL) : null, leveraged ? PracticeEngine.rate(candle.close() - nextL, nextL) : null);
 			}
 			s.decisions.set(n, r);
 		}
@@ -436,7 +469,7 @@ public class VirtualSimService {
 		}
 		Planned p = q.planned();
 		s.decisions.add(new Result(q.id(), p.category(), p.category().displayName(), p.title(), s.candles.get(s.index).date(), prediction(input.action()),
-				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+				input.action(), input.quantity(), "PENDING", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null));
 		s.decisionIndices.add(s.index);
 		return save(s, input.commandId(), input, List.of());
 	}
@@ -458,6 +491,12 @@ public class VirtualSimService {
 
 	private static String status(Session s) {
 		return current(s) != null ? "AWAITING_DECISION" : s.index == s.candles.size() - 1 ? "FINISHED" : "RUNNING";
+	}
+
+	/** 구간 수익률: 첫 봉 시가 → 마지막 봉 종가(소수 4자리 내림) */
+	static BigDecimal span(List<Candle> candles) {
+		long open = candles.getFirst().open();
+		return PracticeEngine.rate(candles.getLast().close() - open, open);
 	}
 
 	private static Snapshot snapshot(Session s, List<Frame> frames) {
@@ -482,10 +521,14 @@ public class VirtualSimService {
 			contest = new ContestRound(s.contest.contestId(), s.contest.board(), s.contest.roundNumber(), done ? portfolio.total() : null, hold,
 					done ? VirtualContestRules.rate(hold, initial) : null, done ? VirtualContestRules.excess(initial, portfolio.total(), hold) : null);
 		}
-		String notice = s.contest == null ? sample ? SAMPLE_NOTICE : NOTICE : sample ? CONTEST_SAMPLE_NOTICE : CONTEST_NOTICE;
+		int k = s.input.multiple();
+		String notice = s.contest == null ? (sample ? SAMPLE_NOTICE : NOTICE) + (k > 1 ? LEVERAGE_NOTICE.formatted(k, k) : "")
+				: sample ? CONTEST_SAMPLE_NOTICE : CONTEST_NOTICE;
+		// 2·3배 판이 끝나면 같은 구간(첫 봉 시가 → 마지막 봉 종가)의 기초 종목·레버리지 가격 수익률을 나란히 준다
+		LeverageResult leverage = k > 1 && "FINISHED".equals(status) ? new LeverageResult(span(s.base), span(s.candles)) : null;
 		return new Snapshot(s.version, status, new VirtualSimDtos.Company(c.name(), c.industry(), c.intro()),
 				new Generator(!c.sample(), c.model(), DATE_TIME.format(c.generatedAt().atOffset(ZoneOffset.ofHours(9)))),
-				new RulesetInfo(s.rules.version(), s.rules.dataFrom(), s.rules.dataTo()), initial, sample, contest, s.candles.size(),
+				new RulesetInfo(s.rules.version(), s.rules.dataFrom(), s.rules.dataTo()), initial, sample, contest, k, leverage, s.candles.size(),
 				List.copyOf(s.candles.subList(0, s.index + 1)), List.copyOf(frames), portfolio, event, List.copyOf(s.decisions), notice,
 				List.copyOf(sources));
 	}

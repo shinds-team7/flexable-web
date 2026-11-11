@@ -83,7 +83,8 @@ public final class VirtualContestDtos {
 
 	// ───────── 판 ─────────
 
-	public record RoundStart(@NotNull UUID startId) {
+	/** leverage: 대회 판은 레버리지가 없어 1만 받는다(생략하면 1, 다른 값은 400, policies §8-9) */
+	public record RoundStart(@NotNull UUID startId, Integer leverage) {
 	}
 
 	public record RoundInfo(int roundNumber, long startBalance, int roundsLeftToday) {

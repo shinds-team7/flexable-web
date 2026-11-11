@@ -65,6 +65,9 @@ public class VirtualContestController {
 
 	@PostMapping("/virtual-sim/contests/current/rounds")
 	public ResponseEntity<RoundStarted> round(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody RoundStart input) {
+		if (input.leverage() != null && input.leverage() != 1) {
+			throw ApiException.invalid("leverage", "대회 판은 레버리지 없이(1배) 진행해요");
+		}
 		return response(service.startRound(user(jwt), input.startId()));
 	}
 

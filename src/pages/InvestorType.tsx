@@ -130,16 +130,28 @@ export function TypeChoices({ onPick, compact = false }: { onPick: (id: Investor
   );
 }
 
-/** 시작 카드 그림. 왼쪽(투자성향이란?)은 boy, 오른쪽(시작하기)은 girl */
+/** 시작 카드 그림. 왼쪽(투자성향이란?)은 boy, 오른쪽(나의 투자 성향은?)은 girl. 오른쪽만 망원경 끝에 '발견' 표시(선 세 개)를 겹친다 */
 function StartArt({ kind }: { kind: 'about' | 'start' }) {
-  return <img className="it-art" src={kind === 'about' ? '/type/boy.png' : '/type/girl.png'} alt="" width="320" height="213" />;
+  const about = kind === 'about';
+  return (
+    <span className={'it-art it-art-box ' + kind}>
+      <img src={about ? '/type/boy.png' : '/type/girl.png'} alt="" width="640" height={about ? 511 : 512} />
+      {!about && (
+        <svg className="it-art-burst" viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" aria-hidden="true">
+          <path d="M11 21 13 5" />
+          <path d="M18 27 31 14" />
+          <path d="M22 35 37 33" />
+        </svg>
+      )}
+    </span>
+  );
 }
 
 /** /type: 성향 알아보기 시작. 왼쪽 [투자성향이란?] → /type/about, 오른쪽 [시작하기] → /type/test */
 export function InvestorTypes() {
   const mine = findType(useInvestorType() ?? undefined);
   return (
-    <section className="page col">
+    <section className="page col it-page">
       <div className="it-intro">
         <h1 className="it-intro-h">나는 어떤 투자 성향일까?</h1>
         <p className="it-intro-p">
@@ -150,16 +162,26 @@ export function InvestorTypes() {
       </div>
       <div className="it-entry">
         <Link className="it-entry-card sky" to="/type/about">
-          <span className="it-entry-k">알아 두면 좋아요</span>
-          <span className="it-entry-h">투자성향이란?</span>
+          <span className="it-entry-k">개념 정리</span>
+          <span className="it-entry-h">투자 성향이란?</span>
+          <span className="it-entry-d">
+            5가지 투자 성향의 특징을 알아보고,
+            <br />
+            내게 맞는 투자의 방향을 찾아보세요.
+          </span>
           <StartArt kind="about" />
-          <span className="it-entry-go">바로가기</span>
+          <span className="it-entry-go">자세히 알아보기</span>
         </Link>
         <Link className="it-entry-card violet" to="/type/test">
-          <span className="it-entry-k">투자성향분석</span>
-          <span className="it-entry-h">시작하기</span>
+          <span className="it-entry-k">성향 분석</span>
+          <span className="it-entry-h">나의 투자 성향은?</span>
+          <span className="it-entry-d">
+            간단한 문답으로 내 투자 성향을 분석하고,
+            <br />
+            나에게 맞는 투자 방향을 확인해보세요.
+          </span>
           <StartArt kind="start" />
-          <span className="it-entry-go">바로가기</span>
+          <span className="it-entry-go">성향 분석 시작하기</span>
         </Link>
       </div>
       {mine && (
@@ -221,7 +243,7 @@ export function InvestorTypeTest() {
     );
   };
   return (
-    <section className="page col">
+    <section className="page col it-page">
       <div className="it-test">
         <div className="it-prog">
           <span className="meta num it-prog-n">
@@ -273,7 +295,7 @@ export function InvestorTypeTest() {
 export function InvestorTypePick() {
   const nav = useNavigate();
   return (
-    <section className="page col">
+    <section className="page col it-page">
       <div className="page-head">
         <h1 className="page-title">나는 어떤 투자자에 가까울까요?</h1>
         <p className="page-desc">다섯 가지 유형 중 지금 내 상황에 가까운 쪽을 직접 골라 주세요. 유형마다 시장 전체에 꾸준히 넣는 패시브와, 직접 골라 넣는 액티브를 섞는 비율 예시를 보여 줘요. 언제든 바꿀 수 있어요.</p>
@@ -310,7 +332,7 @@ export function InvestorTypeDetail() {
   ];
 
   return (
-    <section className="page col">
+    <section className="page col it-page">
       <div className="it-head">
         <div className="seg" role="group" aria-label="성향 바꿔 보기">
           {INVESTOR_TYPES.map((x) => (

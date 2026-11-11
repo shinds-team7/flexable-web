@@ -11,7 +11,7 @@ import { Icon, Logo } from './Icons';
 import { ScrollTopButton } from './ScrollTopButton';
 import { LoginModalProvider, useLoginModal } from './LoginModal';
 
-/** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. match가 있으면 그 경로들에서도 선택 표시를 한다. */
+/** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. match가 있으면 그 경로들에서도 선택 색을 칠한다(aria-current는 to 경로에서만). */
 type NavItem = { to: string; label: string; match?: string[]; sub?: { to: string; label: string }[] };
 const NAV: NavItem[] = [
   { to: '/guide', label: '금융 가이드' },
@@ -183,13 +183,10 @@ function LayoutBody() {
                 // 키보드만 쓰는 사용자도 포커스가 돌아오면 하위 메뉴를 다시 열 수 있게 한다
                 onFocus={() => setClosedSub((v) => (v === n.to ? null : v))}
               >
-                {n.match ? (
-                  <Link to={n.to} aria-current={n.match.some((m) => pathname === m || pathname.startsWith(m + '/')) ? 'page' : undefined}>
-                    {n.label}
-                  </Link>
-                ) : (
-                  <NavLink to={n.to}>{n.label}</NavLink>
-                )}
+                {/* aria-current는 NavLink가 to 경로에서만 붙이고, 같은 묶음의 다른 경로는 data-section으로 색만 칠한다 */}
+                <NavLink to={n.to} data-section={n.match?.some((m) => pathname === m || pathname.startsWith(m + '/')) ? 'active' : undefined}>
+                  {n.label}
+                </NavLink>
                 {n.sub && (
                   <div className="subnav">
                     {n.sub.map((c) => (

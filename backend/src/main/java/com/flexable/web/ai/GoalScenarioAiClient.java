@@ -7,6 +7,12 @@ package com.flexable.web.ai;
 public interface GoalScenarioAiClient {
 	/** 응답 스키마의 해설 칸. 순서대로 문단으로 합쳐 해설 하나가 된다: 조합 이유, 상품별 역할과 근거, 다른 시나리오와의 차이, 주의할 점과 맞는 사람. */
 	java.util.List<String> EXPLANATION_FIELDS = java.util.List.of("reason", "roles", "comparison", "fit");
+	/**
+	 * 응답 스키마에서 roles 대신 받는 유형별 칸(v10, #402). 유형 코드마다 넣은 이유·근거·전망을 받고,
+	 * 서버가 비중이 있는 유형만 적금 → CMA → 국내 → 미국 → 코스피 순서로 유형마다 한 줄로 합쳐 roles를 만든다.
+	 */
+	String TYPE_ROLES = "typeRoles";
+	java.util.List<String> TYPE_ROLE_FIELDS = java.util.List.of("reason", "basis", "outlook");
 
 	boolean enabled();
 

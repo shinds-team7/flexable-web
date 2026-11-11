@@ -62,13 +62,43 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 	private static Proposals.Parts parts(JsonNode scenario) {
 		List<String> parts = new ArrayList<>();
 		for (String field : GoalScenarioAiClient.EXPLANATION_FIELDS) {
-			String part = text(scenario, field);
+			String part = field.equals("roles") && scenario.has(GoalScenarioAiClient.TYPE_ROLES) ? roles(scenario) : text(scenario, field);
 			if (part == null || part.isBlank()) {
 				return null;
 			}
 			parts.add(part.strip());
 		}
 		return new Proposals.Parts(parts.get(0), parts.get(1), parts.get(2), parts.get(3));
+	}
+
+	/**
+	 * 유형별 칸(typeRoles, v10 #402)을 유형마다 한 줄로 합친다. 비중이 0보다 큰 유형만 ProductType 순서(적금 → CMA → 국내 → 미국 → 코스피)로 넣고,
+	 * 빈 칸은 빼며 세 칸이 다 빈 유형은 줄을 뺀다. 칸 안의 줄바꿈은 띄어쓰기로 바꿔 한 유형이 한 문단이 되게 한다.
+	 * 모든 유형이 비면 빈 문자열이라 검증에서 걸린다(TEXT_EMPTY).
+	 */
+	static String roles(JsonNode scenario) {
+		JsonNode typeRoles = scenario.path(GoalScenarioAiClient.TYPE_ROLES);
+		JsonNode mix = scenario.path("mix");
+		List<String> lines = new ArrayList<>();
+		for (ProductType type : ProductType.values()) {
+			JsonNode ratio = mix.path(type.name());
+			if (!ratio.isIntegralNumber() || ratio.asInt() <= 0) {
+				continue;
+			}
+			List<String> sentences = new ArrayList<>();
+			for (String field : GoalScenarioAiClient.TYPE_ROLE_FIELDS) {
+				String part = text(typeRoles.path(type.name()), field);
+				if (part != null && !part.isBlank()) {
+					String one = part.replaceAll("\\s*\\n\\s*", " ").strip();
+					// 칸 끝에 마침표가 없으면 붙여 다음 칸과 한 문장으로 묶여 지워지지 않게 한다(문장 검사는 마침표·줄바꿈으로 나눈다)
+					sentences.add(one.matches(".*[.!?]$") ? one : one + ".");
+				}
+			}
+			if (!sentences.isEmpty()) {
+				lines.add(String.join(" ", sentences));
+			}
+		}
+		return String.join("\n", lines);
 	}
 
 	private static String text(JsonNode node, String field) {

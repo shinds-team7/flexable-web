@@ -29,6 +29,11 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 	}
 
 	@Override
+	public String version() {
+		return client.promptVersion();
+	}
+
+	@Override
 	public List<Proposals.Draft> propose(Input input) {
 		String content;
 		try {

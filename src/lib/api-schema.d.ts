@@ -1906,7 +1906,7 @@ export interface paths {
          *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
          *     - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
          *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
-         *     - 기한은 개월 수(6~36)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
+         *     - 기한은 개월 수(6~60, 11-11 #406에서 36 → 60)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
          *     - 월 납입 가능액(monthlyBudget)은 선택이다. 필요 월 금액 계산은 바꾸지 않고 시나리오마다 비교만 한다(withinBudget·overBudgetBy). 가능액 밖인 시나리오는 서버가 정해 둔 대안 문장을 해설 fit 칸 끝과 explanation 끝에 붙인다(§7-5). 회원이면 AI에도 보낸다(§7-6).
          */
         post: {
@@ -4304,7 +4304,7 @@ export interface components {
             name: string;
             /** Format: int64 */
             targetAmount: number;
-            /** @description 기한(개월, 6~36) */
+            /** @description 기한(개월, 6~60) */
             months: number;
             /**
              * Format: int64

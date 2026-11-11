@@ -52,7 +52,7 @@ public class GoalScenarioService {
 	static final int REACH_BP = 8000;
 	/** 기한(개월) 범위(policies §7-1). */
 	static final int MIN_MONTHS = 6;
-	static final int MAX_MONTHS = 36;
+	static final int MAX_MONTHS = 60;
 	/** 유형당 보는 상품 수(계산에 쓰는 1순위 + 함께 볼 상품 최대 2개, 적금·지수 ETF만). */
 	static final int CANDIDATES = 3;
 	static final BigDecimal CMA_RATE = new BigDecimal("2.50");
@@ -139,7 +139,7 @@ public class GoalScenarioService {
 			throw ApiException.invalid("targetAmount", "목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요");
 		}
 		if (req.months() == null || req.months() < MIN_MONTHS || req.months() > MAX_MONTHS) {
-			throw ApiException.invalid("months", "기한은 6개월부터 3년까지 정할 수 있어요");
+			throw ApiException.invalid("months", "기한은 6개월부터 5년까지 정할 수 있어요");
 		}
 		ScenarioBudget.validate(req.monthlyBudget(), req.targetAmount());
 		return name;
@@ -161,7 +161,9 @@ public class GoalScenarioService {
 		}
 		else {
 			ProposalText.Facts facts = facts(target, months, budget, picked);
-			Optional<List<Plan>> reused = quota.cached(userId, target, months, budget, asOf).map(d -> Proposals.check(d, facts).plans());
+			// 재사용은 같은 프롬프트 버전으로 만든 조합만(#406). 버전을 모르는 제안기는 "unknown"으로 두고, 버전이 없는 옛 행(null)은 맞지 않는다
+			String version = java.util.Objects.requireNonNullElse(p.version(), "unknown");
+			Optional<List<Plan>> reused = quota.cached(userId, target, months, budget, asOf, version).map(d -> Proposals.check(d, facts).plans());
 			if (reused.isPresent()) {
 				return new Chosen(reused.get(), null, usage(userId), true);
 			}
@@ -176,7 +178,7 @@ public class GoalScenarioService {
 					Proposals.Checked checked = Proposals.check(drafts, facts);
 					if (checked.plans() != null) {
 						checked.removed().forEach(n -> log.warn("goal scenario AI sentence removed: {}", n.logLine(aiProps.logRejected())));
-						quota.cache(userId, target, months, budget, asOf, drafts, "openai");
+						quota.cache(userId, target, months, budget, asOf, drafts, "openai", version);
 						return new Chosen(checked.plans(), null, usage(userId), false);
 					}
 					// 어긴 규칙·위치만 남긴다. 옵션을 켜면 걸린 칸의 문구도 남긴다(목표 이름·회원 번호는 남기지 않음)

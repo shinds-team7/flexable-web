@@ -11,6 +11,11 @@ interface ScenarioProposer {
 	/** 쓸 수 있는지(키가 있는지). */
 	boolean enabled();
 
+	/** 조합을 만든 프롬프트 버전. 재사용 조합은 같은 버전일 때만 다시 쓴다(#406). 모르면 null. */
+	default String version() {
+		return null;
+	}
+
 	/**
 	 * 목표 금액·기한·월 납입 가능액과 유형별 통계에 맞춘 시나리오 3개. 실패하면 Failed를 던진다.
 	 * 목표 이름·회원 식별자는 넘기지 않는다(외부 전송 항목을 줄인다).

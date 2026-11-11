@@ -57,7 +57,7 @@ function BudgetBadge({ plan }: { plan: GoalScenario }) {
 }
 
 type SubProduct = { key: string; name: string; meta: string | null; basis: boolean };
-const YEAR_OPTIONS = [0, 1, 2, 3];
+const YEAR_OPTIONS = [0, 1, 2, 3, 4, 5];
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i);
 /** 세부 상품 목록을 처음부터 펼쳐 둘 카테고리. */
 const DEFAULT_OPEN: ScenarioProductType[] = ['SAVINGS'];
@@ -330,7 +330,7 @@ export default function GoalScenarios() {
   const preset = GOAL_PRESETS.find((c) => c.amount === amountValue && c.months === months && c.name === name);
   const periodYears = Math.floor(months / 12);
   const periodMonths = months % 12;
-  /** 기한은 6~36개월(policies §7-1). 연을 바꿔 범위를 벗어나면 가장 가까운 값으로 맞춘다. */
+  /** 기한은 6~60개월(policies §7-1). 연을 바꿔 범위를 벗어나면 가장 가까운 값으로 맞춘다. */
   const inRange = (total: number) => total >= GOAL_LIMITS.monthsMin && total <= GOAL_LIMITS.monthsMax;
   const setPeriod = (total: number) => setMonths(Math.min(GOAL_LIMITS.monthsMax, Math.max(GOAL_LIMITS.monthsMin, total)));
 
@@ -338,7 +338,7 @@ export default function GoalScenarios() {
     const trimmed = q.name.trim();
     if (!trimmed || trimmed.length > GOAL_LIMITS.nameMax) { setError(`목표 이름은 1~${GOAL_LIMITS.nameMax}자로 적어 주세요.`); return; }
     if (q.targetAmount < GOAL_LIMITS.amountMin || q.targetAmount > GOAL_LIMITS.amountMax) { setError('목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요.'); return; }
-    if (q.months < GOAL_LIMITS.monthsMin || q.months > GOAL_LIMITS.monthsMax) { setError('기한은 6개월부터 3년까지 정할 수 있어요.'); return; }
+    if (q.months < GOAL_LIMITS.monthsMin || q.months > GOAL_LIMITS.monthsMax) { setError('기한은 6개월부터 5년까지 정할 수 있어요.'); return; }
     if (q.monthlyBudget !== null && (q.monthlyBudget < GOAL_LIMITS.budgetMin || q.monthlyBudget > q.targetAmount || q.monthlyBudget % GOAL_LIMITS.budgetUnit !== 0)) {
       setError('월 납입 가능액은 1만 원부터 목표 금액까지 천 원 단위로 넣을 수 있어요.');
       return;
@@ -476,7 +476,7 @@ export default function GoalScenarios() {
               onClick={() => { setName(c.name); setAmount(won(c.amount)); setMonths(c.months); setError(''); }}>{c.chip}</button>)}
           </div>
           {error && <p className="gp-error" role="alert">{error}</p>}
-          <p className="gp-help">시작 금액은 0원으로 계산해요. 기한은 6개월부터 3년까지 정할 수 있어요. 월 납입 가능액을 넣으면 시나리오마다 필요한 월 금액이 그 안인지 함께 보여 드려요(천 원 단위).</p>
+          <p className="gp-help">시작 금액은 0원으로 계산해요. 기한은 6개월부터 5년까지 정할 수 있어요. 월 납입 가능액을 넣으면 시나리오마다 필요한 월 금액이 그 안인지 함께 보여 드려요(천 원 단위).</p>
         </form>
       </section>
 

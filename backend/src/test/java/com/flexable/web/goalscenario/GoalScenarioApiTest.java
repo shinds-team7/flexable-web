@@ -317,6 +317,18 @@ class GoalScenarioApiTest {
 		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].paid")).longValue()).isEqualTo(monthly * 18);
 	}
 
+	/** #406: 기한 최대 5년. 적금은 기한 이하 만기 중 가장 긴 상품이고 남은 달은 CMA로 이어 간다. */
+	@Test
+	void 기한_60개월도_계산한다() throws Exception {
+		String body = call(BODY.formatted("목돈", 60_000_000, 60), 200);
+		assertThat((Integer) JsonPath.read(body, "$.months")).isEqualTo(60);
+		assertThat((Integer) JsonPath.read(body, "$.products[0].termMonths")).isLessThan(60);
+		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).contains(GoalScenarioService.AFTER_MATURITY);
+		long monthly = ((Number) JsonPath.read(body, "$.scenarios[0].monthly")).longValue();
+		assertThat(((Number) JsonPath.read(body, "$.scenarios[0].paid")).longValue()).isEqualTo(monthly * 60);
+		assertThat((String) JsonPath.read(body, "$.scenarios[0].resultText")).contains("5년 뒤");
+	}
+
 	@Test
 	void 기한과_만기가_같으면_만기_뒤_가정을_붙이지_않는다() throws Exception {
 		String body = call(BODY.formatted("목돈", 15_000_000, 12), 200);
@@ -370,7 +382,8 @@ class GoalScenarioApiTest {
 
 	@Test
 	void 입력이_범위를_벗어나면_400() throws Exception {
-		call(BODY.formatted("목돈", 15_000_000, 37), 400);
+		// 기한은 6~60개월(#406)
+		call(BODY.formatted("목돈", 15_000_000, 61), 400);
 		call(BODY.formatted("목돈", 15_000_000, 5), 400);
 		call(BODY.formatted("목돈", 999_999, 12), 400);
 		call(BODY.formatted("   ", 15_000_000, 12), 400);
@@ -424,6 +437,49 @@ class GoalScenarioApiTest {
 		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isTrue();
 		assertThat((Object) JsonPath.read(again, "$.scenarios[*].explanationParts")).isEqualTo(JsonPath.read(body, "$.scenarios[*].explanationParts"));
 		verify(proposer, times(1)).propose(any());
+	}
+
+	/** #406: 재사용은 같은 프롬프트 버전으로 만든 조합만. 버전이 바뀌면 새로 받아 덮어쓰고, 그 뒤로는 새 버전 조합을 재사용한다. */
+	@Test
+	void 프롬프트_버전이_다르면_재사용하지_않고_새로_받아_덮어쓴다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(PARTS);
+		when(proposer.version()).thenReturn("goal-scenario-old");
+		String token = signup();
+		String first = member(BODY.formatted("목돈", 15_200_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(first, "$.aiReused")).isFalse();
+		assertThat(jdbc.queryForObject("select prompt_version from goal_scenario_ai_cache where target_amount = ?", String.class, 15_200_000L))
+			.isEqualTo("goal-scenario-old");
+
+		when(proposer.version()).thenReturn("goal-scenario-new");
+		String second = member(BODY.formatted("목돈", 15_200_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(second, "$.aiReused")).isFalse();
+		verify(proposer, times(2)).propose(any());
+		// 같은 조건의 행 하나를 새 버전으로 덮어쓴다
+		assertThat(jdbc.queryForList("select prompt_version from goal_scenario_ai_cache where target_amount = ?", String.class, 15_200_000L))
+			.containsExactly("goal-scenario-new");
+
+		String third = member(BODY.formatted("목돈", 15_200_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(third, "$.aiReused")).isTrue();
+		verify(proposer, times(2)).propose(any());
+		// 남은 횟수: 새로 받은 두 번만 차감
+		assertThat((Integer) JsonPath.read(third, "$.aiUsage.remainingToday")).isEqualTo((Integer) JsonPath.read(first, "$.aiUsage.remainingToday") - 1);
+	}
+
+	@Test
+	void 버전이_없는_V38_전_재사용_조합은_다시_받는다() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.propose(any())).thenReturn(PARTS);
+		when(proposer.version()).thenReturn("goal-scenario-new");
+		String token = signup();
+		member(BODY.formatted("목돈", 15_300_000, 12), token, 200);
+		jdbc.update("update goal_scenario_ai_cache set prompt_version = null where target_amount = ?", 15_300_000L);
+
+		String again = member(BODY.formatted("목돈", 15_300_000, 12), token, 200);
+		assertThat((Boolean) JsonPath.read(again, "$.aiReused")).isFalse();
+		verify(proposer, times(2)).propose(any());
+		assertThat(jdbc.queryForObject("select prompt_version from goal_scenario_ai_cache where target_amount = ?", String.class, 15_300_000L))
+			.isEqualTo("goal-scenario-new");
 	}
 
 	@Test

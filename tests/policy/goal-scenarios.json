@@ -1,7 +1,7 @@
 {
   "status": "IMPLEMENTED",
   "note": "docs/policies.md §7 예시. 금액은 원, 수익률은 소수(0.10 = 10%), 비율은 만분율(bp).",
-  "constants": { "paths": 2000, "seed": 20261103, "blockMonths": 12, "historyMonths": 60, "reachShare": "0.8", "cmaRatePercent": "2.5", "taxRate": "0.154", "saveLimit": 5, "resultTtlMinutes": 30, "minMonths": 6, "maxMonths": 36 },
+  "constants": { "paths": 2000, "seed": 20261103, "blockMonths": 12, "historyMonths": 60, "reachShare": "0.8", "cmaRatePercent": "2.5", "taxRate": "0.154", "saveLimit": 5, "resultTtlMinutes": 30, "minMonths": 6, "maxMonths": 60 },
   "savings": [
     { "name": "적금 단리 월 1,231,000원", "monthly": 1231000, "months": 12, "ratePercent": "3.50", "compound": false,
       "expected": { "principal": 14772000, "interestPreTax": 280047, "tax": 43127, "final": 15008920 } },
@@ -52,12 +52,14 @@
     { "name": "12개월", "months": 12, "expected": { "blocks": 1 } },
     { "name": "18개월", "months": 18, "expected": { "blocks": 2 } },
     { "name": "30개월", "months": 30, "expected": { "blocks": 3 } },
-    { "name": "36개월", "months": 36, "expected": { "blocks": 3 } }
+    { "name": "36개월", "months": 36, "expected": { "blocks": 3 } },
+    { "name": "54개월", "months": 54, "expected": { "blocks": 5 } },
+    { "name": "60개월(최대, #406)", "months": 60, "expected": { "blocks": 5 } }
   ],
   "quantileIndex": [ { "n": 2000, "expected": { "low": 199, "median": 999, "high": 1799 } }, { "n": 5, "expected": { "low": 0, "median": 2, "high": 4 } } ],
   "validation": [
     { "name": "기한 5개월", "request": { "name": "목돈", "targetAmount": 15000000, "months": 5 }, "expected": { "status": 400, "field": "months" } },
-    { "name": "기한 37개월", "request": { "name": "목돈", "targetAmount": 15000000, "months": 37 }, "expected": { "status": 400, "field": "months" } },
+    { "name": "기한 61개월", "request": { "name": "목돈", "targetAmount": 15000000, "months": 61 }, "expected": { "status": 400, "field": "months" } },
     { "name": "목표 하한 미만", "request": { "name": "목돈", "targetAmount": 999999, "months": 12 }, "expected": { "status": 400, "field": "targetAmount" } },
     { "name": "목표 상한 초과", "request": { "name": "목돈", "targetAmount": 1000000001, "months": 12 }, "expected": { "status": 400, "field": "targetAmount" } },
     { "name": "이름 공백만", "request": { "name": "   ", "targetAmount": 15000000, "months": 12 }, "expected": { "status": 400, "field": "name" } },

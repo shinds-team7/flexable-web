@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 export type ScenarioProductType = 'SAVINGS' | 'CMA' | 'KR_INDEX_ETF' | 'US_INDEX_ETF' | 'KOSPI_TOP5';
 
 /**
- * months는 기한(개월, 6~36). 화면은 연·월로 받아 개월로 보낸다(policies §7-1).
+ * months는 기한(개월, 6~60). 화면은 연·월로 받아 개월로 보낸다(policies §7-1).
  * monthlyBudget은 월 납입 가능액(선택, 천 원 단위, 1만 원~목표 금액). 비우면 보내지 않는다.
  */
 export type GoalScenarioRequest = { name: string; targetAmount: number; months: number; monthlyBudget?: number | null };
@@ -157,7 +157,7 @@ export const GOAL_PRESETS: { id: string; chip: string; name: string; amount: num
   { id: 'y3', chip: '3년 · 5,000만 원', name: '3년 뒤 5,000만 원', amount: 50_000_000, months: 36 },
 ];
 
-export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000, monthsMin: 6, monthsMax: 36, budgetMin: 10_000, budgetUnit: 1_000 };
+export const GOAL_LIMITS = { nameMax: 20, amountMin: 1_000_000, amountMax: 1_000_000_000, monthsMin: 6, monthsMax: 60, budgetMin: 10_000, budgetUnit: 1_000 };
 
 /** 개월 수를 "6개월"·"1년 6개월"·"2년"으로. */
 export function periodText(months: number) {

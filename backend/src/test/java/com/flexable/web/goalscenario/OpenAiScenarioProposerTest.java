@@ -45,6 +45,38 @@ class OpenAiScenarioProposerTest {
 		assertThat(Proposals.check(drafts, ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_EMPTY #1.explanation");
 	}
 
+	/** v10(#402): 유형별 칸을 비중 있는 유형만 정해진 순서로 한 줄씩 합친다. */
+	@Test
+	void 유형별_칸을_정해진_순서의_한_줄씩으로_합친다() {
+		String content = """
+				{"scenarios":[
+				 {"id":"s1","title":"나눠서","summary":"지수 ETF를 섞어요","reason":"나눠 담아요","comparison":"중간이에요","fit":"기다릴 수 있는 분께 맞아요",
+				  "typeRoles":{
+				   "KOSPI_TOP5":{"reason":"코스피 대형주는 집중 몫이에요.","basis":"크게 흔들려요.","outlook":"실적이 좋아지면 오를 수 있어요. 다만 줄어들 수 있어요."},
+				   "SAVINGS":{"reason":"적금은 바닥을 받쳐요.","basis":"금리가 정해져 있어요\\n세금이 붙어요","outlook":""},
+				   "CMA":{"reason":"","basis":"","outlook":""},
+				   "KR_INDEX_ETF":{"reason":"국내 지수 ETF는 성장 몫이에요.","basis":"여러 기업에 나눠요.","outlook":"수요가 커지면 실적 개선이 기대돼요."},
+				   "US_INDEX_ETF":{"reason":"비중이 0이라 쓰면 안 돼요.","basis":"","outlook":""}},
+				  "mix":{"SAVINGS":40,"CMA":10,"KR_INDEX_ETF":30,"US_INDEX_ETF":0,"KOSPI_TOP5":20}},
+				 {"id":"s2","title":"가","summary":"나","reason":"다","comparison":"마","fit":"바",
+				  "typeRoles":{"SAVINGS":{"reason":" ","basis":"","outlook":""},"CMA":{"reason":"","basis":"","outlook":""},
+				   "KR_INDEX_ETF":{"reason":"","basis":"","outlook":""},"US_INDEX_ETF":{"reason":"","basis":"","outlook":""},"KOSPI_TOP5":{"reason":"","basis":"","outlook":""}},
+				  "mix":{"SAVINGS":100,"CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
+				 {"id":"s3","title":"지수만","summary":"지수 ETF 위주","reason":"다","roles":"라","comparison":"마","fit":"바","mix":{"SAVINGS":0,"CMA":0,"KR_INDEX_ETF":100,"US_INDEX_ETF":0,"KOSPI_TOP5":0}}]}
+				""";
+		List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(content);
+		// 적금 → (CMA는 칸이 비어 뺌) → 국내 → (미국은 비중 0이라 뺌) → 코스피. 칸 안의 줄바꿈은 띄어쓰기, 마침표 없는 칸 끝에는 마침표
+		assertThat(drafts.get(0).parts().roles()).isEqualTo(String.join("\n",
+				"적금은 바닥을 받쳐요. 금리가 정해져 있어요 세금이 붙어요.",
+				"국내 지수 ETF는 성장 몫이에요. 여러 기업에 나눠요. 수요가 커지면 실적 개선이 기대돼요.",
+				"코스피 대형주는 집중 몫이에요. 크게 흔들려요. 실적이 좋아지면 오를 수 있어요. 다만 줄어들 수 있어요."));
+		// 비중 있는 유형의 칸이 모두 비면 roles가 비어 검사에서 걸린다(TEXT_EMPTY)
+		assertThat(drafts.get(1).parts()).isNull();
+		assertThat(Proposals.check(drafts, ProposalText.Facts.NONE).problem()).isEqualTo("TEXT_EMPTY #2.explanation");
+		// typeRoles가 없는 응답(옛 형식)은 roles 문자열을 그대로 쓴다
+		assertThat(drafts.get(2).parts().roles()).isEqualTo("라");
+	}
+
 	@Test
 	void 비중이_정수가_아니면_검사에서_걸린다() {
 		String content = """

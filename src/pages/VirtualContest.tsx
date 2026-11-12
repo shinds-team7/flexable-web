@@ -138,9 +138,9 @@ function RankCount({ rank, from }: { rank: number; from?: number | null }) {
   return <CountUp key={from} value={rank} from={from} format={n => `${fmt.format(n)}위`} duration={1100} />;
 }
 
-/** 대회 배너 그림(장식, 대회 로고): 오르는 차트 위 트로피. 색은 배너 글자색(흰색) 한 가지의 투명도만 쓴다 */
+/** 대회 배너 그림(장식, 대회 로고): 오르는 차트와 그 오른쪽에 조금 떨어진 트로피. 색은 배너 글자색(흰색) 한 가지의 투명도만 쓴다 */
 function HeroArt() {
-  return <svg className="contest-hero-art" viewBox="0 0 240 150" aria-hidden="true" focusable="false">
+  return <svg className="contest-hero-art" viewBox="0 0 264 150" aria-hidden="true" focusable="false">
     <g fill="currentColor">
       <rect x="18" y="104" width="18" height="34" rx="3" opacity=".22" />
       <rect x="44" y="90" width="18" height="48" rx="3" opacity=".28" />
@@ -150,8 +150,8 @@ function HeroArt() {
     </g>
     <path d="M12 112 L40 96 L66 102 L94 78 L120 66 L150 46" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
     <path d="M140 42 L152 44 L148 55" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
-    <path d="M8 138 H232" stroke="currentColor" strokeWidth="2" opacity=".3" />
-    <g transform="translate(162 18)">
+    <path d="M8 138 H166" stroke="currentColor" strokeWidth="2" opacity=".3" />
+    <g transform="translate(190 14)">
       <circle cx="34" cy="44" r="40" fill="currentColor" opacity=".12" />
       <path d="M14 12 H54 V30 a20 20 0 0 1 -40 0 Z" fill="currentColor" opacity=".95" />
       <path d="M14 18 H5 a9 11 0 0 0 11 15 M54 18 H63 a9 11 0 0 1 -11 15" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" opacity=".95" />

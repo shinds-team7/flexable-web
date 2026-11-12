@@ -356,9 +356,13 @@
 .vsim-contest-league { display:inline-flex; align-items:center; gap:calc(var(--density-gap)/4); }
 
 /* ── 대회 배너(로고) · 게임 요소(리그 엠블럼·판 칸·문제 칸·메달). 강조 색은 브랜드 블루 하나, 등락은 빨강/파랑 ── */
-.contest-hero { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:center; gap:var(--density-gap); padding:calc(var(--density-gap)*.75) calc(var(--density-gap)*1.25); border-radius:var(--radius-soft); color:var(--color-on-brand); background:var(--color-brand-primary); }
+.contest-hero { position:relative; overflow:hidden; display:flex; justify-content:space-between; align-items:center; gap:var(--density-gap); padding:calc(var(--density-gap)*.75) calc(var(--density-gap)*1.25); border-radius:var(--radius-soft); color:var(--color-on-brand);
+  /* 브랜드 블루 → 옅은 블루 그라데이션 + 오른쪽 위 빛 번짐(토큰 색만, 사용자 11-12 유지) */
+  background:
+    radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--color-series-3) 40%, transparent) 0, transparent 38%),
+    linear-gradient(115deg, var(--color-brand-primary) 0%, var(--color-brand-primary) 45%, color-mix(in srgb, var(--color-series-2) 80%, var(--color-brand-primary)) 100%); }
 .contest-hero-body { position:relative; z-index:1; min-width:0; display:grid; gap:calc(var(--density-gap)/6); }
-.contest-hero-art { position:relative; flex:none; width:200px; height:125px; margin:calc(var(--density-gap)/-4) 0; color:var(--color-on-brand); }
+.contest-hero-art { position:relative; flex:none; width:220px; height:125px; margin:calc(var(--density-gap)/-4) 0; color:var(--color-on-brand); }
 .contest-hero-art-star { fill:var(--color-brand-primary); }
 .contest-hero h2 { font-size:24px; letter-spacing:-.6px; margin:0; color:var(--color-on-brand); }
 .contest-hero p { margin:0; font-size:13px; line-height:1.6; color:var(--color-on-brand); opacity:.9; }

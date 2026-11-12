@@ -5,6 +5,8 @@ import { CandleChart, type EventBand } from '@/charts/CandleChart';
 import { AveragePriceRows } from '@/components/AveragePrice';
 import { Icon } from '@/components/Icons';
 import { useLoginModal } from '@/components/LoginModal';
+import { Term } from '@/components/TermTip';
+import { LeagueEmblem } from '@/components/LeagueEmblem';
 import { PlaybackSpeed, segmentMs, segmentSeconds, type Speed } from '@/components/PlaybackSpeed';
 import { BOARD_LABEL, startContestRound, type ContestBoard, type ContestRoundStarted } from '@/data/virtualContest';
 import { getVirtualSimStatus, virtualSim, type VirtualSimDecision, type VirtualSimSnapshot, type VirtualSimStarted, type VirtualSimStatus } from '@/data/virtualSim';
@@ -81,11 +83,11 @@ function Moved({ r, sample }: { r: VirtualSimDecision; sample: boolean }) {
 }
 
 /**
- * 대회 판으로 쓸 때. board: 지금 판, today: 오늘 매매 성과(가만히 있었을 때 대비) 평균·목표(서버 값, 판이 끝나면 onSettled로 다시 불러옴),
+ * 대회 판으로 쓸 때. board: 지금 리그, today: 오늘 매매 성과(가만히 있었을 때 대비) 평균·목표·시작한 판 수(서버 값, 판이 끝나면 onSettled로 다시 불러옴),
+ * roundsPerDay: 하루 판 수, dayPoints: 하루 점수 한 칸(서버 규칙에서 고른 값, #308부터 100·이전 서버 1),
  * onSettled: 판이 끝나 잔액이 바뀌었을 수 있을 때, onExit: 대회 화면으로 돌아가기
  */
-/** dayPoints: 하루 점수 한 칸(서버 규칙에서 고른 값, #308부터 100·이전 서버 1) */
-export type ContestPlay = { board: ContestBoard; today?: { returnRate: number | null; targetRate: number; rounds: number }; dayPoints: number; onSettled: () => void; onExit: () => void };
+export type ContestPlay = { board: ContestBoard; today?: { returnRate: number | null; targetRate: number; rounds: number }; roundsPerDay: number; dayPoints: number; onSettled: () => void; onExit: () => void };
 
 /** 일반 세션의 판정 뒤: 유형 통계(근거)와 이번 결과. 채점은 없다. k: 레버리지 배율(움직임·통계는 기초 종목 기준) */
 function Judged({ r, sample, k }: { r: VirtualSimDecision; sample: boolean; k: number }) {
@@ -329,6 +331,12 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   return <>
     <div className="practice-notice vsim-notice"><span>가상 종목{sample && <span className="tag-ex">예시</span>}</span><p>가상 종목·가상 사건이에요. 실제 기업이 아니에요.<br />{sample ? '가격은 학습용 예시 통계로 만든 가상 움직임이에요. 실제 시장 통계가 아니에요.' : '가격은 실제 시장 통계로 만든 가상 움직임이에요.'}</p></div>
     {error && <div className="practice-error" role="alert"><p>{error}</p><button className="btn btn-sm" onClick={retry} disabled={busy}>다시 시도</button></div>}
+    {/* 대회 판: 진행 내내 위에 붙는 대회 정보 줄(서버 값) */}
+    {contest && <div className="vsim-contest-bar" role="status" aria-label="대회 정보">
+      <b className="vsim-contest-league"><LeagueEmblem board={contest.board} size={20} />{BOARD_LABEL[contest.board]}</b>
+      <span>오늘 <b>{contest.today?.rounds ?? 0}</b>/{contest.roundsPerDay}판{round ? ` · ${round.roundsLeftToday}판 남음` : ''}</span>
+      {contest.today && <span><Term k="today" /> <b className={tone(contest.today.returnRate ?? 0)}>{contest.today.returnRate == null ? '—' : pp(contest.today.returnRate)}</b> · 목표 {pp(contest.today.targetRate)} 이상</span>}
+    </div>}
     <div className="practice-workspace">
       <aside className="practice-setup">
         {!snapshot && contest ? <>
@@ -364,20 +372,21 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           <h2 id="vsimSummaryTitle">이번 가상 종목</h2>
           <dl><div><dt>업종</dt><dd>{snapshot.company.industry}</dd></div><div><dt>종목</dt><dd>{snapshot.company.name}</dd></div><div><dt>{contest ? '판 시작 잔액' : '투자금'}</dt><dd>{money(snapshot.initialAmount)}</dd></div>
             {k > 1 && <div><dt>배율</dt><dd><LeverageBadge k={k} /></dd></div>}
-            {snapshot.contest && <div><dt>대회 판</dt><dd>{BOARD_LABEL[snapshot.contest.board]} · {snapshot.contest.roundNumber}번째 판{round ? ` · 오늘 ${round.roundsLeftToday}판 남음` : ''}</dd></div>}
+            {snapshot.contest && <div><dt>대회 판</dt><dd>{BOARD_LABEL[snapshot.contest.board]} · {snapshot.contest.roundNumber}번째 판</dd></div>}
             {endBalance != null && <div><dt>새 대회 잔액</dt><dd><b>{money(endBalance)}</b></dd></div>}
           </dl>
+          {/* 판 끝: 이번 판 매매 성과와 오늘 평균(서버 값). 대회 화면으로 돌아가지 않고 여기서 본다 */}
           {endBalance != null && holdBalance != null && holdReturnRate != null && excessRate != null && snapshot && <dl className="vsim-compare" aria-label="이번 판 매매 성과">
             <div><dt>내 판</dt><dd><b className={tone(snapshot.portfolio.returnRate)}>{percent(snapshot.portfolio.returnRate)}</b><small>{money(endBalance)}</small></dd></div>
-            <div><dt>가만히 있었다면</dt><dd><b className={tone(holdReturnRate)}>{percent(holdReturnRate)}</b><small>{money(holdBalance)}</small></dd></div>
-            <div className="vsim-compare-total"><dt>이번 판 매매 성과</dt><dd><b className={tone(excessRate)}>{pp(excessRate)}</b></dd></div>
+            <div><dt><Term k="hold" /></dt><dd><b className={tone(holdReturnRate)}>{percent(holdReturnRate)}</b><small>{money(holdBalance)}</small></dd></div>
+            <div className="vsim-compare-total"><dt><Term k="excess" label="이번 판 매매 성과" /></dt><dd><b className={tone(excessRate)}>{pp(excessRate)}</b></dd></div>
           </dl>}
           {finished && contest?.today && <div className="vsim-contest-today">
             <dl>
-              <div><dt>오늘 매매 성과 평균</dt><dd>{contest.today.returnRate == null ? '계산 중' : <b className={tone(contest.today.returnRate)}>{pp(contest.today.returnRate)}</b>}</dd></div>
+              <div><dt><Term k="today" /></dt><dd>{contest.today.returnRate == null ? '계산 중' : <b className={tone(contest.today.returnRate)}>{pp(contest.today.returnRate)}</b>}</dd></div>
               <div><dt>목표</dt><dd>{pp(contest.today.targetRate)} 이상</dd></div>
             </dl>
-            <small>매매 성과 = 내 판 수익률 − 사건마다 가만히 있었을 때의 수익률이에요. 오늘 {contest.today.rounds}/10판 · +{contest.dayPoints}점은 10판을 모두 해야 받고, 목표에 못 미치면 판 수와 상관없이 −{contest.dayPoints}점이에요.</small>
+            <small>오늘 {contest.today.rounds}/{contest.roundsPerDay}판 · {contest.roundsPerDay}판을 모두 하고 목표 이상이면 +{contest.dayPoints}점, 못 미치면 −{contest.dayPoints}점이에요.</small>
           </div>}
           {leverageResult && <dl className="vsim-leverage-compare" aria-label="같은 기간 기초 종목과 레버리지 가격">
             <div><dt>기초 종목</dt><dd><b className={tone(leverageResult.underlyingReturnRate)}>{percent(leverageResult.underlyingReturnRate)}</b></dd></div>
@@ -388,14 +397,14 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           <p className="vsim-intro"><Written sample={sample} /> {snapshot.company.intro}</p>
           <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
           {contest && !finished && <p className="practice-muted">그만두면 남은 사건은 유지로 보고 끝까지 계산해 잔액에 반영해요.</p>}
-          {contest && finished && <button className="btn btn-primary practice-start" type="button" onClick={nextRound} disabled={busy || noRoundsLeft}>{noRoundsLeft ? '오늘 판을 모두 했어요' : '다음 판 시작'}</button>}
-          <button className="btn practice-start" type="button" onClick={reset}>{restartLabel}</button>
+          {contest && finished && <button className="btn btn-primary practice-start" type="button" onClick={nextRound} disabled={busy || noRoundsLeft}>{noRoundsLeft ? '오늘 판을 모두 했어요' : '다음 판'}</button>}
+          <button className="btn practice-start" type="button" onClick={reset}>{contest && finished ? '대회 화면으로' : restartLabel}</button>
         </section>}
-        {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 1%p 이상 높으면(매매 성과) 10판을 모두 했을 때 하루 점수 +{contest.dayPoints}점, 덜 했으면 0점이에요. 못 미치면 −{contest.dayPoints}점이에요.</li></ol></div>
+        {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 {contest.today ? pp(contest.today.targetRate) : '목표'} 이상 높으면(매매 성과) {contest.roundsPerDay}판을 모두 했을 때 하루 점수 +{contest.dayPoints}점, 덜 했으면 0점이에요. 못 미치면 −{contest.dayPoints}점이에요.</li></ol></div>
           : <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>가상 종목의 120~250거래일 구간을 재생하고, 가상 사건을 3번 이상 만나요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>채점은 없어요. 사건마다 공시 직후와 그다음 주 가상 등락, 그 유형 공시의 과거 통계를 보여 줘요.</li></ol><Link className="practice-guide-link" to="/simulation/guide">공시가 처음이면: 공시 읽는 법 ›</Link></div>}
       </aside>
       <main className="practice-market">
-        <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.company.industry : '가상 시뮬레이션'}</span><h2>{snapshot?.company.name ?? '다음 장면은 아직 몰라요'}{snapshot && <> <Written sample={sample} /></>}{k > 1 && <> <LeverageBadge k={k} /></>}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '시뮬레이션 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
+        <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.company.industry : '가상 시뮬레이션'}</span><h2>{snapshot?.company.name ?? '다음 장면은 아직 몰라요'}{snapshot && <> <Written sample={sample} /></>}{k > 1 && <> <LeverageBadge k={k} /></>}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '시뮬레이션 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && !(contest && finished) && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
         <div className="practice-quote">{snapshot ? <><strong>{money(candles.at(-1)!.close)}</strong><span>{candles.at(-1)!.date} {k > 1 ? `레버리지 ${k}배 가격 ` : ''}종가 · 가상 날짜</span></> : <p>가상 종목의 앞날은 한 번에 공개되지 않아요.<br />나의 판단을 먼저 남겨보세요.</p>}</div>
         {visibleEvent && collapsed && <div className="vsim-reopen" role="status"><p><b>{visibleEvent.categoryName} · 가상 사건</b> {visibleEvent.title}</p><button type="button" className="btn btn-sm btn-primary" onClick={expand}>선택 창 다시 열기</button></div>}
         <div ref={chartBox} className="practice-chart-box">
@@ -411,7 +420,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
             onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showOnChart(i + 1); } }}
             onMouseEnter={() => setActiveBand(i + 1)} onMouseLeave={() => setActiveBand(null)} onFocus={() => setActiveBand(i + 1)} onBlur={() => setActiveBand(null)}>
             <div className="practice-decision-meta"><span className="practice-decision-no"><span className="sr-only">사건 </span>{i + 1}</span><time>{r.date}<br />가상 날짜</time></div><div><h3>{r.title}</h3><p>{r.categoryName} · {r.action === 'HOLD' ? '유지' : `${r.action === 'BUY' ? '매수' : '매도'} ${fmt.format(r.quantity)}주 주문`}</p><small>{r.execution === 'PENDING' ? '다음 거래일 시가에 체결 예정' : r.execution === 'NO_FILL' ? '거래 가능한 수량이 1주 미만이라 체결하지 않았어요' : r.execution === 'HOLD' ? '보유 상태 유지' : `${r.executedDate} · ${r.executedShares}주 · 주당 ${money(r.executedPrice!)}`}</small></div><div className="practice-outcome">{contest ? <Moved r={r} sample={sample} /> : <Judged r={r} sample={sample} k={k} />}</div></article>)}
-          {finished && contest && <p className="practice-result-note">대회 판은 채점하지 않아요. 판이 끝난 총자산 {endBalance != null ? money(endBalance) : ''}이 새 대회 잔액이에요. 같은 가격 흐름에서 사건마다 가만히(유지) 있었다면 {holdBalance != null ? money(holdBalance) : '—'}({holdReturnRate != null ? percent(holdReturnRate) : '—'})이었어요. 처음 50%로 산 주식이 그만큼 움직인 결과예요. 내 판 수익률({snapshot ? percent(snapshot.portfolio.returnRate) : '—'})과의 차이 {excessRate != null ? pp(excessRate) : '—'}가 매매 성과이고, 하루 점수의 기준이에요.</p>}
+          {finished && contest && <p className="practice-result-note">대회 판은 채점하지 않아요. 판이 끝난 총자산이 새 대회 잔액이고, 가만히 있었을 때와의 차이(매매 성과)가 하루 점수의 기준이에요.</p>}
           {leverageResult && <div className="vsim-leverage-result" role="note"><LeverageBadge k={k} /><p>같은 기간 기초 종목은 {signed(leverageResult.underlyingReturnRate)}, 레버리지 {k}배 가격은 {signed(leverageResult.leveragedReturnRate)}였어요. 차이는 매일 배율을 다시 맞추는 구조 때문이에요. 실제 레버리지 ETF는 운용보수·추적 오차 등으로 이 계산과 다를 수 있어요.</p><p className="practice-muted">사건마다 보이는 공시 직후·그다음 주 등락과 유형 통계는 기초 종목 기준이고, 레버리지 {k}배 등락을 함께 보여 줘요. 내 손익·수익률은 레버리지 가격으로 계산했어요.</p></div>}
           {finished && !contest && <p className="practice-result-note">{sample ? '사건 날과 그 뒤 5거래일 움직임은 학습용 예시 통계에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.' : '사건 날과 그 뒤 5거래일 움직임은 같은 유형 실제 공시 당일과 그 뒤의 움직임에서 무작위로 뽑아요. 시장 전체가 오르내린 몫은 빼지 않았어요. 사건 글에는 좋고 나쁨을 담지 않았어요.'} 채점은 없고, 수익률과 사건마다 공시 직후·그다음 주 가상 등락을 보여 줘요. 그다음 주는 다음 날 종가에 샀다고 가정한 비교라, 다음 날 시가에 체결된 내 매매의 수익률과는 다를 수 있어요.</p>}
         </section>}

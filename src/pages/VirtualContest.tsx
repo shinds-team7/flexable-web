@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { useLoginModal } from '@/components/LoginModal';
@@ -13,6 +13,8 @@ import { clearPlacement, markPlacement } from '@/data/placementMark';
 import { disclosureStory, questionStory, typeReading } from '@/data/disclosureStory';
 import { CountUp } from '@/components/CountUp';
 import { Reveal } from '@/components/Reveal';
+import { Term } from '@/components/TermTip';
+import { LeagueEmblem } from '@/components/LeagueEmblem';
 import { ApiError, errorText } from '@/lib/api';
 import { prefersReducedMotion } from '@/lib/motion';
 import { VirtualSimulation } from '@/pages/VirtualSimulation';
@@ -20,6 +22,8 @@ import '@/styles/contest.css';
 
 // 가상 시뮬레이션 대회(decisions/2026-11-05-virtual-sim-contest, policies §8-8). 회원만 참가하고 대회 안내만 누구나 본다.
 // 금액·수익률·점수·순위는 서버 값을 그대로 보인다(화면에서 다시 계산하지 않는다). 판 진행은 가상 시뮬레이션 화면을 대회 판으로 쓴다.
+// 화면 뼈대(02-design §5-14, decisions/2026-11-11-contest-ux-redesign): 머리 줄 → 상태 배너 → 오늘 할 일 → 핵심 지표 → 리그별 랭킹 → 접힌 상세 → 규칙 한 곳.
+// 용어: 등급(board)은 "리그", 가상 시뮬레이션 한 번은 "판".
 const fmt = new Intl.NumberFormat('ko-KR');
 const money = (n: number) => `${fmt.format(n)}원`;
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmt.format(Math.abs(n))}원`;
@@ -38,76 +42,32 @@ const dateText = (iso: string) => { const [, m, d] = iso.slice(0, 10).split('-')
 
 type View = 'home' | 'placement' | 'result' | 'play';
 
-/** 대회 안내·규칙(누구나) */
-function Rules({ info }: { info: ContestInfo }) {
-  const r = info.rules, day = dayPoints(r);
-  return <details className="contest-rules">
-    <summary>대회 규칙 자세히 보기</summary>
-    <ul>
-      <li>매달 1일 00시에 열고 다음 달 1일 00시에 마감해요. 시즌마다 배치고사 {r.placementQuestions}문제로 시작 판을 정해요(맞힌 수 {r.placementCuts.B50M}개 이상 5천만 판, {r.placementCuts.B100M}개 이상 1억 판, 그 아래 1천만 판).</li>
-      <li>배치고사는 실제 과거 공시 10개를 보고 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 올랐을지 내렸을지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜, 그다음 주(다음 거래일 종가 → 5번째 거래일 종가) 움직임은 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
-      <li>한 판은 지금 대회 잔액 전부로 시작하고 120거래일 동안 사건 {r.eventsPerRound}개를 만나요. 판이 끝난 총자산이 다음 판의 잔액이 되고, 대회 판은 채점하지 않아요.</li>
-      <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 {points(-day)}이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 {points(day)}, 덜 했으면 0점이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
-      <li>주(1~7일, 8~14일, 15~21일, 22일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 승급, {points(r.weeklyDemoteAt)} 이하면 한 단계 강등이에요. 판이 바뀌면 잔액은 새 판의 대회 시드머니로 다시 시작해요.</li>
-      <li>4주차(22일~말일)는 보너스 주예요. 대회 마지막 날 판정해 결과를 지난 대회 기록에 남기고, 판은 바꾸지 않아요. 최종 순위는 4주차를 보낸 판에서 매겨요.</li>
-      <li>판이 끝난 뒤 잔액이 {money(r.liquidationBelow)} 미만이면 이번 시즌은 청산되어 더 할 수 없어요.</li>
-      <li>순위는 판 점수 → 매매 성과 평균 → 그 값에 먼저 도달한 순서로 정하고, 판별 상위 {r.rankingTop}위와 내 순위를 회원만 봐요. 이름 대신 서버가 붙인 별명이 보여요.</li>
-      <li>판을 그만두거나 창을 닫으면 남은 사건은 유지로 보고 끝까지 계산해 잔액에 반영해요.</li>
-    </ul>
-  </details>;
-}
-
-/** 배치고사 맞힌 수 → 시작 판(서버 규칙 placementCuts). 참가 전 배치고사 카드 오른쪽에 짧은 표로 둔다. 판별 참가자 수는 참여 현황 카드에 있다 */
+/** 배치고사 맞힌 수 → 시작 리그(서버 규칙 placementCuts). 참가 전 "오늘 할 일" 카드 오른쪽에 짧은 표로 둔다 */
 function PlacementBoards({ info }: { info: ContestInfo }) {
   const { B50M, B100M } = info.rules.placementCuts, total = info.rules.placementQuestions;
   const range: Record<ContestBoard, string> = { B10M: `0~${B50M - 1}개`, B50M: `${B50M}~${B100M - 1}개`, B100M: `${B100M}~${total}개` };
   return <div className="contest-placement-boards">
-    <span className="contest-placement-boards-title">맞힌 수로 정하는 시작 판</span>
-    <ol aria-label="맞힌 수로 정해지는 시작 판">
-      {info.boards.map(b => <li key={b.board}><span>{range[b.board]}</span><b>{BOARD_LABEL[b.board]}</b><small>{money(b.seedMoney)}</small></li>)}
+    <span className="contest-placement-boards-title">맞힌 수로 정하는 시작 리그</span>
+    <ol aria-label="맞힌 수로 정해지는 시작 리그">
+      {info.boards.map(b => <li key={b.board}><span>{range[b.board]}</span><b><LeagueEmblem board={b.board} size={18} />{BOARD_LABEL[b.board]}</b><small>{money(b.seedMoney)}</small></li>)}
     </ol>
   </div>;
 }
 
-/** 참가 전 배치고사 카드: 왼쪽 설명·주 버튼, 오른쪽 시작 판 기준 */
-function JoinCard({ info, title, text, action }: { info: ContestInfo; title: string; text: string; action?: ReactNode }) {
+/** 참가 전 "오늘 할 일" 카드(비회원·배치고사 전 공통 뼈대): 왼쪽 설명과 주 행동 하나, 오른쪽 시작 리그 기준 */
+function JoinCard({ info, title, text, action, guide }: { info: ContestInfo; title: string; text: string; action: ReactNode; guide?: boolean }) {
   const r = info.rules;
-  return <section className="contest-card contest-join" aria-labelledby="contestJoinTitle">
+  return <section className="contest-card contest-today contest-join" aria-labelledby="contestJoinTitle">
     <div className="contest-join-main">
       <ul className="contest-join-facts" aria-label="배치고사 요약"><li>{r.placementQuestions}문제</li><li>30분</li><li>시즌마다 1번</li></ul>
       <h2 id="contestJoinTitle">{title}</h2>
       <p className="practice-muted">{text}</p>
-      {/* 시작 전 안내에만 둔다. 배치고사·대회 판을 하는 동안에는 가이드를 볼 수 없다(Issue #367) */}
-      <p className="contest-join-guide"><Link to="/simulation/guide">공시가 처음이면 「공시 읽는 법」을 먼저 읽어 보세요 ›</Link></p>
       {action}
+      {/* 시작 전 안내에만 둔다. 배치고사·대회 판을 하는 동안에는 가이드를 볼 수 없다(Issue #367) */}
+      {guide && <p className="contest-join-guide"><Link to="/simulation/guide">공시가 처음이면 「공시 읽는 법」을 먼저 읽어 보세요 ›</Link></p>}
     </div>
     <PlacementBoards info={info} />
   </section>;
-}
-
-/** 대회 핵심 규칙 3줄(규칙 접기 위). 값은 서버 규칙 */
-function RulesSummary({ info }: { info: ContestInfo }) {
-  const r = info.rules, day = dayPoints(r);
-  return <ul className="contest-rules-summary" aria-label="핵심 규칙">
-    <li><b>하루 {r.roundsPerDay}판</b>까지 할 수 있어요</li>
-    <li>그날 매매 성과 평균이 <b>목표 {pp(r.dailyTargetRate)}</b> 이상이면 {points(day)}(10판을 모두 한 날), 못 미치면 {points(-day)}</li>
-    <li>주 점수 <b>{points(r.weeklyPromoteAt)} 이상 승급 · {points(r.weeklyDemoteAt)} 이하 강등</b></li>
-  </ul>;
-}
-
-/** 용어 풀이: 같은 설명을 카드마다 반복하지 않게 물음표에 둔다 */
-const TERMS = {
-  excess: { label: '매매 성과', tip: '내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요. 두 수익률의 차이라 %p로 보여요.' },
-  boardPoints: { label: '판 점수', tip: '지금 판에 들어온 뒤(배치고사 또는 승급·강등 뒤) 받은 하루 점수의 합이에요. 순위의 첫 기준이고, 판이 바뀌면 0부터 다시 세요.' },
-  hold: { label: '가만히 있었다면', tip: '같은 판에서 사건마다 사고팔지 않고 유지만 했을 때의 수익률이에요. 매매 성과를 잴 때 기준이 돼요.' },
-} as const;
-type TermKey = keyof typeof TERMS;
-function Term({ k, label }: { k: TermKey; label?: string }) {
-  const id = useId();
-  return <span className="contest-term">{label ?? TERMS[k].label}<span className="contest-tip-wrap">
-    <button type="button" className="contest-tip-mark" aria-label={`${TERMS[k].label} 뜻`} aria-describedby={id}>?</button>
-    <span id={id} role="tooltip" className="contest-tip">{TERMS[k].tip}</span>
-  </span></span>;
 }
 
 /** 빈·오류·로딩 상태를 한 모양으로. 오류일 때만 [다시 시도] */
@@ -118,17 +78,17 @@ function StateBox({ kind, text, onRetry }: { kind: 'empty' | 'error' | 'loading'
   </div>;
 }
 
-/** 처음 그린 다음 프레임에 true. 막대가 0에서 차오르는 전환에 쓴다(움직임 줄이기면 global.css가 전환을 끈다) */
+/** 처음 그린 다음 프레임에 true. 막대가 0에서 차오르는 전환에 쓴다. 움직임 줄이기면 처음부터 true(최종값으로 그린다) */
 function useMounted() {
-  const [on, setOn] = useState(false);
+  const [on, setOn] = useState(prefersReducedMotion);
   useEffect(() => { const raf = requestAnimationFrame(() => setOn(true)); return () => cancelAnimationFrame(raf); }, []);
   return on;
 }
 
-/** 영역이 처음 화면에 들어오면 true(한 번만). 아래쪽 카드의 막대가 보기 전에 다 차 버리지 않게 쓴다 */
+/** 영역이 처음 화면에 들어오면 true(한 번만). 접힌 상세의 막대가 보기 전에 다 차 버리지 않게 쓴다. 움직임 줄이기면 처음부터 true */
 function useSeen<T extends HTMLElement>() {
   const ref = useRef<T>(null);
-  const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined');
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined' || prefersReducedMotion());
   useEffect(() => {
     if (seen || !ref.current) return;
     const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { setSeen(true); io.disconnect(); } }, { rootMargin: '0px 0px -10% 0px' });
@@ -146,8 +106,14 @@ function useNow(ms: number) {
 }
 
 const kstDate = (t: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(t);
-const dayNo = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 86400000);
 const pad = (n: number) => String(n).padStart(2, '0');
+/** YYYY-MM-DD에 하루씩 더한 날짜 목록(양 끝 포함). 달력 계산만 하고 점수는 서버 값을 쓴다 */
+const dateRange = (from: string, to: string) => {
+  const out: string[] = [];
+  for (let t = Date.parse(`${from}T00:00:00Z`), end = Date.parse(`${to}T00:00:00Z`); t <= end; t += 86400000) out.push(new Date(t).toISOString().slice(0, 10));
+  return out;
+};
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** 마감까지 남은 시간: 하루 넘게 남으면 D-n, 마지막 하루는 hh:mm:ss. 화면 읽기 프로그램에는 분 단위 글만 둔다 */
 function Countdown({ endsAt }: { endsAt: string }) {
@@ -172,77 +138,79 @@ function RankCount({ rank, from }: { rank: number; from?: number | null }) {
   return <CountUp key={from} value={rank} from={from} format={n => `${fmt.format(n)}위`} duration={1100} />;
 }
 
-/** 대회 참여 현황(누구나): 전체·판별 참가자, 기간 진행, 남은 시간. 참가했으면 내 판·순위를 강조한다. 합계·비율은 서버 참가자 수를 더하고 나눠 보여 주기만 한다(내림) */
-function Participation({ info, entry, prevRank }: { info: ContestInfo; entry: ContestEntry | null; prevRank?: number | null }) {
-  const [box, mounted] = useSeen<HTMLElement>();
-  const now = useNow(60000);
-  const total = info.boards.reduce((s, b) => s + b.participants, 0);
-  const first = info.weeks[0].startsOn, last = info.weeks[info.weeks.length - 1].endsOn;
-  const days = dayNo(last) - dayNo(first) + 1;
-  const today = kstDate(now);
-  const span = new Date(info.endsAt).getTime() - new Date(info.startsAt).getTime();
-  const elapsed = Math.max(0, Math.min(1, (now - new Date(info.startsAt).getTime()) / span));
-  const dayIndex = Math.max(1, Math.min(days, dayNo(today) - dayNo(first) + 1));
-  const nowWeek = info.weeks.find(w => w.startsOn <= today && today <= w.endsOn)?.week ?? null;
-  const topShare = entry ? Math.floor(entry.rank / entry.participants * 1000) / 10 : null;
-  return <section ref={box} className="contest-card contest-participation" aria-labelledby="contestJoinStatusTitle">
-    <div className="contest-card-head">
-      <h2 id="contestJoinStatusTitle">대회 참여 현황</h2>
-      <Countdown endsAt={info.endsAt} />
-    </div>
-    <div className="contest-part-grid">
-      <div>
-        <p className="contest-part-total"><span>전체 참가자</span><strong>{fmt.format(total)}명</strong></p>
-        <ul className="contest-part-boards" aria-label="판별 참가자">
-          {info.boards.map((b, i) => {
-            const pct = total ? Math.floor(b.participants / total * 100) : 0;
-            const mine = entry?.board === b.board;
-            return <li key={b.board} className={mine ? 'mine' : ''} aria-current={mine ? 'true' : undefined}>
-              <div className="contest-part-row">
-                <b>{BOARD_LABEL[b.board]}</b>
-                {mine ? <span className="contest-chip">내 판</span> : !b.available && <span className="contest-chip muted">준비 중</span>}
-                <small>{money(b.seedMoney)}로 시작</small>
-                <span className="contest-part-count">{fmt.format(b.participants)}명 · {pct}%</span>
-              </div>
-              <div className="contest-bar" aria-hidden="true"><span style={{ width: `${mounted ? pct : 0}%`, transitionDelay: `${i * 160}ms` }} /></div>
-            </li>;
-          })}
-        </ul>
-        {entry && topShare != null && <p className="contest-part-me">
-          {BOARD_LABEL[entry.board]} <b>{fmt.format(entry.participants)}명 중 <RankCount rank={entry.rank} from={prevRank} /></b> · {topShare >= 0.1 ? `상위 ${topShare.toFixed(1)}%` : '상위 0.1% 안'}
-        </p>}
-      </div>
-      <div>
-        <p className="contest-part-period"><span>{dateText(info.startsAt)} 시작</span><b>{days}일 중 {dayIndex}일째</b><span>{dateText(info.endsAt)} 00시 마감</span></p>
-        <div className="contest-period" role="img" aria-label={`대회 기간 ${days}일 중 ${dayIndex}일째${nowWeek ? `, 지금 ${nowWeek}주` : ''}`}>
-          <div className="contest-period-weeks">
-            {info.weeks.map(w => <span key={w.week} className={w.week === nowWeek ? 'now' : w.endsOn < today ? 'past' : ''} style={{ flexGrow: dayNo(w.endsOn) - dayNo(w.startsOn) + 1 }}>{w.week}주</span>)}
-          </div>
-          <div className="contest-period-track"><span style={{ width: `${(mounted ? elapsed : 0) * 100}%` }} /><i className={mounted ? 'on' : ''} style={{ left: `${elapsed * 100}%` }} /></div>
-        </div>
-        <ol className="contest-week-plan" aria-label="주별 일정">
-          {info.weeks.map((w, i) => {
-            const state = w.endsOn < today ? 'past' : w.week === nowWeek ? 'now' : 'next';
-            const last = i === info.weeks.length - 1;
-            return <li key={w.week} className={state} aria-current={state === 'now' ? 'true' : undefined}>
-              <b>{w.week}주</b>
-              <span>{dateText(w.startsOn)} ~ {dateText(w.endsOn)}</span>
-              <small>{state === 'past' ? '판정 끝' : state === 'now' ? (last ? '진행 중 · 보너스' : '진행 중') : last ? '보너스 주' : '남음'}</small>
-            </li>;
-          })}
-        </ol>
-        <p className="practice-muted contest-part-note">주가 끝날 때마다 주 점수로 승급·강등을 정해요. 4주차는 보너스 주라 결과만 기록에 남고 판은 그대로예요.</p>
+/** 대회 배너 그림(장식, 대회 로고): 오르는 차트 위 트로피. 색은 배너 글자색(흰색) 한 가지의 투명도만 쓴다 */
+function HeroArt() {
+  return <svg className="contest-hero-art" viewBox="0 0 240 150" aria-hidden="true" focusable="false">
+    <g fill="currentColor">
+      <rect x="18" y="104" width="18" height="34" rx="3" opacity=".22" />
+      <rect x="44" y="90" width="18" height="48" rx="3" opacity=".28" />
+      <rect x="70" y="96" width="18" height="42" rx="3" opacity=".22" />
+      <rect x="96" y="74" width="18" height="64" rx="3" opacity=".32" />
+      <rect x="122" y="60" width="18" height="78" rx="3" opacity=".38" />
+    </g>
+    <path d="M12 112 L40 96 L66 102 L94 78 L120 66 L150 46" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+    <path d="M140 42 L152 44 L148 55" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
+    <path d="M8 138 H232" stroke="currentColor" strokeWidth="2" opacity=".3" />
+    <g transform="translate(162 18)">
+      <circle cx="34" cy="44" r="40" fill="currentColor" opacity=".12" />
+      <path d="M14 12 H54 V30 a20 20 0 0 1 -40 0 Z" fill="currentColor" opacity=".95" />
+      <path d="M14 18 H5 a9 11 0 0 0 11 15 M54 18 H63 a9 11 0 0 1 -11 15" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" opacity=".95" />
+      <rect x="30" y="49" width="8" height="14" fill="currentColor" opacity=".95" />
+      <rect x="20" y="63" width="28" height="8" rx="2" fill="currentColor" opacity=".95" />
+      <path d="m34 20 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8Z" className="contest-hero-art-star" />
+    </g>
+  </svg>;
+}
+
+/** 대회 배너(머리): 로고·대회 이름·기간·내 리그 엠블럼·마감까지. 대회 기간은 이 배너 한 곳에만 둔다 */
+function ContestHead({ info, sample, alias, entry }: { info: ContestInfo; sample: boolean | null; alias: string | null; entry: ContestEntry | null }) {
+  return <section className="contest-hero" aria-labelledby="contestTitle">
+    <div className="contest-hero-body">
+      <span className="contest-hero-kicker">회원 월간 대회 · 진행 중{sample && <span className="tag-ex">예시</span>}</span>
+      <h2 id="contestTitle">{contestName(info.contestId)}</h2>
+      <p>{dateText(info.startsAt)} 00시 ~ {dateText(info.endsAt)} 00시{alias && <> · 내 별명 <b>{alias}</b></>}</p>
+      <div className="contest-hero-side">
+        {entry && <span className="contest-hero-league"><LeagueEmblem board={entry.board} size={28} /><span><small>내 리그</small><b>{BOARD_LABEL[entry.board]}</b></span></span>}
+        <Countdown endsAt={info.endsAt} />
       </div>
     </div>
+    <HeroArt />
   </section>;
+}
+
+/** 참여 현황(접힌 상세, 누구나): 전체·리그별 참가자. 기간·순위는 머리 줄·핵심 지표에만 있다. 합계·비율은 서버 참가자 수를 더하고 나눠 보여 주기만 한다(내림) */
+function Participation({ info, entry }: { info: ContestInfo; entry: ContestEntry | null }) {
+  const [box, seen] = useSeen<HTMLDivElement>();
+  const total = info.boards.reduce((s, b) => s + b.participants, 0);
+  return <div ref={box} className="contest-participation">
+    <p className="contest-part-total"><span>전체 참가자</span><strong>{fmt.format(total)}명</strong></p>
+    <ul className="contest-part-boards" aria-label="리그별 참가자">
+      {info.boards.map((b, i) => {
+        const pct = total ? Math.floor(b.participants / total * 100) : 0;
+        const mine = entry?.board === b.board;
+        return <li key={b.board} className={mine ? 'mine' : ''} aria-current={mine ? 'true' : undefined}>
+          <div className="contest-part-row">
+            <b>{BOARD_LABEL[b.board]}</b>
+            {mine ? <span className="contest-chip">내 리그</span> : !b.available && <span className="contest-chip muted">준비 중</span>}
+            <small>{money(b.seedMoney)}로 시작</small>
+            <span className="contest-part-count">{fmt.format(b.participants)}명 · {pct}%</span>
+          </div>
+          <div className="contest-bar" aria-hidden="true"><span style={{ width: `${seen ? pct : 0}%`, transitionDelay: `${i * 160}ms` }} /></div>
+        </li>;
+      })}
+    </ul>
+  </div>;
 }
 
 const GUIDE_KEY = 'fx.guide.contest';
 const readGuide = () => { try { return localStorage.getItem(GUIDE_KEY); } catch { return null; } };
 const saveGuide = (v: 'open' | 'closed') => { try { localStorage.setItem(GUIDE_KEY, v); } catch { /* 저장 못 해도 화면은 그대로 */ } };
 
-/** 처음 온 사람 안내(대회 방식 3단계). 참가 전에는 펼치고, 참가한 뒤에는 접어 두며 펼침·접힘을 브라우저에 기억한다 */
-function ContestGuide({ info, joined }: { info: ContestInfo; joined: boolean }) {
+/**
+ * 규칙(한 곳): 대회 3단계와 자세한 규칙. 참가 전에는 펼치고, 참가한 뒤에는 접어 두며 펼침·접힘을 브라우저에 기억한다(fx.guide.contest).
+ * 값은 서버 규칙
+ */
+function ContestRules({ info, joined }: { info: ContestInfo; joined: boolean }) {
   const [stored, setStored] = useState(readGuide);
   const open = joined ? stored === 'open' : true;
   const r = info.rules, day = dayPoints(r);
@@ -252,12 +220,23 @@ function ContestGuide({ info, joined }: { info: ContestInfo; joined: boolean }) 
     const v = now ? 'open' : 'closed';
     setStored(v); saveGuide(v);
   }}>
-    <summary><h2>대회는 이렇게 진행돼요</h2><span>{open ? '접기' : '펼쳐 보기'}</span></summary>
+    <summary><h2>대회는 이렇게 진행돼요</h2><span>{open ? '접기' : '규칙 펼쳐 보기'}</span></summary>
     <ol className="contest-steps">
-      <li><span className="contest-step-no" aria-hidden="true">1</span><b>배치고사</b><small>실제 과거 공시 {r.placementQuestions}문제로 1천만·5천만·1억 판 중 시작 판을 정해요</small></li>
-      <li><span className="contest-step-no" aria-hidden="true">2</span><b>하루 {r.roundsPerDay}판</b><small>가상 종목을 매매해 그날 매매 성과 평균이 {pp(r.dailyTargetRate)} 이상이면 {points(day)}, 못 미치면 {points(-day)}</small></li>
-      <li><span className="contest-step-no" aria-hidden="true">3</span><b>주 점수로 승급·강등</b><small>주 합이 {points(r.weeklyPromoteAt)} 이상이면 한 단계 위로, {points(r.weeklyDemoteAt)} 이하면 한 단계 아래로</small></li>
+      <li><span className="contest-step-no" aria-hidden="true">1</span><b>배치고사</b><small>실제 과거 공시 {r.placementQuestions}문제로 1천만·5천만·1억 리그 중 시작 리그를 정해요</small></li>
+      <li><span className="contest-step-no" aria-hidden="true">2</span><b>하루 {r.roundsPerDay}판</b><small>가상 종목을 매매해 그날 매매 성과 평균이 {pp(r.dailyTargetRate)} 이상이면 {points(day)}({r.roundsForDailyScore}판을 모두 한 날), 못 미치면 {points(-day)}</small></li>
+      <li><span className="contest-step-no" aria-hidden="true">3</span><b>주 점수로 승급·강등</b><small>주 합이 {points(r.weeklyPromoteAt)} 이상이면 한 리그 위로, {points(r.weeklyDemoteAt)} 이하면 한 리그 아래로</small></li>
     </ol>
+    <ul className="contest-rules-list">
+      <li>매달 1일 00시에 열고 다음 달 1일 00시에 마감해요. 시즌마다 배치고사 {r.placementQuestions}문제로 시작 리그를 정해요(맞힌 수 {r.placementCuts.B50M}개 이상 5천만 리그, {r.placementCuts.B100M}개 이상 1억 리그, 그 아래 1천만 리그).</li>
+      <li>배치고사는 실제 과거 공시 10개를 보고 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 올랐을지 내렸을지 골라요. 실제 움직임으로 채점하고, 회사 이름과 날짜, 그다음 주(다음 거래일 종가 → 5번째 거래일 종가) 움직임은 제출한 뒤 공개해요. 30분이 지나면 고르지 않은 문제는 틀린 것으로 봐요.</li>
+      <li>한 판은 지금 대회 잔액 전부로 시작하고 120거래일 동안 사건 {r.eventsPerRound}개를 만나요. 판이 끝난 총자산이 다음 판의 잔액이 되고, 대회 판은 채점하지 않아요.</li>
+      <li>하루에 {r.roundsPerDay}판까지 할 수 있어요. 하루 점수는 그날 판들의 매매 성과 평균으로 정해요. 매매 성과는 내 판 수익률에서 같은 가격 흐름에 사건마다 가만히(유지) 있었을 때의 수익률을 뺀 값이에요(예: 내 판 +11.07%, 가만히 +9.27%면 +1.80%p). 평균이 {pp(r.dailyTargetRate)}에 못 미치면 {points(-day)}이에요. 목표 이상이면 그날 {r.roundsForDailyScore}판을 모두 했을 때 {points(day)}, 덜 했으면 0점이에요. 판을 안 한 날은 0이에요. 가만히만 있으면 0%p라 목표에 못 미쳐요.</li>
+      <li>주(1~7일, 8~14일, 15~21일, 22일~말일) 점수 합이 {points(r.weeklyPromoteAt)} 이상이면 한 리그 승급, {points(r.weeklyDemoteAt)} 이하면 한 리그 강등이에요. 리그가 바뀌면 잔액은 새 리그의 대회 시드머니로 다시 시작해요.</li>
+      <li>4주차(22일~말일)는 보너스 주예요. 대회 마지막 날 판정해 결과를 지난 대회 기록에 남기고, 리그는 바꾸지 않아요. 최종 순위는 4주차를 보낸 리그에서 매겨요.</li>
+      <li>판이 끝난 뒤 잔액이 {money(r.liquidationBelow)} 미만이면 이번 시즌은 청산되어 더 할 수 없어요.</li>
+      <li>순위는 리그 점수 → 매매 성과 평균 → 그 값에 먼저 도달한 순서로 정하고, 리그별 상위 {r.rankingTop}위와 내 순위를 회원만 봐요. 이름 대신 서버가 붙인 별명이 보여요.</li>
+      <li>판을 그만두거나 창을 닫으면 남은 사건은 유지로 보고 끝까지 계산해 잔액에 반영해요.</li>
+    </ul>
   </details>;
 }
 
@@ -275,27 +254,10 @@ function useRemaining(until: string | null) {
 
 type PlacementQuestion = ContestPlacement['questions'][number];
 
-/** 문제 카드 본문: 정리한 제목 → 유형 설명 → 공시 줄글(업종·제목·AI 요약 또는 주요 내용, 회사·날짜·방향 없음) → 주요 내용이 없으면 유형별 읽는 법. 결과 화면은 회사·날짜·움직임까지 붙인 줄글(disclosureStory)로 보인다 */
-function QuestionBody({ q, sample, headingId, headingRef }: { q: PlacementQuestion; sample: boolean | null; headingId?: string; headingRef?: RefObject<HTMLHeadingElement | null> }) {
-  const t = cleanTitle(q.title);
-  const reading = typeReading(q);
-  return <>
-    <h3 id={headingId} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="contest-q-title">{t.main}</h3>
-    {(t.kind || t.notes.length > 0) && <p className="contest-q-kind">{[t.kind, ...t.notes].filter(Boolean).join(' · ')}</p>}
-    <p className="contest-q-guide">{CATEGORY_GUIDE[q.category]}</p>
-    {t.subsidiary && <p className="contest-q-note">{SUBSIDIARY_NOTE}</p>}
-    {q.body && <p className="contest-q-body">{q.body}</p>}
-    <div className="contest-q-details">
-      <p className="contest-q-details-title">공시 내용{sample && <span className="tag-ex">예시</span>}</p>
-      <div className="contest-q-story">{questionStory(q, t.main, sample).map((p, k) => <p key={k}>{p}</p>)}</div>
-    </div>
-    {/* 예시·AI 요약 상자 밖에 두어 그 글의 일부로 읽히지 않게 한다(#387) */}
-    {reading && <p className="contest-q-guide"><b>읽는 법</b> {reading}</p>}
-  </>;
-}
-
 /**
- * 배치고사: 한 화면에 한 문제. 오른다/내린다를 고르면 바로 다음 문제로 넘어가고, [이전 문제]로 돌아갈 수 있다.
+ * 배치고사: 한 화면에 한 문제. 머리(제목·타이머·진행)는 위에 붙어 있고, 문제 카드는 번호·유형 → 제목 → 공시 내용 → 답 버튼 순서다.
+ * 유형 설명·읽는 법·자회사 안내는 답 버튼 아래 "이 공시 유형 알아보기"에 접어 둔다(02 §5-14).
+ * 오른다/내린다를 고르면 바로 다음 문제로 넘어가고, [이전 문제]로 돌아갈 수 있다.
  * 돌아온 문제에서 고른 답을 다시 누르면 그 답을 그대로 두고 넘어가고, 다른 답을 누르면 바꿔서 넘어간다(취소는 없다).
  * 마지막 문제에서는 넘어가지 않고 제출한다. 채점은 제출 때 서버가 한다
  */
@@ -310,6 +272,8 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
   const q = placement.questions[index];
   const done = placement.questions.filter(x => answers[x.id]).length;
   const last = index === total - 1;
+  const t = cleanTitle(q.title);
+  const reading = typeReading(q);
   // 문제를 바꾸면(처음 열 때 말고) 새 문제 제목으로 포커스를 옮겨 화면 읽기 프로그램이 바로 읽게 한다
   useEffect(() => {
     if (!moved.current) return;
@@ -323,39 +287,52 @@ function PlacementForm({ placement, sample, busy, error, onSubmit }: { placement
   };
   const submit = (e: FormEvent) => { e.preventDefault(); onSubmit(answers); };
   return <form className="contest-placement" onSubmit={submit}>
-    <div className="contest-placement-head">
+    <div className="contest-placement-bar">
       <div className="contest-placement-title">
         <h2>배치고사</h2>
+        <span className="contest-progress-count">
+          <span role="status" aria-live="polite"><b>{done}</b>/{total} 답함</span>
+          {/* 문제 칸(게임 스테이지처럼): 답한 문제는 채우고 지금 문제는 테두리. 누르면 그 문제로 간다 */}
+          <span className="contest-steps-dots">{placement.questions.map((x, i) => <button key={x.id} type="button" className={[answers[x.id] ? 'done' : '', i === index ? 'now' : ''].filter(Boolean).join(' ')}
+            aria-label={`${i + 1}번 문제${answers[x.id] ? ', 답함' : ''}`} aria-current={i === index ? 'step' : undefined} onClick={() => go(i)}>{i + 1}</button>)}</span>
+        </span>
         {left != null && <span className={`contest-timer ${left === 0 ? 'over' : left < 300 ? 'urgent' : ''}`} role="timer" aria-live="off"
           aria-label={left > 0 ? `남은 시간 ${Math.floor(left / 60)}분 ${left % 60}초` : '제한 시간이 지났어요'}>
-          <span aria-hidden="true">⏱</span>{left > 0 ? `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '시간 종료'}
+          <span aria-hidden="true">⏱</span>{left > 0 ? `${pad(Math.floor(left / 60))}:${pad(left % 60)}` : '시간 종료'}
         </span>}
       </div>
       {/* 채점 기준은 서버가 준다(basis). 반응 창 규칙 전에 시작해 저장된 배치고사는 5거래일로 채점하므로 그 기간을 안내한다 */}
       <p className="practice-muted">{placement.basis === 'FIVE_DAY'
-        ? '실제 과거 공시를 보고, 그 뒤 5거래일 동안(공시일 종가 → 5번째 거래일 종가) 주가가 올랐을지 내렸을지 골라요. 이 배치고사는 채점 규칙이 바뀌기 전에 시작해서 5거래일 기준으로 채점해요. 회사 이름과 날짜는 제출한 뒤 공개해요.'
-        : '실제 과거 공시를 보고, 공시 직후(공시 전날 종가 → 다음 거래일 종가)에 주가가 올랐을지 내렸을지 골라요. 실제 움직임으로 채점해 시작 판을 정해요. 회사 이름과 날짜는 제출한 뒤 공개해요.'}</p>
+        ? '그 뒤 5거래일(공시일 종가 → 5번째 거래일 종가) 동안 주가가 올랐을지 내렸을지 골라요. 이 배치고사는 규칙이 바뀌기 전에 시작해 5거래일 기준으로 채점해요.'
+        : '공시 직후(공시 전날 종가 → 다음 거래일 종가) 주가가 올랐을지 내렸을지 골라요.'} 회사 이름과 날짜는 제출한 뒤 공개해요.</p>
       {left === 0 && <p role="status" className="contest-timer-over">제한 시간이 지났어요. 제출하면 고른 답 없이 채점된 결과를 보여 줘요.</p>}
     </div>
-    <div className="contest-progress" aria-label="배치고사 진행">
-      <div className="contest-progress-count">
-        <span role="status" aria-live="polite"><b>{done}</b>/{total} 답함</span>
-        <span className="contest-progress-bar" aria-hidden="true"><i style={{ '--progress': `${(done / total) * 100}%` } as CSSProperties} /></span>
-      </div>
-    </div>
     <section key={q.id} className="contest-q-card" aria-labelledby={`contestQ-${q.id}`}>
-      <p className="contest-q-meta"><span className="contest-q-no">{index + 1}</span><span className="contest-q-of">/ {total}</span>{q.industry} 회사<span className="contest-chip">{q.categoryName}</span></p>
-      <QuestionBody q={q} sample={sample} headingId={`contestQ-${q.id}`} headingRef={heading} />
+      <p className="contest-q-meta"><span className="contest-q-no">{index + 1}</span><span className="contest-q-of">/ {total}</span>{q.industry} 회사<span className="contest-chip">{q.categoryName}</span>{(t.kind || t.notes.length > 0) && <span>{[t.kind, ...t.notes].filter(Boolean).join(' · ')}</span>}</p>
+      <h3 id={`contestQ-${q.id}`} ref={heading} tabIndex={-1} className="contest-q-title">{t.main}</h3>
+      {q.body && <p className="contest-q-body">{q.body}</p>}
+      {/* 공시 내용(AI 요약 또는 주요 내용). 길어도 답 버튼 자리가 문제마다 같게 높이를 정하고 안에서 스크롤한다 */}
+      <div className="contest-q-details" tabIndex={0} aria-label="공시 내용">
+        <p className="contest-q-details-title">공시 내용{sample && <span className="tag-ex">예시</span>}</p>
+        <div className="contest-q-story">{questionStory(q, t.main, sample).map((p, k) => <p key={k}>{p}</p>)}</div>
+      </div>
       <div className="contest-answer" role="group" aria-label={`${index + 1}번 답`}>
         {(['POSITIVE', 'NEGATIVE'] as const).map(v => <button key={v} type="button" className={`${v === 'POSITIVE' ? 'up' : 'down'} ${answers[q.id] === v ? 'selected' : ''}`}
           aria-pressed={answers[q.id] === v} onClick={() => choose(v)}>
           <span className="contest-answer-mark" aria-hidden="true">{answers[q.id] === v ? '✓' : v === 'POSITIVE' ? '▲' : '▼'}</span>{v === 'POSITIVE' ? '오른다' : '내린다'}</button>)}
       </div>
-      <p className="contest-q-tip practice-muted">{answers[q.id] ? (last ? '다른 답을 누르면 바꿔요.' : '고른 답을 다시 누르면 그대로 두고 다음 문제로 넘어가요. 다른 답을 누르면 바꿔서 넘어가요.') : last ? '답을 고른 뒤 제출해요. 고르지 않은 문제는 틀린 것으로 채점해요.' : '답을 고르면 다음 문제로 넘어가요.'}</p>
       <div className="contest-q-nav">
         <button type="button" className="btn contest-q-prev" onClick={() => go(index - 1)} disabled={index === 0}>← 이전 문제</button>
-        {last && <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '채점 중…' : '제출하고 시작 판 보기'}</button>}
+        <p className="contest-q-tip practice-muted">{answers[q.id] ? (last ? '다른 답을 누르면 바꿔요.' : '고른 답을 다시 누르면 그대로 넘어가요.') : last ? '답을 고른 뒤 제출해요.' : '답을 고르면 다음 문제로 넘어가요.'}</p>
+        {last && <button className="btn btn-primary" type="submit" disabled={busy}>{busy ? '채점 중…' : '제출하고 시작 리그 보기'}</button>}
       </div>
+      {/* 예시·AI 요약 상자 밖에 두어 그 글의 일부로 읽히지 않게 한다(#387) */}
+      <details className="contest-q-more">
+        <summary>이 공시 유형 알아보기</summary>
+        <p className="contest-q-guide">{CATEGORY_GUIDE[q.category]}</p>
+        {t.subsidiary && <p className="contest-q-note">{SUBSIDIARY_NOTE}</p>}
+        {reading && <p className="contest-q-guide"><b>읽는 법</b> {reading}</p>}
+      </details>
     </section>
     <div className="contest-placement-foot">
       {last && total - done > 0 && <p className="practice-muted">고르지 않은 문제 {total - done}개는 틀린 것으로 채점해요.</p>}
@@ -386,11 +363,23 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
     heading.current?.focus({ preventScroll: true });
   }, []);
   return <section className="contest-card contest-result" aria-labelledby="contestResultTitle">
-    <h2 id="contestResultTitle" ref={heading} tabIndex={-1}>배치고사 결과</h2>
-    <p className="contest-big">{result.total}문제 중 <b>{result.correct}개</b> 맞혔어요 → <b>{BOARD_LABEL[result.board]}</b>에서 시작해요</p>
-    <p className="practice-muted">시작 잔액은 {money(result.entry.seedMoney)}이에요. 공시 하나의 움직임은 같은 유형이어도 방향이 자주 갈려서, 배치고사는 시작 판을 정하는 가벼운 퀴즈예요. 실력은 주간 점수로 겨뤄요.</p>
-    {result.items.some(it => it.basis === 'REACTION') && <p className="practice-muted">문제마다 두 숫자를 보여 줘요. <b>공시 직후</b>는 공시 전날 종가에서 다음 거래일 종가까지, <b>그다음 주</b>는 다음 거래일 종가에서 5번째 거래일 종가까지예요. 채점은 공시 직후로만 했어요. 그다음 주는 다음 거래일 종가에 샀다고 가정한 비교예요. 다음 날 시가에 사면 그날 시가와 종가가 다른 만큼 실제 수익률은 이 값과 달라요.</p>}
-    <button className="btn btn-primary contest-result-start" type="button" onClick={onStart}>대회 화면으로</button>
+    <div className="contest-result-head">
+      <div>
+        <h2 id="contestResultTitle" ref={heading} tabIndex={-1}>배치고사 결과</h2>
+        <p className="contest-big">{result.total}문제 중 <b>{result.correct}개</b> 맞혔어요 → <span className="contest-result-league"><LeagueEmblem board={result.board} size={22} /><b>{BOARD_LABEL[result.board]}</b>에서 시작해요</span></p>
+      </div>
+      <button className="btn btn-primary contest-result-start" type="button" onClick={onStart}>대회 화면으로</button>
+    </div>
+    <ul className="contest-result-facts" aria-label="배치고사 안내">
+      <li><span>시작 잔액</span><b>{money(result.entry.seedMoney)}</b></li>
+      <li><span>배치고사는</span><b>시작 리그를 정하는 가벼운 퀴즈</b></li>
+      <li><span>실력은</span><b>주간 점수로 겨뤄요</b></li>
+    </ul>
+    {/* 문제마다 보이는 두 숫자의 뜻(구간·채점 여부). 같은 유형이어도 방향이 자주 갈린다는 점은 퀴즈 안내로 줄였다 */}
+    {result.items.some(it => it.basis === 'REACTION') && <dl className="contest-result-legend">
+      <div><dt>공시 직후 <span className="contest-chip">채점</span></dt><dd>공시 전날 종가 → 다음 거래일 종가</dd></div>
+      <div><dt>그다음 주 <span className="contest-chip muted">참고</span></dt><dd>다음 거래일 종가 → 5번째 거래일 종가. 다음 날 종가에 샀다고 가정한 비교라 시가에 샀다면 실제 수익률과 달라요</dd></div>
+    </dl>}
     <ol className="contest-graded">
       {result.items.map((it, i) => { const q = byId.get(it.questionId); return <li key={it.questionId} className={it.correct ? 'ok' : 'no'}>
         <p className="contest-graded-head">
@@ -410,123 +399,110 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
   </section>;
 }
 
-/** 내 대회 기록 카드 머리 아이콘(장식). 판 = 층 쌓기, 잔액 = 지갑, 매매 성과 = 오르는 선, 판 점수·순위 = 메달 */
-function StatIcon({ kind }: { kind: 'board' | 'balance' | 'excess' | 'points' }) {
-  const p = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  return <span className="contest-stat-icon" aria-hidden="true"><svg viewBox="0 0 20 20" width="18" height="18">
-    {kind === 'board' && <><path {...p} d="M10 3 17 6.5 10 10 3 6.5Z" /><path {...p} d="m3 10 7 3.5 7-3.5" /><path {...p} d="m3 13.5 7 3.5 7-3.5" /></>}
-    {kind === 'balance' && <><rect {...p} x="2.5" y="5" width="15" height="11" rx="2" /><path {...p} d="M2.5 8h15" /><circle cx="13.5" cy="12" r="1.2" fill="currentColor" /></>}
-    {kind === 'excess' && <><path {...p} d="M3 16.5h14" /><path {...p} d="m3.5 13 4-4 3 2.5 5.5-6" /><path {...p} d="M12.5 5.5H16V9" /></>}
-    {kind === 'points' && <><circle {...p} cx="10" cy="12" r="4.5" /><path {...p} d="M7 3h6l-1.5 4.6M7 3l1.5 4.6" /><path {...p} d="m10 9.8.7 1.4 1.5.2-1.1 1 .3 1.5-1.4-.7-1.4.7.3-1.5-1.1-1 1.5-.2Z" /></>}
-  </svg></span>;
-}
-
-/** 대회 배너 그림(장식): 오르는 차트 위 트로피. 색은 배너 글자색(흰색) 한 가지의 투명도만 쓴다 */
-function HeroArt() {
-  return <svg className="contest-hero-art" viewBox="0 0 240 150" aria-hidden="true" focusable="false">
-    <g fill="currentColor">
-      <rect x="18" y="104" width="18" height="34" rx="3" opacity=".22" />
-      <rect x="44" y="90" width="18" height="48" rx="3" opacity=".28" />
-      <rect x="70" y="96" width="18" height="42" rx="3" opacity=".22" />
-      <rect x="96" y="74" width="18" height="64" rx="3" opacity=".32" />
-      <rect x="122" y="60" width="18" height="78" rx="3" opacity=".38" />
-    </g>
-    <path d="M12 112 L40 96 L66 102 L94 78 L120 66 L150 46" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
-    <path d="M140 42 L152 44 L148 55" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity=".85" />
-    <path d="M8 138 H232" stroke="currentColor" strokeWidth="2" opacity=".3" />
-    <g transform="translate(162 18)">
-      <circle cx="34" cy="44" r="40" fill="currentColor" opacity=".12" />
-      <path d="M14 12 H54 V30 a20 20 0 0 1 -40 0 Z" fill="currentColor" opacity=".95" />
-      <path d="M14 18 H5 a9 11 0 0 0 11 15 M54 18 H63 a9 11 0 0 1 -11 15" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" opacity=".95" />
-      <rect x="30" y="49" width="8" height="14" fill="currentColor" opacity=".95" />
-      <rect x="20" y="63" width="28" height="8" rx="2" fill="currentColor" opacity=".95" />
-      <path d="m34 20 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8Z" className="contest-hero-art-star" />
-    </g>
-  </svg>;
-}
-
-/** 최근 7일 하루 점수 미니 막대(+100 빨강 / −100 파랑 / 0 회색). scoredDays는 최신순이라 뒤집어 왼쪽이 오래된 날 */
-function ScoredDaysBars({ days }: { days: ContestEntry['scoredDays'] }) {
-  const recent = days.slice(0, 7).reverse();
-  if (!recent.length) return null;
-  return <div className="contest-days">
-    <span className="contest-days-label">최근 {recent.length}일 하루 점수</span>
-    <ol aria-label={`최근 ${recent.length}일 하루 점수`}>
-      {recent.map((d, i) => <li key={d.date} className={d.points > 0 ? 'up' : d.points < 0 ? 'down' : 'zero'} style={{ '--d': `${i * 90}ms` } as CSSProperties}>
-        <span className="contest-days-bar" aria-hidden="true" />
-        <small aria-hidden="true">{Number(d.date.slice(8))}</small>
-        <span className="sr-only">{dateText(d.date)} {points(d.points)}{d.rounds ? ` · ${d.rounds}판` : ' · 판 없음'}</span>
-      </li>)}
-    </ol>
-  </div>;
-}
-
 /** 이번 주 승급·강등까지 남은 점수(서버 주 점수와 규칙 값의 차이를 보여 주기만 한다) */
 function weekGap(entry: ContestEntry, rules: ContestInfo['rules'], finalWeek: boolean) {
   const w = entry.week;
-  const promote = entry.board === 'B100M' ? '1억 판은 승급 없음' : w.points >= rules.weeklyPromoteAt ? '승급 기준 도달' : `승급까지 ${rules.weeklyPromoteAt - w.points}점`;
-  const demote = entry.board === 'B10M' ? '1천만 판은 강등 없음' : w.points <= rules.weeklyDemoteAt ? '강등 기준 도달' : `강등까지 ${w.points - rules.weeklyDemoteAt}점`;
-  return finalWeek ? `보너스 주(판은 그대로) · ${promote} · ${demote}` : `${promote} · ${demote}`;
+  const promote = entry.board === 'B100M' ? '1억 리그는 승급 없음' : w.points >= rules.weeklyPromoteAt ? '승급 기준 도달' : `승급까지 ${fmt.format(rules.weeklyPromoteAt - w.points)}점`;
+  const demote = entry.board === 'B10M' ? '1천만 리그는 강등 없음' : w.points <= rules.weeklyDemoteAt ? '강등 기준 도달' : `강등까지 ${fmt.format(w.points - rules.weeklyDemoteAt)}점`;
+  return finalWeek ? `보너스 주(리그는 그대로) · ${promote} · ${demote}` : `${promote} · ${demote}`;
 }
 
-function Dashboard({ info, entry, onPlay, busy, prevRank }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean; prevRank?: number | null }) {
+/** 승급·강등 배너(있을 때만). 청산·오늘 판 소진은 "오늘 할 일" 카드가 보인다 */
+function StatusBanner({ entry }: { entry: ContestEntry }) {
+  const change = entry.lastBoardChange;
+  if (!change) return null;
+  const up = BOARDS.indexOf(change.to) > BOARDS.indexOf(change.from);
+  return <div className={`contest-banner contest-enter-in ${up ? 'up' : 'down'}`} role="status"><b>{up ? '▲ 승급' : '▼ 강등'}</b> 주 점수 {points(change.weekPoints)}로 {BOARD_LABEL[change.from]}에서 {BOARD_LABEL[change.to]}로 {up ? '올라왔어요' : '내려왔어요'}. 잔액은 새 리그의 대회 시드머니로 다시 시작했어요. <small>{dateText(change.at)}</small></div>;
+}
+
+/** 오늘 할 일(참가 중): [판 시작] · 남은 판 · 오늘 매매 성과 평균과 목표 막대. 청산·오늘 판 소진이면 끝난 상태를 보인다 */
+function TodayCard({ info, entry, onPlay, busy }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean }) {
   const mounted = useMounted();
-  const t = entry.today, w = entry.week, change = entry.lastBoardChange, rules = info.rules, day = dayPoints(rules);
-  const up = change ? BOARDS.indexOf(change.to) > BOARDS.indexOf(change.from) : false;
+  const t = entry.today, rules = info.rules, day = dayPoints(rules);
   const rate = t.returnRate;
   const meter = rate == null ? 0 : Math.min(1, Math.abs(rate) / t.targetRate);
+  const nextStart = dateText(info.endsAt);
+  return <section className="contest-card contest-today" aria-labelledby="contestTodayTitle">
+    <div className="contest-card-head">
+      <h2 id="contestTodayTitle">오늘 할 일</h2>
+      <span className="contest-today-count">오늘 <b>{t.rounds}</b>/{rules.roundsPerDay}판</span>
+    </div>
+    <div className="contest-today-goal">
+      <p><Term k="today" /> <b className={tone(rate ?? 0)}>{rate == null ? '—' : pp(rate)}</b><span>목표 {pp(t.targetRate)} 이상</span></p>
+      {/* 0을 가운데 두고 오른쪽 끝이 목표, 왼쪽 끝이 −목표. 마이너스면 왼쪽으로 파랗게 찬다(서버 값을 비율로 보여 주기만 한다) */}
+      <div className="contest-meter" role="img" aria-label={rate == null ? '오늘 끝낸 판이 없어요' : `오늘 매매 성과 평균 ${pp(rate)}, 목표 ${pp(t.targetRate)}${rate < 0 ? ', 마이너스예요' : ''}`}>
+        <div className="contest-meter-track">
+          <span className={`contest-meter-fill ${rate != null && rate < 0 ? 'down' : 'up'}`} style={{ width: `${(mounted ? meter : 0) * 50}%` }} />
+          <i className="contest-meter-zero" />
+        </div>
+        <div className="contest-meter-scale" aria-hidden="true"><span>{pp(-t.targetRate)}</span><span>0</span><span>목표 {pp(t.targetRate)}</span></div>
+      </div>
+      <p className="practice-muted contest-today-rule">{rate == null ? (t.rounds ? '오늘 끝낸 판이 아직 없어요. ' : '') : rate >= t.targetRate ? '오늘 목표 이상이에요. ' : `목표까지 ${pp(t.targetRate - rate)}. `}{rules.roundsForDailyScore}판을 모두 하고 목표 이상이면 {points(day)}, 못 미치면 {points(-day)}이에요.</p>
+    </div>
+    {entry.liquidated ? <div className="contest-cta-done down" role="status"><b>청산: 이번 대회는 여기까지예요</b><span>잔액이 {money(rules.liquidationBelow)} 미만으로 끝났어요. 지금 리그·점수로 순위에 남고, 다음 대회는 {nextStart} 00시에 배치고사로 시작해요.</span></div>
+      : t.roundsLeft === 0 ? <div className="contest-cta-done" role="status"><b>오늘 {rules.roundsPerDay}판을 모두 했어요</b><span>내일 00시에 다시 할 수 있어요. 오늘 하루 점수는 자정이 지나 모든 판이 정산되면 정해요.</span></div>
+      : <div className="contest-play">
+        <button className="btn btn-primary contest-play-btn" type="button" onClick={onPlay} disabled={busy}>{entry.activeRound ? '새 판 시작' : '판 시작'}</button>
+        <div className="contest-left">
+          <p><b>{t.roundsLeft}판 남음</b><span>/ {rules.roundsPerDay}판</span></p>
+          {/* 남은 판 막대 하나(서버 roundsLeft·roundsPerDay를 비율로 보여 주기만 한다) */}
+          <span className="contest-left-bar" aria-hidden="true"><i style={{ width: `${t.roundsLeft / rules.roundsPerDay * 100}%` }} /></span>
+          <small>한 판 120거래일 · 사건 {rules.eventsPerRound}개</small>
+        </div>
+      </div>}
+    {entry.activeRound && !entry.liquidated && t.roundsLeft > 0 && <p className="practice-muted contest-today-note">진행 중인 판이 있어요. 새 판을 시작하면 그 판은 남은 사건을 유지로 보고 정산해요.</p>}
+  </section>;
+}
+
+/** 이번 주 날짜 칸: 날짜마다 하루 점수를 글자로(서버 scoredDays). 오늘은 진행 중, 아직 안 온 날·점수 없는 날은 — */
+function WeekDays({ start, end, entry, today }: { start: string; end: string; entry: ContestEntry; today: string }) {
+  const scored = new Map(entry.scoredDays.map(d => [d.date, d]));
+  return <ol className="contest-weekdays" aria-label="이번 주 날짜별 하루 점수">
+    {dateRange(start, end).map(d => {
+      const s = scored.get(d);
+      const state = d === today ? 'today' : d > today ? 'future' : s ? (s.points > 0 ? 'up' : s.points < 0 ? 'down' : 'zero') : 'none';
+      const value = state === 'today' ? '진행 중' : s ? `${s.points > 0 ? '▲ +' : s.points < 0 ? '▼ −' : ''}${fmt.format(Math.abs(s.points))}` : '—';
+      const wd = WEEKDAY[new Date(`${d}T00:00:00Z`).getUTCDay()];
+      return <li key={d} className={state} aria-current={state === 'today' ? 'date' : undefined}>
+        <b aria-hidden="true">{value}</b>
+        <i className="contest-weekdays-dot" aria-hidden="true" />
+        <small aria-hidden="true">{Number(d.slice(8))}<span>({wd})</span></small>
+        <span className="sr-only">{dateText(d)} {state === 'today' ? '오늘 진행 중' : s ? `하루 점수 ${points(s.points)}${s.rounds ? ` · ${s.rounds}판` : ' · 판 없음'}` : state === 'future' ? '아직 오지 않은 날' : '점수 없음'}</span>
+      </li>;
+    })}
+  </ol>;
+}
+
+/** 핵심 지표(참가 중): 순위 · 리그 점수 · 잔액 · 이번 주 점수(날짜 칸) */
+function Metrics({ info, entry, prevRank }: { info: ContestInfo; entry: ContestEntry; prevRank?: number | null }) {
+  const mounted = useMounted();
+  const now = useNow(60000);
+  const today = kstDate(now);
+  const w = entry.week, rules = info.rules, day = dayPoints(rules);
+  const weekInfo = info.weeks.find(x => x.week === w.week);
+  const topShare = Math.floor(entry.rank / entry.participants * 1000) / 10;
   const clamped = Math.max(rules.weeklyDemoteAt, Math.min(rules.weeklyPromoteAt, w.points));
   // 주 점수 칸은 하루 점수 한 칸(day) 간격. 지금 칸은 주 점수에 가장 가까운 칸
   const cells = Array.from({ length: Math.floor((rules.weeklyPromoteAt - rules.weeklyDemoteAt) / day) + 1 }, (_, i) => rules.weeklyDemoteAt + i * day);
   const nowCell = cells.reduce((best, n) => Math.abs(n - clamped) < Math.abs(best - clamped) ? n : best, cells[0]);
-  const nextStart = dateText(info.endsAt);
-  return <>
-    {change && <div className={`contest-banner contest-enter-in ${up ? 'up' : 'down'}`} role="status"><b>{up ? '승급' : '강등'}</b> 주 점수 {points(change.weekPoints)}로 {BOARD_LABEL[change.from]}에서 {BOARD_LABEL[change.to]}{up ? '으로 올라왔어요' : '으로 내려왔어요'}. 잔액은 새 판의 대회 시드머니로 다시 시작했어요. <small>{dateText(change.at)}</small></div>}
-    {entry.liquidated && <div className="contest-banner contest-enter-in down" role="status"><b>청산</b> 잔액이 {money(rules.liquidationBelow)} 미만으로 끝나 이번 대회는 더 할 수 없어요. 지금 판·점수로 순위에 남아요.</div>}
-    <div className="contest-grid">
-      <section className="contest-card contest-today" aria-labelledby="contestTodayTitle">
-        <h2 id="contestTodayTitle">오늘 목표 <small>오늘 {t.rounds}/{rules.roundsPerDay}판</small></h2>
-        <p className="contest-big">{rate == null ? (t.rounds ? '오늘 끝낸 판이 아직 없어요' : '오늘 아직 판을 하지 않았어요') : <>오늘 <Term k="excess" /> 평균 <b className={tone(rate)}>{pp(rate)}</b> · 목표 {pp(t.targetRate)} 이상</>}</p>
-        {/* 0을 가운데 두고 오른쪽 끝이 목표, 왼쪽 끝이 −목표. 마이너스면 왼쪽으로 파랗게 찬다(서버 값을 비율로 보여 주기만 한다) */}
-        <div className="contest-meter" role="img" aria-label={rate == null ? '오늘 끝낸 판이 없어요' : `오늘 매매 성과 평균 ${pp(rate)}, 목표 ${pp(t.targetRate)}${rate < 0 ? ', 마이너스예요' : ''}`}>
-          <div className="contest-meter-track">
-            <span className={`contest-meter-fill ${rate != null && rate < 0 ? 'down' : 'up'}`} style={{ width: `${(mounted ? meter : 0) * 50}%` }} />
-            <i className="contest-meter-zero" />
-          </div>
-          <div className="contest-meter-scale" aria-hidden="true"><span>{pp(-t.targetRate)}</span><span>0</span><span>목표 {pp(t.targetRate)}</span></div>
-        </div>
-        {rate != null && <p className={`contest-meter-note ${rate < 0 ? 'practice-fall' : rate >= t.targetRate ? 'practice-rise' : ''}`}>
-          {rate >= t.targetRate ? '오늘 목표 이상이에요' : rate < 0 ? `▼ 가만히 있었을 때보다 ${pp(Math.abs(rate)).slice(1)} 낮아요. 목표까지 ${pp(t.targetRate - rate)}` : `목표까지 ${pp(t.targetRate - rate)}`}
-        </p>}
-        <p className="practice-muted">{`그날 평균이 ${pp(t.targetRate)}에 못 미치면 ${points(-day)}, 목표 이상이면 ${rules.roundsForDailyScore}판을 모두 했을 때 ${points(day)}(덜 했으면 0점)이에요. 판을 안 한 날은 0점이에요.`}</p>
-        {entry.liquidated ? <div className="contest-cta-done"><b>이번 대회는 청산으로 끝났어요</b><span>다음 대회는 {nextStart} 00시에 배치고사로 시작해요.</span></div>
-          : t.roundsLeft === 0 ? <div className="contest-cta-done"><b>오늘 {rules.roundsPerDay}판을 모두 했어요</b><span>내일 00시에 다시 할 수 있어요. 이번 대회는 {nextStart} 00시에 마감하고 다음 대회가 시작해요.</span></div>
-          : <div className="contest-play">
-            <span><b>{t.roundsLeft}판 남음</b></span>
-            <button className="btn btn-primary" type="button" onClick={onPlay} disabled={busy}>{entry.activeRound ? '진행 중인 판 대신 새 판 시작' : '판 시작'}</button>
-          </div>}
-        {entry.activeRound && !entry.liquidated && t.roundsLeft > 0 && <p className="practice-muted">진행 중인 판이 있어요. 새 판을 시작하면 그 판은 남은 사건을 유지로 보고 정산해요.</p>}
-      </section>
-      <section className="contest-card" aria-labelledby="contestWeekTitle">
-        <h2 id="contestWeekTitle">이번 주 점수 <small>{w.week}주 · {dateText(w.endsOn)}까지</small></h2>
-        <p className="contest-big"><b>{points(w.points)}</b> <span className="contest-week-gap">{weekGap(entry, rules, w.week === info.weeks.length)}</span></p>
-        <div className="contest-week" role="img" aria-label={`이번 주 ${points(w.points)}, ${points(rules.weeklyDemoteAt)}부터 ${points(rules.weeklyPromoteAt)}까지`}>
-          {cells.map(n => {
-            const filled = mounted && (w.points > 0 ? n > 0 && n <= nowCell : w.points < 0 ? n < 0 && n >= nowCell : false);
-            return <span key={n} className={[n === nowCell ? 'now' : '', filled ? (n > 0 ? 'fill up' : 'fill down') : '', n === rules.weeklyPromoteAt ? 'promote' : n === rules.weeklyDemoteAt ? 'demote' : ''].filter(Boolean).join(' ')}
-              style={{ transitionDelay: `${Math.abs(n / day) * 60}ms` }}>{fmt.format(n)}</span>;
-          })}
-        </div>
-        <ScoredDaysBars days={entry.scoredDays} />
-      </section>
+  return <section className="contest-metrics" aria-label="내 위치">
+    <div className="contest-stat contest-stat-rank"><span><LeagueEmblem board={entry.board} size={18} />순위</span><strong>{entry.rank <= 3 && <span className={`contest-medal m${entry.rank}`} aria-hidden="true">{entry.rank}</span>}<RankCount rank={entry.rank} from={prevRank} /></strong><small>{BOARD_LABEL[entry.board]} {fmt.format(entry.participants)}명 중 · {topShare >= 0.1 ? `상위 ${topShare.toFixed(1)}%` : '상위 0.1% 안'}</small></div>
+    <div className="contest-stat"><span><Term k="boardPoints" /></span><strong><CountUp value={entry.boardPoints} format={points} /></strong><small>매매 성과 평균 <b className={tone(entry.excessRate ?? 0)}>{entry.excessRate == null ? '—' : pp(entry.excessRate)}</b> · 끝낸 판 {fmt.format(entry.rounds)}판</small></div>
+    <div className="contest-stat"><span>잔액</span><strong><CountUp value={entry.balance} format={money} /></strong><small className={tone(entry.profit)}>리그 수익률 {percent(entry.returnRate)} · {signed(entry.profit)}</small></div>
+    <div className="contest-stat contest-stat-week">
+      <span><Term k="week" /><small>{w.week}주 · {weekInfo ? `${dateText(weekInfo.startsOn)}~` : ''}{dateText(w.endsOn)}</small></span>
+      <p className="contest-week-line"><strong className={tone(w.points)}>{points(w.points)}</strong><span className="contest-week-gap">{weekGap(entry, rules, w.week === info.weeks.length)}</span>
+        {entry.board !== 'B100M' && w.week !== info.weeks.length && <span className="contest-next-league"><LeagueEmblem board={BOARDS[BOARDS.indexOf(entry.board) + 1]} size={18} />승급하면 {BOARD_LABEL[BOARDS[BOARDS.indexOf(entry.board) + 1]]}</span>}</p>
+      <div className="contest-week" role="img" aria-label={`이번 주 ${points(w.points)}, ${points(rules.weeklyDemoteAt)}부터 ${points(rules.weeklyPromoteAt)}까지`} style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(0,1fr))` }}>
+        {cells.map(n => {
+          const filled = mounted && (w.points > 0 ? n > 0 && n <= nowCell : w.points < 0 ? n < 0 && n >= nowCell : false);
+          return <span key={n} className={[n === nowCell ? 'now' : '', filled ? (n > 0 ? 'fill up' : 'fill down') : '', n === rules.weeklyPromoteAt ? 'promote' : n === rules.weeklyDemoteAt ? 'demote' : ''].filter(Boolean).join(' ')}
+            style={{ transitionDelay: `${Math.abs(n / day) * 60}ms` }}>{n === rules.weeklyPromoteAt ? <><i>승급 </i>{fmt.format(n)}</> : n === rules.weeklyDemoteAt ? <><i>강등 </i>{fmt.format(n)}</> : fmt.format(n)}</span>;
+        })}
+      </div>
+      {weekInfo && <WeekDays start={weekInfo.startsOn} end={weekInfo.endsOn} entry={entry} today={today} />}
     </div>
-    <section className="contest-stats" aria-label="내 대회 기록">
-      <div className="contest-stat"><span><StatIcon kind="board" />지금 판</span><strong>{BOARD_LABEL[entry.board]}</strong><small>대회 시드머니 {money(entry.seedMoney)}</small></div>
-      <div className="contest-stat"><span><StatIcon kind="balance" />현재 잔액</span><strong><CountUp value={entry.balance} format={money} /></strong><small className={tone(entry.profit)}>불린 금액 {signed(entry.profit)}</small></div>
-      <div className="contest-stat"><span><StatIcon kind="excess" /><Term k="excess" label="매매 성과 평균" /></span><strong className={tone(entry.excessRate ?? 0)}>{entry.excessRate == null ? '—' : <CountUp value={entry.excessRate} format={pp} decimals={4} />}</strong><small>판 수익률 {percent(entry.returnRate)} · 끝낸 판 {fmt.format(entry.rounds)}판</small></div>
-      <div className="contest-stat"><span><StatIcon kind="points" /><Term k="boardPoints" /> · 순위</span><strong><CountUp value={entry.boardPoints} format={points} /></strong><small>{fmt.format(entry.participants)}명 중 <RankCount rank={entry.rank} from={prevRank} /></small></div>
-    </section>
-  </>;
+  </section>;
 }
 
 const END_REASON: Record<string, string> = { COMPLETED: '완주', ENDED: '그만둠', EXPIRED: '시간 만료', RESTARTED: '서버 재시작', REPLACED: '새 판 시작', CLOSED: '대회 마감' };
@@ -562,18 +538,42 @@ function RoundHistory({ entry }: { entry: ContestEntry }) {
   </div>;
 }
 
-const RANK_PAGE = 20;
+/** 접힌 랭킹에서 보이는 줄 수. 나머지는 [더 보기]로 펼친다 */
+const RANK_PAGE = 10;
+/** 펼칠 때 줄마다 나타나는 시차(ms)와 그 상한. 100명이어도 펼침이 0.6초 안에 끝나게 한다 */
+const ROW_STAGGER = 24, ROW_STAGGER_MAX = 600;
 
-/** 1~3위 시상대(별명·판 점수·매매 성과 평균, 서버 값) */
+/** 별명 첫 글자 아바타(장식). 나는 브랜드 면 */
+function Avatar({ alias, me }: { alias: string; me?: boolean }) {
+  return <span className={`contest-avatar${me ? ' me' : ''}`} aria-hidden="true">{[...alias][0] ?? '?'}</span>;
+}
+
+/** 왕관(장식, 1위 시상대 위) */
+function Crown() {
+  return <svg className="contest-crown" viewBox="0 0 32 22" width="28" height="19" aria-hidden="true" focusable="false">
+    <path d="M3 18 1 5l8 6 7-10 7 10 8-6-2 13Z" /><rect x="3" y="18.5" width="26" height="3" rx="1.2" />
+  </svg>;
+}
+
+/** 순위 배지: 1~3위는 메달, 그 밖은 숫자 */
+function RankBadge({ rank }: { rank: number }) {
+  return <span className={`contest-rank-badge${rank <= 3 ? ` m${rank}` : ''}`}>{fmt.format(rank)}</span>;
+}
+
+/** 1~3위 시상대(별명·리그 점수·매매 성과 평균, 서버 값). 화면은 2·1·3 순서로 단을 세우고, 읽는 순서는 1·2·3위 */
 function Podium({ rows }: { rows: ContestRankingRow[] }) {
   const top = rows.filter(r => r.rank <= 3).slice(0, 3);
   if (!top.length) return null;
   return <ol className="contest-podium" aria-label="1~3위">
     {top.map(r => <li key={`${r.rank}-${r.alias}`} className={`p${r.rank}${r.isMe ? ' me' : ''}${r.liquidated ? ' liquidated' : ''}`}>
-      <span className="contest-podium-rank">{r.rank}<small>위</small></span>
-      <b>{r.alias}{r.isMe && <span className="contest-chip">나</span>}</b>
-      <span>판 점수 <strong>{points(r.boardPoints)}</strong></span>
-      <small>매매 성과 평균 <span className={tone(r.excessRate ?? 0)}>{r.excessRate == null ? '—' : pp(r.excessRate)}</span></small>
+      <div className="contest-podium-player">
+        {r.rank === 1 && <Crown />}
+        <Avatar alias={r.alias} me={r.isMe} />
+        <b>{r.alias}{r.isMe && <span className="contest-chip">나</span>}</b>
+        <span className="contest-podium-points">{points(r.boardPoints)}</span>
+        <small>매매 성과 평균 <span className={tone(r.excessRate ?? 0)}>{r.excessRate == null ? '—' : pp(r.excessRate)}</span></small>
+      </div>
+      <div className="contest-podium-step"><span>{r.rank}</span><small>위</small></div>
     </li>)}
   </ol>;
 }
@@ -587,44 +587,51 @@ function RankingSkeleton() {
 }
 
 function RankingTable({ ranking, expanded, onExpand, meRef }: { ranking: ContestRanking; expanded: boolean; onExpand: (v: boolean) => void; meRef: RefObject<HTMLTableRowElement | null> }) {
-  const row = (r: ContestRankingRow) => <tr key={`${r.rank}-${r.alias}`} ref={r.isMe ? meRef : undefined} tabIndex={r.isMe ? -1 : undefined}
-    className={[r.isMe ? 'me' : '', r.liquidated ? 'liquidated' : ''].filter(Boolean).join(' ')}>
-    <td className="num">{fmt.format(r.rank)}</td>
-    <td className="contest-rank-alias">{r.alias}{r.isMe && <span className="contest-chip">나</span>}{r.liquidated && <span className="contest-chip muted">청산</span>}</td>
-    <td className="num">{points(r.boardPoints)}</td>
-    <td className={`num ${tone(r.excessRate ?? 0)}`}>{r.excessRate == null ? '—' : pp(r.excessRate)}</td>
+  // more: [더 보기]로 펼친 줄(위에서부터 차례로 나타난다, 사용자가 누른 것에 대한 반응. 움직임 줄이기면 바로 보인다)
+  const row = (r: ContestRankingRow, more?: number) => <tr key={`${r.rank}-${r.alias}`} ref={r.isMe ? meRef : undefined} tabIndex={r.isMe ? -1 : undefined}
+    className={[r.isMe ? 'me' : '', r.liquidated ? 'liquidated' : '', more != null ? 'contest-rank-in' : ''].filter(Boolean).join(' ')}
+    style={more != null ? { '--d': `${Math.min(more * ROW_STAGGER, ROW_STAGGER_MAX)}ms` } as CSSProperties : undefined}>
+    <td className="contest-rank-no"><RankBadge rank={r.rank} /></td>
+    <td className="contest-rank-alias"><span className="contest-rank-player"><span>{r.alias}</span>{r.isMe && <span className="contest-chip">나</span>}{r.liquidated && <span className="contest-chip muted">청산</span>}</span></td>
+    <td className="num contest-rank-points">{points(r.boardPoints)}</td>
+    <td className="num"><span className={`contest-pill ${r.excessRate == null ? '' : r.excessRate > 0 ? 'up' : r.excessRate < 0 ? 'down' : ''}`}>{r.excessRate == null ? '—' : `${r.excessRate > 0 ? '▲ ' : r.excessRate < 0 ? '▼ ' : ''}${pp(r.excessRate)}`}</span></td>
     <td className="num opt">{money(r.balance)}</td>
     <td className="num opt">{fmt.format(r.rounds)}</td>
   </tr>;
-  const shown = expanded ? ranking.items : ranking.items.slice(0, RANK_PAGE);
-  const meOutside = ranking.me && !ranking.items.some(r => r.isMe) ? ranking.me : null;
-  const more = ranking.items.length - RANK_PAGE;
+  const top = ranking.items.slice(0, RANK_PAGE), rest = ranking.items.slice(RANK_PAGE);
+  // 내 줄이 접힌 목록 밖(11위 아래)이거나 상위 100위 밖이면 ⋯ 뒤에 내 줄을 붙인다
+  const meHidden = !expanded && rest.find(r => r.isMe);
+  const meOutside = ranking.me && !ranking.items.some(r => r.isMe) ? ranking.me : meHidden || null;
+  const more = rest.length;
   return <>
-    <div className={`contest-table-wrap ${expanded && ranking.items.length > RANK_PAGE ? 'tall' : ''}`}>
+    <div className="contest-table-wrap">
       <table className="contest-table contest-rank">
         <caption className="sr-only">{BOARD_LABEL[ranking.board]} 순위, {ranking.status === 'SETTLED' ? '확정' : '지금 기준'}, 참가자 {fmt.format(ranking.participants)}명</caption>
-        <thead><tr><th scope="col" className="num">순위</th><th scope="col">별명</th><th scope="col" className="num">판 점수</th><th scope="col" className="num">매매 성과 평균</th><th scope="col" className="num opt">잔액</th><th scope="col" className="num opt">판 수</th></tr></thead>
+        <thead><tr><th scope="col">순위</th><th scope="col">플레이어</th><th scope="col" className="num">리그 점수</th><th scope="col" className="num">매매 성과 평균</th><th scope="col" className="num opt">잔액</th><th scope="col" className="num opt">판 수</th></tr></thead>
         <tbody>
-          {shown.map(row)}
+          {top.map(r => row(r))}
+          {expanded && rest.map((r, i) => row(r, i))}
           {meOutside && <tr className="contest-rank-gap" aria-hidden="true"><td colSpan={6}>⋯</td></tr>}
           {meOutside && row(meOutside)}
         </tbody>
       </table>
     </div>
-    {more > 0 && <button type="button" className="btn btn-sm contest-more" aria-expanded={expanded} onClick={() => onExpand(!expanded)}>{expanded ? `${RANK_PAGE}위까지만 보기` : `더 보기 · ${fmt.format(more)}명 더`}</button>}
+    {more > 0 && <button type="button" className="contest-more" aria-expanded={expanded} onClick={() => onExpand(!expanded)}>
+      {expanded ? `${RANK_PAGE}위까지만 보기` : `더 보기 · ${fmt.format(more)}명 더`}<span className={`contest-more-chev${expanded ? ' open' : ''}`} aria-hidden="true">▾</span>
+    </button>}
   </>;
 }
 
-/** 지난 대회: 배치 판 → 최고 판 → 최종 판 흐름 카드 */
+/** 지난 대회: 배치 리그 → 최고 리그 → 최종 리그 흐름 카드 */
 function HistoryCards({ history }: { history: ContestResult[] }) {
   return <ul className="contest-history">{history.map(h => <li key={h.contestId}>
     <div className="contest-history-head"><b>{contestName(h.contestId)}</b>{h.liquidated && <span className="contest-chip muted">청산</span>}</div>
-    <ol className="contest-flow" aria-label="판 흐름">
+    <ol className="contest-flow" aria-label="리그 흐름">
       <li><small>배치</small>{BOARD_LABEL[h.placementBoard]}</li>
       <li><small>최고</small>{BOARD_LABEL[h.highestBoard]}</li>
       <li className="final"><small>최종</small>{BOARD_LABEL[h.finalBoard]}</li>
     </ol>
-    <p><b>{fmt.format(h.participants)}명 중 {fmt.format(h.rank)}위</b> · 판 점수 {points(h.boardPoints)}</p>
+    <p><b>{fmt.format(h.participants)}명 중 {fmt.format(h.rank)}위</b> · 리그 점수 {points(h.boardPoints)}</p>
     {h.finalWeek && <p>보너스 주 {points(h.finalWeek.points)}{h.finalWeek.result === 'PROMOTE' ? <span className="practice-rise"> ▲ 승급 기준 도달</span> : h.finalWeek.result === 'DEMOTE' ? <span className="practice-fall"> ▼ 강등 기준 도달</span> : null}</p>}
     <small>매매 성과 평균 {h.excessRate == null ? '—' : <span className={tone(h.excessRate)}>{pp(h.excessRate)}</span>} · {money(h.balance)} · {fmt.format(h.rounds)}판</small>
   </li>)}</ul>;
@@ -642,8 +649,8 @@ function roundFeedback(before: ContestEntry, after: ContestEntry) {
   return parts.join(' · ');
 }
 
-/** onExit: 자유 연습(가상 시뮬레이션)으로 돌아가기 */
-export function VirtualContest({ active, onExit }: { active: boolean; onExit?: () => void }) {
+/** 투자 시뮬레이션의 "월간 대회" 탭 */
+export function VirtualContest({ active }: { active: boolean }) {
   const { status } = useSession();
   const member = status === 'member';
   const { openLogin } = useLoginModal();
@@ -684,7 +691,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
   useEffect(() => { void getVirtualSimStatus().then(s => setSample(s.isSample)).catch(() => {}); }, []);
   useEffect(() => { if (!member) { setView('home'); setPlacement(null); setResult(null); } }, [member]);
 
-  // 판별 랭킹(회원만). 판을 바꾸면 불러오는 동안 스켈레톤 행을 보인다
+  // 리그별 랭킹(회원만). 리그를 바꾸면 불러오는 동안 스켈레톤 행을 보인다
   useEffect(() => {
     if (!member || !info || !board || view === 'play') return;
     let alive = true;
@@ -693,7 +700,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
       .then(r => { if (alive) { setRanking(r); setRankingState('ready'); } })
       .catch(() => { if (alive) setRankingState('error'); });
     return () => { alive = false; };
-    // ranking은 같은 판 다시 불러오기에서 스켈레톤을 띄우지 않으려고 읽기만 한다
+    // ranking은 같은 리그 다시 불러오기에서 스켈레톤을 띄우지 않으려고 읽기만 한다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member, info, board, view, mine, rankingTry]);
   useEffect(() => { setExpanded(false); }, [board]);
@@ -743,7 +750,7 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
 
   const entry = mine?.current ?? null;
   if (view === 'play' && entry) {
-    return <VirtualSimulation active={active} onGoPast={exit} contest={{ board: entry.board, today: entry.today, dayPoints: dayPoints(info.rules), onSettled: settled, onExit: exit }} />;
+    return <VirtualSimulation active={active} onGoPast={exit} contest={{ board: entry.board, today: entry.today, roundsPerDay: info.rules.roundsPerDay, dayPoints: dayPoints(info.rules), onSettled: settled, onExit: exit }} />;
   }
   const play = () => { beforePlay.current = entry; setToast(''); setPrevRank(null); setView('play'); };
   const tabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -755,76 +762,69 @@ export function VirtualContest({ active, onExit }: { active: boolean; onExit?: (
     e.preventDefault(); setBoard(next); tabs.current[next]?.focus();
   };
   const goToMe = () => {
-    if (ranking?.me && ranking.items.findIndex(r => r.isMe) >= RANK_PAGE) setExpanded(true);
     setJumpToMe(true);
   };
 
-  // 판별 랭킹(회원만). 배치고사 전에는 미리보기로 보인다
+  // 리그별 랭킹(회원만). 배치고사 전에는 미리보기, 비회원은 안내 한 줄
   const rankingCard = <section className="contest-card" aria-labelledby="contestRankTitle">
     <div className="contest-card-head">
-      <h2 id="contestRankTitle">판별 랭킹 {ranking && rankingState === 'ready' && <small>{ranking.status === 'SETTLED' ? '확정' : '지금 기준'} · 참가 {fmt.format(ranking.participants)}명</small>}</h2>
-      <div className="contest-rank-tools">
+      <h2 id="contestRankTitle"><svg className="contest-title-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true" focusable="false"><path d="M6 3h8v4a4 4 0 0 1-8 0Z" /><path d="M6 4.5H3.5a2.5 3 0 0 0 3 4M14 4.5h2.5a2.5 3 0 0 1-3 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><rect x="9" y="11" width="2" height="3.5" /><rect x="6" y="14.5" width="8" height="2.5" rx="1" /></svg>리그별 랭킹 {member && ranking && rankingState === 'ready' && <small>{ranking.status === 'SETTLED' ? '확정' : '지금 기준'} · 참가 {fmt.format(ranking.participants)}명</small>}</h2>
+      {member && <div className="contest-rank-tools">
         {ranking?.me && rankingState === 'ready' && <button type="button" className="btn btn-sm" onClick={goToMe}>내 순위로 이동</button>}
-        <div className="contest-seg" role="tablist" aria-label="판 고르기">{BOARDS.map(b => <button key={b} type="button" role="tab" id={`contestRankTab-${b}`} aria-controls="contestRankPanel"
+        <div className="contest-seg" role="tablist" aria-label="리그 고르기">{BOARDS.map(b => <button key={b} type="button" role="tab" id={`contestRankTab-${b}`} aria-controls="contestRankPanel"
           ref={el => { tabs.current[b] = el; }} aria-selected={board === b} tabIndex={board === b ? 0 : -1} className={board === b ? 'selected' : ''}
-          onClick={() => setBoard(b)} onKeyDown={tabKey}>{BOARD_LABEL[b]}</button>)}</div>
-      </div>
+          onClick={() => setBoard(b)} onKeyDown={tabKey}><LeagueEmblem board={b} size={16} />{BOARD_LABEL[b]}</button>)}</div>
+      </div>}
     </div>
-    <div id="contestRankPanel" role="tabpanel" aria-labelledby={board ? `contestRankTab-${board}` : undefined} aria-busy={rankingState === 'loading'}>
-      {rankingState === 'error' ? <StateBox kind="error" text="랭킹을 불러오지 못했어요." onRetry={() => setRankingTry(n => n + 1)} />
-        : rankingState === 'loading' || !ranking ? <><span className="sr-only">랭킹을 불러오는 중</span><RankingSkeleton /></>
-        : !ranking.items.length ? <StateBox kind="empty" text="아직 이 판에 참가자가 없어요." />
-        : <div key={ranking.board} className="contest-rank-swap"><Podium rows={ranking.items} /><RankingTable ranking={ranking} expanded={expanded} onExpand={setExpanded} meRef={meRow} /></div>}
-    </div>
-    <p className="practice-muted">판 점수가 같으면 지금 판에서 끝낸 판들의 매매 성과 평균이 높은 순이에요. 별명 외의 회원 정보는 보이지 않아요.</p>
+    {!member ? <StateBox kind="empty" text={`랭킹은 회원만 볼 수 있어요. 로그인하면 리그별 상위 ${info.rules.rankingTop}위와 내 순위를 봐요.`} />
+      : <div id="contestRankPanel" role="tabpanel" aria-labelledby={board ? `contestRankTab-${board}` : undefined} aria-busy={rankingState === 'loading'}>
+        {rankingState === 'error' ? <StateBox kind="error" text="랭킹을 불러오지 못했어요." onRetry={() => setRankingTry(n => n + 1)} />
+          : rankingState === 'loading' || !ranking ? <><span className="sr-only">랭킹을 불러오는 중</span><RankingSkeleton /></>
+          : !ranking.items.length ? <StateBox kind="empty" text="아직 이 리그에 참가자가 없어요." />
+          : <div key={ranking.board} className="contest-rank-swap"><Podium rows={ranking.items} /><RankingTable ranking={ranking} expanded={expanded} onExpand={setExpanded} meRef={meRow} /></div>}
+      </div>}
+    {member && <p className="practice-muted">리그 점수가 같으면 지금 리그에서 끝낸 판들의 매매 성과 평균이 높은 순이에요. 별명 외의 회원 정보는 보이지 않아요.</p>}
   </section>;
 
-  const home = view === 'home';
+  // 접힌 상세: 내 판 기록(참가 중) · 참여 현황(누구나) · 지난 대회(있을 때)
+  const details = <div className="contest-details">
+    {entry && <details className="contest-card contest-fold">
+      <summary><h2>내 판 기록</h2><span>{entry.recentRounds.length ? `최근 ${entry.recentRounds.length}판 · 펼쳐 보기` : '아직 판이 없어요'}</span></summary>
+      <RoundHistory entry={entry} />
+    </details>}
+    <details className="contest-card contest-fold">
+      <summary><h2>참여 현황</h2><span>전체 {fmt.format(info.boards.reduce((s, b) => s + b.participants, 0))}명 · 펼쳐 보기</span></summary>
+      <Participation info={info} entry={entry} />
+    </details>
+    {member && !!mine?.history.length && <details className="contest-card contest-fold">
+      <summary><h2>지난 대회</h2><span>{mine.history.length}개 · 펼쳐 보기</span></summary>
+      <HistoryCards history={mine.history} />
+      <p className="practice-muted">지난 대회 기록은 대회가 끝나고 12개월 동안 보관해요.</p>
+    </details>}
+  </div>;
+
   return <div className="contest">
-    {onExit && <button type="button" className="contest-back" onClick={onExit}>← 자유 연습으로</button>}
     {/* 배치고사를 푸는 동안은 문제만 보인다 */}
-    {view !== 'placement' && <section className="contest-hero" aria-labelledby="contestHeroTitle">
-      <div className="contest-hero-body">
-        <span className="contest-hero-kicker">회원 월간 대회 · 진행 중{sample && <span className="tag-ex">예시</span>}</span>
-        <h2 id="contestHeroTitle">{contestName(info.contestId)}</h2>
-        <p>{dateText(info.startsAt)} 00시 ~ {dateText(info.endsAt)} 00시{mine?.alias ? <> · 내 별명 <b>{mine.alias}</b>{entry ? ` · ${BOARD_LABEL[entry.board]}` : ''}</> : ''}</p>
-        <p className="contest-hero-lead">배치고사로 시작 판을 정하고, 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.</p>
-        {/* 주 행동은 상태마다 하나: 비회원은 여기 로그인, 배치고사 전은 배치고사 카드, 참가 중은 오늘 목표 카드 */}
-        {home && !member && <div className="contest-hero-cta"><button className="btn" type="button" onClick={() => openLogin(location.pathname)}>로그인하고 참가하기</button></div>}
-      </div>
-      <HeroArt />
-    </section>}
+    {view !== 'placement' && <ContestHead info={info} sample={sample} alias={mine?.alias ?? null} entry={view === 'result' ? null : entry} />}
     {error && <StateBox kind="error" text={error} onRetry={() => { setError(''); void load(); }} />}
 
     {view === 'placement' && placement ? <PlacementForm placement={placement} sample={sample} busy={busy} error={error} onSubmit={answers => void submit(answers)} />
       : view === 'result' && result ? <PlacementDone result={result} questions={placement?.questions ?? []} sample={sample} onStart={() => setView('home')} />
-      : !member ? <>
-        <Reveal><ContestGuide info={info} joined={false} /></Reveal>
-        <Reveal order={1}><Participation info={info} entry={null} /></Reveal>
-        <Reveal order={2}><JoinCard info={info} title="회원만 참가할 수 있어요" text="로그인하면 배치고사로 시작 판을 정하고 판별 순위로 겨뤄요. 랭킹도 회원만 볼 수 있어요." /></Reveal></>
-      : !entry ? <>
-        <JoinCard info={info} title="배치고사로 시작해요" text="실제 과거 공시를 보고 공시 직후에 주가가 올랐을지 내렸을지 골라요. 맞힌 수로 시작 판이 정해져요."
-          action={<button className="btn btn-primary" type="button" onClick={() => void beginPlacement()} disabled={busy}>{busy ? '문제 준비 중…' : '배치고사 보기'}</button>} />
-        <Reveal><Participation info={info} entry={null} /></Reveal>
-        <Reveal order={1}><ContestGuide info={info} joined={false} /></Reveal>
-        <Reveal order={2}>{rankingCard}</Reveal></>
-      : <><Dashboard info={info} entry={entry} busy={busy} onPlay={play} prevRank={prevRank} />
-        <Reveal><Participation info={info} entry={entry} prevRank={prevRank} /></Reveal>
+      : <>
+        {entry && <StatusBanner entry={entry} />}
+        {!member ? <JoinCard info={info} title="로그인하고 참가해요" text="회원만 참가할 수 있어요. 로그인하면 배치고사로 시작 리그를 정하고 리그별 순위로 겨뤄요."
+            action={<button className="btn btn-primary" type="button" onClick={() => openLogin(location.pathname + location.search)}>로그인하고 참가하기</button>} />
+          : !entry ? <JoinCard info={info} title="배치고사로 시작해요" text="실제 과거 공시를 보고 공시 직후에 주가가 올랐을지 내렸을지 골라요. 맞힌 수로 시작 리그가 정해져요." guide
+            action={<button className="btn btn-primary" type="button" onClick={() => void beginPlacement()} disabled={busy}>{busy ? '문제 준비 중…' : '배치고사 보기'}</button>} />
+          : <div className="contest-main">
+            <TodayCard info={info} entry={entry} busy={busy} onPlay={play} />
+            <Metrics info={info} entry={entry} prevRank={prevRank} />
+          </div>}
         <Reveal>{rankingCard}</Reveal>
-        <Reveal><details className="contest-card contest-fold">
-          <summary><h2>내 판 기록</h2><span>{entry.recentRounds.length ? `최근 ${entry.recentRounds.length}판 · 펼쳐 보기` : '아직 판이 없어요'}</span></summary>
-          <RoundHistory entry={entry} />
-        </details></Reveal>
-        <Reveal><ContestGuide info={info} joined /></Reveal></>}
+        <Reveal order={1}>{details}</Reveal>
+        <ContestRules info={info} joined={!!entry} />
+      </>}
 
-    {member && home && !!mine?.history.length && <Reveal><section className="contest-card" aria-labelledby="contestHistoryTitle">
-      <h2 id="contestHistoryTitle">지난 대회</h2>
-      <HistoryCards history={mine.history} />
-      <p className="practice-muted">지난 대회 기록은 대회가 끝나고 12개월 동안 보관해요.</p>
-    </section></Reveal>}
-
-    <RulesSummary info={info} />
-    <Rules info={info} />
     <p className="practice-footnote">가상 종목·가상 사건으로 겨루는 대회예요. 실제 기업이 아니고, 대회 순위·점수는 앞으로의 수익을 뜻하지 않으며 투자 권유가 아니에요. 배당·세금·수수료는 제외했어요.</p>
     {toast && <div className="toast contest-toast" role="status"><span>{toast}</span><button type="button" aria-label="알림 닫기" onClick={() => setToast('')}>×</button></div>}
   </div>;

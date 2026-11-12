@@ -53,6 +53,7 @@ class PracticePolicyTest {
 		assertThat(actual.total()).isEqualTo(expected.get("total").asLong());
 		assertThat(actual.profit()).isEqualTo(expected.get("profit").asLong());
 		assertThat(actual.returnRate()).isEqualByComparingTo(new BigDecimal(expected.get("returnRate").asString()));
+		assertThat(actual.averagePrice()).isEqualTo(expected.get("averagePrice").isNull() ? null : expected.get("averagePrice").asLong());
 	}
 
 	@Test

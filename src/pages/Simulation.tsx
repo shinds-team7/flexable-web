@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CandleChart, type EventBand } from '@/charts/CandleChart';
+import { AveragePriceRows } from '@/components/AveragePrice';
 import { PlaybackSpeed, segmentMs, segmentSeconds, type Speed } from '@/components/PlaybackSpeed';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
 import { ApiError, errorText } from '@/lib/api';
 import { prefersReducedMotion } from '@/lib/motion';
-import { getContest, type ContestInfo } from '@/data/virtualContest';
 import { VirtualContest } from '@/pages/VirtualContest';
 import { VirtualSimulation } from '@/pages/VirtualSimulation';
 import '@/styles/practice.css';
@@ -243,7 +243,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
           {finished && <p className="practice-result-note">같은 사건에도 시장은 예상과 다르게 움직일 수 있어요. 이번 결과는 사건의 원인이나 매수·매도의 정답을 뜻하지 않아요.</p>}
         </section>}
       </main>
-      <aside className="practice-wallet"><h2>{finished ? '최종 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '연습을 시작하면 표시돼요'}</div><dl><div><dt>처음 넣은 돈</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p><Link to="/invest">투자 인사이트에서 자유롭게 공부하기 ↗</Link></aside>
+      <aside className="practice-wallet"><h2>{finished ? '최종 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '연습을 시작하면 표시돼요'}</div><dl><div><dt>처음 넣은 돈</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div><AveragePriceRows averagePrice={portfolio?.averagePrice} close={candles.at(-1)?.close} /></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p><Link to="/invest">투자 인사이트에서 자유롭게 공부하기 ↗</Link></aside>
     </div>
     <footer className="practice-footnote">{snapshot?.notice ?? '과거 자료로 연습하는 가상 투자예요. 미래 수익을 보장하거나 투자를 권유하지 않으며, 실제 투자는 원금 손실이 생길 수 있어요.'}{snapshot && <p>자료: {snapshot.sources.join(' · ')} · 업종 기준일 {snapshot.instrument.classificationAsOf}</p>}</footer>
     <dialog ref={dialog} className="practice-modal" onCancel={e => e.preventDefault()} aria-labelledby="practiceEventTitle">
@@ -252,38 +252,24 @@ function PastMarketPractice({ active }: { active: boolean }) {
   </>;
 }
 
-/** 가상 시뮬레이션 탭 안: 자유 연습(로그인 없음)과 회원 월간 대회(policies §8-8). 대회는 처음 들어갈 때 불러오고 그 뒤로는 숨겨 둔다(진행 중인 판 유지) */
-function VirtualArea({ active, onGoPast, inContest, onExitContest }: { active: boolean; onGoPast: () => void; inContest: boolean; onExitContest: () => void }) {
-  const [opened, setOpened] = useState(false);
-  useEffect(() => { if (inContest) setOpened(true); }, [inContest]);
-  return <>
-    <div hidden={inContest}><VirtualSimulation active={active && !inContest} onGoPast={onGoPast} /></div>
-    <div id="vsim-panel-contest" hidden={!inContest}>{opened && <VirtualContest active={active && inContest} onExit={onExitContest} />}</div>
-  </>;
-}
-
 const MODES = [
   { id: 'past', label: '과거 시장 연습', lead: '사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
   { id: 'virtual', label: '가상 시뮬레이션', lead: '가상 종목의 가상 사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
+  { id: 'contest', label: '월간 대회', lead: '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' },
 ] as const;
 type Mode = typeof MODES[number]['id'];
-// 상단 메뉴가 ?mode=로 고른다. contest는 가상 시뮬레이션 탭 안의 대회 화면이다. 값이 없거나 잘못되면 과거 시장 연습
-type View = Mode | 'contest';
-const asView = (v: string | null): View => v === 'virtual' || v === 'contest' ? v : 'past';
+// 상단 메뉴가 ?mode=로 고른다. 값이 없거나 잘못되면 과거 시장 연습.
+// 월간 대회는 세 번째 탭이다(decisions/2026-11-11-contest-ux-redesign 1). 같은 페이지 안의 탭이라 자유 연습과 오가도 진행 중인 대회 판이 끊기지 않는다
+const asMode = (v: string | null): Mode => v === 'virtual' || v === 'contest' ? v : 'past';
 
 export default function Simulation() {
   const [params, setParams] = useSearchParams();
-  const view = asView(params.get('mode'));
-  const mode: Mode = view === 'contest' ? 'virtual' : view;
-  // 대회 모드에서는 위 탭을 숨기고 대회 화면의 [← 자유 연습으로]로만 돌아간다
-  const inContest = view === 'contest';
-  const go = (next: View) => setParams(p => { p.set('mode', next); return p; }, { replace: true });
-  // 가상 시뮬레이션 탭에서 탭 줄 오른쪽에 대회 입장 버튼을 둔다(안내는 로그인 없이 보이는 대회 안내 API)
-  const [contest, setContest] = useState<ContestInfo | null>(null);
-  useEffect(() => { if (mode === 'virtual' && !contest) void getContest().then(setContest).catch(() => {}); }, [mode, contest]);
-  const daysLeft = contest ? Math.max(0, Math.ceil((new Date(contest.endsAt).getTime() - Date.now()) / 86400000)) : null;
-  const enterContest = () => { go('contest'); window.scrollTo({ top: 0 }); };
-  const tabs = useRef<Record<Mode, HTMLButtonElement | null>>({ past: null, virtual: null });
+  const mode = asMode(params.get('mode'));
+  const go = (next: Mode) => setParams(p => { p.set('mode', next); return p; }, { replace: true });
+  // 대회는 처음 들어갈 때 불러오고 그 뒤로는 숨겨 둔다(진행 중인 판 유지)
+  const [contestOpened, setContestOpened] = useState(mode === 'contest');
+  useEffect(() => { if (mode === 'contest') setContestOpened(true); }, [mode]);
+  const tabs = useRef<Record<Mode, HTMLButtonElement | null>>({ past: null, virtual: null, contest: null });
   const select = (next: Mode) => { go(next); tabs.current[next]?.focus(); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const last = MODES.length - 1;
@@ -292,21 +278,21 @@ export default function Simulation() {
     if (to < 0) return;
     e.preventDefault(); select(MODES[to].id);
   };
+  const inContest = mode === 'contest';
   return <div className="page practice-page">
-    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{inContest ? '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' : MODES.find(m => m.id === mode)!.lead}</p></div><div className="practice-heading-links">
+    <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{MODES.find(m => m.id === mode)!.lead}</p></div><div className="practice-heading-links">
       {/* 대회 화면(배치고사·대회 판 포함)에서는 두지 않는다. 대회는 배치고사 시작 전 안내에만 링크가 있다(Issue #367) */}
       {!inContest && <Link className="btn btn-soft btn-sm practice-guide-btn" to="/simulation/guide"><span aria-hidden="true">?</span>공시 읽는 법</Link>}
       <Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link>
     </div></header>
-    {!inContest && <div className="practice-modes-bar"><div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
+    <div className="practice-modes-bar"><div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
       {MODES.map((m, i) => <button key={m.id} ref={el => { tabs.current[m.id] = el; }} type="button" role="tab" id={`practice-tab-${m.id}`} aria-controls={`practice-panel-${m.id}`}
         aria-selected={mode === m.id} tabIndex={mode === m.id ? 0 : -1} onClick={() => go(m.id)} onKeyDown={e => onKey(e, i)}>
         {m.label}
       </button>)}
-    </div>
-      {mode === 'virtual' && <button type="button" className="btn btn-primary btn-sm contest-enter" onClick={enterContest}><span className="contest-enter-long">월간 </span>대회 입장{daysLeft != null && <small>마감까지 {daysLeft}일</small>}</button>}
-    </div>}
+    </div></div>
     <div role="tabpanel" id="practice-panel-past" aria-labelledby="practice-tab-past" hidden={mode !== 'past'}><PastMarketPractice active={mode === 'past'} /></div>
-    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}><VirtualArea active={mode === 'virtual'} onGoPast={() => select('past')} inContest={inContest} onExitContest={() => go('virtual')} /></div>
+    <div role="tabpanel" id="practice-panel-virtual" aria-labelledby="practice-tab-virtual" hidden={mode !== 'virtual'}><VirtualSimulation active={mode === 'virtual'} onGoPast={() => select('past')} /></div>
+    <div role="tabpanel" id="practice-panel-contest" aria-labelledby="practice-tab-contest" hidden={!inContest}>{contestOpened && <VirtualContest active={inContest} />}</div>
   </div>;
 }

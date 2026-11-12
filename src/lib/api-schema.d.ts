@@ -3665,6 +3665,11 @@ export interface components {
             profit: number;
             /** @description 서버가 소수 4자리 내림 */
             returnRate: number;
+            /**
+             * Format: int64
+             * @description 평단가(이동평균, 원 단위 내림, policies §5 "평단가"). 첫 봉 최초 매수도 매수로 센다. 매도해도 그대로이고, 보유 0주면 null
+             */
+            averagePrice: number | null;
         };
         PracticeSnapshot: {
             version: number;

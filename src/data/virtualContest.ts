@@ -16,7 +16,8 @@ export type ContestMine = { alias: string | null; current: ContestEntry | null; 
 export type ContestRoundStarted = { sessionToken: string; expiresAt: string; snapshot: S['VirtualContestRoundSnapshot']; round: { roundNumber: number; startBalance: number; roundsLeftToday: number } };
 export type Prediction = 'POSITIVE' | 'NEGATIVE' | null;
 
-export const BOARD_LABEL: Record<ContestBoard, string> = { B10M: '1천만 판', B50M: '5천만 판', B100M: '1억 판' };
+// 화면 용어: 등급(board)은 "리그", 가상 시뮬레이션 한 번은 "판"(policies §8-8 화면 용어, decisions/2026-11-11-contest-ux-redesign 2)
+export const BOARD_LABEL: Record<ContestBoard, string> = { B10M: '1천만 리그', B50M: '5천만 리그', B100M: '1억 리그' };
 export const BOARDS: ContestBoard[] = ['B10M', 'B50M', 'B100M'];
 
 export const getContest = () => api<ContestInfo>('/virtual-sim/contests/current');

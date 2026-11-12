@@ -284,7 +284,9 @@ class VirtualSimPolicyTest {
 			assertThat(p == null ? null : p.name()).isEqualTo(x.getValue().isNull() ? null : x.getValue().asString());
 		});
 		for (JsonNode c : o.get("cases")) {
-			var holding = new Holding(c.get("cash").asLong(), c.get("shares").asLong());
+			// 평단가는 이 표의 대상이 아니라 보유가 있으면 기준 가격으로 둔다(평단가 예시는 practice.json averagePrice.byQuantity)
+			long held = c.get("shares").asLong();
+			var holding = new Holding(c.get("cash").asLong(), held, held == 0 ? null : c.get("referencePrice").asLong());
 			var limits = VirtualSimService.limits(holding, c.get("referencePrice").asLong());
 			assertThat(limits.maxBuyShares()).as(c.toString()).isEqualTo(c.get("limits").get("maxBuyShares").asLong());
 			assertThat(limits.maxSellShares()).as(c.toString()).isEqualTo(c.get("limits").get("maxSellShares").asLong());
@@ -299,7 +301,29 @@ class VirtualSimPolicyTest {
 			assertThat(valid).as(c.toString()).isTrue();
 			var trade = VirtualSimService.trade(holding, action, q, c.get("nextOpen").asLong());
 			assertThat(trade.shares()).as(c.toString()).isEqualTo(e.get("executedShares").asLong());
-			assertThat(trade.holding()).as(c.toString()).isEqualTo(new Holding(e.get("cash").asLong(), e.get("shares").asLong()));
+			assertThat(trade.holding().cash()).as(c.toString()).isEqualTo(e.get("cash").asLong());
+			assertThat(trade.holding().shares()).as(c.toString()).isEqualTo(e.get("shares").asLong());
+		}
+	}
+
+	/** 평단가(policies §5 "평단가"): 수량 입력 매매. 정본은 practice.json averagePrice.byQuantity */
+	@Test
+	void average_price_by_quantity() throws Exception {
+		JsonNode c = JsonMapper.builder().build().readTree(Files.readString(Path.of("..", "tests", "policy", "practice.json")))
+				.get("averagePrice").get("byQuantity");
+		Holding holding = new Holding(c.get("initialAmount").asLong(), 0);
+		for (JsonNode bar : c.get("bars")) {
+			long open = bar.get("open").asLong();
+			var trade = "START".equals(bar.get("actionBeforeBar").asString())
+					? PracticeEngine.trade(holding, Action.BUY, 50, open)
+					: VirtualSimService.trade(holding, Action.valueOf(bar.get("actionBeforeBar").asString()), bar.get("quantity").asLong(), open);
+			holding = trade.holding();
+			JsonNode e = bar.get("expected");
+			assertThat(trade.shares()).as(bar.toString()).isEqualTo(e.get("executedShares").asLong());
+			assertThat(holding.shares()).as(bar.toString()).isEqualTo(e.get("shares").asLong());
+			assertThat(holding.cash()).as(bar.toString()).isEqualTo(e.get("cash").asLong());
+			assertThat(holding.averagePrice()).as(bar.toString()).isEqualTo(e.get("averagePrice").isNull() ? null : e.get("averagePrice").asLong());
+			assertThat(PracticeEngine.value(holding, open, c.get("initialAmount").asLong()).averagePrice()).isEqualTo(holding.averagePrice());
 		}
 	}
 

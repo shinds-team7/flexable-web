@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CandleChart, type EventBand } from '@/charts/CandleChart';
+import { AveragePriceRows } from '@/components/AveragePrice';
 import { PlaybackSpeed, segmentMs, segmentSeconds, type Speed } from '@/components/PlaybackSpeed';
 import { getCategories, practice, type CategoryResponse, type PracticeSnapshot, type Started } from '@/data/practice';
 import { ApiError, errorText } from '@/lib/api';
@@ -243,7 +244,7 @@ function PastMarketPractice({ active }: { active: boolean }) {
           {finished && <p className="practice-result-note">같은 사건에도 시장은 예상과 다르게 움직일 수 있어요. 이번 결과는 사건의 원인이나 매수·매도의 정답을 뜻하지 않아요.</p>}
         </section>}
       </main>
-      <aside className="practice-wallet"><h2>{finished ? '최종 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '연습을 시작하면 표시돼요'}</div><dl><div><dt>처음 넣은 돈</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p><Link to="/invest">투자 인사이트에서 자유롭게 공부하기 ↗</Link></aside>
+      <aside className="practice-wallet"><h2>{finished ? '최종 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '연습을 시작하면 표시돼요'}</div><dl><div><dt>처음 넣은 돈</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div><AveragePriceRows averagePrice={portfolio?.averagePrice} close={candles.at(-1)?.close} /></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p><Link to="/invest">투자 인사이트에서 자유롭게 공부하기 ↗</Link></aside>
     </div>
     <footer className="practice-footnote">{snapshot?.notice ?? '과거 자료로 연습하는 가상 투자예요. 미래 수익을 보장하거나 투자를 권유하지 않으며, 실제 투자는 원금 손실이 생길 수 있어요.'}{snapshot && <p>자료: {snapshot.sources.join(' · ')} · 업종 기준일 {snapshot.instrument.classificationAsOf}</p>}</footer>
     <dialog ref={dialog} className="practice-modal" onCancel={e => e.preventDefault()} aria-labelledby="practiceEventTitle">

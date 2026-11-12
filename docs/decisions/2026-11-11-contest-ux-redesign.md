@@ -1,7 +1,7 @@
 # 월간 시뮬레이션 대회 화면 개편과 투자 시뮬레이션 평단가
 
 - 날짜: 2026-11-11 · 결정한 사람: 사용자(Issue #418의 "구현 전에 사용자가 정해요" 항목을 채팅에서 결정. 진입 경로는 "상단 메뉴의 월간 시뮬레이션 대회는 유지"만 정하고 방식은 개발에 맡김) · 제안: 개발(rhkrqkq)
-- 이슈: [#418](https://github.com/shinds-team7/flexable-web/issues/418)
+- 이슈: [#418](https://github.com/shinds-team7/flexable-web/issues/418) · PR: [#424](https://github.com/shinds-team7/flexable-web/pull/424)
 - 영향: 웹 프론트(`/simulation` 대회 화면·배치고사·대회 판 진행과 판 끝, 과거 시장 연습·가상 시뮬레이션·대회 판의 지갑), 웹 백엔드(`practice.PracticeEngine`·`virtualsim.VirtualSimService` 매매 체결), API 계약(`PracticePortfolio.averagePrice`), 개인정보처리방침 문구(용어만)
 - 바꾸는 결정: [대회 화면 움직임](2026-11-06-contest-motion.md) 1의 대상 목록(아래 5), [대회 결정](2026-11-05-virtual-sim-contest.md)의 화면 용어 "판(티어)"(아래 2. 규칙·계산은 그대로)
 - 기준: [대회 결정](2026-11-05-virtual-sim-contest.md), [policies](../policies.md) §5·§8-7·§8-8, [02-design](../product/02-design.md) §5-14·§7-3

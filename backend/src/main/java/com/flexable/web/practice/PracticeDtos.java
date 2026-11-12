@@ -25,7 +25,7 @@ public final class PracticeDtos {
     public record Category(String code, String name, String classificationVersion, int eligibleCount, List<Stock> stocks) { }
     public record Categories(List<Category> categories, boolean isSample) { }
     public record Started(String sessionToken, String expiresAt, Snapshot snapshot) { }
-    public record Portfolio(long cash, long shares, long stockValue, long total, long profit, BigDecimal returnRate) { }
+    public record Portfolio(long cash, long shares, long stockValue, long total, long profit, BigDecimal returnRate, Long averagePrice) { }
     public record Event(String id, String title, String publishedDate, String baselineDate, String sourceUrl, String sourceName) { }
     public record Result(String eventId, String title, String publishedDate, String baselineDate, String sourceUrl,
             Prediction prediction, Action action, int allocationPercent, String execution, String executedDate,

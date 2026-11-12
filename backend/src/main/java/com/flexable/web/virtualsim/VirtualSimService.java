@@ -431,11 +431,11 @@ public class VirtualSimService {
 		return switch (action) {
 			case BUY -> {
 				long n = Math.min(quantity, h.cash() / price);
-				yield new PracticeEngine.Trade(new PracticeEngine.Holding(h.cash() - Math.multiplyExact(n, price), Math.addExact(h.shares(), n)), n);
+				yield new PracticeEngine.Trade(h.bought(n, price), n);
 			}
 			case SELL -> {
 				long n = Math.min(quantity, h.shares());
-				yield new PracticeEngine.Trade(new PracticeEngine.Holding(Math.addExact(h.cash(), Math.multiplyExact(n, price)), h.shares() - n), n);
+				yield new PracticeEngine.Trade(h.sold(n, price), n);
 			}
 			case HOLD -> new PracticeEngine.Trade(h, 0);
 		};

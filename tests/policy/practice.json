@@ -4,13 +4,13 @@
   "tradeSequence": {
     "initialAmount": 100000,
     "bars": [
-      { "open": 3000, "close": 3100, "actionBeforeBar": "START", "allocationPercent": 50, "expected": { "shares": 16, "cash": 52000, "total": 101600, "profit": 1600, "returnRate": 0.0160 } },
-      { "open": 4000, "close": 4100, "actionBeforeBar": "BUY", "allocationPercent": 50, "expected": { "shares": 22, "cash": 28000, "total": 118200, "profit": 18200, "returnRate": 0.1820 } },
-      { "open": 3500, "close": 3600, "actionBeforeBar": "SELL", "allocationPercent": 50, "expected": { "shares": 11, "cash": 66500, "total": 106100, "profit": 6100, "returnRate": 0.0610 } },
-      { "open": 3400, "close": 3400, "actionBeforeBar": "HOLD", "allocationPercent": 0, "expected": { "shares": 11, "cash": 66500, "total": 103900, "profit": 3900, "returnRate": 0.0390 } }
+      { "open": 3000, "close": 3100, "actionBeforeBar": "START", "allocationPercent": 50, "expected": { "shares": 16, "cash": 52000, "total": 101600, "profit": 1600, "returnRate": 0.0160, "averagePrice": 3000 } },
+      { "open": 4000, "close": 4100, "actionBeforeBar": "BUY", "allocationPercent": 50, "expected": { "shares": 22, "cash": 28000, "total": 118200, "profit": 18200, "returnRate": 0.1820, "averagePrice": 3272 } },
+      { "open": 3500, "close": 3600, "actionBeforeBar": "SELL", "allocationPercent": 50, "expected": { "shares": 11, "cash": 66500, "total": 106100, "profit": 6100, "returnRate": 0.0610, "averagePrice": 3272 } },
+      { "open": 3400, "close": 3400, "actionBeforeBar": "HOLD", "allocationPercent": 0, "expected": { "shares": 11, "cash": 66500, "total": 103900, "profit": 3900, "returnRate": 0.0390, "averagePrice": 3272 } }
     ]
   },
-  "insufficientCash": { "initialAmount": 10000, "open": 20000, "close": 21000, "expected": { "shares": 0, "cash": 10000, "total": 10000, "profit": 0, "returnRate": 0 } },
+  "insufficientCash": { "initialAmount": 10000, "open": 20000, "close": 21000, "expected": { "shares": 0, "cash": 10000, "total": 10000, "profit": 0, "returnRate": 0, "averagePrice": null } },
   "negativeRounding": {
     "initialAmount": 10001,
     "bars": [
@@ -18,7 +18,21 @@
       { "open": 1, "close": 1, "actionBeforeBar": "SELL", "allocationPercent": 100 },
       { "open": 2, "close": 1, "actionBeforeBar": "BUY", "allocationPercent": 100 }
     ],
-    "expected": { "shares": 5000, "cash": 1, "total": 5001, "profit": -5000, "returnRate": -0.5000 }
+    "expected": { "shares": 5000, "cash": 1, "total": 5001, "profit": -5000, "returnRate": -0.5000, "averagePrice": 2 }
+  },
+  "averagePrice": {
+    "rule": "이동평균. 매수 체결(첫 봉 최초 매수 포함): (기존 평단가 × 기존 수량 + 체결가 × 체결 수량) / 새 수량, 원 단위 내림. 매도는 그대로, 전량 매도면 null, 다시 사면 새로 계산. 비율 매매는 위 expected.averagePrice, 수량 입력 매매(가상 시뮬레이션 §8-7)는 byQuantity",
+    "byQuantity": {
+      "initialAmount": 1000000,
+      "bars": [
+        { "open": 10000, "actionBeforeBar": "START", "expected": { "executedShares": 50, "shares": 50, "cash": 500000, "averagePrice": 10000 } },
+        { "open": 12345, "actionBeforeBar": "BUY", "quantity": 30, "expected": { "executedShares": 30, "shares": 80, "cash": 129650, "averagePrice": 10879 } },
+        { "open": 13000, "actionBeforeBar": "SELL", "quantity": 20, "expected": { "executedShares": 20, "shares": 60, "cash": 389650, "averagePrice": 10879 } },
+        { "open": 9999, "actionBeforeBar": "BUY", "quantity": 1000, "expected": { "executedShares": 38, "shares": 98, "cash": 9688, "averagePrice": 10537 } },
+        { "open": 11000, "actionBeforeBar": "SELL", "quantity": 98, "expected": { "executedShares": 98, "shares": 0, "cash": 1087688, "averagePrice": null } },
+        { "open": 11500, "actionBeforeBar": "BUY", "quantity": 5, "expected": { "executedShares": 5, "shares": 5, "cash": 1030188, "averagePrice": 11500 } }
+      ]
+    }
   },
   "quizCases": [
     { "baseline": 1000, "afterFiveSessions": 1100, "prediction": "POSITIVE", "expected": "CORRECT", "returnRate": 0.1000 },

@@ -399,12 +399,21 @@ function PlacementDone({ result, questions, sample, onStart }: { result: Contest
   </section>;
 }
 
-/** 이번 주 승급·강등까지 남은 점수(서버 주 점수와 규칙 값의 차이를 보여 주기만 한다) */
+/**
+ * 이번 주 승급·강등까지 남은 점수(서버 주 점수와 규칙 값의 차이를 보여 주기만 한다).
+ * 4주차(보너스 주)는 판정 결과를 기록만 하고 리그를 바꾸지 않으므로(policies §8-8, decisions/2026-11-06-contest-final-week)
+ * 남은 점수 대신 기록될 결과(지난 대회 finalWeek와 같은 기준: 1억 리그 승급·1천만 리그 강등 제외)만 말한다
+ */
 function weekGap(entry: ContestEntry, rules: ContestInfo['rules'], finalWeek: boolean) {
   const w = entry.week;
+  if (finalWeek) {
+    const record = entry.board !== 'B100M' && w.points >= rules.weeklyPromoteAt ? '승급 기준 도달로 기록돼요'
+      : entry.board !== 'B10M' && w.points <= rules.weeklyDemoteAt ? '강등 기준 도달로 기록돼요' : '지금은 승급·강등 기준 밖으로 기록돼요';
+    return `보너스 주 · 리그는 그대로이고 결과는 지난 대회 기록에만 남아요 · ${record}`;
+  }
   const promote = entry.board === 'B100M' ? '1억 리그는 승급 없음' : w.points >= rules.weeklyPromoteAt ? '승급 기준 도달' : `승급까지 ${fmt.format(rules.weeklyPromoteAt - w.points)}점`;
   const demote = entry.board === 'B10M' ? '1천만 리그는 강등 없음' : w.points <= rules.weeklyDemoteAt ? '강등 기준 도달' : `강등까지 ${fmt.format(w.points - rules.weeklyDemoteAt)}점`;
-  return finalWeek ? `보너스 주(리그는 그대로) · ${promote} · ${demote}` : `${promote} · ${demote}`;
+  return `${promote} · ${demote}`;
 }
 
 /** 승급·강등 배너(있을 때만). 청산·오늘 판 소진은 "오늘 할 일" 카드가 보인다 */
@@ -457,7 +466,13 @@ function TodayCard({ info, entry, onPlay, busy }: { info: ContestInfo; entry: Co
 /** 이번 주 날짜 칸: 날짜마다 하루 점수를 글자로(서버 scoredDays). 오늘은 진행 중, 아직 안 온 날·점수 없는 날은 — */
 function WeekDays({ start, end, entry, today }: { start: string; end: string; entry: ContestEntry; today: string }) {
   const scored = new Map(entry.scoredDays.map(d => [d.date, d]));
-  return <ol className="contest-weekdays" aria-label="이번 주 날짜별 하루 점수">
+  // 좁은 화면에서 칸이 최소 너비를 넘으면 가로로 스크롤된다(4주차는 최대 10칸). 오늘 칸이 보이게 그 줄만 옮긴다(페이지는 움직이지 않음)
+  const list = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const ol = list.current, li = ol?.querySelector<HTMLElement>('li.today');
+    if (ol && li && ol.scrollWidth > ol.clientWidth) ol.scrollLeft = li.offsetLeft - (ol.clientWidth - li.offsetWidth) / 2;
+  }, [today, start, end]);
+  return <ol ref={list} className="contest-weekdays" tabIndex={0} aria-label="이번 주 날짜별 하루 점수">
     {dateRange(start, end).map(d => {
       const s = scored.get(d);
       const state = d === today ? 'today' : d > today ? 'future' : s ? (s.points > 0 ? 'up' : s.points < 0 ? 'down' : 'zero') : 'none';

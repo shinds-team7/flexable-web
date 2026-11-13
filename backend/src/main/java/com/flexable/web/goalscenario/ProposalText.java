@@ -264,7 +264,9 @@ final class ProposalText {
 				boolean years = unit.group(2).equals("년");
 				BigDecimal lo = years ? n.multiply(BigDecimal.valueOf(12)) : n;
 				BigDecimal hi = years ? new BigDecimal(unit.group(1)).multiply(BigDecimal.valueOf(12)) : new BigDecimal(unit.group(1));
-				if (n.scale() > 0 || lo.signum() <= 0 || lo.compareTo(hi) > 0 || hi.compareTo(BigDecimal.valueOf(facts.months())) > 0) {
+				// 앞 숫자에 마이너스가 붙으면("-1~2개월") NUMBER가 부호를 읽지 않아 양수로 보이므로 따로 막는다
+				boolean negative = m.start() > 0 && "-–−".indexOf(t.charAt(m.start() - 1)) >= 0;
+				if (negative || n.scale() > 0 || lo.signum() <= 0 || lo.compareTo(hi) > 0 || hi.compareTo(BigDecimal.valueOf(facts.months())) > 0) {
 					return false;
 				}
 				from = m.end() + unit.end();

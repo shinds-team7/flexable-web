@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,6 +71,17 @@ class GoalTypeRoleJobTest {
 	void 전체_상한에_닿으면_멈춘다() {
 		when(quota.reserveService()).thenReturn(false);
 		assertThat(job.runOnce()).isEqualTo(new GoalTypeRoleJob.Result(0, 0, 0, true));
+		verify(client, never()).typeRole(anyString(), anyString());
+	}
+
+	@Test
+	void 상한에_닿은_뒤에도_남은_대상의_기존_해설은_확인_시각을_갱신한다() {
+		// 앞 대상(적금)은 해설이 없어 상한에 걸리고, 뒤 대상(CMA)은 해설이 있다
+		when(store.touch(VERSION, ProductType.CMA, cma.fingerprint())).thenReturn(true);
+		when(quota.reserveService()).thenReturn(false);
+		assertThat(job.runOnce()).isEqualTo(new GoalTypeRoleJob.Result(0, 1, 0, true));
+		verify(store).touch(VERSION, ProductType.CMA, cma.fingerprint());
+		verify(quota, times(1)).reserveService();
 		verify(client, never()).typeRole(anyString(), anyString());
 	}
 

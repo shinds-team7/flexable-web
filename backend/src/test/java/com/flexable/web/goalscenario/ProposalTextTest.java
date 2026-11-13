@@ -65,7 +65,7 @@ class ProposalTextTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "마지막 1~2년에는 옮겨요.", "3~13개월 뒤에 옮겨요.", "2~1년 뒤에 옮겨요.", "1.5~2년 뒤에 옮겨요." })
+	@ValueSource(strings = { "마지막 1~2년에는 옮겨요.", "3~13개월 뒤에 옮겨요.", "2~1년 뒤에 옮겨요.", "1.5~2년 뒤에 옮겨요.", "-1~2개월 뒤에 옮겨요." })
 	void 기한을_넘거나_어긋난_기간_범위는_막힘(String text) {
 		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_NUMBER");
 	}

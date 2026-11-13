@@ -70,9 +70,10 @@ public class GoalTypeRoleJob {
 				kept++;
 				continue;
 			}
-			if (!quota.reserveService()) {
+			// 상한에 닿은 뒤에도 남은 대상의 기존 해설은 확인 시각을 갱신해 지워지지 않게 한다(AI만 부르지 않는다)
+			if (capped || !quota.reserveService()) {
 				capped = true;
-				break;
+				continue;
 			}
 			try {
 				GoalScenarioAiClient.Result r = client.typeRole(s.type().name(), s.json());

@@ -22,6 +22,24 @@ interface ScenarioProposer {
 	 */
 	List<Proposals.Draft> propose(Input input);
 
+	/** 미리 만든 유형 해설의 프롬프트 버전(#417). 저장된 해설을 찾는 데 쓴다. 모르면 null이고, 그러면 짧은 길을 쓰지 않는다. */
+	default String typeRoleVersion() {
+		return null;
+	}
+
+	/** 유형 해설을 미리 만들어 둔 경우의 프롬프트 버전(#417). 모르면 null이고, 그러면 짧은 길을 쓰지 않는다. */
+	default String shortVersion() {
+		return null;
+	}
+
+	/**
+	 * 미리 만든 유형 해설(roles, 다섯 유형 모두)을 쓰는 짧은 길(#417). AI는 비중과 시나리오 칸만 쓰고,
+	 * 해설의 roles 칸은 비중이 있는 유형의 저장된 해설에 비중을 넣어 만든다. 실패하면 Failed.
+	 */
+	default List<Proposals.Draft> proposeShort(Input input, java.util.Map<ProductType, TypeRoleStore.Role> roles) {
+		throw new Failed("NO_KEY");
+	}
+
 	/** AI에게 보내는 값 전부. monthlyBudget은 사용자가 넣은 월 납입 가능액이고 넣지 않았으면 null이다. */
 	record Input(long targetAmount, int months, Long monthlyBudget, List<TypeStat> stats) {
 	}

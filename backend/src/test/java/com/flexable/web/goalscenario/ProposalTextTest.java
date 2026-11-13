@@ -51,6 +51,25 @@ class ProposalTextTest {
 		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_NUMBER");
 	}
 
+	/** 기한 5년(60개월). v11 fit 안내 문장(#417: "1~2년"의 앞 숫자를 단위 없는 숫자로 보고 지웠다). */
+	static final ProposalText.Facts FIVE_YEARS = new ProposalText.Facts(FACTS.targetAmount(), 60, FACTS.names(), FACTS.percents());
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"기한이 5년으로 긴 만큼 변동성을 감내할 여유가 있지만, 마지막 1~2년에는 투자 몫을 적금·CMA로 옮기는 시점을 생각해 보세요.",
+			"마지막 1 ~ 2년에는 옮겨 두세요.",
+			"마지막 6~12개월에는 옮겨 두세요.",
+			"5년 중 3-4년째에 점검해요." })
+	void 기한_안의_기간_범위는_통과(String text) {
+		assertThat(ProposalText.problem(text, FIVE_YEARS, MIX)).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "마지막 1~2년에는 옮겨요.", "3~13개월 뒤에 옮겨요.", "2~1년 뒤에 옮겨요.", "1.5~2년 뒤에 옮겨요.", "-1~2개월 뒤에 옮겨요." })
+	void 기한을_넘거나_어긋난_기간_범위는_막힘(String text) {
+		assertThat(ProposalText.problem(text, FACTS, MIX)).isEqualTo("TEXT_NUMBER");
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { "수익이 보장되지 않아요.", "원금을 보장하지 않는 상품이에요.", "결과는 보장할 수 없어요.", "원금 보장이 없어요.",
 			"불확실성이 커요.", "오를지는 확실하지 않아요." })

@@ -66,6 +66,10 @@ services:
       SPRING_PROFILES_ACTIVE: worker
       DB_POOL_SIZE: "3"
       JAVA_OPTS: -Xms128m -Xmx512m
+      # 목표 시나리오 유형 해설을 시세 수집 뒤 미리 만든다(#417). api와 같은 키·모델이고, 서비스 전체 하루 상한(GOAL_SCENARIO_AI_DAILY_CAP)에만 센다
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
 
   web:
     build:

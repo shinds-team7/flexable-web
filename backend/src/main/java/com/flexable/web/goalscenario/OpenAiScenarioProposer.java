@@ -45,8 +45,37 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 		return parse(content);
 	}
 
-	/** 형식이 어긋나면 null 칸으로 두어 검증에서 걸리게 한다(AI_REJECTED). JSON이 아니면 Failed. */
+	@Override
+	public String typeRoleVersion() {
+		return client.typeRolePromptVersion();
+	}
+
+	@Override
+	public String shortVersion() {
+		return client.shortPromptVersion();
+	}
+
+	@Override
+	public List<Proposals.Draft> proposeShort(Input input, Map<ProductType, TypeRoleStore.Role> roles) {
+		String content;
+		try {
+			content = client.proposeShort(JSON.writeValueAsString(input)).content();
+		}
+		catch (GoalScenarioAiClient.Failed e) {
+			throw new Failed(e.reason());
+		}
+		return parse(content, roles);
+	}
+
 	static List<Proposals.Draft> parse(String content) {
+		return parse(content, null);
+	}
+
+	/**
+	 * 형식이 어긋나면 null 칸으로 두어 검증에서 걸리게 한다(AI_REJECTED). JSON이 아니면 Failed.
+	 * stored가 있으면(짧은 길, #417) roles 칸은 미리 만든 유형 해설로 만든다.
+	 */
+	static List<Proposals.Draft> parse(String content, Map<ProductType, TypeRoleStore.Role> stored) {
 		JsonNode root;
 		try {
 			root = JSON.readTree(content);
@@ -58,16 +87,28 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 		for (JsonNode s : root.path("scenarios")) {
 			Map<String, Integer> mix = new LinkedHashMap<>();
 			s.path("mix").properties().forEach(e -> mix.put(e.getKey(), e.getValue().isIntegralNumber() ? e.getValue().asInt() : null));
-			out.add(new Proposals.Draft(text(s, "id"), text(s, "title"), text(s, "summary"), parts(s), mix));
+			out.add(new Proposals.Draft(text(s, "id"), text(s, "title"), text(s, "summary"), parts(s, stored), mix));
 		}
 		return out;
 	}
 
 	/** 해설 네 칸을 따로 둔다(합친 문단은 Draft가 만든다). 한 칸이라도 비면 null이라 검증에서 걸린다(TEXT_EMPTY). */
-	private static Proposals.Parts parts(JsonNode scenario) {
+	private static Proposals.Parts parts(JsonNode scenario, Map<ProductType, TypeRoleStore.Role> stored) {
 		List<String> parts = new ArrayList<>();
 		for (String field : GoalScenarioAiClient.EXPLANATION_FIELDS) {
-			String part = field.equals("roles") && scenario.has(GoalScenarioAiClient.TYPE_ROLES) ? roles(scenario) : text(scenario, field);
+			String part;
+			if (!field.equals("roles")) {
+				part = text(scenario, field);
+			}
+			else if (stored != null) {
+				part = roles(scenario.path("mix"), (type, weight) -> stored.containsKey(type) ? stored.get(type).filled(weight) : List.of());
+			}
+			else if (scenario.has(GoalScenarioAiClient.TYPE_ROLES)) {
+				part = roles(scenario);
+			}
+			else {
+				part = text(scenario, field);
+			}
 			if (part == null || part.isBlank()) {
 				return null;
 			}
@@ -83,7 +124,12 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 	 */
 	static String roles(JsonNode scenario) {
 		JsonNode typeRoles = scenario.path(GoalScenarioAiClient.TYPE_ROLES);
-		JsonNode mix = scenario.path("mix");
+		return roles(scenario.path("mix"), (type, weight) -> GoalScenarioAiClient.TYPE_ROLE_FIELDS.stream()
+			.map(field -> text(typeRoles.path(type.name()), field)).toList());
+	}
+
+	/** fields는 유형과 비중을 받아 그 유형의 칸(넣은 이유·근거·전망 순서, null 가능)을 돌려준다. 미리 만든 해설(#417)과 AI 칸이 같은 규칙으로 합쳐진다. */
+	static String roles(JsonNode mix, java.util.function.BiFunction<ProductType, Integer, List<String>> fields) {
 		List<String> lines = new ArrayList<>();
 		for (ProductType type : ProductType.values()) {
 			JsonNode ratio = mix.path(type.name());
@@ -91,8 +137,7 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 				continue;
 			}
 			List<String> sentences = new ArrayList<>();
-			for (String field : GoalScenarioAiClient.TYPE_ROLE_FIELDS) {
-				String part = text(typeRoles.path(type.name()), field);
+			for (String part : fields.apply(type, ratio.asInt())) {
 				if (part != null && !part.isBlank()) {
 					String one = part.replaceAll("\\s*\\n\\s*", " ").strip();
 					// 칸 끝에 마침표가 없으면 붙여 다음 칸과 한 문장으로 묶여 지워지지 않게 한다(문장 검사는 마침표·줄바꿈으로 나눈다)

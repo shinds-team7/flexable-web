@@ -54,6 +54,8 @@ public class MarketSyncJob implements ApplicationRunner {
 	private DisclosureDetailJob disclosureDetails;
 	@org.springframework.beans.factory.annotation.Autowired(required = false)
 	private VirtualSimRulesetJob virtualSimRules;
+	@org.springframework.beans.factory.annotation.Autowired(required = false)
+	private com.flexable.web.goalscenario.GoalTypeRoleJob goalTypeRoles;
 
 	public MarketSyncJob(InstrumentSource instruments, PriceSource prices, MarketService market, MarketProperties marketProps,
 			IngestProperties props, IngestRunRepository runs, Clock clock, MarketEventJob eventJob, IndexSyncJob indexJob) {
@@ -91,6 +93,10 @@ public class MarketSyncJob implements ApplicationRunner {
 		}
 		// 단계마다 따로 감싸 앞 단계의 예외가 뒤 단계(사건·시뮬레이션 자료·가상 시뮬레이션 공시·룰셋)를 건너뛰게 하지 않는다
 		step("시세 수집", this::runOnce);
+		// 목표 시나리오 유형 해설은 시세(통계)만 쓰므로 시세 수집 바로 뒤에 만든다(#417). 자료가 그대로면 AI를 부르지 않는다
+		if (goalTypeRoles != null) {
+			step("목표 시나리오 유형 해설", goalTypeRoles::runOnce);
+		}
 		step("사건 탐지·공시 근거", eventJob::runOnce);
 		if (practice != null) {
 			step("업종·시뮬레이션 자료", practice::runOnce);

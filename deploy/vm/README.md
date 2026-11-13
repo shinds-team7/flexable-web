@@ -114,6 +114,8 @@ sudo logrotate -d /etc/logrotate.d/rsyslog   # 문법 확인
 
 `.env`에 키움·KRX 키를 넣은 뒤 `docker compose --profile worker up -d`. 끄려면 `docker compose stop worker`. 켜질 때 한 번 수집하고(`MARKET_SYNC_ON_START`), 이후 평일 18:30 KST에 수집한 뒤 사건 탐지·공시 근거를 이어 돈다(`backend/README.md`).
 
+시세 수집 바로 뒤와 매시 10분에 목표 시나리오 유형 해설을 미리 만든다(#417, `GoalTypeRoleJob`). 지금 자료에 맞는 해설이 있으면 AI를 부르지 않고, 없을 때만 `OPENAI_API_KEY`로 유형마다 한 번 부른다(서비스 전체 하루 상한 `GOAL_SCENARIO_AI_DAILY_CAP`에 셈). 키가 없으면 건너뛰고, 요청은 지금처럼 AI가 유형 해설까지 쓴다. 결과는 `docker compose logs worker | grep "goal type roles"`로 본다.
+
 ### 사건 AI 개요 첫 백필
 
 사건 AI 개요는 한 번 실행에 `EVENT_OVERVIEW_MAX_CALLS`번(기본 30번 × 10건 = 300건)까지만 만들어, 처음에는 최근 3년 사건 약 3,000건이 채워지기까지 여러 날이 걸린다. 그 뒤로는 새 사건만 생겨 기본값으로 충분하다. 한 번에 채우려면:

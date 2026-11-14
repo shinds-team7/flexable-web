@@ -6,7 +6,7 @@ import { useLoginModal } from '@/components/LoginModal';
 import {
   FALLBACK_TEXT, GOAL_LIMITS, TYPE_LABEL, deleteSavedScenario, periodText, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
   type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
-  type SeriesPoint,
+  type SeriesPoint, type StartDeposit,
 } from '@/data/goalScenarios';
 import { ApiError, errorText } from '@/lib/api';
 import '@/styles/goal-plan.css';
@@ -87,6 +87,12 @@ function afterMaturity(p: ScenarioProduct | undefined, months: number) {
   const term = p?.termMonths;
   if (!term || term >= months) return null;
   return `만기 ${periodText(term)} · 남은 ${periodText(months - term)}은 CMA 예시 금리로 계산했어요`;
+}
+
+/** 시작 금액의 적금 몫을 어디에 넣었는지 안내(policies §7-4). */
+function startDepositNote(start: number, deposit: StartDeposit | null) {
+  if (deposit === null) return `시작 금액 중 적금 몫 ${won(start)}원은 CMA 예시 금리로 계산했어요`;
+  return `시작 금액 중 적금 몫 ${won(start)}원은 정기예금(${deposit.company} ${deposit.name}, 연 ${deposit.ratePercent}%, 만기 ${periodText(deposit.termMonths)})에 맡겨요`;
 }
 
 /** 결과 범위 막대. 목표 금액이 있을 때만 목표 표시를 둔다. */
@@ -173,8 +179,9 @@ function AiCard({ plan, demo, action }: { plan: GoalScenario; demo: boolean; act
 }
 
 /** 시나리오 하나의 상품 배분·예상 금액·해설. 방금 계산한 결과와 저장한 결과가 같이 쓴다. action은 해설 카드 머리 오른쪽(저장 버튼). */
-function PlanDetail({ resultKey, plan, products, targetAmount, months, demo, action }: {
-  resultKey: string; plan: GoalScenario; products: ScenarioProduct[]; targetAmount: number | null; months: number; demo: boolean; action?: ReactNode;
+function PlanDetail({ resultKey, plan, products, startDeposit, targetAmount, months, demo, action }: {
+  resultKey: string; plan: GoalScenario; products: ScenarioProduct[]; startDeposit: StartDeposit | null; targetAmount: number | null; months: number;
+  demo: boolean; action?: ReactNode;
 }) {
   const productOf = (t: ScenarioProductType) => products.find((p) => p.type === t);
   const listId = useId();
@@ -218,7 +225,7 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo, act
                 </li>)}
                 {m.type === 'KOSPI_TOP5' && <li className="gp-subproduct-note">5종목에 같은 금액으로 나눠 넣어요</li>}
                 {m.type === 'SAVINGS' && afterMaturity(productOf('SAVINGS'), months) && <li className="gp-subproduct-note">{afterMaturity(productOf('SAVINGS'), months)}</li>}
-                {m.type === 'SAVINGS' && m.start ? <li className="gp-subproduct-note">시작 금액 중 적금 몫은 CMA 예시 금리로 계산했어요</li> : null}
+                {m.type === 'SAVINGS' && m.start ? <li className="gp-subproduct-note">{startDepositNote(m.start, startDeposit)}</li> : null}
               </ul></div>}
             </li>;
           })}
@@ -301,7 +308,7 @@ function SavedPlanView({ viewing, loading, onClose, onRecalc }: {
     {plans.length > 1 && <nav className="gp-view-rail" aria-label="플랜 선택">
       {plans.map((p) => <button type="button" key={p.id} className="gp-view-tab" aria-pressed={p.id === plan.id} onClick={() => setActiveId(p.id)}>{p.title}</button>)}
     </nav>}
-    <PlanDetail resultKey={`saved-${viewing.id}`} plan={plan} products={viewing.products} targetAmount={viewing.targetAmount} months={viewing.months} demo={viewing.proposer === 'DEMO'} />
+    <PlanDetail resultKey={`saved-${viewing.id}`} plan={plan} products={viewing.products} startDeposit={viewing.startDeposit} targetAmount={viewing.targetAmount} months={viewing.months} demo={viewing.proposer === 'DEMO'} />
     <Assumptions paths={viewing.paths} returnsFrom={viewing.returnsFrom} returnsTo={viewing.returnsTo} assumptions={viewing.assumptions} notice={viewing.notice} />
     <div className="gp-view-actions">
       {viewing.monthlyBudget !== null && <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>}
@@ -631,7 +638,7 @@ export default function GoalScenarios() {
             </button>)}
           </div>
 
-          <PlanDetail resultKey={result.resultId} plan={plan} products={result.products} targetAmount={result.targetAmount} months={result.months} demo={demo} action={saveButton} />
+          <PlanDetail resultKey={result.resultId} plan={plan} products={result.products} startDeposit={result.startDeposit} targetAmount={result.targetAmount} months={result.months} demo={demo} action={saveButton} />
           {member && full && savedPlanId === null && <p className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</p>}
           {saveMessage && <p className="gp-save-message" role="status">{saveMessage}</p>}
 

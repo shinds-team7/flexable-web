@@ -4342,6 +4342,17 @@ export interface components {
                 ratePercent: string | null;
             }[];
         };
+        /** @description 시작 금액의 적금 몫을 한 번에 맡기는 정기예금(policies §7-4). 은행·개인·가입 제한 없음·한도 없음 중 기한 이하 가장 긴 만기의 기본금리 1위. 시작 금액이 0원이거나 조건에 맞는 예금이 없으면 null(그 몫은 CMA로 계산). 옛 저장본도 null */
+        GoalScenarioStartDeposit: {
+            /** @description 정기예금 상품 id */
+            code: string;
+            name: string;
+            company: string;
+            /** @description 기본금리(예: "3.00") */
+            ratePercent: string;
+            /** @description 만기 개월(기한 이하). 기한보다 짧으면 만기 뒤 남은 달은 CMA 예시 금리로 계산했다 */
+            termMonths: number;
+        } | null;
         GoalScenarioResult: {
             /** @description 이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8) */
             resultId: string;
@@ -4387,6 +4398,7 @@ export interface components {
             seed: number;
             /** @description 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함) */
             products: components["schemas"]["GoalScenarioProduct"][];
+            startDeposit: components["schemas"]["GoalScenarioStartDeposit"];
             /** @description 안정(stable)·균형(balanced)·적극(active) 순 */
             scenarios: components["schemas"]["GoalScenario"][];
             /** @description 세금·배당·수수료·리밸런싱·CMA 예시 금리·시작 금액 처리 등 계산 가정 */
@@ -4465,6 +4477,7 @@ export interface components {
             returnsTo: string;
             paths: number;
             products: components["schemas"]["GoalScenarioProduct"][];
+            startDeposit: components["schemas"]["GoalScenarioStartDeposit"];
             scenario: components["schemas"]["GoalScenario"];
             /** @description scenario(저장할 때 고른 플랜, 먼저 보여 줌)를 뺀 같은 계산 결과의 나머지 플랜(결과 순서). 플랜 하나만 저장하던 때의 저장본은 빈 배열 */
             alternatives: components["schemas"]["GoalScenario"][];

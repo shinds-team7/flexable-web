@@ -29,10 +29,15 @@
   ],
   "mixFixed": [
     {"name": "적금 70 · CMA 30", "start": 0, "monthly": 1000000, "months": 12, "savingsRatePercent": "3.50", "savingsCompound": false, "mix": {"SAVINGS": 70, "CMA": 30}, "expected": {"SAVINGS": 8534723, "CMA": 3641555, "final": 12176278}},
-    {"name": "적금 70 · CMA 30, 시작 금액 100만 원(적금 몫 70만 원도 CMA로)", "start": 1000000, "monthly": 1000000, "months": 12, "savingsRatePercent": "3.50", "savingsCompound": false, "mix": {"SAVINGS": 70, "CMA": 30}, "expected": {"SAVINGS": 8534723, "CMA": 4662948, "final": 13197671}}
+    {"name": "적금 70 · CMA 30, 시작 금액 100만 원(적금 몫 70만 원은 정기예금 12개월 3.00% 단리)", "start": 1000000, "monthly": 1000000, "months": 12, "savingsRatePercent": "3.50", "savingsCompound": false, "mix": {"SAVINGS": 70, "CMA": 30}, "deposit": {"termMonths": 12, "ratePercent": "3.00", "compound": false}, "expected": {"SAVINGS": 8534723, "CMA": 3947974, "DEPOSIT": 717766, "final": 13200463}},
+    {"name": "적금 70 · CMA 30, 시작 금액 100만 원, 맡길 정기예금이 없으면 적금 몫도 CMA로", "start": 1000000, "monthly": 1000000, "months": 12, "savingsRatePercent": "3.50", "savingsCompound": false, "mix": {"SAVINGS": 70, "CMA": 30}, "expected": {"SAVINGS": 8534723, "CMA": 4662948, "final": 13197671}}
   ],
   "afterMaturity": [
     {"name": "적금 만기 12개월 · 기한 18개월: 만기 금액과 남은 6개월 적금 몫을 CMA로", "monthly": 700000, "months": 18, "savingsTermMonths": 12, "savingsRatePercent": "3.50", "savingsCompound": false, "expected": {"matured": 8534723, "afterInterestPreTax": 137970, "afterTax": 21247, "final": 12851446}}
+  ],
+  "depositStart": [
+    {"name": "정기예금 만기 = 기한", "amount": 700000, "months": 12, "termMonths": 12, "ratePercent": "3.00", "compound": false, "expected": {"matured": 717766, "final": 717766}},
+    {"name": "정기예금 만기 6개월 · 기한 12개월: 만기 금액을 CMA로 6개월", "amount": 700000, "months": 12, "termMonths": 6, "ratePercent": "3.00", "compound": false, "expected": {"matured": 708883, "final": 716416}}
   ],
   "outcome": [
     {"name": "경로 5개, 목표 1,200만 원", "paid": 12804000, "target": 12000000, "invest": true, "values": [12804000, 13667553, 12001506, 14596913, 11255655], "expected": {"kind": "RANGE", "low": 11255655, "median": 12804000, "high": 14596913, "highGain": 1792913, "chanceBp": 8000, "lossBp": 4000}},

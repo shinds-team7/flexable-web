@@ -185,6 +185,43 @@ public class DepositService {
 		return new Pick(p, o);
 	}
 
+	/** 가입 대상이 개인이라는 공시 문구(finlife join_member). */
+	static final String INDIVIDUAL = "실명의 개인";
+
+	/** 목표 달성 시나리오(policies §7-4, #431)가 시작 금액의 적금 몫을 맡기는 정기예금: 상품 id·금융회사·이름·기본금리·이자 방식·만기. */
+	public record OpenDeposit(String productId, String company, String name, BigDecimal baseRate, boolean compound, int termMonths) {
+	}
+
+	/**
+	 * 만기가 months 이하인 정기예금 중 은행(1금융권)·가입 제한 "제한 없음"·가입 대상에 "실명의 개인"·가입 한도 없음인 상품에서,
+	 * 상품이 있는 가장 긴 만기의 기본금리가 가장 높은 것(같으면 상품 id 오름차순). 없으면 빈 값(policies §7-4).
+	 */
+	@Transactional(readOnly = true)
+	public Optional<OpenDeposit> openFixedUpTo(int months) {
+		Map<Long, List<DepositRateOption>> byProduct = new HashMap<>();
+		for (DepositRateOption o : options.findBySaveTrmLessThanEqual(months)) {
+			byProduct.computeIfAbsent(o.getProductId(), k -> new ArrayList<>()).add(o);
+		}
+		List<OpenDeposit> out = new ArrayList<>();
+		for (DepositProduct p : products.findAllById(byProduct.keySet())) {
+			if (!"BANK".equals(p.getSector()) || !"1".equals(p.getJoinDeny()) || p.getMaxLimit() != null || p.getJoinMember() == null
+					|| !p.getJoinMember().contains(INDIVIDUAL)) {
+				continue;
+			}
+			Map<Integer, List<DepositRateOption>> byTerm = new HashMap<>();
+			byProduct.get(p.getId()).forEach(o -> byTerm.computeIfAbsent(o.getSaveTrm(), k -> new ArrayList<>()).add(o));
+			byTerm.forEach((term, opts) -> best(opts).ifPresent(o -> out.add(new OpenDeposit(String.valueOf(p.getId()), p.getKorCoNm(),
+					p.getFinPrdtNm(), o.getIntrRate(), o.getIntrRateType().equals("M"), term))));
+		}
+		return out.stream().max(Comparator.comparingInt(OpenDeposit::termMonths).thenComparing(OpenDeposit::baseRate)
+			.thenComparing(Comparator.comparing((OpenDeposit d) -> Long.parseLong(d.productId())).reversed()));
+	}
+
+	/** 한도 없이 amount를 months 동안 맡긴 정기예금 만기 금액(세후, §6과 같은 계산). */
+	public static long maturity(long amount, int months, BigDecimal ratePercent, boolean compound) {
+		return DepositCalculator.calculate(amount, null, months, ratePercent, compound).maturityAmount();
+	}
+
 	/** 기본금리가 있는 줄 중 가장 높은 것. */
 	private static Optional<DepositRateOption> best(List<DepositRateOption> candidates) {
 		return candidates.stream()

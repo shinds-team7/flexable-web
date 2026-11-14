@@ -2385,9 +2385,21 @@ components:
               name: { type: string }
               company: { type: string, nullable: true, description: '적금 금융회사. 그 밖에는 null' }
               ratePercent: { type: string, nullable: true, description: '적금 기본금리(예: "3.20"). 지수 ETF는 null' }
+    GoalScenarioStartDeposit:
+      type: object
+      nullable: true
+      description: '시작 금액의 적금 몫을 한 번에 맡기는 정기예금(policies §7-4). 은행·개인·가입 제한 없음·한도 없음 중 기한 이하 가장 긴 만기의 기본금리 1위. 시작 금액이 0원이거나 조건에 맞는 예금이 없으면 null(그 몫은 CMA로 계산). 옛 저장본도 null'
+      required: [code, name, company, ratePercent, termMonths]
+      additionalProperties: false
+      properties:
+        code: { type: string, description: '정기예금 상품 id' }
+        name: { type: string }
+        company: { type: string }
+        ratePercent: { type: string, description: '기본금리(예: "3.00")' }
+        termMonths: { type: integer, description: '만기 개월(기한 이하). 기한보다 짧으면 만기 뒤 남은 달은 CMA 예시 금리로 계산했다' }
     GoalScenarioResult:
       type: object
-      required: [resultId, startAmount, monthlyBudget, months, targetAmount, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, products, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
+      required: [resultId, startAmount, monthlyBudget, months, targetAmount, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed, products, startDeposit, scenarios, assumptions, notice, isSample, aiUsage, aiReused]
       additionalProperties: false
       properties:
         resultId: { type: string, description: '이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8)' }
@@ -2406,6 +2418,7 @@ components:
           type: array
           description: 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함)
           items: { $ref: '#/components/schemas/GoalScenarioProduct' }
+        startDeposit: { $ref: '#/components/schemas/GoalScenarioStartDeposit' }
         scenarios:
           type: array
           minItems: 3
@@ -2442,7 +2455,7 @@ components:
         kind: { type: string, nullable: true, enum: [FIXED, RANGE, null] }
     SavedGoalScenario:
       type: object
-      required: [id, savedAt, name, startAmount, monthlyBudget, months, targetAmount, proposer, asOf, returnsFrom, returnsTo, paths, products, scenario, alternatives, assumptions, notice, isSample]
+      required: [id, savedAt, name, startAmount, monthlyBudget, months, targetAmount, proposer, asOf, returnsFrom, returnsTo, paths, products, startDeposit, scenario, alternatives, assumptions, notice, isSample]
       additionalProperties: false
       description: '저장할 때의 계산 결과 그대로(다시 계산하지 않음). 화면은 "기준일 결과"로 보여 준다'
       properties:
@@ -2459,6 +2472,7 @@ components:
         returnsTo: { type: string }
         paths: { type: integer }
         products: { type: array, items: { $ref: '#/components/schemas/GoalScenarioProduct' } }
+        startDeposit: { $ref: '#/components/schemas/GoalScenarioStartDeposit' }
         scenario: { $ref: '#/components/schemas/GoalScenario' }
         alternatives:
           type: array

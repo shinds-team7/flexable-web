@@ -36,7 +36,7 @@ class ScenarioResultCacheTest {
 
 	private static Result result() {
 		return new Result(null, 0, 500_000, 12, null, "DEMO", "AI_UNAVAILABLE", LocalDate.of(2026, 11, 3), "2021-10", "2026-10", 2000,
-				20261103L, List.of(), List.of(), List.of(), "고지", true, null, false);
+				20261103L, List.of(), null, List.of(), List.of(), "고지", true, null, false);
 	}
 
 	@Test

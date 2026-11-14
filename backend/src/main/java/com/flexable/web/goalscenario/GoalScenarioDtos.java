@@ -63,13 +63,17 @@ final class GoalScenarioDtos {
 		}
 	}
 
+	/** 시작 금액의 적금 몫을 맡기는 정기예금(policies §7-4). 조건에 맞는 예금이 없으면 응답에서 null이고 그 몫은 CMA로 계산한다. */
+	record StartDeposit(String code, String name, String company, String ratePercent, int termMonths) {
+	}
+
 	/** targetAmount는 입력한 목표 금액(없으면 null). */
 	record Result(String resultId, long startAmount, long monthlyBudget, int months, Long targetAmount, String proposer, String fallbackReason,
-			LocalDate asOf, String returnsFrom, String returnsTo, int paths, long seed, List<Product> products, List<Scenario> scenarios,
-			List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage, boolean aiReused) {
+			LocalDate asOf, String returnsFrom, String returnsTo, int paths, long seed, List<Product> products, StartDeposit startDeposit,
+			List<Scenario> scenarios, List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage, boolean aiReused) {
 		Result withId(String id) {
 			return new Result(id, startAmount, monthlyBudget, months, targetAmount, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed,
-					products, scenarios, assumptions, notice, isSample, aiUsage, aiReused);
+					products, startDeposit, scenarios, assumptions, notice, isSample, aiUsage, aiReused);
 		}
 	}
 
@@ -90,7 +94,7 @@ final class GoalScenarioDtos {
 	}
 
 	record Saved(long id, OffsetDateTime savedAt, String name, long startAmount, Long monthlyBudget, int months, Long targetAmount, String proposer,
-			LocalDate asOf, String returnsFrom, String returnsTo, int paths, List<Product> products, Scenario scenario, List<Scenario> alternatives,
-			List<String> assumptions, String notice, boolean isSample) {
+			LocalDate asOf, String returnsFrom, String returnsTo, int paths, List<Product> products, StartDeposit startDeposit, Scenario scenario,
+			List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample) {
 	}
 }

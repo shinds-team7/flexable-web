@@ -220,18 +220,38 @@ class GoalScenarioPolicyTest {
 			BigDecimal rate = new BigDecimal(c.get("savingsRatePercent").asString());
 			boolean compound = c.get("savingsCompound").asBoolean();
 			Map<ProductType, Integer> m = mix(c.get("mix"));
-			var in = new GoalScenarioService.Inputs(m, c.get("start").asLong(), c.get("monthly").asLong(), months, months, rate, compound);
+			JsonNode d = c.get("deposit");
+			var in = d == null ? new GoalScenarioService.Inputs(m, c.get("start").asLong(), c.get("monthly").asLong(), months, months, rate, compound)
+					: new GoalScenarioService.Inputs(m, c.get("start").asLong(), c.get("monthly").asLong(), months, months, rate, compound,
+							d.get("termMonths").asInt(), new BigDecimal(d.get("ratePercent").asString()), d.get("compound").asBoolean());
 			Map<ProductType, Long> a = in.monthlyParts();
 			JsonNode e = c.get("expected");
+			if (d != null) {
+				assertThat(GoalScenarioService.depositFinal(in.savingsStart(), months, d.get("termMonths").asInt(), new BigDecimal(d.get("ratePercent").asString()),
+						d.get("compound").asBoolean())).as("DEPOSIT").isEqualTo(e.get("DEPOSIT").asLong());
+			}
 			assertThat(SavingsService.maturity(a.get(ProductType.SAVINGS), months, rate, compound).finalAmount()).as("SAVINGS")
 				.isEqualTo(e.get("SAVINGS").asLong());
-			// 시작 금액의 적금 몫은 CMA로 계산한다(§7-4)
+			// 시작 금액의 적금 몫은 정기예금에, 맡길 예금이 없으면 CMA로 계산한다(§7-4)
 			assertThat(ScenarioMath.cma(in.cmaStart(), a.get(ProductType.CMA), months, GoalScenarioService.CMA_RATE).finalAmount()).as("CMA")
 				.isEqualTo(e.get("CMA").asLong());
 			long[] f = GoalScenarioService.finals(in, 1, Map.of(), Map.of());
 			assertThat(f[0]).as("final").isEqualTo(e.get("final").asLong());
 			// 그래프의 마지막 달도 같은 값이다
 			assertThat(GoalScenarioService.fixedSeries(in)[months]).as("series last").isEqualTo((double) e.get("final").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 시작_금액의_정기예금() {
+		return each("depositStart", c -> {
+			BigDecimal rate = new BigDecimal(c.get("ratePercent").asString());
+			int term = c.get("termMonths").asInt();
+			JsonNode e = c.get("expected");
+			assertThat(com.flexable.web.deposit.DepositService.maturity(c.get("amount").asLong(), term, rate, c.get("compound").asBoolean())).as("matured")
+				.isEqualTo(e.get("matured").asLong());
+			assertThat(GoalScenarioService.depositFinal(c.get("amount").asLong(), c.get("months").asInt(), term, rate, c.get("compound").asBoolean()))
+				.as("final").isEqualTo(e.get("final").asLong());
 		});
 	}
 

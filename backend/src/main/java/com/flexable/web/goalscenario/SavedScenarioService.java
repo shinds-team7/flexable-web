@@ -43,7 +43,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 	 */
 	record Snapshot(Integer version, int months, String proposer, String asOf, String returnsFrom, String returnsTo, int paths, List<Product> products,
 			Scenario scenario, List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample, Long startAmount,
-			Long monthlyBudget, Long targetAmount) {
+			Long monthlyBudget, Long targetAmount, GoalScenarioDtos.StartDeposit startDeposit) {
 		boolean legacy() {
 			return version == null || version < VERSION;
 		}
@@ -93,7 +93,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		// 결과 문장은 저장하지 않고 조회할 때 저장된 숫자로 만든다(policies §7-8)
 		Snapshot snap = new Snapshot(VERSION, r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.products(),
 				s.withResultText(null), r.scenarios().stream().filter(x -> !x.id().equals(s.id())).map(x -> x.withResultText(null)).toList(),
-				r.assumptions(), r.notice(), r.isSample(), r.startAmount(), r.monthlyBudget(), r.targetAmount());
+				r.assumptions(), r.notice(), r.isSample(), r.startAmount(), r.monthlyBudget(), r.targetAmount(), r.startDeposit());
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS); // DB(DATETIME(6))와 같은 정밀도로 돌려준다
 		// target_amount 칸은 NOT NULL이라 목표가 없으면 0으로 둔다(목표 금액은 100만 원 이상)
 		SavedScenario row = saved.save(new SavedScenario(userId, now, name, r.targetAmount() == null ? 0 : r.targetAmount(), r.months(),
@@ -159,7 +159,7 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		Long target = target(row, s);
 		long start = start(s);
 		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), start, monthly(s), row.getMonths(), target, s.proposer(),
-				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), products(s), withText(s.scenario(), start, target, s.months()),
+				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), products(s), s.startDeposit(), withText(s.scenario(), start, target, s.months()),
 				s.alternatives() == null ? List.of() : s.alternatives().stream().map(x -> withText(x, start, target, s.months())).toList(), s.assumptions(),
 				s.notice(), s.isSample());
 	}

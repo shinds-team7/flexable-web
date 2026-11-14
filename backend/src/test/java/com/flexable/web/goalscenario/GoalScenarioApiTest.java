@@ -70,6 +70,8 @@ class GoalScenarioApiTest {
 	@Autowired
 	SavingsCatalogService savings;
 	@Autowired
+	com.flexable.web.deposit.DepositCatalogService depositCatalog;
+	@Autowired
 	JdbcTemplate jdbc;
 	@Autowired
 	SavedScenarioRepository savedScenarios;
@@ -135,6 +137,12 @@ class GoalScenarioApiTest {
 			market.saveDailyCloses(row.code(), closes, Map.of(), "테스트");
 		}
 		// 12개월만 있다. 한도 있는 상품·제한 있는 상품·저축은행 상품·사업자 전용 은행 상품은 후보에서 빠진다
+		// 정기예금(시작 금액의 적금 몫, §7-4): 은행·개인·제한 없음·한도 없음 중 기한 이하 가장 긴 만기의 기본금리 1위. 저축은행·한도 있는 상품은 빠진다
+		depositCatalog.replaceAll(List.of(
+				deposit("D1", "BANK", "맡김예금", null, new com.flexable.web.deposit.DepositCatalogService.OptionData("S", 6, new BigDecimal("2.80"), null),
+						new com.flexable.web.deposit.DepositCatalogService.OptionData("S", 12, new BigDecimal("3.00"), null)),
+				deposit("D2", "SAVINGS_BANK", "저축은행 예금", null, new com.flexable.web.deposit.DepositCatalogService.OptionData("S", 12, new BigDecimal("4.50"), null)),
+				deposit("D3", "BANK", "한도 예금", 1_000_000L, new com.flexable.web.deposit.DepositCatalogService.OptionData("S", 12, new BigDecimal("4.00"), null))));
 		savings.replaceAll(List.of(
 				new ProductData("0020001", "D", "SAVINGS_BANK", "202610", "예시저축은행", "저축은행 적금", "영업점", null, null, "1", "실명의 개인", null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("6.00"), null))),
@@ -147,6 +155,12 @@ class GoalScenarioApiTest {
 				new ProductData("0010003", "C", "BANK", "202610", "열린은행", "누구나 적금", "인터넷", null, null, "1", "실명의 개인", null, null,
 						"20261001", null, "202610011000", List.of(new OptionData("S", "S", 12, new BigDecimal("3.50"), null))),
 				openSaving("0010005", "F", "둘째 적금", "3.20"), openSaving("0010006", "G", "셋째 적금", "3.00"), openSaving("0010007", "H", "넷째 적금", "2.80")));
+	}
+
+	private static com.flexable.web.deposit.DepositCatalogService.ProductData deposit(String code, String sector, String name, Long maxLimit,
+			com.flexable.web.deposit.DepositCatalogService.OptionData... options) {
+		return new com.flexable.web.deposit.DepositCatalogService.ProductData("0010009", code, sector, "202610", "맡김은행", name, "인터넷", null, null, "1",
+				"실명의 개인", null, maxLimit, "20261001", null, "202610011000", List.of(options));
 	}
 
 	private static ProductData openSaving(String company, String code, String name, String rate) {
@@ -316,20 +330,34 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
-	void 시작_금액의_적금_몫은_CMA로_계산하고_만기가_짧으면_남은_달도_CMA로_이어_간다() throws Exception {
+	void 시작_금액의_적금_몫은_정기예금에_맡기고_만기가_짧으면_남은_달은_CMA로_이어_간다() throws Exception {
 		String body = call(body(1_000_000, 1_000_000, 18), 200);
 		assertThat((Integer) JsonPath.read(body, "$.products[0].termMonths")).isEqualTo(12);
 		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).contains(GoalScenarioService.AFTER_MATURITY);
-		// 안정(적금 70·CMA 30, 확정형): 적금 몫은 12개월 만기 뒤 6개월을 CMA로, 시작 금액 전부(적금 몫 70만 + CMA 몫 30만)와 CMA 월 몫은 18개월 CMA로
+		// 정기예금: 기한 18개월 이하 가장 긴 만기(12개월)의 은행 예금. 저축은행·한도 있는 예금은 금리가 높아도 빠진다
+		assertThat((String) JsonPath.read(body, "$.startDeposit.name")).isEqualTo("맡김예금");
+		assertThat((String) JsonPath.read(body, "$.startDeposit.ratePercent")).isEqualTo("3.00");
+		assertThat((Integer) JsonPath.read(body, "$.startDeposit.termMonths")).isEqualTo(12);
+		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).anyMatch(a -> a.contains("정기예금(맡김은행 맡김예금"));
+		// 안정(적금 70·CMA 30, 확정형): 적금 월 몫은 12개월 만기 뒤 6개월을 CMA로, 시작 금액의 적금 몫 70만 원은 정기예금 12개월 뒤 6개월을 CMA로,
+		// 시작 금액의 CMA 몫 30만 원과 CMA 월 몫은 18개월 CMA로
 		long fixed = ((Number) JsonPath.read(body, "$.scenarios[0].outcome.fixedAmount")).longValue();
 		long savingsPart = GoalScenarioService.savingsFinal(700_000, 18, 12, new BigDecimal("3.50"), false);
-		long cmaPart = ScenarioMath.cma(1_000_000, 300_000, 18, GoalScenarioService.CMA_RATE).finalAmount();
-		assertThat(fixed).isEqualTo(savingsPart + cmaPart);
+		long cmaPart = ScenarioMath.cma(300_000, 300_000, 18, GoalScenarioService.CMA_RATE).finalAmount();
+		long depositPart = GoalScenarioService.depositFinal(700_000, 18, 12, new BigDecimal("3.00"), false);
+		assertThat(fixed).isEqualTo(savingsPart + cmaPart + depositPart);
 		assertThat((List<Integer>) JsonPath.read(body, "$.scenarios[0].mix[*].start")).containsExactly(700_000, 300_000);
 		// 확정형 그래프는 세 선이 같다
 		List<Map<String, Number>> series = JsonPath.read(body, "$.scenarios[0].series");
 		assertThat(series.getLast().get("low").longValue()).isEqualTo(fixed);
 		assertThat(series.get(12).get("low").longValue()).isEqualTo(series.get(12).get("high").longValue());
+	}
+
+	@Test
+	void 시작_금액이_0원이면_정기예금을_고르지_않는다() throws Exception {
+		String body = call(body(0, 500_000, 12), 200);
+		assertThat((Object) JsonPath.read(body, "$.startDeposit")).isNull();
+		assertThat((List<String>) JsonPath.read(body, "$.assumptions")).noneMatch(a -> a.contains("정기예금"));
 	}
 
 	@Test

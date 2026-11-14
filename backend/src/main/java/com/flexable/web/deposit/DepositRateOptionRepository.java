@@ -12,6 +12,8 @@ interface DepositRateOptionRepository extends JpaRepository<DepositRateOption, L
 
 	List<DepositRateOption> findBySaveTrm(int saveTrm);
 
+	List<DepositRateOption> findBySaveTrmLessThanEqual(int saveTrm);
+
 	List<DepositRateOption> findByProductId(Long productId);
 
 	@Modifying

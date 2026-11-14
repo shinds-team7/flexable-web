@@ -36,6 +36,9 @@ export type ScenarioOutcome = {
   lossBp: number;
 };
 
+/** 시작 금액의 적금 몫을 맡기는 정기예금(policies §7-4). 시작 금액이 0원이거나 맡길 예금이 없으면 null(그 몫은 CMA). */
+export type StartDeposit = { code: string; name: string; company: string; ratePercent: string; termMonths: number };
+
 /** 그래프 한 점: month달 말(0은 시작)의 하위 10%·중간값·상위 10%(policies §7-5). */
 export type SeriesPoint = { month: number; low: number; median: number; high: number };
 
@@ -79,6 +82,7 @@ export type GoalScenarioResult = {
   paths: number;
   seed: number;
   products: ScenarioProduct[];
+  startDeposit: StartDeposit | null;
   scenarios: GoalScenario[];
   assumptions: string[];
   notice: string;
@@ -129,6 +133,7 @@ export type SavedGoalScenario = {
   returnsTo: string;
   paths: number;
   products: ScenarioProduct[];
+  startDeposit: StartDeposit | null;
   /** 저장할 때 고른 플랜. 다시 볼 때 먼저 보여 준다 */
   scenario: GoalScenario;
   /** 같은 결과의 나머지 플랜. 플랜 하나만 저장하던 때의 저장본은 빈 배열 */

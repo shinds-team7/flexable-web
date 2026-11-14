@@ -34,6 +34,7 @@ import com.flexable.web.market.Board;
 import com.flexable.web.market.DailyClose;
 import com.flexable.web.market.MarketDtos.InstrumentView;
 import com.flexable.web.market.MarketService;
+import com.flexable.web.deposit.DepositService;
 import com.flexable.web.savings.SavingsService;
 import com.flexable.web.savings.SavingsService.FixedCandidate;
 
@@ -59,7 +60,6 @@ public class GoalScenarioService {
 			+ "실제 수익과 목표 달성 여부를 보장하지 않으며, 투자한 원금의 일부 또는 전부를 잃을 수 있어요. 자료 기준일과 계산 가정을 함께 확인해 주세요.";
 	static final List<String> ASSUMPTIONS = List.of(
 			"시작 금액은 첫 달 초에 한 번에, 월 금액은 매달 초에 비중대로 나눠 넣어요. 리밸런싱·중도 인출은 없어요.",
-			"적금은 매달 같은 돈을 넣는 상품이라 시작 금액 중 적금 몫은 CMA 예시 금리 연 2.5%로 계산했어요.",
 			"적금은 개인이 가입할 수 있는 은행 상품 중 기본금리가 가장 높은 상품을 골라 기본금리(우대금리 제외)로, CMA는 예시 금리 연 2.5%로 계산했어요.",
 			"이자와 미국 지수 ETF 이익에는 15.4% 세금을 뺐어요. 국내 지수 ETF·주식은 세금을 넣지 않았어요.",
 			"배당·매매 수수료는 넣지 않았어요.",
@@ -71,6 +71,7 @@ public class GoalScenarioService {
 
 	private final MarketService market;
 	private final SavingsService savings;
+	private final DepositService deposits;
 	private final ObjectProvider<ScenarioProposer> proposer;
 	private final ScenarioResultCache results;
 	private final ScenarioAiQuota quota;
@@ -78,8 +79,9 @@ public class GoalScenarioService {
 	private final TypeRoleStore typeRoles;
 	private final ScenarioPlanStore plans;
 
-	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results,
-			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps, TypeRoleStore typeRoles, ScenarioPlanStore plans) {
+	GoalScenarioService(MarketService market, SavingsService savings, DepositService deposits, ObjectProvider<ScenarioProposer> proposer,
+			ScenarioResultCache results, ScenarioAiQuota quota, GoalScenarioAiProperties aiProps, TypeRoleStore typeRoles, ScenarioPlanStore plans) {
+		this.deposits = deposits;
 		this.plans = plans;
 		this.aiProps = aiProps;
 		this.typeRoles = typeRoles;
@@ -118,6 +120,8 @@ public class GoalScenarioService {
 		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
 		YearMonth last = YearMonth.from(asOf).minusMonths(1);
 		Picked picked = pick(months, last);
+		// 시작 금액의 적금 몫을 맡길 정기예금(§7-4). 시작 금액이 0이면 쓰지 않아 고르지 않는다
+		DepositService.OpenDeposit deposit = start > 0 ? deposits.openFixedUpTo(months).orElse(null) : null;
 		long pickedAt = System.nanoTime();
 		int[][] draws = draws(blocks(months));
 		Map<String, BigDecimal[]> factors = new HashMap<>();
@@ -134,19 +138,37 @@ public class GoalScenarioService {
 		long choseAt = System.nanoTime();
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Plan plan : chosen.plans()) {
-			scenarios.add(scenario(plan, start, monthly, months, target, picked, factors, growths, draws));
+			scenarios.add(scenario(plan, start, monthly, months, target, picked, deposit, factors, growths, draws));
 		}
 		long calculatedAt = System.nanoTime();
 		// 단계별 시간만 남긴다(#417·#431). 금액·기한·회원 정보는 남기지 않는다(policies §7-6)
 		log.info("goal scenario timing: path={} pickMs={} drawMs={} chooseMs={} calcMs={} totalMs={}", chosen.path(), ms(started, pickedAt),
 				ms(pickedAt, drawnAt), ms(drawnAt, choseAt), ms(choseAt, calculatedAt), ms(started, calculatedAt));
-		List<String> assumptions = picked.savingTerm() < months
-				? java.util.stream.Stream.concat(ASSUMPTIONS.stream(), java.util.stream.Stream.of(AFTER_MATURITY)).toList()
-				: ASSUMPTIONS;
+		List<String> assumptions = new ArrayList<>(ASSUMPTIONS);
+		if (picked.savingTerm() < months) {
+			assumptions.add(AFTER_MATURITY);
+		}
+		if (start > 0) {
+			assumptions.add(startAssumption(deposit, months));
+		}
+		GoalScenarioDtos.StartDeposit startDeposit = deposit == null ? null
+				: new GoalScenarioDtos.StartDeposit(deposit.productId(), deposit.name(), deposit.company(),
+						deposit.baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString(), deposit.termMonths());
 		Result result = new Result(null, start, monthly, months, target, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
-				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, products(picked), scenarios, assumptions, NOTICE, true,
-				chosen.aiUsage(), chosen.reused());
+				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, products(picked), startDeposit, scenarios, List.copyOf(assumptions),
+				NOTICE, true, chosen.aiUsage(), chosen.reused());
 		return results.remember(result);
+	}
+
+	/** 시작 금액 중 적금 몫을 어디에 맡겼는지 밝히는 가정(§7-4). */
+	static String startAssumption(DepositService.OpenDeposit deposit, int months) {
+		if (deposit == null) {
+			return "적금은 매달 같은 돈을 넣는 상품이라 시작 금액 중 적금 몫은 CMA 예시 금리 연 2.5%로 계산했어요(맡길 정기예금 공시가 없음).";
+		}
+		String after = deposit.termMonths() < months ? " 만기 뒤 남은 달은 CMA 예시 금리 연 2.5%로 계산했어요." : "";
+		return "적금은 매달 같은 돈을 넣는 상품이라 시작 금액 중 적금 몫은 정기예금(" + deposit.company() + " " + deposit.name() + ", 기본금리 연 "
+				+ deposit.baseRate().setScale(2, RoundingMode.HALF_UP).toPlainString() + "%, 만기 " + deposit.termMonths() + "개월)에 한 번에 맡긴다고 계산했어요."
+				+ after;
 	}
 
 	static void validate(Request req) {
@@ -590,7 +612,12 @@ public class GoalScenarioService {
 
 	/** 한 시나리오의 계산 조건. 유형별 월 금액·시작 금액 몫은 여기서 나눈다(§7-4). */
 	record Inputs(Map<ProductType, Integer> mix, long start, long monthly, int months, int savingsTerm, BigDecimal savingsRate,
-			boolean savingsCompound) {
+			boolean savingsCompound, Integer depositTerm, BigDecimal depositRate, boolean depositCompound) {
+		/** 정기예금 없이(시작 금액의 적금 몫도 CMA로) 계산하는 조건. */
+		Inputs(Map<ProductType, Integer> mix, long start, long monthly, int months, int savingsTerm, BigDecimal savingsRate, boolean savingsCompound) {
+			this(mix, start, monthly, months, savingsTerm, savingsRate, savingsCompound, null, null, false);
+		}
+
 		Map<ProductType, Long> monthlyParts() {
 			return ScenarioMath.allocate(monthly, mix);
 		}
@@ -599,10 +626,15 @@ public class GoalScenarioService {
 			return ScenarioMath.allocateStart(start, mix);
 		}
 
-		/** 적금 몫의 시작 금액은 적금에 한 번에 넣을 수 없어 CMA 몫과 함께 CMA로 계산한다(§7-4). */
+		/** 시작 금액의 적금 몫. 적금(정액적립식)에 한 번에 넣을 수 없어 정기예금에 맡긴다(§7-4). */
+		long savingsStart() {
+			return startParts().getOrDefault(ProductType.SAVINGS, 0L);
+		}
+
+		/** CMA 계좌의 시작 금액: CMA 몫, 그리고 맡길 정기예금이 없으면 적금 몫도 함께. */
 		long cmaStart() {
-			Map<ProductType, Long> s = startParts();
-			return s.getOrDefault(ProductType.SAVINGS, 0L) + s.getOrDefault(ProductType.CMA, 0L);
+			long cma = startParts().getOrDefault(ProductType.CMA, 0L);
+			return depositTerm == null ? cma + savingsStart() : cma;
 		}
 
 		/** 넣은 돈 = 시작 금액 + 월 금액 × 개월. */
@@ -633,6 +665,9 @@ public class GoalScenarioService {
 		if (cmaStart > 0 || cmaMonthly > 0) {
 			fixed += ScenarioMath.cma(cmaStart, cmaMonthly, in.months(), CMA_RATE).finalAmount();
 		}
+		if (in.depositTerm() != null && in.savingsStart() > 0) {
+			fixed += depositFinal(in.savingsStart(), in.months(), in.depositTerm(), in.depositRate(), in.depositCompound());
+		}
 		long[] out = new long[n];
 		Arrays.fill(out, fixed);
 		for (ProductType t : INVEST) {
@@ -661,6 +696,15 @@ public class GoalScenarioService {
 	static long savingsFinal(long monthly, int months, int term, BigDecimal rate, boolean compound) {
 		long matured = SavingsService.maturity(monthly, term, rate, compound).finalAmount();
 		return term >= months ? matured : ScenarioMath.cma(matured, monthly, months - term, CMA_RATE).finalAmount();
+	}
+
+	/**
+	 * 시작 금액의 적금 몫을 맡긴 정기예금의 기한 말 금액(§7-4). 만기 = 기한이면 예금 만기 금액(세후, §6 계산). 만기가 짧으면 만기 금액을
+	 * CMA 예시 금리로 옮겨 남은 달 동안 둔다(새로 넣는 돈 없음, 세금은 이 부분 이자에만).
+	 */
+	static long depositFinal(long amount, int months, int term, BigDecimal rate, boolean compound) {
+		long matured = DepositService.maturity(amount, term, rate, compound);
+		return term >= months ? matured : ScenarioMath.cma(matured, 0, months - term, CMA_RATE).finalAmount();
 	}
 
 	/**
@@ -776,6 +820,29 @@ public class GoalScenarioService {
 				}
 			}
 		}
+		long dep = in.depositTerm() == null ? 0 : in.savingsStart();
+		if (dep > 0) {
+			// 정기예금은 만기 전에는 맡긴 돈, 만기 달에 만기 금액, 그 뒤는 CMA로 이어 간다
+			int term = Math.min(in.depositTerm(), months);
+			long matured = DepositService.maturity(dep, term, in.depositRate(), in.depositCompound());
+			out[0] += dep;
+			long balance = matured;
+			long interest = 0;
+			for (int m = 1; m <= months; m++) {
+				if (m < term) {
+					out[m] += dep;
+				}
+				else if (m == term) {
+					out[m] += matured;
+				}
+				else {
+					long i = ScenarioMath.monthInterest(balance, CMA_RATE);
+					balance += i;
+					interest += i;
+					out[m] += balance - ScenarioMath.tax(interest);
+				}
+			}
+		}
 		long cmaStart = in.cmaStart();
 		long cmaMonthly = mp.getOrDefault(ProductType.CMA, 0L);
 		out[0] += cmaStart;
@@ -791,8 +858,8 @@ public class GoalScenarioService {
 		return out;
 	}
 
-	private Scenario scenario(Plan plan, long start, long monthly, int months, Long target, Picked picked, Map<String, BigDecimal[]> factors,
-			Map<String, BigDecimal[]> growths, int[][] draws) {
+	private Scenario scenario(Plan plan, long start, long monthly, int months, Long target, Picked picked, DepositService.OpenDeposit deposit,
+			Map<String, BigDecimal[]> factors, Map<String, BigDecimal[]> growths, int[][] draws) {
 		boolean invest = plan.mix().keySet().stream().anyMatch(ProductType::invest);
 		int n = invest ? PATHS : 1;
 		Map<ProductType, List<BigDecimal[]>> itemFactors = new EnumMap<>(ProductType.class);
@@ -804,7 +871,9 @@ public class GoalScenarioService {
 			itemReturns.put(t, picked.items().get(t).stream().map(i -> picked.returns().get(i.code())).toList());
 		}
 		FixedCandidate s = picked.saving();
-		Inputs in = new Inputs(plan.mix(), start, monthly, months, picked.savingTerm(), s.baseRate(), s.compound());
+		Inputs in = deposit == null ? new Inputs(plan.mix(), start, monthly, months, picked.savingTerm(), s.baseRate(), s.compound())
+				: new Inputs(plan.mix(), start, monthly, months, picked.savingTerm(), s.baseRate(), s.compound(), deposit.termMonths(), deposit.baseRate(),
+						deposit.compound());
 		Outcome outcome = outcome(finals(in, n, itemFactors, itemGrowths), in.paid(), target, invest);
 		Map<ProductType, Long> mp = in.monthlyParts();
 		Map<ProductType, Long> st = in.startParts();

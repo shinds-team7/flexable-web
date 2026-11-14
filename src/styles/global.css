@@ -20,7 +20,8 @@
 
 /* ───────── 기본 ───────── */
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+/* 페이지마다 스크롤바가 생겼다 사라지며 가운데 정렬된 화면이 좌우로 흔들리지 않게 스크롤바 자리를 항상 비워 둔다 */
+html{-webkit-text-size-adjust:100%;scrollbar-gutter:stable}
 @media (prefers-reduced-motion: no-preference){html{scroll-behavior:smooth}}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:var(--font-size-body);line-height:1.6;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:anywhere}
 h1,h2,h3,h4,p{margin:0}

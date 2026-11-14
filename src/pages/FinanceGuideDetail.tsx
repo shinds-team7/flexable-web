@@ -29,11 +29,6 @@ function DetailPage({ c }: { c: GuideContent }) {
     if (hasArticle) recordView(c.id);
   }, [c.id, hasArticle, recordView]);
 
-  // 다른 콘텐츠로 넘어오면 맨 위부터 읽게 한다
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, []);
-
   return (
     <section>
       <div className="page fin fin-detail">

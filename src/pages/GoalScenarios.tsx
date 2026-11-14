@@ -255,9 +255,7 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
     const d = ref.current;
     if (!d) return;
     if (viewing && !d.open) {
-      // 열려 있는 동안 페이지 스크롤을 잠그면 스크롤바가 사라지므로, 그 폭만큼 body 여백을 줘 뒤 화면이 밀리지 않게 한다(goal-plan.css).
-      const root = document.documentElement;
-      root.style.setProperty('--gp-scrollbar-width', `${window.innerWidth - root.clientWidth}px`);
+      // 열려 있는 동안 페이지 스크롤을 잠근다(goal-plan.css). 스크롤바 자리는 global.css의 scrollbar-gutter가 비워 두어 뒤 화면이 밀리지 않는다.
       d.showModal();
     }
     if (!viewing && d.open) d.close();

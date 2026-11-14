@@ -63,7 +63,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 | `/lab/stocks`, `/lab/savings` | 예전 주소 → 새 경로로 이동 | 호환 |
 | `/m/*` | 앱 시연(온보딩·홈·지출계획·분석·마이) | 완료(project2에서 옮김) |
 
-상단 메뉴는 금융 가이드 · 투자성향 · 투자 · 예적금 · AI 목표달성 · 청년소식(`src/components/Layout.tsx`). 투자의 하위 메뉴는 인사이트(`/invest`) · 과거 시장 연습(`/simulation?mode=past`) · 가상 시뮬레이션(`?mode=virtual`) · 월간 시뮬레이션 대회(`?mode=contest`)이고, `/invest`·`/simulation` 어디서나 투자가 선택 표시된다. 플러스는 메뉴에서 빼고 내 정보(`/mypage/settings`)에서 들어간다. 새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).
+상단 메뉴는 금융 가이드 · 투자성향 · 투자 · AI 목표달성 · 예적금 · 청년소식(`src/components/Layout.tsx`). 금융 가이드의 하위 메뉴는 금융 기초(`/guide/basic`) · 저축과 투자(`/guide/product`), 투자성향의 하위 메뉴는 투자성향이란?(`/type/about`) · 투자 성향 테스트(`/type/test`)이다. 투자의 하위 메뉴는 인사이트(`/invest`) · 과거 시장 연습(`/simulation?mode=past`) · 가상 시뮬레이션(`?mode=virtual`) · 월간 시뮬레이션 대회(`?mode=contest`)이고, `/invest`·`/simulation` 어디서나 투자가 선택 표시된다. 플러스는 메뉴에서 빼고 내 정보(`/mypage/settings`)에서 들어간다. 새 화면은 `src/App.tsx`의 `Placeholder` 자리를 바꿔 끼운다. 화면 설계는 [`docs/reference/wireframes.html`](docs/reference/wireframes.html)의 같은 이름 화면을 따른다(브라우저로 열기).
 
 ## 로그인 없이 체험하기
 

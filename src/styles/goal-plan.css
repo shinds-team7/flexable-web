@@ -161,7 +161,6 @@
 .gp-text-btn.gp-danger{color:var(--color-danger)}
 dialog.gp-view-dialog{width:min(980px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;background:var(--color-bg-subtle);border:1px solid var(--color-border);border-radius:var(--radius-soft)}
 html:has(dialog.gp-view-dialog[open]){overflow:hidden}
-html:has(dialog.gp-view-dialog[open]) body{padding-right:var(--gp-scrollbar-width,0px)}
 .gp-view-body{padding:var(--density-gap)}
 .gp-view-head{display:flex;justify-content:space-between;align-items:flex-start;gap:calc(var(--density-gap)/2);margin-bottom:calc(var(--density-gap)*2/3)}
 .gp-view-name{font-size:22px;font-weight:750;line-height:1.35;margin:0;overflow-wrap:anywhere}

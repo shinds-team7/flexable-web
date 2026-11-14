@@ -9,13 +9,28 @@ import { useSeedMoney } from '@/data/home';
 import { won } from '@/lib/format';
 import { Icon, Logo } from './Icons';
 import { ScrollTopButton } from './ScrollTopButton';
+import { ScrollManager } from './ScrollManager';
 import { LoginModalProvider, useLoginModal } from './LoginModal';
 
 /** 상단 메뉴. 모든 메뉴는 로그인 없이 체험할 수 있다. match가 있으면 그 경로들에서도 선택 색을 칠한다(aria-current는 to 경로에서만). */
 type NavItem = { to: string; label: string; match?: string[]; sub?: { to: string; label: string }[] };
 const NAV: NavItem[] = [
-  { to: '/guide', label: '금융 가이드' },
-  { to: '/type', label: '투자성향' },
+  {
+    to: '/guide',
+    label: '금융 가이드',
+    sub: [
+      { to: '/guide/basic', label: '금융 기초' },
+      { to: '/guide/product', label: '저축과 투자' },
+    ],
+  },
+  {
+    to: '/type',
+    label: '투자성향',
+    sub: [
+      { to: '/type/about', label: '투자성향이란?' },
+      { to: '/type/test', label: '투자 성향 테스트' },
+    ],
+  },
   {
     to: '/invest',
     label: '투자',
@@ -27,6 +42,7 @@ const NAV: NavItem[] = [
       { to: '/simulation?mode=contest', label: '월간 시뮬레이션 대회' },
     ],
   },
+  { to: '/goal', label: 'AI 목표달성' },
   {
     to: '/savings',
     label: '예적금',
@@ -37,7 +53,6 @@ const NAV: NavItem[] = [
       { to: '/cma', label: 'CMA' },
     ],
   },
-  { to: '/goal', label: 'AI 목표달성' },
   { to: '/news', label: '청년소식' },
 ];
 
@@ -165,6 +180,13 @@ function LayoutBody() {
   const member = status === 'member';
   const exploring = status === 'guest' && !['/', '/home', '/login', '/signup', '/oauth/callback'].includes(pathname);
   useEffect(() => setMenu(false), [pathname]);
+  // 메뉴를 누르면 포커스가 링크에 남아 :focus-within으로 하위 메뉴가 계속 열려 있으므로 포커스를 빼고 닫는다.
+  // 쿼리만 바뀌거나(/simulation?mode=…) 같은 페이지를 누르면 pathname이 그대로라 좁은 화면 메뉴도 여기서 닫는다.
+  const closeNav = (item: string, link: HTMLElement) => {
+    setClosedSub(item);
+    setMenu(false);
+    link.blur();
+  };
 
   return (
     <>
@@ -184,20 +206,17 @@ function LayoutBody() {
                 onFocus={() => setClosedSub((v) => (v === n.to ? null : v))}
               >
                 {/* aria-current는 NavLink가 to 경로에서만 붙이고, 같은 묶음의 다른 경로는 data-section으로 색만 칠한다 */}
-                <NavLink to={n.to} data-section={n.match?.some((m) => pathname === m || pathname.startsWith(m + '/')) ? 'active' : undefined}>
+                <NavLink
+                  to={n.to}
+                  data-section={n.match?.some((m) => pathname === m || pathname.startsWith(m + '/')) ? 'active' : undefined}
+                  onClick={(e) => closeNav(n.to, e.currentTarget)}
+                >
                   {n.label}
                 </NavLink>
                 {n.sub && (
                   <div className="subnav">
                     {n.sub.map((c) => (
-                      <Link
-                        key={c.to}
-                        to={c.to}
-                        onClick={(e) => {
-                          setClosedSub(n.to);
-                          e.currentTarget.blur();
-                        }}
-                      >
+                      <Link key={c.to} to={c.to} onClick={(e) => closeNav(n.to, e.currentTarget)}>
                         {c.label}
                       </Link>
                     ))}
@@ -207,7 +226,11 @@ function LayoutBody() {
             ))}
           </nav>
           <div className="nav-right">
-            <button className="menu-btn" aria-expanded={menu} aria-controls="mainnav" onClick={() => setMenu((v) => !v)}>
+            <button className="menu-btn" aria-expanded={menu} aria-controls="mainnav" onClick={() => {
+              // 터치 화면에서는 mouseleave가 없어 닫힘 표시가 남을 수 있으니, 메뉴를 열 때 하위 목록을 다시 보이게 한다
+              setClosedSub(null);
+              setMenu((v) => !v);
+            }}>
               메뉴
             </button>
             {member && <SeedChip />}
@@ -239,6 +262,7 @@ function LayoutBody() {
       <main id="main">
         <Outlet />
       </main>
+      <ScrollManager />
       <ScrollTopButton />
     </>
   );

@@ -280,17 +280,21 @@ public final class VirtualContestQuestions {
 		list.sort(java.util.Comparator.comparing((Past p) -> !described(p, summaries)));
 	}
 
+	/** 예시 자료에서 공시 직후가 보합이 아닌 경로를 고르는 횟수(회사×유형마다) */
+	private static final int SAMPLE_TRIES = 4;
+
 	/**
 	 * 예시 자료(VIRTUAL_SIM_SOURCE=fake)의 문제 재료: 예시 회사의 사건마다 예시 룰셋에서 경로 몇 개를 골라 쓴다(실제 공시가 아니다).
 	 * 전날 종가를 10,000으로 두고 경로를 이어 붙인다. v3 경로(6개, 기준 봉 당일부터)는 둘째 날까지가 공시 직후(정답)이고 셋째~여섯째 날이 그다음 주다.
 	 * v2 경로(5개, 기준 봉 당일 등락이 없음)는 전날 종가 = 기준 봉 종가로 보고 첫째 날까지가 공시 직후, 둘째~다섯째 날이 그다음 주다.
-	 * bodies: 회사 → 유형별 사건 글. 주요 내용은 유형마다 고정한 예시 값(VirtualSimSample.details, 실제 공시처럼 구조화 자료가 없는 유형은 null)
+	 * bodies: 회사 → 유형별 사건 글. 주요 내용은 유형마다 고정한 예시 값(VirtualSimSample.details, 실제 공시처럼 구조화 자료가 없는 유형은 null).
+	 * 같은 회사·유형은 본문이 같아 회사×유형마다 한 문제만 만든다(Issue #432). 공시 직후가 보합인 경로면 SAMPLE_TRIES번까지 다시 고른다
 	 */
 	public static List<Past> sample(Map<String, Map<VirtualSimCategory, String>> bodies, Map<String, String> industries, VirtualSimRuleset rules,
 			RandomGenerator random) {
 		List<Past> out = new ArrayList<>();
 		bodies.forEach((company, byCategory) -> byCategory.forEach((category, body) -> rules.stats(category).ifPresent(st -> {
-			for (int k = 0; k < 4; k++) {
+			for (int k = 0; k < SAMPLE_TRIES; k++) {
 				int[] path = st.samples().get(random.nextInt(st.samples().size()));
 				int reactionEnd = path.length > VirtualSimRules.FOLLOW_DAYS ? 1 : 0;
 				long close = 10_000, next = 0;
@@ -301,8 +305,9 @@ public final class VirtualContestQuestions {
 					}
 				}
 				if (next != 10_000) {
-					out.add(new Past(company + ":" + category + ":" + k, company, industries.get(company), category,
+					out.add(new Past(company + ":" + category, company, industries.get(company), category,
 							category.titles().get(random.nextInt(category.titles().size())), body, VirtualSimSample.details(category), null, 10_000, next, close));
+					break;
 				}
 			}
 		})));

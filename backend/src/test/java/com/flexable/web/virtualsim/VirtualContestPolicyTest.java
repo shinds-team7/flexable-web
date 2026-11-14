@@ -291,7 +291,10 @@ class VirtualContestPolicyTest {
 		assertThat(VirtualContestQuestions.plainTitle("현금ㆍ현물배당결정[정정]")).isEqualTo("현금ㆍ현물배당결정[정정]");
 	}
 
-	/** 예시 자료(fake)로 여러 번 출제한 유형 분포: 시설·지분 투자가 없어 근거 4문제는 공급 계약·자기주식 취득, 유형 5개가 상한 안에서 나온다 */
+	/**
+	 * 예시 자료(fake)로 여러 번 출제한 유형 분포: 시설·지분 투자가 없어 근거 4문제는 공급 계약·자기주식 취득, 유형 5개가 상한 안에서 나온다.
+	 * 회사×유형마다 한 문제라 같은 회사의 같은 유형 문제가 겹치지 않는다(Issue #432)
+	 */
 	@Test
 	void placement_draw_sample_distribution() {
 		Map<String, Map<VirtualSimCategory, String>> bodies = new HashMap<>();
@@ -305,6 +308,8 @@ class VirtualContestPolicyTest {
 			var random = new java.util.Random(seed);
 			var drawn = VirtualContestQuestions.draw(VirtualContestQuestions.sample(bodies, industries, VirtualSimSample.ruleset(), random), Map.of(), random);
 			assertThat(drawn).as("seed %d", seed).hasSize(VirtualContestRules.PLACEMENT_QUESTIONS);
+			// 회사×유형은 한 시험에 한 번만(Issue #432)
+			assertThat(drawn.stream().map(q -> q.company() + "|" + q.category()).toList()).as("seed %d", seed).doesNotHaveDuplicates();
 			Map<VirtualSimCategory, Long> counts = byType(drawn);
 			assertThat(counts.values()).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
 			assertThat(counts.get(VirtualSimCategory.SUPPLY_CONTRACT)).isGreaterThanOrEqualTo(1);

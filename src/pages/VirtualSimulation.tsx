@@ -135,6 +135,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   const playButton = useRef<HTMLButtonElement>(null);
   const latest = useRef<VirtualSimSnapshot | null>(null);
   const amountInput = useRef<HTMLInputElement>(null);
+  const contestStart = useRef<HTMLButtonElement>(null);
   const focusSetup = useRef(false);
   const [activeBand, setActiveBand] = useState<number | null>(null);
   // 기록에서 누른 사건: 차트로 올라가 그 사건 기간 띠를 계속 강조한다(마우스를 떼도 남는다)
@@ -247,19 +248,18 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
     if (old) void virtualSim('end', { sessionToken: old }).catch(() => {}).finally(() => play?.onSettled());
     play?.onExit();
   };
-  /** 대회 판: 끝난 판을 닫고 같은 화면에서 바로 다음 판을 시작한다(끝난 판은 이미 정산됨) */
+  /** 대회 판: 끝난 판을 닫고 같은 화면의 판 시작 대기 화면으로 돌아간다(끝난 판은 이미 정산됨). 다음 판은 [판 시작]을 눌러야 시작한다 */
   const nextRound = () => {
     generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
-    setActiveBand(null); setPinnedBand(null); setRound(null);
+    setActiveBand(null); setPinnedBand(null); setRound(null); focusSetup.current = true;
     const old = token.current; token.current = null;
     if (old) void virtualSim('end', { sessionToken: old }).catch(() => {});
-    void send({ path: 'start', body: { startId: crypto.randomUUID() } });
   };
   const noRoundsLeft = !!round && round.roundsLeftToday === 0;
   useEffect(() => {
     if (snapshot || !focusSetup.current) return;
     focusSetup.current = false;
-    amountInput.current?.focus();
+    (contestStart.current ?? amountInput.current)?.focus();
   }, [snapshot]);
   const collapse = () => setCollapsed(true);
   const expand = () => setCollapsed(false);
@@ -343,7 +343,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           <div className="practice-setup-title"><h2>{BOARD_LABEL[contest.board]} 대회 판</h2></div>
           <p className="practice-muted">지금 대회 잔액 전부로 시작하고, 가상 종목 하나를 무작위로 받아요. 사건은 4개이고 채점하지 않아요.</p>
           <form onSubmit={start}>
-            <button className="btn btn-primary practice-start" type="submit" disabled={busy || !status}>{!status ? '불러오는 중…' : busy ? '판 준비 중…' : '판 시작'}</button>
+            <button ref={contestStart} className="btn btn-primary practice-start" type="submit" disabled={busy || !status}>{!status ? '불러오는 중…' : busy ? '판 준비 중…' : '판 시작'}</button>
             <p className="practice-allocation">처음에는 잔액의 50%로 주식을 사고, 나머지는 현금으로 남겨요. 판이 끝난 총자산이 다음 판의 잔액이 돼요.</p>
           </form>
           <button type="button" className="btn practice-start" onClick={contest.onExit}>대회 화면으로 돌아가기</button>

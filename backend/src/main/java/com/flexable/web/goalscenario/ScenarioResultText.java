@@ -11,25 +11,32 @@ import com.flexable.web.goalscenario.GoalScenarioDtos.Outcome;
  */
 final class ScenarioResultText {
 
+	/** #431 전 저장본 중 필요 월 금액을 찾지 못한 플랜. */
 	static final String UNREACHABLE = "목표 금액 안의 월 금액으로는 10번 중 8번 목표에 닿지 못했어요. 기한을 늘리거나 목표를 조정해 보세요.";
 
 	private ScenarioResultText() {
 	}
 
-	/** months는 기한(개월). 닿지 못했거나 결과가 없으면 UNREACHABLE. */
-	static String of(boolean reachable, Long monthly, Outcome outcome, int months) {
-		if (!reachable || monthly == null || outcome == null) {
+	/**
+	 * start는 시작 금액, monthly는 월 금액, target은 목표 금액(없으면 null), months는 기한(개월).
+	 * 결과가 없으면(#431 전 저장본의 찾지 못한 플랜) UNREACHABLE.
+	 */
+	static String of(long start, Long monthly, Outcome outcome, Long target, int months) {
+		if (monthly == null || outcome == null) {
 			return UNREACHABLE;
 		}
-		String pay = "매달 " + won(monthly) + "원씩 넣으면 ";
+		String pay = (start > 0 ? "시작 금액 " + manwon(start) + "에 " : "") + "매달 " + won(monthly) + "원씩 넣으면 " + period(months) + " 뒤 ";
 		if ("FIXED".equals(outcome.kind()) && outcome.fixedAmount() != null) {
-			return pay + period(months) + " 뒤 " + manwon(outcome.fixedAmount()) + "이 돼요(세후 이자 포함).";
+			String goal = target == null ? "" : outcome.fixedAmount() >= target ? " 목표 " + manwon(target) + "에 닿아요." : " 목표 " + manwon(target) + "에는 닿지 못해요.";
+			return pay + manwon(outcome.fixedAmount()) + "이 돼요(세후 이자 포함)." + goal;
 		}
-		if (outcome.low() == null) {
+		if (outcome.low() == null || outcome.median() == null || outcome.high() == null) {
 			return UNREACHABLE;
 		}
-		return pay + "10번 중 " + Math.floorDiv(outcome.chanceBp(), 1000) + "번 목표에 닿아요. 잘 안 풀리면(하위 10%) " + manwon(outcome.low())
-				+ "이고, 원금보다 적게 남을 가능성은 " + Math.floorDiv(outcome.lossBp(), 100) + "%예요.";
+		String goal = target == null || outcome.chanceBp() == null ? ""
+				: " 목표 " + manwon(target) + "에는 10번 중 " + Math.floorDiv(outcome.chanceBp(), 1000) + "번 닿아요.";
+		return pay + "중간값은 " + manwon(outcome.median()) + "이에요. 잘 안 풀리면(하위 10%) " + manwon(outcome.low()) + ", 잘 풀리면(상위 10%) "
+				+ manwon(outcome.high()) + "이고, 넣은 돈보다 적게 남을 가능성은 " + Math.floorDiv(outcome.lossBp(), 100) + "%예요." + goal;
 	}
 
 	private static String won(long n) {

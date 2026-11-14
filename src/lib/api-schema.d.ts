@@ -1918,14 +1918,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * F7 v2 목표 달성 시나리오(로그인 없이도 씀, 회원이면 AI 조합). 조합은 제안기(AI 또는 데모), 숫자는 서버 계산. docs/policies.md §7
-         * @description - 계산 결과는 DB에 저장하지 않고, 저장(`POST /me/goal/scenarios`)을 위해 30분 동안 서버 메모리에만 둔다(resultId). 목표 이름은 계산에 쓰지 않고 그대로 돌려주며 로그에 남기지 않는다.
-         *     - 로그인 토큰이 있으면 회원으로 보고 AI(OpenAI) 조합을 준다(하루 횟수·서비스 상한). 회원이 받은 AI 조합(유형·비중·문구)은 목표 금액·기한·월 납입 가능액·자료 기준일과 함께 그 회원의 재사용용으로 DB에 두고, 같은 조건이면 다시 부르지 않는다(aiReused). 7일 뒤 삭제, 탈퇴하면 즉시 삭제(§7-6). 토큰이 없으면 데모 조합(GUEST). 토큰이 잘못됐거나 탈퇴한 회원이면 401.
-         *     - 제안기가 낸 조합(유형·비중)을 §7-6으로 검증하고, 실패하거나 AI 키가 없으면 데모 조합을 쓴다(proposer, fallbackReason, aiUsage).
+         * F7 목표 달성 시나리오(#431). 시작 금액·월 납입 가능액·기한(목표 금액 선택)으로 안정·균형·적극 세 조합의 결과를 계산한다. 로그인 없이도 쓰고, 회원이면 AI 조합. docs/policies.md §7
+         * @description - 계산 결과는 DB에 저장하지 않고, 저장(`POST /me/goal/scenarios`)을 위해 30분 동안 서버 메모리에만 둔다(resultId).
+         *     - 조합은 worker가 기한마다 미리 만든 AI 조합(안정·균형·적극 단계 범위 검사 통과분)이다. 요청 중에는 AI를 부르지 않는다(§7-6). 토큰이 없으면 데모 조합(GUEST), 미리 만든 조합이 없으면 AI_PENDING, AI 키가 없으면 AI_UNAVAILABLE. 토큰이 잘못됐거나 탈퇴한 회원이면 401.
+         *     - 회원은 KST 하루 5번(같은 조건으로 다시 보면 차감 없음, aiReused) AI 조합을 본다. 본 조합은 조건(시작 금액·월 금액·기한·목표 금액·자료 기준일)과 함께 그 회원의 다시 보기용으로 DB에 두고 7일 뒤·탈퇴 때 지운다.
          *     - 경로 2,000개·seed 고정이라 같은 입력과 같은 자료면 같은 응답이다.
-         *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 종목 코드), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
-         *     - 기한은 개월 수(6~60, 11-11 #406에서 36 → 60)로 받는다. 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2·7-3).
-         *     - 월 납입 가능액(monthlyBudget)은 선택이다. 필요 월 금액 계산은 바꾸지 않고 시나리오마다 비교만 한다(withinBudget·overBudgetBy). 가능액 밖인 시나리오는 서버가 정해 둔 대안 문장을 해설 fit 칸 끝과 explanation 끝에 붙인다(§7-5). 회원이면 AI에도 보낸다(§7-6).
+         *     - 수익률 자료(월말 종가 61개)가 모자란 종목이 있으면 503 MARKET_UNAVAILABLE(field = 유형 이름), 기한 이하 만기의 적금 후보가 없으면 field = SAVINGS.
+         *     - 기한과 같은 만기의 적금이 없으면 기한 이하 만기 중 가장 긴 적금을 쓰고 남은 달은 CMA 예시 금리로 계산한다(products[SAVINGS].termMonths, §7-2).
          */
         post: {
             parameters: {
@@ -1937,22 +1936,28 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        /** @description 앞뒤 공백을 뺀 1~20자 */
-                        name: string;
-                        /** Format: int64 */
-                        targetAmount: number;
+                        /**
+                         * Format: int64
+                         * @description 시작 금액(원). 첫 달 초에 비중대로 한 번에 넣는다. 적금 몫은 CMA로 계산한다(policies §7-4)
+                         */
+                        startAmount: number;
+                        /**
+                         * Format: int64
+                         * @description 월 납입 가능액(천 원 단위). 매달 초 비중대로 나눠 넣는다
+                         */
+                        monthlyBudget: number;
                         /** @description 기한(개월). 화면은 연·월로 받아 개월로 보낸다 */
                         months: number;
                         /**
                          * Format: int64
-                         * @description 월 납입 가능액(선택, 천 원 단위, 1만 원~목표 금액). 빼거나 null이면 지금과 같이 계산한다. 목표 금액보다 크면 400 monthlyBudget(policies §7-1)
+                         * @description 목표 금액(선택). 있으면 목표 달성 추정(chanceBp)을 계산한다
                          */
-                        monthlyBudget?: number | null;
+                        targetAmount?: number | null;
                     };
                 };
             };
             responses: {
-                /** @description 시나리오 3개 */
+                /** @description 시나리오 3개(안정·균형·적극) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2006,7 +2011,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** 방금 계산한 결과(resultId)의 플랜 전체를 그때 값 그대로 저장. scenarioId는 다시 볼 때 먼저 보여 줄 플랜. 5개(저장 건 기준)가 차 있으면 409 GOAL_SCENARIO_LIMIT, 30분이 지났거나 없는 resultId면 409 GOAL_SCENARIO_EXPIRED */
+        /** 방금 계산한 결과(resultId)의 플랜 전체를 그때 값 그대로 저장. scenarioId는 다시 볼 때 먼저 보여 줄 플랜, name은 저장할 때 붙이는 이름. 5개(저장 건 기준)가 차 있으면 409 GOAL_SCENARIO_LIMIT, 30분이 지났거나 없는 resultId면 409 GOAL_SCENARIO_EXPIRED */
         post: {
             parameters: {
                 query?: never;
@@ -2019,6 +2024,8 @@ export interface paths {
                     "application/json": {
                         resultId: string;
                         scenarioId: string;
+                        /** @description 앞뒤 공백을 뺀 1~20자. 비면 400 name */
+                        name: string;
                     };
                 };
             };
@@ -4335,29 +4342,47 @@ export interface components {
                 ratePercent: string | null;
             }[];
         };
+        /** @description 시작 금액의 적금 몫을 한 번에 맡기는 정기예금(policies §7-4). 은행·개인·가입 제한 없음·한도 없음 중 기한 이하 가장 긴 만기의 기본금리 1위. 시작 금액이 0원이거나 조건에 맞는 예금이 없으면 null(그 몫은 CMA로 계산). 옛 저장본도 null */
+        GoalScenarioStartDeposit: {
+            /** @description 정기예금 상품 id */
+            code: string;
+            name: string;
+            company: string;
+            /** @description 기본금리(예: "3.00") */
+            ratePercent: string;
+            /** @description 만기 개월(기한 이하). 기한보다 짧으면 만기 뒤 남은 달은 CMA 예시 금리로 계산했다 */
+            termMonths: number;
+        } | null;
         GoalScenarioResult: {
             /** @description 이 결과를 저장할 때 쓰는 값. 서버가 30분 동안만 기억한다(policies §7-8) */
             resultId: string;
-            name: string;
-            /** Format: int64 */
-            targetAmount: number;
+            /**
+             * Format: int64
+             * @description 요청의 시작 금액
+             */
+            startAmount: number;
+            /**
+             * Format: int64
+             * @description 요청의 월 납입 가능액(= 시나리오의 월 금액)
+             */
+            monthlyBudget: number;
             /** @description 기한(개월, 6~60) */
             months: number;
             /**
              * Format: int64
-             * @description 요청의 월 납입 가능액. 넣지 않았으면 null
+             * @description 요청의 목표 금액. 넣지 않았으면 null
              */
-            monthlyBudget: number | null;
+            targetAmount: number | null;
             /**
-             * @description DEMO면 화면에 "AI 연결 전 예시 조합" 표시
+             * @description DEMO면 화면에 "예시 조합" 표시
              * @enum {string}
              */
             proposer: "AI" | "DEMO";
             /**
-             * @description proposer=DEMO일 때 이유(policies §7-6). AI_UNAVAILABLE 키 없음, GUEST 비회원, LIMIT 회원 하루 횟수 소진, DAILY_CAP 서비스 전체 하루 상한, AI_FAILED 호출 실패, AI_REJECTED 규칙 위반. AI면 null
+             * @description proposer=DEMO일 때 이유(policies §7-6). AI_UNAVAILABLE 키 없음, GUEST 비회원, AI_PENDING 이 기한의 조합을 아직 미리 만들지 못함, LIMIT 회원 하루 횟수 소진, AI_REJECTED 미리 만든 조합이 지금 검사에 걸림. AI면 null
              * @enum {string|null}
              */
-            fallbackReason: "AI_UNAVAILABLE" | "GUEST" | "LIMIT" | "DAILY_CAP" | "AI_FAILED" | "AI_REJECTED" | null;
+            fallbackReason: "AI_UNAVAILABLE" | "GUEST" | "AI_PENDING" | "LIMIT" | "AI_REJECTED" | null;
             /**
              * Format: date
              * @description 자료 기준일(수집된 마지막 거래일)
@@ -4371,23 +4396,23 @@ export interface components {
             paths: number;
             /** Format: int64 */
             seed: number;
-            /** @description 필요 월 금액의 기준 비율(0.8 = 10번 중 8번) */
-            reachShare: number;
             /** @description 이번 계산에 쓴 상품 유형별 실제 상품(쓰지 않은 유형도 포함) */
             products: components["schemas"]["GoalScenarioProduct"][];
+            startDeposit: components["schemas"]["GoalScenarioStartDeposit"];
+            /** @description 안정(stable)·균형(balanced)·적극(active) 순 */
             scenarios: components["schemas"]["GoalScenario"][];
-            /** @description 세금·배당·수수료·리밸런싱·CMA 예시 금리 등 계산 가정 */
+            /** @description 세금·배당·수수료·리밸런싱·CMA 예시 금리·시작 금액 처리 등 계산 가정 */
             assumptions: string[];
             /** @description 고지 GOAL_SCENARIO_EST(추정·비보장·원금 손실·기준일 확인) */
             notice: string;
             /** @description 예시 값(CMA 예시 금리 또는 데모 조합)이 하나라도 있으면 true */
             isSample: boolean;
-            /** @description 회원의 AI 조합 횟수(KST 하루). 비회원이면 null */
+            /** @description 회원의 시나리오 보기 횟수(KST 하루). 비회원이면 null */
             aiUsage: {
                 limitPerDay: number;
                 remainingToday: number;
             } | null;
-            /** @description 같은 회원이 같은 목표 금액·기한·월 납입 가능액(없음끼리 같음)·자료 기준일로 받은 이전 AI 조합을 다시 썼으면 true(횟수 차감 없음). 그 밖에는 false */
+            /** @description 같은 회원이 같은 조건(시작 금액·월 금액·기한·목표 금액·자료 기준일)으로 이미 본 AI 조합을 다시 보여 줬으면 true(횟수 차감 없음). 그 밖에는 false */
             aiReused: boolean;
         };
         SavedGoalScenarioSummary: {
@@ -4396,10 +4421,23 @@ export interface components {
             /** Format: date-time */
             savedAt: string;
             name: string;
-            /** Format: int64 */
-            targetAmount: number;
+            /**
+             * Format: int64
+             * @description #431 전 저장본은 0
+             */
+            startAmount: number;
+            /**
+             * Format: int64
+             * @description 월 금액. #431 전 저장본은 저장한 플랜의 필요 월 금액(찾지 못했으면 null)
+             */
+            monthlyBudget: number | null;
             /** @description 기한(개월) */
             months: number;
+            /**
+             * Format: int64
+             * @description 목표 금액. 넣지 않았으면 null
+             */
+            targetAmount: number | null;
             /**
              * Format: date
              * @description 저장한 결과의 자료 기준일
@@ -4407,9 +4445,6 @@ export interface components {
             asOf: string;
             /** @description 저장한 시나리오 제목 */
             title: string;
-            reachable: boolean;
-            /** Format: int64 */
-            monthly: number | null;
             /** @enum {string|null} */
             kind: "FIXED" | "RANGE" | null;
         };
@@ -4420,15 +4455,20 @@ export interface components {
             /** Format: date-time */
             savedAt: string;
             name: string;
-            /** Format: int64 */
-            targetAmount: number;
-            /** @description 기한(개월) */
-            months: number;
             /**
              * Format: int64
-             * @description 저장할 때 넣은 월 납입 가능액. 넣지 않았거나 #399 전 저장본이면 null
+             * @description #431 전 저장본은 0
+             */
+            startAmount: number;
+            /**
+             * Format: int64
+             * @description 월 금액. #431 전 저장본은 저장한 플랜의 필요 월 금액(찾지 못했으면 null)
              */
             monthlyBudget: number | null;
+            /** @description 기한(개월) */
+            months: number;
+            /** Format: int64 */
+            targetAmount: number | null;
             /** @enum {string} */
             proposer: "AI" | "DEMO";
             /** Format: date */
@@ -4436,8 +4476,8 @@ export interface components {
             returnsFrom: string;
             returnsTo: string;
             paths: number;
-            reachShare: number;
             products: components["schemas"]["GoalScenarioProduct"][];
+            startDeposit: components["schemas"]["GoalScenarioStartDeposit"];
             scenario: components["schemas"]["GoalScenario"];
             /** @description scenario(저장할 때 고른 플랜, 먼저 보여 줌)를 뺀 같은 계산 결과의 나머지 플랜(결과 순서). 플랜 하나만 저장하던 때의 저장본은 빈 배열 */
             alternatives: components["schemas"]["GoalScenario"][];
@@ -4446,16 +4486,17 @@ export interface components {
             isSample: boolean;
         };
         GoalScenario: {
+            /** @description stable·balanced·active(#431 전 저장본은 steady·spread·bold 또는 a·b·c 같은 AI id) */
             id: string;
             title: string;
             summary: string;
-            /** @description 제안기 해설. explanationParts의 빈 칸이 아닌 칸을 문단으로 합친 값(문단 사이 줄바꿈). 글자 수 제한 없음. 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6). explanationParts가 null인 옛 데이터는 이 값만 보여 준다 */
+            /** @description 제안기 해설. explanationParts의 빈 칸이 아닌 칸을 문단으로 합친 값(문단 사이 줄바꿈). 숫자는 서버가 확인할 수 있는 것만, 보장 단정 없음(§7-6). explanationParts가 null인 옛 데이터는 이 값만 보여 준다 */
             explanation: string;
-            /** @description 해설 네 칸(policies §7-6). 걸린 문장을 지워 빈 칸은 ""(화면에서 그 소제목을 숨김). 11-10 배포 전 재사용 조합과 옛 저장본은 null */
+            /** @description 해설 네 칸(policies §7-6). 걸린 문장을 지워 빈 칸은 ""(화면에서 그 칸을 숨김). 옛 저장본은 null */
             explanationParts: {
                 /** @description 조합 이유 */
                 reason: string;
-                /** @description 유형별 역할과 근거 */
+                /** @description 유형별 역할과 근거(미리 만든 유형 해설에 비중을 넣은 것, 유형마다 한 줄) */
                 roles: string;
                 /** @description 다른 시나리오와의 차이 */
                 comparison: string;
@@ -4470,23 +4511,26 @@ export interface components {
                 ratioPercent: number;
                 /**
                  * Format: int64
-                 * @description 유형별 월 금액. reachable=false면 null
+                 * @description 유형별 월 금액(월 금액 × 비중 ÷ 100). #431 전 저장본의 찾지 못한 플랜은 null
                  */
                 monthly: number | null;
+                /**
+                 * Format: int64
+                 * @description 유형별 시작 금액 몫(§7-4, 내림으로 남은 돈은 첫 유형). #431 전 저장본은 null
+                 */
+                start: number | null;
             }[];
-            /** @description 목표 금액 이하의 월 금액으로 기준 비율을 채울 수 있는지 */
-            reachable: boolean;
             /**
              * Format: int64
-             * @description 필요 월 금액(천 원 단위 올림)
+             * @description 월 금액(= 월 납입 가능액). #431 전 저장본은 그때의 필요 월 금액이고 찾지 못했으면 null
              */
             monthly: number | null;
             /**
              * Format: int64
-             * @description 넣은 돈 = monthly × months
+             * @description 넣은 돈 = 시작 금액 + 월 금액 × 개월
              */
             paid: number | null;
-            /** @description reachable=false면 null */
+            /** @description 기한 말 결과(§7-5). #431 전 저장본의 찾지 못한 플랜만 null */
             outcome: {
                 /**
                  * @description FIXED 적금·CMA만(결과 하나), RANGE 투자 포함
@@ -4513,18 +4557,26 @@ export interface components {
                  * @description RANGE 상위 10%
                  */
                 high: number | null;
-                /** @description 목표에 닿은 경로 비율(만분율, 내림) */
-                chanceBp: number;
+                /**
+                 * Format: int64
+                 * @description 잘 풀릴 때 수익 = 상위 10%(FIXED는 확정 금액) − 넣은 돈. 음수일 수 있다
+                 */
+                highGain: number | null;
+                /** @description 목표 금액 이상인 경로 비율(만분율, 내림). 목표 금액이 없으면 null */
+                chanceBp: number | null;
                 /** @description 기한 말 금액 < 넣은 돈인 경로 비율(만분율, 내림) */
                 lossBp: number;
             } | null;
-            /** @description 필요 월 금액이 월 납입 가능액 이하면 true, 넘거나 월 금액을 찾지 못했으면(reachable=false) false. 가능액을 넣지 않았거나 #399 전 저장본이면 null(policies §7-5) */
-            withinBudget: boolean | null;
-            /**
-             * Format: int64
-             * @description 필요 월 금액 − 월 납입 가능액(withinBudget=false이고 reachable=true일 때만, 천 원 단위). 그 밖에는 null
-             */
-            overBudgetBy: number | null;
+            /** @description 달마다(0 = 시작 ~ 기한 달) 경로별 금액의 하위 10%·중간값·상위 10%(그 달에 끝낸다고 보고 세금을 뺀 값, 원 단위 내림). 마지막 점은 outcome과 같다. #431 전 저장본은 null */
+            series: {
+                month: number;
+                /** Format: int64 */
+                low: number;
+                /** Format: int64 */
+                median: number;
+                /** Format: int64 */
+                high: number;
+            }[] | null;
         };
         Error: {
             /** @enum {string} */

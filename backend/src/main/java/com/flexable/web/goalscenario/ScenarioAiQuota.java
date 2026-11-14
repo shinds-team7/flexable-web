@@ -28,9 +28,9 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 	static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 	private static final JsonMapper JSON = JsonMapper.builder().build();
 
-	enum Reserve { OK, LIMIT, DAILY_CAP, GONE }
+	enum Reserve { OK, LIMIT, GONE }
 
-	/** 회원 요금제. 하루 한도를 고른다(무료 3회·플러스 10회). */
+	/** 회원 요금제. 하루 한도를 고른다(무료 5회·플러스 10회). */
 	enum Plan { FREE, PLUS }
 
 	private final JdbcTemplate jdbc;
@@ -59,7 +59,9 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		return props.dailyLimit(plan(userId));
 	}
 
-	/** 회원 1회와 서비스 전체 1회를 함께 예약한다. 전체 상한에 걸리면 회원 몫은 되돌린다. */
+	/**
+	 * 회원 하루 1회를 예약한다(#431). 요청 중에는 AI를 부르지 않아 서비스 전체 횟수는 세지 않는다(전체 상한은 worker의 미리 만들기에만 쓴다).
+	 */
 	Reserve reserve(long userId) {
 		return tx.execute(ignored -> {
 			// 탈퇴와 같은 순서(회원 → 횟수)로 잠근다. 탈퇴 후 사용 행을 다시 만들지 않는다.
@@ -70,18 +72,11 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 				return Reserve.GONE;
 			}
 			LocalDate day = today();
-			int limit = limitPerDay(userId);
 			jdbc.update("INSERT INTO goal_scenario_ai_usage (usage_date, user_id, count) VALUES (?, ?, 0) "
 					+ "ON DUPLICATE KEY UPDATE count = count", day, userId);
 			if (jdbc.update("UPDATE goal_scenario_ai_usage SET count = count + 1 WHERE usage_date = ? AND user_id = ? AND count < ?",
-					day, userId, limit) == 0) {
+					day, userId, limitPerDay(userId)) == 0) {
 				return Reserve.LIMIT;
-			}
-			jdbc.update("INSERT INTO goal_scenario_ai_daily (usage_date, count) VALUES (?, 0) ON DUPLICATE KEY UPDATE count = count", day);
-			if (jdbc.update("UPDATE goal_scenario_ai_daily SET count = count + 1 WHERE usage_date = ? AND count < ?", day,
-					props.dailyCap()) == 0) {
-				jdbc.update("UPDATE goal_scenario_ai_usage SET count = count - 1 WHERE usage_date = ? AND user_id = ?", day, userId);
-				return Reserve.DAILY_CAP;
 			}
 			return Reserve.OK;
 		});
@@ -99,35 +94,24 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		});
 	}
 
-	/** AI가 결과를 주지 못했을 때(호출 실패·규칙 위반) 회원 몫 1회를 되돌린다. 서비스 전체 횟수는 비용 상한이라 되돌리지 않는다. */
-	void refund(long userId) {
-		jdbc.update("UPDATE goal_scenario_ai_usage SET count = count - 1 WHERE usage_date = ? AND user_id = ? AND count > 0", today(), userId);
-	}
-
 	int remaining(long userId) {
 		Integer used = jdbc.query("SELECT count FROM goal_scenario_ai_usage WHERE usage_date = ? AND user_id = ?",
 				rs -> rs.next() ? rs.getInt(1) : 0, today(), userId);
 		return Math.max(0, limitPerDay(userId) - used);
 	}
 
-	/**
-	 * 같은 회원이 같은 목표 금액·기한(개월)·월 납입 가능액·자료 기준일로 받은 AI 초안. 가능액이 없으면 칸에 0을 두고 0끼리 같은 조건으로 본다
-	 * (V37 전에 저장된 조합도 0이다).
-	 */
-	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, String promptVersion) {
-		return cached(userId, targetAmount, months, monthlyBudget, asOf, List.of(promptVersion));
+	/** 같은 회원·같은 조건(시작 금액·월 금액·기한·목표 금액·자료 기준일·프롬프트 버전)으로 이미 받은 AI 조합(#431). 목표가 없으면 칸에 0을 둔다. */
+	record Key(long userId, long startAmount, long monthlyBudget, int months, Long targetAmount, LocalDate asOf, String promptVersion) {
+		Object[] args() {
+			return new Object[] { userId, startAmount, monthlyBudget, months, targetAmount == null ? 0 : targetAmount, asOf, promptVersion };
+		}
 	}
 
-	/** promptVersions 중 하나로 만든 조합만 다시 쓴다(유형 해설을 미리 만든 짧은 길과 긴 길, #417). */
-	Optional<List<Proposals.Draft>> cached(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf,
-			List<String> promptVersions) {
-		// 프롬프트 버전이 다른 조합(V38 전 조합은 null)은 다시 쓰지 않는다(#406)
-		List<Object> args = new java.util.ArrayList<>(List.of(userId, targetAmount, months, budgetKey(monthlyBudget), asOf));
-		args.addAll(promptVersions);
-		List<String> rows = jdbc.queryForList(
-				"SELECT drafts FROM goal_scenario_ai_cache WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?"
-						+ " AND prompt_version IN (" + String.join(", ", java.util.Collections.nCopies(promptVersions.size(), "?")) + ")",
-				String.class, args.toArray());
+	private static final String WHERE = " WHERE user_id = ? AND start_amount = ? AND monthly_budget = ? AND months = ? AND target_amount = ? AND as_of = ?"
+			+ " AND prompt_version = ?";
+
+	Optional<List<Proposals.Draft>> cached(Key key) {
+		List<String> rows = jdbc.queryForList("SELECT drafts FROM goal_scenario_ai_cache" + WHERE, String.class, key.args());
 		if (rows.isEmpty()) {
 			return Optional.empty();
 		}
@@ -139,28 +123,12 @@ class ScenarioAiQuota implements UserWithdrawalListener {
 		}
 	}
 
-	/**
-	 * 검증을 통과한 AI 초안만 저장한다. 같은 조건에 다른 프롬프트 버전(또는 버전 없는 옛 행)이 있으면 새 초안으로 덮어쓴다(#406).
-	 * 같은 버전끼리 동시에 저장하면 먼저 들어간 것을 둔다.
-	 */
-	void cache(long userId, long targetAmount, int months, Long monthlyBudget, LocalDate asOf, List<Proposals.Draft> drafts, String model,
-			String promptVersion) {
-		String json = JSON.writeValueAsString(drafts);
-		Timestamp now = Timestamp.from(clock.instant());
-		int replaced = jdbc.update("UPDATE goal_scenario_ai_cache SET drafts = ?, model = ?, prompt_version = ?, created_at = ?"
-				+ " WHERE user_id = ? AND target_amount = ? AND months = ? AND monthly_budget = ? AND as_of = ?"
-				+ " AND (prompt_version IS NULL OR prompt_version <> ?)",
-				json, model, promptVersion, now, userId, targetAmount, months, budgetKey(monthlyBudget), asOf, promptVersion);
-		if (replaced == 0) {
-			jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, monthly_budget, as_of, drafts, model, prompt_version, created_at) "
-					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id", userId, targetAmount, months, budgetKey(monthlyBudget),
-					asOf, json, model, promptVersion, now);
-		}
-	}
-
-	/** 기본 키 칸이라 null을 둘 수 없어 가능액이 없으면 0으로 둔다(가능액은 1만 원 이상이라 겹치지 않는다). */
-	private static long budgetKey(Long monthlyBudget) {
-		return monthlyBudget == null ? 0 : monthlyBudget;
+	/** 보여 준 AI 조합을 저장한다. 같은 조건으로 동시에 저장하면 먼저 들어간 것을 둔다. */
+	void cache(Key key, List<Proposals.Draft> drafts, String model) {
+		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, start_amount, monthly_budget, months, target_amount, as_of, prompt_version, drafts, model,"
+				+ " created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id", key.userId(), key.startAmount(),
+				key.monthlyBudget(), key.months(), key.targetAmount() == null ? 0 : key.targetAmount(), key.asOf(), key.promptVersion(),
+				JSON.writeValueAsString(drafts), model, Timestamp.from(clock.instant()));
 	}
 
 	LocalDate today() {

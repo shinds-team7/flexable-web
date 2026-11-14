@@ -187,7 +187,7 @@ curl http://localhost:8080/api/v1/health                    # {"status":"UP"}
 | `NEWS_SEARCH_SOURCE`, `NAVER_API_HUB_KEY_ID`, `NAVER_API_HUB_KEY` | 사건 상세 뉴스 기사(api의 요청 중 외부 호출, 저장·캐시 안 함). `naver`·`fake`(예시 기사), NAVER API HUB 뉴스 검색 Client ID·Secret. 키가 비어 있으면 뉴스 칸만 `UNAVAILABLE` | `naver`, 없음, 없음 |
 | `NAVER_API_HUB_BASE_URL`, `NAVER_NEWS_DAILY_CAP` | NAVER API HUB 주소, 서버 하루(KST) 호출 상한(하루 한도 25,000회보다 낮게) | `https://naverapihub.apigw.ntruss.com`, `20000` |
 | `GOAL_COACH_DAILY_CAP` | 회원 정보 없는 DB 날짜별 전체 상한(탈퇴해도 유지) | `300` |
-| `GOAL_SCENARIO_AI_DAILY_LIMIT`, `GOAL_SCENARIO_AI_PLUS_DAILY_LIMIT`, `GOAL_SCENARIO_AI_DAILY_CAP` | 목표 시나리오 AI 조합(policies §7-6): 회원당 KST 하루 무료·플러스 횟수(실결제 전에는 모두 무료 한도), 회원 정보 없는 서비스 전체 하루 상한. 키는 `OPENAI_API_KEY`(없으면 데모 조합) | `3`, `10`, `300` |
+| `GOAL_SCENARIO_AI_DAILY_LIMIT`, `GOAL_SCENARIO_AI_PLUS_DAILY_LIMIT`, `GOAL_SCENARIO_AI_DAILY_CAP` | 목표 시나리오(policies §7-6): 회원당 KST 하루 시나리오 보기 무료·플러스 횟수(실결제 전에는 모두 무료 한도, 같은 조건 다시 보기는 차감 없음), worker가 조합·유형 해설을 미리 만드는 서비스 전체 하루 AI 호출 상한. 키는 `OPENAI_API_KEY`(없으면 데모 조합) | `5`, `10`, `300` |
 | `GOAL_SCENARIO_AI_LOG_REJECTED` | 목표 시나리오 AI 문구가 검사에 걸리면 걸린 칸의 문구를 서버 로그에 남김(policies §7-6). 원인을 찾을 때만 켜고 끝나면 끈다. 바꾸면 api 재시작 필요 | `false` |
 | `MARKET_TOP_LIMIT` | 시장마다 시가총액 상위 몇 종목을 보여 주고 계산·수집할지 | `100` |
 | `MARKET_PRICE_SOURCE`, `MARKET_INSTRUMENT_SOURCE`, `MARKET_INSTRUMENT_FALLBACK` | worker 수집 소스(위 표) | `kiwoom`, `krx`, `kiwoom` |

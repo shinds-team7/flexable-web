@@ -19,7 +19,8 @@ class GoalScenarioPromptVersionMigrationTest {
 		jdbc.update("INSERT INTO goal_scenario_ai_cache (user_id, target_amount, months, monthly_budget, as_of, drafts, model, created_at)"
 				+ " VALUES (1, 15000000, 12, 0, '2026-11-10', '[\"초안\"]', 'openai', NOW())");
 
-		Flyway.configure().dataSource(ds).load().migrate();
+		// 이 마이그레이션까지만 올린다(V40에서 재사용 조합 표를 다시 만든다, #431)
+		Flyway.configure().dataSource(ds).target("38").load().migrate();
 
 		assertThat(jdbc.queryForObject("SELECT prompt_version FROM goal_scenario_ai_cache WHERE months = 12", String.class)).isNull();
 		assertThat(jdbc.queryForObject("SELECT drafts FROM goal_scenario_ai_cache WHERE months = 12", String.class)).isEqualTo("[\"초안\"]");

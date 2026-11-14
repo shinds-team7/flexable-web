@@ -13,7 +13,7 @@ class ProposalsTest {
 
 	private static List<Proposals.Draft> drafts(String title, String summary, String explanation) {
 		return List.of(new Proposals.Draft("s1", title, summary, explanation, Map.of("SAVINGS", 100)),
-				new Proposals.Draft("s2", "조합", "설명", "해설이에요", Map.of("CMA", 100)),
+				new Proposals.Draft("s2", "조합", "설명", "해설이에요", Map.of("SAVINGS", 50, "KR_INDEX_ETF", 50)),
 				new Proposals.Draft("s3", "조합", "설명", "해설이에요", Map.of("KR_INDEX_ETF", 100)));
 	}
 
@@ -28,16 +28,30 @@ class ProposalsTest {
 	}
 
 	@Test
-	void 적금_CMA_비중_합이_큰_조합부터_줄_세우고_같으면_낸_순서를_지킨다() {
+	void 투자_몫이_작은_조합부터_줄_세우고_단계_id를_붙인다() {
 		List<Proposals.Draft> mixed = List.of(
-				new Proposals.Draft("bold", "공격", "설명", "해설이에요", Map.of("SAVINGS", 10, "CMA", 10, "US_INDEX_ETF", 80)),
+				new Proposals.Draft("bold", "적극", "설명", "해설이에요", Map.of("SAVINGS", 10, "CMA", 10, "US_INDEX_ETF", 80)),
 				new Proposals.Draft("steady", "안정", "설명", "해설이에요", Map.of("SAVINGS", 70, "CMA", 30)),
 				new Proposals.Draft("spread", "균형", "설명", "해설이에요", Map.of("SAVINGS", 40, "CMA", 10, "KR_INDEX_ETF", 50)));
-		assertThat(Proposals.check(mixed, ProposalText.Facts.NONE).plans()).extracting(Proposals.Plan::id).containsExactly("steady", "spread", "bold");
-		// 합이 같으면(적금 100 · CMA 100) 제안기가 낸 순서
-		assertThat(Proposals.check(drafts("조합", "설명", "해설"), ProposalText.Facts.NONE).plans()).extracting(Proposals.Plan::id).containsExactly("s1", "s2", "s3");
-		// 데모 조합은 이미 안정 → 균형 → 공격 순서다
-		assertThat(Proposals.validate(Proposals.DEMO).orElseThrow()).extracting(Proposals.Plan::id).containsExactly("steady", "spread", "bold");
+		List<Proposals.Plan> plans = Proposals.check(mixed, ProposalText.Facts.NONE).plans();
+		assertThat(plans).extracting(Proposals.Plan::id).containsExactly("stable", "balanced", "active");
+		assertThat(plans).extracting(Proposals.Plan::title).containsExactly("안정", "균형", "적극");
+		// 데모 조합은 이미 안정 → 균형 → 적극 순서이고 단계 범위 안이다
+		assertThat(Proposals.validate(Proposals.DEMO).orElseThrow()).extracting(Proposals.Plan::id).containsExactly("stable", "balanced", "active");
+	}
+
+	@Test
+	void 단계_범위를_벗어나면_제안_전체를_버린다() {
+		// 투자 몫 0·20·100: 균형(31~60)이 비어 있다
+		List<Proposals.Draft> off = List.of(new Proposals.Draft("a", "안정", "설명", "해설이에요", Map.of("SAVINGS", 100)),
+				new Proposals.Draft("b", "균형", "설명", "해설이에요", Map.of("SAVINGS", 80, "US_INDEX_ETF", 20)),
+				new Proposals.Draft("c", "적극", "설명", "해설이에요", Map.of("KR_INDEX_ETF", 100)));
+		assertThat(Proposals.check(off, ProposalText.Facts.NONE).problem()).isEqualTo("MIX_TIER #2");
+		// 경계값 30·31·61은 각 단계에 든다
+		List<Proposals.Draft> edge = List.of(new Proposals.Draft("a", "안정", "설명", "해설이에요", Map.of("SAVINGS", 70, "KR_INDEX_ETF", 30)),
+				new Proposals.Draft("b", "균형", "설명", "해설이에요", Map.of("SAVINGS", 69, "KR_INDEX_ETF", 31)),
+				new Proposals.Draft("c", "적극", "설명", "해설이에요", Map.of("CMA", 39, "KR_INDEX_ETF", 61)));
+		assertThat(Proposals.check(edge, ProposalText.Facts.NONE).problem()).isNull();
 	}
 
 	@Test
@@ -68,7 +82,7 @@ class ProposalsTest {
 	private static List<Proposals.Draft> partsDrafts(Proposals.Parts first) {
 		Proposals.Parts ok = new Proposals.Parts("이유예요.", "역할이에요.", "차이예요.", "맞는 사람이에요.");
 		return List.of(new Proposals.Draft("s1", "조합", "설명", first, Map.of("SAVINGS", 100)),
-				new Proposals.Draft("s2", "조합", "설명", ok, Map.of("CMA", 100)),
+				new Proposals.Draft("s2", "조합", "설명", ok, Map.of("SAVINGS", 50, "KR_INDEX_ETF", 50)),
 				new Proposals.Draft("s3", "조합", "설명", ok, Map.of("KR_INDEX_ETF", 100)));
 	}
 

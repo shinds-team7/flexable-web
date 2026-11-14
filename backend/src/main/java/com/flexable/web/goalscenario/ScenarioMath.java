@@ -5,7 +5,6 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.EnumMap;
 import java.util.Map;
-import java.util.function.LongFunction;
 
 /**
  * 목표 달성 시나리오의 순수 계산(policies §7-3~7-5). DB·시계를 모른다. 원 단위 정수, 나눗셈은 내림.
@@ -42,12 +41,17 @@ final class ScenarioMath {
 		long interest = 0;
 		for (int m = 0; m < months; m++) {
 			balance += monthly;
-			long i = BigDecimal.valueOf(balance).multiply(ratePercent).divide(TWELVE_HUNDRED, 0, RoundingMode.FLOOR).longValueExact();
+			long i = monthInterest(balance, ratePercent);
 			balance += i;
 			interest += i;
 		}
 		long tax = tax(interest);
 		return new Amounts(start + monthly * months, interest, tax, balance - tax);
+	}
+
+	/** 한 달 이자 floor(잔액 × 연이율 ÷ 12). */
+	static long monthInterest(long balance, BigDecimal ratePercent) {
+		return BigDecimal.valueOf(balance).multiply(ratePercent).divide(TWELVE_HUNDRED, 0, RoundingMode.FLOOR).longValueExact();
 	}
 
 	/** 매달 초 1원을 넣고 그 달 수익률을 적용했을 때 기한 말 평가액 = Σ(그 달부터 끝까지 (1 + r)의 곱). */
@@ -61,10 +65,54 @@ final class ScenarioMath {
 
 	/** 투자 몫: 평가액 = floor(월 금액 × 배수). 과세 상품은 이익이 0보다 크면 floor(이익 × 0.154)를 뺀다. */
 	static Amounts invest(long monthly, int months, BigDecimal factor, boolean taxed) {
-		long value = BigDecimal.valueOf(monthly).multiply(factor, MC).setScale(0, RoundingMode.FLOOR).longValueExact();
-		long principal = monthly * months;
+		return invest(monthly, 0, months, factor, BigDecimal.ONE, taxed);
+	}
+
+	/**
+	 * 시작 금액이 있는 투자 몫(policies §7-3): 평가액 = floor(월 금액 × 배수 + 시작 금액 × 성장 배수). 성장 배수 = 기한 동안 (1 + 수익률)의 곱.
+	 * 넣은 돈 = 월 금액 × 개월 + 시작 금액. 과세 상품은 이익이 0보다 크면 floor(이익 × 0.154)를 뺀다.
+	 */
+	static Amounts invest(long monthly, long start, int months, BigDecimal factor, BigDecimal growth, boolean taxed) {
+		long value = BigDecimal.valueOf(monthly).multiply(factor, MC).add(BigDecimal.valueOf(start).multiply(growth, MC), MC)
+			.setScale(0, RoundingMode.FLOOR).longValueExact();
+		long principal = monthly * months + start;
 		long tax = taxed ? tax(value - principal) : 0;
 		return new Amounts(principal, value - principal, tax, value - tax);
+	}
+
+	/** 기한 동안 (1 + 수익률)의 곱(시작 금액 1원이 기한 말에 얼마인지). */
+	static BigDecimal growth(BigDecimal[] returns) {
+		BigDecimal v = BigDecimal.ONE;
+		for (BigDecimal r : returns) {
+			v = v.multiply(BigDecimal.ONE.add(r), MC);
+		}
+		return v;
+	}
+
+	/**
+	 * 시작 금액의 유형별 몫(policies §7-4). 유형마다 floor(시작 금액 × 비중 ÷ 100)이고, 내림으로 남은 돈은 비중이 있는 첫 유형(ProductType 순서)에 더한다.
+	 * 합은 시작 금액과 같다.
+	 */
+	static Map<ProductType, Long> allocateStart(long start, Map<ProductType, Integer> mix) {
+		Map<ProductType, Long> out = new EnumMap<>(ProductType.class);
+		long sum = 0;
+		ProductType first = null;
+		for (ProductType t : ProductType.values()) {
+			Integer ratio = mix.get(t);
+			if (ratio == null || ratio <= 0) {
+				continue;
+			}
+			long part = start * ratio / 100;
+			out.put(t, part);
+			sum += part;
+			if (first == null) {
+				first = t;
+			}
+		}
+		if (first != null) {
+			out.merge(first, start - sum, Long::sum);
+		}
+		return out;
 	}
 
 	/** 유형별 월 금액 = 월 금액 × 비중 ÷ 100(월 금액이 천 원 단위라 나누어떨어진다). */
@@ -81,33 +129,6 @@ final class ScenarioMath {
 	/** 오름차순 정렬한 n개 중 하위 qBp(만분율) 위치 = ⌈q × n⌉ − 1. */
 	static int quantileIndex(int n, int qBp) {
 		return (int) (((long) qBp * n + 9999) / 10000) - 1;
-	}
-
-	/** 기준 비율(만분율)을 채우는 경로 수 = ⌈share × n⌉. */
-	static int needed(int n, int shareBp) {
-		return (int) (((long) shareBp * n + 9999) / 10000);
-	}
-
-	/**
-	 * 경로 중 needed개 이상이 목표 이상이 되는 가장 작은 천 원 단위 월 금액(1,000원~목표 금액). 없으면 -1.
-	 * finals(월 금액)는 경로별 기한 말 금액이며 월 금액에 대해 줄어들지 않는다(내림·세금 모두 단조)는 점을 이용해 이분 탐색한다.
-	 */
-	static long requiredMonthly(long target, int needed, LongFunction<long[]> finals) {
-		long lo = 1;
-		long hi = target / 1000;
-		if (hi < 1 || reached(finals.apply(hi * 1000), target) < needed) {
-			return -1;
-		}
-		while (lo < hi) {
-			long mid = (lo + hi) >>> 1;
-			if (reached(finals.apply(mid * 1000), target) >= needed) {
-				hi = mid;
-			}
-			else {
-				lo = mid + 1;
-			}
-		}
-		return lo * 1000;
 	}
 
 	static int reached(long[] finals, long target) {

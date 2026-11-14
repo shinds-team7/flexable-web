@@ -43,25 +43,25 @@ final class Proposals {
 	record Plan(String id, String title, String summary, String explanation, Parts parts, Map<ProductType, Integer> mix) {
 	}
 
-	/** AI 연결 전·검증 실패 시 쓰는 데모 조합. 문구에도 숫자·보장 표현을 넣지 않는다. */
+	/** AI 연결 전·검증 실패 시 쓰는 데모 조합(안정·균형·적극 단계 범위 안, §7-4). 문구에도 숫자·보장 표현을 넣지 않는다. */
 	static final List<Draft> DEMO = List.of(
-			new Draft("steady", "차근차근 모으기", "이자가 정해진 상품만", new Parts(
-					"원금이 줄어들 일 없이 목표에 닿도록 이자가 정해진 상품만 담은 조합이에요.",
+			new Draft("stable", "차근차근 모으기", "이자가 정해진 상품만", new Parts(
+					"원금이 줄어들 일 없이 모이도록 이자가 정해진 상품만 담은 조합이에요.",
 					"적금으로 매달 꾸준히 모으고, 급하게 꺼낼 일에 대비해 일부는 CMA에 둬요.",
-					"매달 넣는 돈은 세 조합 중 가장 많지만, 결과가 하나로 정해져요.",
+					"세 조합 중 결과가 가장 덜 흔들리고 하나로 정해지지만, 크게 불어날 여지도 가장 작아요.",
 					"기한 안에 꼭 써야 하는 돈이거나 금액이 흔들리는 게 불안할 때 맞아요."),
 					ordered("SAVINGS", 70, "CMA", 30)),
-			new Draft("spread", "나눠서 키우기", "저축 절반과 지수 ETF·주식", new Parts(
+			new Draft("balanced", "나눠서 키우기", "저축 절반과 지수 ETF·주식", new Parts(
 					"저축 몫으로 바닥을 받치고, 나머지는 국내·미국 지수 ETF와 주식에 나눠 넣은 조합이에요.",
 					"적금·CMA는 정해진 이자로 모으고, 지수 ETF와 주식은 시장을 따라 오르내리며 키우는 몫이에요. 한 시장이 부진해도 다른 쪽이 메워 줄 수 있게 나눴어요.",
-					"차근차근 모으기보다 매달 넣는 돈이 적을 수 있지만, 결과가 범위로 흔들려요.",
+					"차근차근 모으기보다 더 불어날 여지가 있지만, 결과가 범위로 흔들려요.",
 					"기한이 다가오면 투자 몫을 적금·CMA로 옮기는 것도 방법이에요. 어느 정도 오르내림을 견딜 수 있을 때 맞아요."),
 					ordered("SAVINGS", 40, "CMA", 10, "KR_INDEX_ETF", 20, "US_INDEX_ETF", 20, "KOSPI_TOP5", 10)),
-			new Draft("bold", "적극적으로 키우기", "지수 ETF·주식 중심", new Parts(
-					"지수 ETF와 주식 비중을 크게 높여, 같은 목표를 더 적은 월 금액으로 노리는 조합이에요.",
+			new Draft("active", "적극적으로 키우기", "지수 ETF·주식 중심", new Parts(
+					"지수 ETF와 주식 비중을 크게 높여, 같은 돈으로 더 크게 불어날 여지를 노리는 조합이에요.",
 					"적금·CMA는 작은 몫으로 급할 때 쓸 돈을 남기고, 지수 ETF와 주식이 대부분을 맡아요.",
-					"세 조합 중 매달 넣는 돈이 가장 적을 수 있지만, 결과의 폭도 가장 넓어요.",
-					"잘 안 풀리면 목표에 많이 못 미칠 수 있어서, 중간에 크게 줄어도 기다릴 수 있는 돈일 때만 고려해 보세요."),
+					"세 조합 중 잘 풀릴 때 가장 크게 불어날 수 있지만, 결과의 폭도 가장 넓어요.",
+					"잘 안 풀리면 넣은 돈보다 적게 남을 수 있어서, 중간에 크게 줄어도 기다릴 수 있는 돈일 때만 고려해 보세요."),
 					ordered("SAVINGS", 10, "CMA", 10, "KR_INDEX_ETF", 20, "US_INDEX_ETF", 30, "KOSPI_TOP5", 30)));
 
 	/** 제안 하나의 시나리오 수. */
@@ -185,19 +185,26 @@ final class Proposals {
 			String explanation = parts == null ? kept.getFirst() : parts.joined();
 			out.add(new Plan(d.id(), d.title().strip(), d.summary().strip(), explanation, parts, mix));
 		}
-		return new Checked(byRisk(out), null, null, removed);
+		// 위험이 낮은 순으로 줄 세운 뒤 단계 범위를 검사하고, id를 단계 id로 바꾼다(§7-4). 범위가 겹치지 않아 순서도 함께 지켜진다.
+		List<Plan> sorted = byRisk(out);
+		List<Plan> tiered = new ArrayList<>();
+		for (int i = 0; i < sorted.size(); i++) {
+			ScenarioTier tier = ScenarioTier.values()[i];
+			Plan p = sorted.get(i);
+			if (!tier.accepts(p.mix())) {
+				return Checked.fail("MIX_TIER #" + (i + 1));
+			}
+			tiered.add(new Plan(tier.id(), p.title(), p.summary(), p.explanation(), p.parts(), p.mix()));
+		}
+		return new Checked(tiered, null, null, removed);
 	}
 
 	/**
-	 * 위험이 낮은 조합부터(안정 → 균형 → 공격) PLAN 01·02·03이 되게 적금·CMA 비중 합이 큰 순으로 줄 세운다.
+	 * 위험이 낮은 조합부터(안정 → 균형 → 적극) PLAN 01·02·03이 되게 투자 몫(지수 ETF·주식 비중 합)이 작은 순으로 줄 세운다.
 	 * 합이 같으면 제안기가 낸 순서를 지킨다(안정 정렬). 프롬프트도 같은 순서를 부탁하지만 응답 순서를 믿지 않는다.
 	 */
 	static List<Plan> byRisk(List<Plan> plans) {
-		return plans.stream().sorted(java.util.Comparator.comparingInt(Proposals::fixedShare).reversed()).toList();
-	}
-
-	private static int fixedShare(Plan plan) {
-		return plan.mix().getOrDefault(ProductType.SAVINGS, 0) + plan.mix().getOrDefault(ProductType.CMA, 0);
+		return plans.stream().sorted(java.util.Comparator.comparingInt((Plan p) -> ScenarioTier.investShare(p.mix()))).toList();
 	}
 
 	/** 문구 규칙을 어기면 이유 코드, 지키면 null. */

@@ -1,5 +1,21 @@
 # 웹 개인정보처리방침 — 근거·운영 확인·시행 절차
 
+## 11-14 목표 달성 시나리오 개편(#431)
+
+목표 달성 시나리오를 시작 금액·월 납입 가능액·기한(목표 금액 선택)으로 계산하고, AI 조합을 worker가 기한별로 미리 만든다([결정](../decisions/2026-11-14-goal-budget-tiers.md), [policies §7](../policies.md)).
+
+| 무엇 | 바뀐 것 |
+|---|---|
+| 입력·계산 결과(30분 서버 메모리) | 목표 이름 대신 시작 금액이 들어간다. 목표 금액은 선택. 보관 방식·기간은 그대로 |
+| 회원 저장본 `goal_scenarios` | 저장할 때 적는 이름(1~20자), 시작 금액, 월 납입 가능액, 목표 금액(없으면 행의 칸에 0, 스냅샷은 null), 달마다 예상 금액 추이가 더해진다. 보관(지우거나 탈퇴할 때까지)은 그대로 |
+| 회원이 본 AI 조합 `goal_scenario_ai_cache` | V40에서 표를 다시 만들어 조건이 (회원·시작 금액·월 금액·기한·목표 금액·자료 기준일·프롬프트 버전)이 된다. 옛 행은 지운다. 7일 보관·탈퇴 삭제(`ON DELETE CASCADE`·`onWithdraw`)는 그대로 |
+| 미리 만든 조합 `goal_scenario_plans` | 새 표. 기한·자료 지문·AI 조합 글뿐이고 회원 정보가 없다. 14일 동안 확인되지 않으면 지운다 |
+| OpenAI 전송 | **줄었다**. 요청 중에는 보내지 않고, worker가 자료가 바뀔 때 기한(개월)과 유형 통계·상품 이름·금리만 보낸다. 이용자가 넣은 금액·목표·회원 정보는 보내지 않는다. 국외 이전 표의 항목·시기·목적과 위탁 표의 업무 문구를 고쳤다 |
+| 횟수 | 회원 하루 3 → 5회. 날짜별 횟수 행(`goal_scenario_ai_usage`)은 그대로 |
+| 로그 | 검사 탈락 시 걸린 문구 옵션(0-7)을 켜도 AI 글에 이용자 금액이 들어가지 않는다(금액을 보내지 않음). 요청 timing 로그는 단계별 시간만 |
+
+`Privacy.tsx` 제2·3·4·6조와 변경 이력(2026-11-14)을 고쳤다. 0-3과 같이 해커톤 시연 서비스라 7일 전 고지는 하지 않는다(사용자 결정 2026-10-24).
+
 ## 11-11 대회 화면 용어·평단가(#418)
 
 대회 등급의 화면 용어를 "판"에서 "리그"로 바꿔([결정](../decisions/2026-11-11-contest-ux-redesign.md) 2) `Privacy.tsx` 제2조 "가상 시뮬레이션 대회" 행의 목적·항목 문구를 맞췄다(판 배정 → 리그 배정, 판별 순위 → 리그별 순위, 판과 승급·강등 기록 → 리그와 승급·강등 기록, 판 점수 → 리그 점수). **처리 항목·목적·보관은 바뀌지 않아** 변경 이력 줄은 더하지 않았다. 평단가(`averagePrice`)는 세션 메모리의 가상 매매 선택에서 계산하는 값이라 새 처리 항목이 아니다. `fx.guide.contest`는 같은 키·같은 값(`open`·`closed`)으로 규칙 영역("대회는 이렇게 진행돼요")의 펼침을 기억한다.
@@ -160,7 +176,7 @@ F7 AI 목표 달성([명세](goal-ai.md))으로 목표 정보 저장과 OpenAI �
 | 목표·AI 목표 안내(10-23 시행) | `goals`·`goal_coaches`·`goal_coach_usage`(engagement, V8). 탈퇴 시 `UserWithdrawalListener`로 삭제, `goal_coach_usage`는 날짜로부터 7일 지나면 매일 정리 작업이 삭제. 서버 전체 횟수 `ai_daily_usage`는 회원 정보 없음 |
 | OpenAI 국외 처리(10-23 시행) | `ai` 패키지 OpenAI 클라이언트: 목표 종류·금액·기한·계산값만 전송(이름·이메일·회원 번호 제외), `store: false`, `user` 미전송. 수탁·이전받는 자는 OpenAI OpCo, LLC([서비스 계약](https://openai.com/policies/services-agreement/), 비EEA·스위스 고객), 요청 창구 privacy.openai.com([개인정보 안내](https://openai.com/policies/kr-privacy-policy/)). OpenAI 악용 모니터링 보관 최대 30일([OpenAI 데이터 안내](https://platform.openai.com/docs/guides/your-data)). 로그는 결과 구분·토큰 수만 |
 | 목표 달성 시나리오(11-03) | 계산 결과 30분 메모리(`goalscenario.ScenarioResultCache`), 회원 저장 `goal_scenarios`(V22, 최대 5개). 탈퇴 시 `SavedScenarioService.onWithdraw`와 `ON DELETE CASCADE`. 방침 제2조·제3조·제4조 |
-| 목표 시나리오 AI 조합(11-04) | 회원만 OpenAI 전송(목표 금액·기한·월 납입 가능액(11-10, 입력한 경우), 고른 상품과 함께 볼 상품의 이름·금리·통계, 이름 제외). `goal_scenario_ai_usage`(회원·날짜별, 7일 뒤 삭제·탈퇴 시 삭제), `goal_scenario_ai_daily`(회원 정보 없음), `goal_scenario_ai_cache`(회원별, 7일 뒤 삭제·탈퇴 시 삭제)(V25). 방침 제2조·제4조·제6조 |
+| 목표 시나리오 AI 조합(11-04, 11-14 #431 개편) | 회원만 OpenAI 전송(목표 금액·기한·월 납입 가능액(11-10, 입력한 경우), 고른 상품과 함께 볼 상품의 이름·금리·통계, 이름 제외). `goal_scenario_ai_usage`(회원·날짜별, 7일 뒤 삭제·탈퇴 시 삭제), `goal_scenario_ai_daily`(회원 정보 없음), `goal_scenario_ai_cache`(회원별, 7일 뒤 삭제·탈퇴 시 삭제)(V25). 방침 제2조·제4조·제6조. 11-14부터 요청 중에는 보내지 않고 worker가 기한·유형 통계만 보내 `goal_scenario_plans`(V40)에 저장, 회원이 본 조합은 V40 `goal_scenario_ai_cache`(시작 금액·월 금액·기한·목표 금액 조건) |
 | 목표 시나리오 AI 실패 기록(11-05) | `GoalScenarioService` 경고 로그: 어긴 규칙·위치(`Proposals.Checked.logLine`) 또는 실패 분류(`GoalScenarioAiClient.Failed.reason`). `GOAL_SCENARIO_AI_LOG_REJECTED=true`(기본 꺼짐, `GoalScenarioAiProperties.logRejected`)인 동안에만 걸린 칸의 AI 문구 최대 2000자를 함께 남김. 해설에서 지운 문장도 같은 규칙(`Proposals.Note.logLine`). `deploy/vm/purge-logs.sh`로 최대 7일 뒤 삭제. 방침 제2조 |
 | 가상 시뮬레이션 대회(11-05) | `virtual_contests`·`virtual_contest_aliases`·`virtual_contest_placements`·`virtual_contest_entries`·`virtual_contest_days`·`virtual_contest_weeks`·`virtual_contest_rounds`(virtualsim, V27). 판 결과(시작·끝·유지 기준 잔액 `hold_balance`(V28)·끝난 방식)는 `/me/virtual-sim/contests`의 `recentRounds`로 본인에게만 보인다. 진행 중인 판의 시드·룰셋·가상 종목·매매(`seed`~`orders`)와 배치고사 문제(`questions`)는 정산·채점 때 NULL(`VirtualContestService.settle`·`grade`). 1분 정리 `VirtualContestJob`(api만): 세션 없는·만료 판 정산, 마감 지난 배치고사 채점, 월 정산, 끝난 지 12개월 지난 대회 삭제(대회 행 삭제로 함께 지움). 탈퇴 시 `users` 외래 키 `ON DELETE CASCADE`, 메모리 세션은 다음 정리 때 삭제. 랭킹 응답은 `VirtualContestRankingRow`(별명·점수·평균 초과 수익률·잔액·손익·수익률·순위·판 수·청산). 로그는 회원 번호·판 번호·결과 구분만. 방침 제2·3·4조 |
 | 비회원 체험은 서버 저장 없음 | 홈 시드머니·지수·소식·적금은 예시 데이터(`isSample`). 투자 시뮬레이션은 공개 API(`GET /market/**`, `POST /simulations/run`)로 고른 조건(시작 시점·금액·종목·비율)을 보내 서버가 계산하지만 저장하지 않는다(`SimulationService`, DB 쓰기 없음). 요청 본문은 접속 기록에 남지 않는다(`nginx.conf`는 메서드·경로만) |

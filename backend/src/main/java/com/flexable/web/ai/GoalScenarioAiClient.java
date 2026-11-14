@@ -1,8 +1,8 @@
 package com.flexable.web.ai;
 
 /**
- * 목표 달성 시나리오의 조합 제안(policies §7-6). 입력은 목표 금액·기한·월 납입 가능액(선택)과 서버가 계산한 상품 유형별 통계뿐이다.
- * 목표 이름·회원 식별자·이메일은 받지 않는다. 금액·확률은 웹 서버가 계산하고, 여기서는 유형별 비중과 문구만 받는다.
+ * 목표 달성 시나리오의 조합 제안(policies §7-6). worker가 기한마다 미리 부른다(#431). 입력은 기한과 서버가 계산한 상품 유형별 통계뿐이다.
+ * 시작 금액·월 금액·목표 금액·회원 식별자·이메일은 받지 않는다. 금액·확률은 웹 서버가 계산하고, 여기서는 유형별 비중과 문구만 받는다.
  */
 public interface GoalScenarioAiClient {
 	/** 응답 스키마의 해설 칸. 순서대로 문단으로 합쳐 해설 하나가 된다: 조합 이유, 상품별 역할과 근거, 다른 시나리오와의 차이, 주의할 점과 맞는 사람. */
@@ -16,21 +16,13 @@ public interface GoalScenarioAiClient {
 
 	boolean enabled();
 
-	/** 유형 해설을 함께 쓰는 프롬프트 버전(예: goal-scenario-v12). 재사용 조합의 버전 비교에 쓴다(#406). */
-	default String promptVersion() {
+	/** 미리 만드는 조합의 프롬프트 버전(#431). 저장된 조합을 찾는 데 쓴다. */
+	default String planPromptVersion() {
 		return null;
 	}
 
-	/** inputJson을 보내고 구조화 출력(JSON 문자열)을 돌려준다. 실패하면 Failed. */
-	Result propose(String inputJson);
-
-	/** 유형 해설을 미리 만들어 둔 경우의 짧은 프롬프트 버전(#417). 유형별 칸 없이 비중과 시나리오 칸만 받는다. */
-	default String shortPromptVersion() {
-		return null;
-	}
-
-	/** 짧은 프롬프트로 시나리오 3개(비중·제목·설명·reason·comparison·fit)를 받는다(#417). 응답에 typeRoles·roles가 없다. */
-	default Result proposeShort(String inputJson) {
+	/** 기한 하나의 안정·균형·적극 시나리오 3개(비중·제목·설명·reason·comparison·fit)를 받는다(#431). 입력은 기한과 유형 통계뿐이다. 실패하면 Failed. */
+	default Result plan(String inputJson) {
 		throw new Failed("NO_KEY");
 	}
 

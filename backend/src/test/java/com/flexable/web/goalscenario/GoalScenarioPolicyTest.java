@@ -59,12 +59,23 @@ class GoalScenarioPolicyTest {
 		assertThat(GoalScenarioService.SEED).isEqualTo(c.get("seed").asLong());
 		assertThat(GoalScenarioService.BLOCK).isEqualTo(c.get("blockMonths").asInt());
 		assertThat(GoalScenarioService.HISTORY).isEqualTo(c.get("historyMonths").asInt());
-		assertThat(GoalScenarioService.REACH_BP).isEqualTo(new BigDecimal(c.get("reachShare").asString()).movePointRight(4).intValueExact());
 		assertThat(GoalScenarioService.CMA_RATE).isEqualByComparingTo(new BigDecimal(c.get("cmaRatePercent").asString()));
 		assertThat(SavedScenarioService.LIMIT).isEqualTo(c.get("saveLimit").asInt());
 		assertThat(ScenarioResultCache.TTL.toMinutes()).isEqualTo(c.get("resultTtlMinutes").asLong());
 		assertThat(GoalScenarioService.MIN_MONTHS).isEqualTo(c.get("minMonths").asInt());
 		assertThat(GoalScenarioService.MAX_MONTHS).isEqualTo(c.get("maxMonths").asInt());
+		assertThat(ScenarioBudget.MONTHLY_MIN).isEqualTo(c.get("monthlyMin").asLong());
+		assertThat(ScenarioBudget.MONTHLY_MAX).isEqualTo(c.get("monthlyMax").asLong());
+		assertThat(ScenarioBudget.UNIT).isEqualTo(c.get("amountUnit").asLong());
+		assertThat(ScenarioBudget.START_MAX).isEqualTo(c.get("startMax").asLong());
+		assertThat(ScenarioBudget.TARGET_MIN).isEqualTo(c.get("targetMin").asLong());
+		assertThat(ScenarioBudget.TARGET_MAX).isEqualTo(c.get("targetMax").asLong());
+		assertThat(new GoalScenarioAiProperties(null, null, null, null).dailyLimit(ScenarioAiQuota.Plan.FREE)).isEqualTo(c.get("dailyLimit").asInt());
+		for (ScenarioTier t : ScenarioTier.values()) {
+			JsonNode band = c.get("tiers").get(t.name());
+			assertThat(t.minInvest()).as(t.name()).isEqualTo(band.get(0).asInt());
+			assertThat(t.maxInvest()).as(t.name()).isEqualTo(band.get(1).asInt());
+		}
 	}
 
 	@TestFactory
@@ -102,6 +113,48 @@ class GoalScenarioPolicyTest {
 			assertThat(r.principal() + r.gain()).as("value").isEqualTo(e.get("value").asLong());
 			assertThat(r.tax()).as("tax").isEqualTo(e.get("tax").asLong());
 			assertThat(r.finalAmount()).as("final").isEqualTo(e.get("final").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 시작_금액이_있는_CMA() {
+		return each("cmaStart", c -> {
+			var r = ScenarioMath.cma(c.get("start").asLong(), c.get("monthly").asLong(), c.get("months").asInt(), new BigDecimal(c.get("ratePercent").asString()));
+			JsonNode e = c.get("expected");
+			assertThat(r.principal()).as("principal").isEqualTo(e.get("principal").asLong());
+			assertThat(r.gain()).as("interestPreTax").isEqualTo(e.get("interestPreTax").asLong());
+			assertThat(r.tax()).as("tax").isEqualTo(e.get("tax").asLong());
+			assertThat(r.finalAmount()).as("final").isEqualTo(e.get("final").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 시작_금액이_있는_투자() {
+		return each("investStart", c -> {
+			BigDecimal[] returns = decimals(c.get("returns"));
+			var r = ScenarioMath.invest(c.get("monthly").asLong(), c.get("start").asLong(), returns.length, ScenarioMath.factor(returns),
+					ScenarioMath.growth(returns), c.get("taxed").asBoolean());
+			JsonNode e = c.get("expected");
+			assertThat(r.principal()).as("principal").isEqualTo(e.get("principal").asLong());
+			assertThat(r.principal() + r.gain()).as("value").isEqualTo(e.get("value").asLong());
+			assertThat(r.tax()).as("tax").isEqualTo(e.get("tax").asLong());
+			assertThat(r.finalAmount()).as("final").isEqualTo(e.get("final").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 시작_금액_배분() {
+		return each("allocationStart", c -> {
+			long start = c.get("start").asLong();
+			Map<ProductType, Long> a = ScenarioMath.allocateStart(start, mix(c.get("mix")));
+			JsonNode e = c.get("expected");
+			for (ProductType t : ProductType.values()) {
+				assertThat(a.get(t)).as(t.name()).isEqualTo(e.get(t.name()).asLong());
+			}
+			long kospi = a.get(ProductType.KOSPI_TOP5);
+			assertThat(GoalScenarioService.itemStart(kospi, 5, 0)).as("kospiFirst").isEqualTo(e.get("kospiFirst").asLong());
+			assertThat(GoalScenarioService.itemStart(kospi, 5, 1)).as("kospiOther").isEqualTo(e.get("kospiOther").asLong());
+			assertThat(a.values().stream().mapToLong(Long::longValue).sum()).as("sum").isEqualTo(e.get("sum").asLong());
 		});
 	}
 
@@ -167,63 +220,70 @@ class GoalScenarioPolicyTest {
 			BigDecimal rate = new BigDecimal(c.get("savingsRatePercent").asString());
 			boolean compound = c.get("savingsCompound").asBoolean();
 			Map<ProductType, Integer> m = mix(c.get("mix"));
-			Map<ProductType, Long> a = ScenarioMath.allocate(c.get("monthly").asLong(), m);
+			JsonNode d = c.get("deposit");
+			var in = d == null ? new GoalScenarioService.Inputs(m, c.get("start").asLong(), c.get("monthly").asLong(), months, months, rate, compound)
+					: new GoalScenarioService.Inputs(m, c.get("start").asLong(), c.get("monthly").asLong(), months, months, rate, compound,
+							d.get("termMonths").asInt(), new BigDecimal(d.get("ratePercent").asString()), d.get("compound").asBoolean());
+			Map<ProductType, Long> a = in.monthlyParts();
 			JsonNode e = c.get("expected");
+			if (d != null) {
+				assertThat(GoalScenarioService.depositFinal(in.savingsStart(), months, d.get("termMonths").asInt(), new BigDecimal(d.get("ratePercent").asString()),
+						d.get("compound").asBoolean())).as("DEPOSIT").isEqualTo(e.get("DEPOSIT").asLong());
+			}
 			assertThat(SavingsService.maturity(a.get(ProductType.SAVINGS), months, rate, compound).finalAmount()).as("SAVINGS")
 				.isEqualTo(e.get("SAVINGS").asLong());
-			assertThat(ScenarioMath.cma(a.get(ProductType.CMA), months, GoalScenarioService.CMA_RATE).finalAmount()).as("CMA")
+			// 시작 금액의 적금 몫은 정기예금에, 맡길 예금이 없으면 CMA로 계산한다(§7-4)
+			assertThat(ScenarioMath.cma(in.cmaStart(), a.get(ProductType.CMA), months, GoalScenarioService.CMA_RATE).finalAmount()).as("CMA")
 				.isEqualTo(e.get("CMA").asLong());
-			long[] f = GoalScenarioService.finals(m, months, 1, rate, compound, Map.of()).apply(c.get("monthly").asLong());
+			long[] f = GoalScenarioService.finals(in, 1, Map.of(), Map.of());
 			assertThat(f[0]).as("final").isEqualTo(e.get("final").asLong());
+			// 그래프의 마지막 달도 같은 값이다
+			assertThat(GoalScenarioService.fixedSeries(in)[months]).as("series last").isEqualTo((double) e.get("final").asLong());
 		});
 	}
 
 	@TestFactory
-	Stream<DynamicTest> 필요_월_금액() {
-		return each("required", c -> {
-			long target = c.get("target").asLong();
-			int months = c.get("months").asInt();
-			assertThat(new BigDecimal(c.get("reachShare") == null ? "0.8" : c.get("reachShare").asString()).movePointRight(4).intValueExact())
-				.isEqualTo(GoalScenarioService.REACH_BP);
-			Map<ProductType, Integer> m = mix(c.get("mix"));
-			boolean invest = m.keySet().stream().anyMatch(ProductType::invest);
-			Map<ProductType, List<BigDecimal[]>> factors = new EnumMap<>(ProductType.class);
-			int n = 1;
-			if (c.has("pathMonthlyReturns")) {
-				List<BigDecimal> perPath = new ArrayList<>();
-				for (JsonNode r : c.get("pathMonthlyReturns")) {
-					BigDecimal[] path = new BigDecimal[months];
-					java.util.Arrays.fill(path, new BigDecimal(r.asString()));
-					perPath.add(ScenarioMath.factor(path));
-				}
-				n = perPath.size();
-				factors.put(ProductType.KR_INDEX_ETF, List.<BigDecimal[]>of(perPath.toArray(BigDecimal[]::new)));
-			}
-			BigDecimal rate = c.has("savingsRatePercent") ? new BigDecimal(c.get("savingsRatePercent").asString()) : BigDecimal.ZERO;
-			boolean compound = c.has("savingsCompound") && c.get("savingsCompound").asBoolean();
-			var finals = GoalScenarioService.finals(m, months, n, rate, compound, factors);
-			var r = GoalScenarioService.compute(target, months, n, invest, finals);
+	Stream<DynamicTest> 시작_금액의_정기예금() {
+		return each("depositStart", c -> {
+			BigDecimal rate = new BigDecimal(c.get("ratePercent").asString());
+			int term = c.get("termMonths").asInt();
 			JsonNode e = c.get("expected");
-			assertThat(r != null).as("reachable").isEqualTo(e.get("reachable").asBoolean());
-			assertThat(r.monthly()).as("monthly").isEqualTo(e.get("monthly").asLong());
-			assertThat(r.paid()).as("paid").isEqualTo(e.get("paid").asLong());
-			assertThat(r.outcome().chanceBp()).as("chanceBp").isEqualTo(e.get("chanceBp").asInt());
-			assertThat(r.outcome().lossBp()).as("lossBp").isEqualTo(e.get("lossBp").asInt());
+			assertThat(com.flexable.web.deposit.DepositService.maturity(c.get("amount").asLong(), term, rate, c.get("compound").asBoolean())).as("matured")
+				.isEqualTo(e.get("matured").asLong());
+			assertThat(GoalScenarioService.depositFinal(c.get("amount").asLong(), c.get("months").asInt(), term, rate, c.get("compound").asBoolean()))
+				.as("final").isEqualTo(e.get("final").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 결과() {
+		return each("outcome", c -> {
+			long[] values = c.get("values").valueStream().mapToLong(JsonNode::asLong).toArray();
+			var o = GoalScenarioService.outcome(values, c.get("paid").asLong(), longOrNull(c.get("target")), c.get("invest").asBoolean());
+			JsonNode e = c.get("expected");
+			assertThat(o.kind()).isEqualTo(e.get("kind").asString());
+			assertThat(o.highGain()).as("highGain").isEqualTo(e.get("highGain").asLong());
+			assertThat(o.chanceBp()).as("chanceBp").isEqualTo(e.get("chanceBp").isNull() ? null : e.get("chanceBp").asInt());
+			assertThat(o.lossBp()).as("lossBp").isEqualTo(e.get("lossBp").asInt());
 			if (e.has("fixedAmount")) {
-				assertThat(r.outcome().kind()).isEqualTo("FIXED");
-				assertThat(r.outcome().fixedAmount()).as("fixedAmount").isEqualTo(e.get("fixedAmount").asLong());
+				assertThat(o.fixedAmount()).as("fixedAmount").isEqualTo(e.get("fixedAmount").asLong());
 			}
-			if (e.has("finals")) {
-				assertThat(r.values()).as("finals").containsExactly(e.get("finals").valueStream().mapToLong(JsonNode::asLong).toArray());
-				assertThat(r.outcome().low()).as("low").isEqualTo(e.get("low").asLong());
-				assertThat(r.outcome().median()).as("median").isEqualTo(e.get("median").asLong());
-				assertThat(r.outcome().high()).as("high").isEqualTo(e.get("high").asLong());
+			else {
+				assertThat(o.low()).as("low").isEqualTo(e.get("low").asLong());
+				assertThat(o.median()).as("median").isEqualTo(e.get("median").asLong());
+				assertThat(o.high()).as("high").isEqualTo(e.get("high").asLong());
 			}
-			if (c.has("below")) {
-				JsonNode b = c.get("below");
-				long[] below = finals.apply(b.get("monthly").asLong());
-				assertThat(ScenarioMath.reached(below, target)).as("below reached").isEqualTo(b.get("reached").asInt());
-				assertThat(below).as("below worst reaching path").contains(b.get("worstReachingPathFinal").asLong());
+		});
+	}
+
+	@TestFactory
+	Stream<DynamicTest> 단계() {
+		return each("tiers", c -> {
+			Map<ProductType, Integer> m = mix(c.get("mix"));
+			JsonNode e = c.get("expected");
+			assertThat(ScenarioTier.investShare(m)).isEqualTo(e.get("investShare").asInt());
+			for (ScenarioTier t : ScenarioTier.values()) {
+				assertThat(t.accepts(m)).as(t.name()).isEqualTo(t.name().equals(e.get("tier").asString()));
 			}
 		});
 	}
@@ -243,8 +303,8 @@ class GoalScenarioPolicyTest {
 	Stream<DynamicTest> 입력_검증() {
 		return each("validation", c -> {
 			JsonNode q = c.get("request");
-			var req = new GoalScenarioDtos.Request(q.get("name").asString(), q.get("targetAmount").asLong(), q.get("months").asInt(),
-					longOrNull(q.get("monthlyBudget")));
+			var req = new GoalScenarioDtos.Request(longOrNull(q.get("startAmount")), longOrNull(q.get("monthlyBudget")),
+					q.get("months").asInt(), longOrNull(q.get("targetAmount")));
 			String field = c.get("expected").get("field").asString();
 			assertThatThrownBy(() -> GoalScenarioService.validate(req)).isInstanceOfSatisfying(ApiException.class,
 					ex -> assertThat(((Map<?, ?>) ex.extra().get("fields")).keySet()).map(String::valueOf).contains(field));
@@ -284,6 +344,10 @@ class GoalScenarioPolicyTest {
 				Proposals.Checked checked = Proposals.check(drafts, facts);
 				if ("AI".equals(c.get("expected").get("proposer").asString())) {
 					assertThat(checked.problem()).isNull();
+					if (c.get("expected").has("ids")) {
+						assertThat(checked.plans()).extracting(Proposals.Plan::id)
+							.containsExactlyElementsOf(c.get("expected").get("ids").valueStream().map(JsonNode::asString).toList());
+					}
 				}
 				else {
 					assertThat(checked.plans()).isNull();
@@ -313,27 +377,10 @@ class GoalScenarioPolicyTest {
 			JsonNode o = c.get("outcome");
 			GoalScenarioDtos.Outcome outcome = o == null || o.isNull() ? null
 					: new GoalScenarioDtos.Outcome(o.get("kind").asString(), longOrNull(o.get("fixedAmount")), longOrNull(o.get("low")),
-							longOrNull(o.get("median")), longOrNull(o.get("high")), o.get("chanceBp").asInt(), o.get("lossBp").asInt());
-			assertThat(ScenarioResultText.of(c.get("reachable").asBoolean(), longOrNull(c.get("monthly")), outcome, c.get("months").asInt()))
-				.isEqualTo(c.get("expected").asString());
-		});
-	}
-
-	/** 월 납입 가능액 비교와 대안 문장(§7-5, #399). 필요 월 금액은 바꾸지 않고, 가능액 밖이면 fit 칸 끝에 정해 둔 문장을 붙인다. */
-	@TestFactory
-	Stream<DynamicTest> 가능액_비교() {
-		return each("budget", c -> {
-			boolean reachable = c.get("reachable").asBoolean();
-			Long monthly = longOrNull(c.get("monthly"));
-			Proposals.Parts parts = new Proposals.Parts("이유예요.", "역할이에요.", "차이예요.", c.get("fit").asString());
-			GoalScenarioDtos.Scenario s = new GoalScenarioDtos.Scenario("a", "조합", "설명", parts.joined(), parts, "결과", List.of(), reachable, monthly,
-					monthly == null ? null : monthly * 12, null, null, null).withBudget(longOrNull(c.get("monthlyBudget")));
-			JsonNode e = c.get("expected");
-			assertThat(s.withinBudget()).isEqualTo(e.get("withinBudget").isNull() ? null : e.get("withinBudget").asBoolean());
-			assertThat(s.overBudgetBy()).isEqualTo(longOrNull(e.get("overBudgetBy")));
-			assertThat(s.explanationParts().fit()).isEqualTo(e.get("fit").asString());
-			assertThat(s.explanation()).isEqualTo(s.explanationParts().joined());
-			assertThat(s.monthly()).isEqualTo(monthly);
+							longOrNull(o.get("median")), longOrNull(o.get("high")), longOrNull(o.get("highGain")),
+							o.get("chanceBp").isNull() ? null : o.get("chanceBp").asInt(), o.get("lossBp").asInt());
+			assertThat(ScenarioResultText.of(c.get("start").asLong(), longOrNull(c.get("monthly")), outcome, longOrNull(c.get("target")),
+					c.get("months").asInt())).isEqualTo(c.get("expected").asString());
 		});
 	}
 

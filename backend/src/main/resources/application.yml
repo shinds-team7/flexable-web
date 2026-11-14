@@ -48,8 +48,8 @@ app:
       daily-cap: ${GOAL_COACH_DAILY_CAP:300}
     scenario:
       ai:
-        # 목표 시나리오 AI 조합(policies §7-6). 키는 위 openai와 같다. 회원당 하루 횟수(무료·플러스), 서비스 전체 하루 상한
-        free-daily-limit: ${GOAL_SCENARIO_AI_DAILY_LIMIT:3}
+        # 목표 시나리오 AI 조합(policies §7-6). 키는 위 openai와 같다. 회원당 하루 시나리오 보기 횟수(무료·플러스), worker 미리 만들기의 하루 AI 호출 상한
+        free-daily-limit: ${GOAL_SCENARIO_AI_DAILY_LIMIT:5}
         plus-daily-limit: ${GOAL_SCENARIO_AI_PLUS_DAILY_LIMIT:10}
         daily-cap: ${GOAL_SCENARIO_AI_DAILY_CAP:300}
         # 검사에 걸린 칸의 문구를 서버 로그에 남김. 원인을 찾을 때만 켠다(policies §7-6)

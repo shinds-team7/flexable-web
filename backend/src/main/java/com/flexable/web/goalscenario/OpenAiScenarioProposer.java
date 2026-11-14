@@ -29,20 +29,8 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 	}
 
 	@Override
-	public String version() {
-		return client.promptVersion();
-	}
-
-	@Override
-	public List<Proposals.Draft> propose(Input input) {
-		String content;
-		try {
-			content = client.propose(JSON.writeValueAsString(input)).content();
-		}
-		catch (GoalScenarioAiClient.Failed e) {
-			throw new Failed(e.reason());
-		}
-		return parse(content);
+	public String planVersion() {
+		return client.planPromptVersion();
 	}
 
 	@Override
@@ -51,15 +39,10 @@ class OpenAiScenarioProposer implements ScenarioProposer {
 	}
 
 	@Override
-	public String shortVersion() {
-		return client.shortPromptVersion();
-	}
-
-	@Override
-	public List<Proposals.Draft> proposeShort(Input input, Map<ProductType, TypeRoleStore.Role> roles) {
+	public List<Proposals.Draft> proposePlan(PlanInput input, Map<ProductType, TypeRoleStore.Role> roles) {
 		String content;
 		try {
-			content = client.proposeShort(JSON.writeValueAsString(input)).content();
+			content = client.plan(JSON.writeValueAsString(input)).content();
 		}
 		catch (GoalScenarioAiClient.Failed e) {
 			throw new Failed(e.reason());

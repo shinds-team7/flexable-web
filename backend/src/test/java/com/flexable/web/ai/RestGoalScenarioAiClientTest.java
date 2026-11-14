@@ -107,6 +107,8 @@ class RestGoalScenarioAiClientTest {
 		assertThat(RestGoalScenarioAiClient.PLAN_PROMPT).startsWith("goal-scenario-v14.")
 			.contains("s1 안정: 투자 몫 0 이상 30 이하. s2 균형: 투자 몫 31 이상 60 이하. s3 적극: 투자 몫 61 이상 100 이하.")
 			.contains("기한이 짧을수록 투자 몫을 범위의 아래쪽으로")
+			// #431: 시작 금액의 적금 몫은 서버가 정기예금으로 계산한다
+			.contains("서버는 시작 금액 중 적금 몫을 정기예금에 한 번에 맡겨 계산하고").contains("시작 금액을 적금에 넣는다고 쓰지 않고")
 			.contains("금액은 입력에 없고 쓰지 않아요")
 			.contains("금액(매달 넣을 돈, 시작 금액, 목표 금액, 기한 말 금액)·수익률·확률·배수는 쓰지 않아요")
 			.contains("유형 하나하나의 설명이나 업황 전망을 되풀이하지 말고")

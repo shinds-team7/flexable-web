@@ -149,8 +149,10 @@ function GrowthChart({ series, monthly, target }: { series: SeriesPoint[]; month
 }
 
 /** AI 해설 카드. 머리에 제목과 오른쪽 동작(저장)을 두고, 조합 이유 → 유형별 역할 → 참고 해설(차이·주의할 점·계산 결과) 순으로 보여 준다. */
-function AiCard({ plan, demo, action }: { plan: GoalScenario; demo: boolean; action?: ReactNode }) {
+function AiCard({ plan, demo, startDeposit, action }: { plan: GoalScenario; demo: boolean; startDeposit: StartDeposit | null; action?: ReactNode }) {
   const parts = plan.explanationParts;
+  // 시작 금액 중 적금 몫을 어디에 맡겼는지는 AI가 모르므로 서버 값으로 붙인다(policies §7-4)
+  const savingsStart = plan.mix.find((m) => m.type === 'SAVINGS')?.start ?? 0;
   const roles = parts?.roles.split(/\n+/).filter((l) => l.trim()) ?? [];
   const extra = parts ? [parts.comparison, parts.fit].filter((t) => t.trim()) : [];
   return <div className="gp-card gp-ai">
@@ -172,6 +174,7 @@ function AiCard({ plan, demo, action }: { plan: GoalScenario; demo: boolean; act
     <section className="gp-ai-part">
       <h4 className="gp-h4">참고 해설</h4>
       {extra.map((t, i) => <p key={i}>{t}</p>)}
+      {savingsStart > 0 && <p>{startDepositNote(savingsStart, startDeposit)}.</p>}
       <p>{plan.resultText}</p>
     </section>
     {!demo && <p className="gp-ai-notice">{AI_OUTLOOK_NOTICE}</p>}
@@ -249,7 +252,7 @@ function PlanDetail({ resultKey, plan, products, startDeposit, targetAmount, mon
             </>}
       </div>
     </div>
-    <AiCard plan={plan} demo={demo} action={action} />
+    <AiCard plan={plan} demo={demo} startDeposit={startDeposit} action={action} />
   </>;
 }
 

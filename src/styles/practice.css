@@ -30,11 +30,13 @@
 .practice-stock { position:relative; display:flex; align-items:baseline; gap:calc(var(--density-gap)/3); border:1px solid var(--color-border); border-radius:var(--radius-soft-sm); padding:calc(var(--density-pad)/3) calc(var(--density-pad)/2); font-size:13px; cursor:pointer; transition:border-color .15s, background-color .15s; }
 .practice-stock:hover { border-color:var(--color-border-strong); }
 .practice-stock>span:first-of-type { flex:1; min-width:0; overflow-wrap:anywhere; }
-.practice-stock.random { background:var(--color-bg-subtle); }
+.practice-stock.random { border-style:dashed; border-color:var(--color-brand-primary); color:var(--color-brand-text); font-weight:600; }
+.practice-stock.random:hover { background:var(--color-brand-subtle); }
 .practice-stock input { position:absolute; opacity:0; width:1px; height:1px; }
 .practice-stock:focus-within { outline:2px solid var(--color-focus); outline-offset:-1px; }
 .practice-stock.selected { background:var(--color-brand-subtle); border-color:var(--color-brand-primary); color:var(--color-brand-text); }
 .practice-stock.selected .practice-category-check { color:var(--color-brand-primary); }
+.practice-stock.random.selected { border-style:solid; }
 .practice-category b { font-size:14px; font-weight:600; line-height:1.35; overflow-wrap:anywhere; }
 .practice-category small { font-size:11px; color:var(--color-text-tertiary); white-space:nowrap; }
 .practice-category.selected { background:var(--color-brand-subtle); border-color:var(--color-brand-primary); color:var(--color-brand-text); }

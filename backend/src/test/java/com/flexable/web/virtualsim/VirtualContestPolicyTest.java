@@ -129,8 +129,21 @@ class VirtualContestPolicyTest {
 		assertThat(made.get(0).up()).isTrue();
 	}
 
+	/** 회사·제목이 공시마다 다른 문제(같은 회사·유형이나 화면 내용이 같아 걸러지지 않게) */
 	private static VirtualContestQuestions.Past past(String key, VirtualSimCategory category) {
-		return new VirtualContestQuestions.Past(key, "회사", "업종", category, "t", null, null, null, 100, 110, 120);
+		return new VirtualContestQuestions.Past(key, "회사-" + key, "업종", category, "t-" + key, null, null, null, 100, 110, 120);
+	}
+
+	private static VirtualContestQuestions.Past past(String key, String company, VirtualSimCategory category, String title) {
+		return new VirtualContestQuestions.Past(key, company, "업종", category, title, null, null, null, 100, 110, 120);
+	}
+
+	private static Map<String, String> summaries(String... receipts) {
+		Map<String, String> out = new HashMap<>();
+		for (String r : receipts) {
+			out.put(r, "요약 " + r);
+		}
+		return out;
 	}
 
 	private static Map<VirtualSimCategory, Long> byType(List<VirtualContestQuestions.Past> drawn) {
@@ -157,7 +170,7 @@ class VirtualContestPolicyTest {
 			pool.add(past("dv-plain-" + i, VirtualSimCategory.DIVIDEND));
 		}
 		pool.add(past("fa-sum-0", VirtualSimCategory.FACILITY));
-		Set<String> summarized = Set.of("sc-sum-0", "sc-sum-1", "fa-sum-0");
+		Map<String, String> summarized = summaries("sc-sum-0", "sc-sum-1", "fa-sum-0");
 		for (long seed = 1; seed <= 200; seed++) {
 			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool, summarized, new java.util.Random(seed));
 			List<String> keys = drawn.stream().map(VirtualContestQuestions.Past::key).toList();
@@ -185,7 +198,7 @@ class VirtualContestPolicyTest {
 			pool.add(past("dv-" + i, VirtualSimCategory.DIVIDEND));
 		}
 		for (long seed = 1; seed <= 100; seed++) {
-			Map<VirtualSimCategory, Long> counts = byType(VirtualContestQuestions.draw(pool, Set.of(), new java.util.Random(seed)));
+			Map<VirtualSimCategory, Long> counts = byType(VirtualContestQuestions.draw(pool, Map.of(), new java.util.Random(seed)));
 			// 시설·지분 투자 없음: 근거 4문제는 공급 계약·자기주식 취득으로, 유형 4개 × 상한 3 = 12 ≥ 10
 			assertThat(counts.values().stream().mapToLong(Long::longValue).sum()).isEqualTo(10);
 			assertThat(counts.get(VirtualSimCategory.SUPPLY_CONTRACT) + counts.get(VirtualSimCategory.BUYBACK_ACQUIRE)).as("seed %d", seed).isGreaterThanOrEqualTo(4);
@@ -193,13 +206,95 @@ class VirtualContestPolicyTest {
 		}
 		// 유형 3개뿐이면 3 × 3 = 9 < 10이라 503
 		List<VirtualContestQuestions.Past> three = pool.stream().filter(p -> p.category() != VirtualSimCategory.DIVIDEND).toList();
-		assertThat(VirtualContestQuestions.draw(three, Set.of(), new java.util.Random(1))).isEmpty();
+		assertThat(VirtualContestQuestions.draw(three, Map.of(), new java.util.Random(1))).isEmpty();
 		// 근거 유형이 하나뿐이면 상한 3으로 근거 4문제를 못 채워 503
 		List<VirtualContestQuestions.Past> oneEvidence = pool.stream().filter(p -> p.category() != VirtualSimCategory.BUYBACK_ACQUIRE).toList();
-		assertThat(VirtualContestQuestions.draw(oneEvidence, Set.of(), new java.util.Random(1))).isEmpty();
+		assertThat(VirtualContestQuestions.draw(oneEvidence, Map.of(), new java.util.Random(1))).isEmpty();
 	}
 
-	/** 예시 자료(fake)로 여러 번 출제한 유형 분포: 시설·지분 투자가 없어 근거 4문제는 공급 계약·자기주식 취득, 유형 5개가 상한 안에서 나온다 */
+	/** 출제(Issue #432): 같은 회사·같은 유형 공시가 여럿이어도 한 시험에 하나만, 근거 유형·상한 규칙은 그대로 */
+	@Test
+	void placement_draw_company_type_once() {
+		List<VirtualContestQuestions.Past> pool = new ArrayList<>();
+		VirtualSimCategory[] types = { VirtualSimCategory.SUPPLY_CONTRACT, VirtualSimCategory.BUYBACK_ACQUIRE, VirtualSimCategory.FACILITY,
+				VirtualSimCategory.EARNINGS, VirtualSimCategory.DIVIDEND };
+		// 회사 3곳이 유형마다 공시 8건씩(제목은 모두 달라 화면 내용으로는 걸러지지 않는다)
+		for (VirtualSimCategory t : types) {
+			for (int c = 0; c < 3; c++) {
+				for (int i = 0; i < 8; i++) {
+					pool.add(past(t + "-" + c + "-" + i, "회사" + c, t, "제목 " + t + " " + c + " " + i));
+				}
+			}
+		}
+		for (long seed = 1; seed <= 200; seed++) {
+			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool, Map.of(), new java.util.Random(seed));
+			assertThat(drawn).as("seed %d", seed).hasSize(VirtualContestRules.PLACEMENT_QUESTIONS);
+			assertThat(drawn.stream().map(q -> q.company() + "|" + q.category()).toList()).as("seed %d", seed).doesNotHaveDuplicates();
+			Map<VirtualSimCategory, Long> counts = byType(drawn);
+			assertThat(counts.values()).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
+			for (VirtualSimCategory t : VirtualContestQuestions.EVIDENCE_TYPES) {
+				assertThat(counts.getOrDefault(t, 0L)).as("seed %d %s", seed, t).isGreaterThanOrEqualTo(VirtualContestQuestions.EVIDENCE_EACH);
+			}
+		}
+		// 회사가 유형마다 한 곳뿐이면 유형 5개 × 1 = 5 < 10이라 503
+		List<VirtualContestQuestions.Past> oneCompany = pool.stream().filter(p -> p.company().equals("회사0")).toList();
+		assertThat(VirtualContestQuestions.draw(oneCompany, Map.of(), new java.util.Random(1))).isEmpty();
+	}
+
+	/** 출제(Issue #432): 회사는 달라도 업종·유형·제목(앞 대괄호 표시 제외)·주요 내용·AI 요약이 같은 후보는 한 시험에 하나만 */
+	@Test
+	void placement_draw_same_content_once() {
+		List<PlacementDetails.Detail> details = List.of(new PlacementDetails.Detail("매출액 대비", "10% 이상"));
+		List<VirtualContestQuestions.Past> pool = new ArrayList<>();
+		Map<String, String> summaries = new HashMap<>();
+		// 화면 내용이 같은 공급 계약 6건: 회사가 다르고, 제목 앞 대괄호 표시만 다르거나 요약이 정정 공시 쪽에 붙어 있다
+		for (int i = 0; i < 6; i++) {
+			String key = "same-" + i;
+			String title = (i % 2 == 0 ? "" : "[기재정정]") + "단일판매ㆍ공급계약체결";
+			List<String> sources = i == 5 ? List.of(key, "fix-" + i) : List.of(key);
+			pool.add(new VirtualContestQuestions.Past(key, "같은꼴" + i, "반도체", VirtualSimCategory.SUPPLY_CONTRACT, title, null, details, null, 100, 110, 120,
+					sources));
+			summaries.put(sources.getLast(), "같은 요약");
+		}
+		// 다른 후보(회사·제목이 모두 다르다)
+		for (int i = 0; i < 20; i++) {
+			pool.add(past("sc-" + i, VirtualSimCategory.SUPPLY_CONTRACT));
+			pool.add(past("bb-" + i, VirtualSimCategory.BUYBACK_ACQUIRE));
+			pool.add(past("fa-" + i, VirtualSimCategory.FACILITY));
+			pool.add(past("ea-" + i, VirtualSimCategory.EARNINGS));
+		}
+		int withSame = 0;
+		for (long seed = 1; seed <= 200; seed++) {
+			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool, summaries, new java.util.Random(seed));
+			assertThat(drawn).as("seed %d", seed).hasSize(VirtualContestRules.PLACEMENT_QUESTIONS);
+			long same = drawn.stream().filter(q -> q.key().startsWith("same-")).count();
+			assertThat(same).as("seed %d", seed).isLessThanOrEqualTo(1);
+			withSame += same;
+		}
+		// 설명 있는 공시 먼저라 공급 계약을 뽑으면 같은 꼴 중 하나가 들어간다
+		assertThat(withSame).isEqualTo(200);
+		// 요약이 다르면 다른 문제로 본다
+		summaries.put("same-0", "다른 요약");
+		boolean both = false;
+		for (long seed = 1; seed <= 200 && !both; seed++) {
+			List<String> keys = VirtualContestQuestions.draw(pool, summaries, new java.util.Random(seed)).stream().map(VirtualContestQuestions.Past::key).toList();
+			both = keys.contains("same-0") && keys.stream().filter(k -> k.startsWith("same-")).count() == 2;
+		}
+		assertThat(both).isTrue();
+	}
+
+	/** 화면 내용 비교용 제목: 앞 대괄호 표시만 뗀다 */
+	@Test
+	void placement_plain_title() {
+		assertThat(VirtualContestQuestions.plainTitle("[기재정정] [첨부추가]단일판매ㆍ공급계약체결 ")).isEqualTo("단일판매ㆍ공급계약체결");
+		assertThat(VirtualContestQuestions.plainTitle("주요사항보고서(자기주식취득결정)")).isEqualTo("주요사항보고서(자기주식취득결정)");
+		assertThat(VirtualContestQuestions.plainTitle("현금ㆍ현물배당결정[정정]")).isEqualTo("현금ㆍ현물배당결정[정정]");
+	}
+
+	/**
+	 * 예시 자료(fake)로 여러 번 출제한 유형 분포: 시설·지분 투자가 없어 근거 4문제는 공급 계약·자기주식 취득, 유형 5개가 상한 안에서 나온다.
+	 * 회사×유형마다 한 문제라 같은 회사의 같은 유형 문제가 겹치지 않는다(Issue #432)
+	 */
 	@Test
 	void placement_draw_sample_distribution() {
 		Map<String, Map<VirtualSimCategory, String>> bodies = new HashMap<>();
@@ -211,8 +306,10 @@ class VirtualContestPolicyTest {
 		Map<VirtualSimCategory, Long> total = new java.util.EnumMap<>(VirtualSimCategory.class);
 		for (long seed = 1; seed <= 200; seed++) {
 			var random = new java.util.Random(seed);
-			var drawn = VirtualContestQuestions.draw(VirtualContestQuestions.sample(bodies, industries, VirtualSimSample.ruleset(), random), Set.of(), random);
+			var drawn = VirtualContestQuestions.draw(VirtualContestQuestions.sample(bodies, industries, VirtualSimSample.ruleset(), random), Map.of(), random);
 			assertThat(drawn).as("seed %d", seed).hasSize(VirtualContestRules.PLACEMENT_QUESTIONS);
+			// 회사×유형은 한 시험에 한 번만(Issue #432)
+			assertThat(drawn.stream().map(q -> q.company() + "|" + q.category()).toList()).as("seed %d", seed).doesNotHaveDuplicates();
 			Map<VirtualSimCategory, Long> counts = byType(drawn);
 			assertThat(counts.values()).allSatisfy(n -> assertThat(n).isLessThanOrEqualTo(VirtualContestQuestions.PER_TYPE_MAX));
 			assertThat(counts.get(VirtualSimCategory.SUPPLY_CONTRACT)).isGreaterThanOrEqualTo(1);

@@ -2,6 +2,14 @@
 
 이 파일만 고치는 변경은 PR 없이 `main`에 바로 커밋·push한다([AGENTS.md](../../AGENTS.md) "작업 완료 시"). 다른 파일이 섞이면 PR로 한다.
 
+## 2026-11-15 AI 목표달성 개편(#431, PR #434) 병합과 배포 상태(SXXNHU)
+
+- 병합: #434(11-14). 입력은 시작 금액·월 납입 가능액·기한(목표 금액 선택), 안정·균형·적극 조합은 worker가 기한마다 미리 만들고(V40 `goal_scenario_plans`, `goal-scenario-v14`) 요청 중에는 AI를 부르지 않는다. 시작 금액의 적금 몫은 정기예금(`startDeposit`). 회원 하루 5회. 결정 [2026-11-14](../decisions/2026-11-14-goal-budget-tiers.md), 정책 §7.
+- **배포 대기**: `deploy` 실행 43602999442의 `apply`가 V40 마이그레이션 때문에 `production-migration` 환경 승인을 기다리는 중이다(사람이 승인). 승인 전에 `backup.sh`.
+- **운영 API 502(11-15 확인)**: 바로 앞 배포(ef64ea8, #433)가 11-14 22:03 KST에 "health가 UP이 되지 않았어요"로 실패했고, 그 뒤 `https://solpa.shinhanacademy.co.kr/api/v1/market/status`가 502다(화면 정적 파일은 200). #434는 아직 배포 전이라 원인이 아니다. VM에서 api 컨테이너 로그를 먼저 확인하고(백업 `backups/flexable_web-20261114-215919.sql.gz`), 고친 뒤 #434 배포를 승인한다.
+- 배포 뒤 확인: worker 로그 `goal scenario plans: made=… kept=…`로 기한 6~60개월 조합이 만들어졌는지(그 전에는 회원도 예시 조합 `AI_PENDING`), api 로그 `goal scenario timing … totalMs`가 2,000 미만인지, 운영 `GOAL_SCENARIO_AI_DAILY_LIMIT`이 따로 설정돼 있지 않은지(기본 5).
+- 확인하지 못한 것: 390px·다크 테마 화면, 실제 OpenAI v14 응답 품질.
+
 ## 2026-11-10 앱 시드머니 총액 정정 호환 반영
 
 - 앱 연동 #383은 #384로 종료, `9653d32` 병합 및 Vercel 자동 운영 배포 완료. 실제 운영 JS(`app-DGnw37AG.js`)에서 ADJUSTMENT·총액 정정 한글 표시를 확인했다. 웹 서버는 기존 문자열(10자)·음수 금액 저장/전달 구현을 그대로 쓰므로 서버 배포·DB 변경 없음.

@@ -125,7 +125,48 @@ const TYPE_READ: Record<components['schemas']['VirtualSimCategory'], string> = {
   LEGAL: '소송·사고는 걸린 금액이 회사 자기자본에 견줘 얼마나 큰지와, 회사가 소송을 당했는지 걸었는지가 읽는 기준이에요.',
   OWNERSHIP: '최대주주 변경은 새 최대주주 쪽이 가진 주식이 발행 주식의 몇 %인지와, 주식을 사고판 계약인지 상속·증여인지 같은 경위가 읽는 기준이에요.',
 };
+/**
+ * 공시 제목별 설명(Issue #428). AI 요약도 공시 주요 내용도 없는 문제에서, 제목만으로는 알기 어려운 "이 공시가 무엇을 알리는지"를 한두 문장으로 말한다.
+ * 로컬 DB 최근 5년 공시 중 요약·주요 내용 없이 출제될 수 있는 제목을 많은 순으로 골랐다. 공백·가운뎃점을 지운 제목에서 위부터 처음 맞는 줄을 쓴다.
+ * 종속회사 공시에도 맞게 누가 했는지는 말하지 않고, 방향·경향·평가는 말하지 않는다
+ */
+const TITLE_GUIDE: { match: RegExp; what: string }[] = [
+  { match: /주권매매거래정지(?!해제)/, what: '이 회사 주식의 매매 거래를 잠시 멈춘다고 알리는 공시예요. 괄호 안이 거래를 멈춘 까닭이에요.' },
+  { match: /배당기준일변경/, what: '배당을 받을 주주를 정하는 날짜(배당 기준일)를 바꾼다고 알리는 공시예요.' },
+  { match: /주주명부폐쇄|배당기준일/, what: '배당을 받을 주주를 정하는 날짜(배당 기준일)를 알리는 공시예요. 이 날짜에 주주명부에 이름이 있는 주주가 배당을 받아요.' },
+  { match: /배당락/, what: '배당을 받을 권리가 없어지는 날(배당락)을 알리는 공시예요. 이날부터 산 주식으로는 이번 배당을 받지 못해요.' },
+  { match: /주식배당/, what: '이익을 현금 대신 새 주식으로 주주에게 나눠 주기로 한 결정을 알리는 공시예요.' },
+  { match: /현금현물배당결정/, what: '이익의 일부를 주주에게 나눠 주기로 정하고 한 주당 배당금과 시가배당률, 배당 기준일을 알리는 공시예요.' },
+  { match: /매출액또는손익구조/, what: '한 해 매출액이나 영업이익·당기순이익이 직전 사업연도와 견줘 얼마나 달라졌는지 알리는 공시예요. 정해진 크기 이상 달라지면 꼭 내야 하고, 그보다 작아도 스스로 낼 수 있어요.' },
+  { match: /잠정\)?실적/, what: '결산을 마치기 전에 집계한 분기·반기·한 해의 매출액·영업이익·당기순이익을 먼저 알리는 공시예요.' },
+  { match: /공급계약체결/, what: '제품이나 서비스를 공급하는 계약을 맺었다고 알리는 공시예요. 계약 금액이 최근 매출액에 견줘 정해진 크기를 넘으면 꼭 내야 하고, 그보다 작아도 스스로 낼 수 있어요.' },
+  { match: /권리락/, what: '증자로 생기는 새 주식을 받을 권리가 없어지는 날(권리락)을 알리는 공시예요. 이날부터 산 주식으로는 이번 새 주식을 받지 못해요.' },
+  { match: /청약결과/, what: '유상증자나 주식 관련 사채를 사겠다고 신청(청약)한 양이 내놓은 양에 견줘 얼마였는지 알리는 공시예요.' },
+  { match: /발행결과/, what: '유상증자나 사채 발행을 마친 뒤 실제로 발행한 양과 모은 돈을 알리는 공시예요.' },
+  { match: /발행가액/, what: '유상증자로 새로 파는 주식의 값(발행가액)을 정했다고 알리는 공시예요.' },
+  { match: /특수관계인의유상증자참여/, what: '최대주주의 가족·계열회사 같은 특수관계인이 이 회사 유상증자에 참여해 새 주식을 받는다고 알리는 공시예요.' },
+  { match: /발행후만기전사채취득/, what: '이미 발행한 사채를 만기 전에 다시 사들였다고 알리는 공시예요.' },
+  { match: /자기주식취득결과보고서/, what: '자기주식 취득 기간이 끝난 뒤, 결정한 양 가운데 실제로 사들인 주식 수와 금액을 알리는 서류예요.' },
+  { match: /자기주식취득신탁계약/, what: '증권사와 신탁 계약을 맺어 자기주식을 대신 사들이게 하기로 한 결정을 알리는 공시예요.' },
+  { match: /자기주식처분결과보고서/, what: '자기주식 처분 기간이 끝난 뒤, 결정한 양 가운데 실제로 넘긴 주식 수와 금액을 알리는 서류예요.' },
+  { match: /타법인주식및출자증권취득/, what: '다른 회사의 주식이나 출자 지분을 사들이기로 한 결정을 알리는 공시예요.' },
+  { match: /신규시설투자/, what: '공장·설비 같은 시설에 새로 투자하기로 한 결정을 알리는 공시예요.' },
+  { match: /유형자산취득/, what: '토지·건물·기계 같은 유형자산을 사들이기로 한 결정을 알리는 공시예요.' },
+  { match: /공개매수/, what: '정해 둔 값과 기간에 주주들에게서 주식을 사들이는 공개매수에 관한 공시예요. 신고서·설명서는 계획을, 결과보고서는 실제로 사들인 양을 알려요.' },
+  { match: /합병등종료보고서/, what: '합병·분할·자산양수도 같은 일을 모두 마쳤다고 알리는 서류예요.' },
+  { match: /영업양[수도]/, what: '사업의 일부나 전부를 다른 회사에 넘기거나(양도) 넘겨받기로(양수) 한 결정을 알리는 공시예요.' },
+  { match: /주식분할/, what: '주식 한 주를 여러 주로 쪼개기로 한 결정을 알리는 공시예요. 회사 자산은 그대로이고 주식 수만 늘어요.' },
+  { match: /소송등의판결/, what: '진행 중이던 소송에서 판결이나 법원의 결정이 나왔다고 알리는 공시예요.' },
+  { match: /경영권분쟁/, what: '이사 선임·새 주식 발행처럼 회사 경영권이 걸린 일을 두고 소송이나 가처분 신청이 시작됐다고 알리는 공시예요.' },
+  { match: /소송등의제기/, what: '소송을 당했거나 다른 상대에게 소송을 걸었다고 알리는 공시예요. 판결이 아니라 소송이 시작됐다는 알림이에요.' },
+  { match: /중대재해/, what: '사업장에서 사망 사고 같은 중대재해가 일어났다고 알리는 공시예요.' },
+  { match: /횡령배임/, what: '임직원의 횡령(회사 돈을 빼돌림)이나 배임(맡은 일을 어겨 회사에 손해를 끼침) 혐의가 생겼거나 사실로 확인됐다고 알리는 공시예요.' },
+  { match: /영업정지/, what: '행정 처분 등으로 사업의 일부나 전부를 일정 기간 멈추게 됐다고 알리는 공시예요.' },
+  { match: /주식담보제공계약/, what: '최대주주가 가진 주식을 담보로 맡기는 계약을 맺었고, 담보가 처분되면 최대주주가 바뀔 수 있다고 알리는 공시예요.' },
+  { match: /주식양수도계약/, what: '최대주주가 가진 주식을 넘기는 계약을 맺어, 계약대로 마치면 최대주주가 바뀐다고 알리는 공시예요.' },
+];
 const NO_DETAILS_QUESTION = '이 공시는 공시 주요 내용을 제공하지 않아요. 공시 제목과 유형 설명을 보고 골라요.';
+const NO_DETAILS_TITLED = '이 공시는 공시 주요 내용을 제공하지 않아요. 공시 제목과 이 설명을 보고 골라요.';
 const AI_NOTE = 'AI가 공시 원문을 읽고 정리한 글이에요. 사람이 검수하지 않았고, 회사를 알아보지 못하게 이름·날짜와 정확한 금액은 빼고 금액은 규모 구간으로만 보여 줘요.';
 const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 // 문제 화면에도 쓰는 문구:end
@@ -137,6 +178,12 @@ const SAMPLE_NOTE = '정해 둔 틀로 만든 예시 요약이에요.';
 function summaryStory(q: Question, sample: boolean | null): string | null {
   if (!q.summary) return null;
   return sample === null ? q.summary : `${q.summary} ${sample ? SAMPLE_NOTE : AI_NOTE}`;
+}
+
+/** 공시 제목별 설명(TITLE_GUIDE). 공백·가운뎃점을 지운 제목에서 처음 맞는 줄, 없으면 null */
+function titleGuide(title: string) {
+  const t = title.replace(/[\s\u00a0·ㆍ・/]/g, '');
+  return TITLE_GUIDE.find(g => g.match.test(t)) ?? null;
 }
 
 /** 유형별 읽는 법(문제·결과 화면의 줄글 상자 밖 한 줄). 공시 주요 내용이 있으면 항목별 읽는 법을 줄글에 쓰므로 null */
@@ -155,12 +202,19 @@ function detailsStory(q: Question): string | null {
   return [...new Set(sentences), masked(q, details.map(d => d.label))].join(' ');
 }
 
+/** 요약·주요 내용이 없는 문제의 안내: 제목별 설명이 있으면 그 설명 뒤에 붙인다(Issue #428) */
+function noDetailsQuestion(q: Question): string {
+  const g = titleGuide(q.title);
+  return g ? `${g.what} ${NO_DETAILS_TITLED}` : NO_DETAILS_QUESTION;
+}
+
 /**
  * 문제 화면의 공시 줄글: 업종·제목과 공시 AI 요약(있으면) 또는 공시 주요 내용만(회사·날짜·방향·과거 경향 없음).
+ * 둘 다 없으면 제목별 설명(있으면)과 안내 문장을 쓴다.
  * 예시 글(body)은 카드에 따로 보이므로 요약·주요 내용이 없으면 안내 문장을 뺀다. sample: 예시 자료면 true, 실제면 false, 아직 모르면 null
  */
 export function questionStory(q: Question, title: string, sample: boolean | null = null): string[] {
-  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : NO_DETAILS_QUESTION);
+  const body = summaryStory(q, sample) ?? detailsStory(q) ?? (q.body ? null : noDetailsQuestion(q));
   return [`${q.industry} 회사가 낸 '${title}' 공시예요.`, ...(body ? [body] : [])];
 }
 
@@ -169,7 +223,7 @@ const percent = (r: number) => `${Math.abs(r * 100).toFixed(2)}%`;
 const share = (r: number) => (Math.floor(r * 1000) / 10).toFixed(1);
 
 /**
- * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 AI 요약 또는 공시 주요 내용(있을 때) ③ 실제 움직임과 같은 유형 통계.
+ * 결과 문제 하나의 줄글 문단들: ① 누가 언제 무슨 공시를 냈는지 ② 공시 AI 요약 또는 공시 주요 내용(없으면 제목별 설명과 안내) ③ 실제 움직임과 같은 유형 통계.
  * 움직임은 반응 창 채점(REACTION)이면 공시 직후(채점)와 그다음 주, 이 규칙 전에 시작한 배치고사(FIVE_DAY)면 5거래일이다(decisions/2026-11-09-placement-reaction-window).
  * 유형 통계는 채점 구간과 같은 구간만 온다(서버): REACTION이면 룰셋 v3의 공시 직후 통계, FIVE_DAY면 5거래일 통계(decisions/2026-11-10-vsim-ruleset-reaction-window).
  * 경향 UP은 시장 조정 측정에서 공시 직후 평균이 오른 쪽이던 반응 창 근거 유형이라, 원 가격 상승 비율이 절반보다 낮을 수 있다.
@@ -184,7 +238,8 @@ export function disclosureStory(q: Question, it: Item, title: string, subsidiary
     ?? detailsStory(q)
     ?? (q.body
       ? q.body
-      : '이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.');
+      : [titleGuide(q.title)?.what, '이 공시는 공시 주요 내용(구조화 자료)을 제공하지 않아, 공시 제목과 유형 설명으로만 판단하는 문제였어요. 회사 이름과 날짜로 DART에서 원문을 찾아볼 수 있어요.']
+        .filter(Boolean).join(' '));
   let after: string;
   if (it.basis === 'REACTION' && it.reactionReturnRate != null && it.nextWeekReturnRate != null) {
     const n = it.nextWeekReturnRate;

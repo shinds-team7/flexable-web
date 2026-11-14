@@ -270,15 +270,15 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 				return placement(p);
 			}
 			Rules rules = rules().orElseThrow(() -> new ApiException(ErrorCode.PRACTICE_UNAVAILABLE));
-			// 실제 과거 공시 10개: 반응 창 근거 유형 4개(유형마다 1개 이상) + 유형 상관없이 6개, 한 유형 3문제까지, 유형 안에서 요약·주요 내용이 있는 공시 먼저(Issue #388)
-			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool(rules.rules()), sim.sample() ? Set.of() : sims.visibleSummaryReceipts(), random);
+			// 공시 AI 요약: 실제 공시는 지금 저장된 요약(숨기지 않은 것)을 접수번호로 붙이고(원공시 것이 없으면 합친 정정 공시의 것을 가까운 순으로),
+			// 예시 자료는 유형별 예시 글. 출제가 화면 내용이 같은 문제를 거를 때도 이 요약을 본다(Issue #432)
+			Map<String, String> summaries = sim.sample() ? Map.of() : sims.visibleSummaries();
+			// 실제 과거 공시 10개: 반응 창 근거 유형 4개(유형마다 1개 이상) + 유형 상관없이 6개, 한 유형 3문제까지, 유형 안에서 요약·주요 내용이 있는 공시 먼저(Issue #388).
+			// 같은 회사·같은 유형이나 화면 내용이 같은 공시는 한 시험에 하나만(Issue #432)
+			List<VirtualContestQuestions.Past> drawn = VirtualContestQuestions.draw(pool(rules.rules()), summaries, random);
 			if (drawn.isEmpty()) {
 				throw new ApiException(ErrorCode.PRACTICE_UNAVAILABLE);
 			}
-			// 공시 AI 요약: 실제 공시는 뽑은 공시의 접수번호로 지금 저장된 요약(숨기지 않은 것)을 붙이고(원공시 것이 없으면 합친 정정 공시의 것을 가까운 순으로),
-			// 예시 자료는 유형별 예시 글
-			Map<String, String> summaries = sim.sample() ? Map.of()
-					: sims.summaries(drawn.stream().flatMap(q -> q.sources().stream()).toList());
 			List<StoredQuestion> questions = new ArrayList<>();
 			for (int k = 0; k < drawn.size(); k++) {
 				VirtualContestQuestions.Past q = drawn.get(k);
@@ -287,8 +287,7 @@ public class VirtualContestService implements VirtualSimService.RoundListener {
 						q.date() == null ? null : q.date().toString(), q.up(), null,
 						st.map(CategoryStats::trend).orElse(null), st.map(CategoryStats::upShare).orElse(null),
 						st.map(x -> VirtualSimRules.upShare(x.paths(), x.down())).orElse(null), st.map(CategoryStats::paths).orElse(null),
-						sim.sample() ? VirtualSimSample.summary(q.category())
-								: q.sources().stream().map(summaries::get).filter(java.util.Objects::nonNull).findFirst().orElse(null),
+						sim.sample() ? VirtualSimSample.summary(q.category()) : VirtualContestQuestions.summary(q, summaries),
 						VirtualContestQuestions.REACTION, q.reactionRate(), q.nextWeekRate(),
 						VirtualSimRuleset.V2.equals(rules.rules().version()) ? null : VirtualContestQuestions.REACTION));
 			}

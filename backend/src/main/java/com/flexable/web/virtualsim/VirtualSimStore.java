@@ -184,9 +184,16 @@ public class VirtualSimStore {
 	public record SummaryRow(String receiptNo, String summary, String reason, String model) {
 	}
 
-	/** 숨기지 않은 요약이 있는 접수번호(배치고사 출제에서 설명이 있는 공시를 먼저 고르는 데 쓴다) */
-	public Set<String> visibleSummaryReceipts() {
-		return new HashSet<>(jdbc.queryForList("SELECT receipt_no FROM dart_disclosure_summaries WHERE summary IS NOT NULL AND hidden = FALSE", String.class));
+	/**
+	 * 접수번호 → 숨기지 않은 요약(작성 규칙 버전은 따지지 않는다). 배치고사 출제에서 설명이 있는 공시를 먼저 고르고, 화면 내용이 같은 문제를 거르고(Issue #432),
+	 * 뽑은 문제에 요약을 붙이는 데 쓴다
+	 */
+	public Map<String, String> visibleSummaries() {
+		Map<String, String> out = new HashMap<>();
+		jdbc.query("SELECT receipt_no, summary FROM dart_disclosure_summaries WHERE summary IS NOT NULL AND hidden = FALSE", rs -> {
+			out.put(rs.getString(1), rs.getString(2));
+		});
+		return out;
 	}
 
 	/** 다시 만들지 않을 공시의 접수번호: 지금 작성 규칙 버전으로 만든 것과 운영자가 숨긴 것 */

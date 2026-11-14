@@ -281,9 +281,9 @@ export default function Simulation() {
   const inContest = mode === 'contest';
   return <div className="page practice-page">
     <header className="practice-heading"><div><h1>투자 시뮬레이션</h1><p>{MODES.find(m => m.id === mode)!.lead}</p></div><div className="practice-heading-links">
+      <Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link>
       {/* 대회 화면(배치고사·대회 판 포함)에서는 두지 않는다. 대회는 배치고사 시작 전 안내에만 링크가 있다(Issue #367) */}
       {!inContest && <Link className="btn btn-soft btn-sm practice-guide-btn" to="/simulation/guide"><span aria-hidden="true">?</span>공시 읽는 법</Link>}
-      <Link className="practice-insight-link" to="/invest">자유롭게 살펴보기 · 투자 인사이트 ↗</Link>
     </div></header>
     <div className="practice-modes-bar"><div className="practice-modes" role="tablist" aria-label="투자 시뮬레이션 메뉴">
       {MODES.map((m, i) => <button key={m.id} ref={el => { tabs.current[m.id] = el; }} type="button" role="tab" id={`practice-tab-${m.id}`} aria-controls={`practice-panel-${m.id}`}

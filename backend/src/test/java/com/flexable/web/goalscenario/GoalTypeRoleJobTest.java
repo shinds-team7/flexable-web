@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.flexable.web.ai.GoalScenarioAiClient;
 
-/** 유형 해설 미리 만들기(#417, policies §7-6). */
+/** 유형 해설(#417)과 기한별 조합(#431) 미리 만들기(policies §7-6). */
 class GoalTypeRoleJobTest {
 	private static final String VERSION = "goal-type-role-test";
 	/** 기한 60개월, 금액 없음, 적금 3.20%·CMA 2.50%·세율 15.4%. */
@@ -35,7 +35,8 @@ class GoalTypeRoleJobTest {
 	private final TypeRoleStore store = mock(TypeRoleStore.class);
 	private final ScenarioAiQuota quota = mock(ScenarioAiQuota.class);
 	private final GoalScenarioAiProperties props = new GoalScenarioAiProperties(3, 10, 300, false);
-	private final GoalTypeRoleJob job = new GoalTypeRoleJob(service, client, store, quota, props);
+	private final ScenarioPlanStore plans = mock(ScenarioPlanStore.class);
+	private final GoalTypeRoleJob job = new GoalTypeRoleJob(service, client, store, quota, props, plans);
 	private final TypeRoleSubject saving = TypeRoleSubject.of(ProductType.SAVINGS,
 			new TypeRoleSubject.Input("SAVINGS", "은행 정액적립식 적금(우리은행 WON적금), 만기 12개월", "3.20", null, null, null, List.of(), false));
 	private final TypeRoleSubject cma = TypeRoleSubject.of(ProductType.CMA,
@@ -112,5 +113,70 @@ class GoalTypeRoleJobTest {
 			.isNull();
 		assertThat(job.checked(ProductType.SAVINGS, "{\"reason\":\"\",\"basis\":\"적금은 {비중}%로 정해져 있어요.\",\"outlook\":\"\"}", FACTS)).isNull();
 		assertThat(job.checked(ProductType.SAVINGS, "not json", FACTS)).isNull();
+	}
+
+	private static final String PLAN_VERSION = "goal-scenario-test";
+	private static final String PLAN = """
+			{"scenarios":[
+			 {"id":"s1","title":"안정","summary":"적금 위주","reason":"기한이 짧아요.","comparison":"가장 덜 흔들려요.","fit":"안정을 원할 때 맞아요.",
+			  "mix":{"SAVINGS":70,"CMA":30,"KR_INDEX_ETF":0,"US_INDEX_ETF":0,"KOSPI_TOP5":0}},
+			 {"id":"s2","title":"균형","summary":"반씩","reason":"나눠 담아요.","comparison":"중간이에요.","fit":"조금 흔들려도 될 때 맞아요.",
+			  "mix":{"SAVINGS":50,"CMA":0,"KR_INDEX_ETF":0,"US_INDEX_ETF":50,"KOSPI_TOP5":0}},
+			 {"id":"s3","title":"적극","summary":"지수 위주","reason":"기한이 길어요.","comparison":"가장 크게 흔들려요.","fit":"기다릴 수 있을 때 맞아요.",
+			  "mix":{"SAVINGS":0,"CMA":20,"KR_INDEX_ETF":40,"US_INDEX_ETF":40,"KOSPI_TOP5":0}}]}
+			""";
+	private static final ProposalText.Facts FACTS_12 = new ProposalText.Facts(0, 12, Set.of(), List.of(new BigDecimal("3.20"), new BigDecimal("2.50"),
+			new BigDecimal("15.4")));
+	private final GoalScenarioService.PlanSubject subject = new GoalScenarioService.PlanSubject(new ScenarioProposer.PlanInput(12, List.of()), "fp-12");
+
+	private void planSetup() {
+		when(client.planPromptVersion()).thenReturn(PLAN_VERSION);
+		when(service.planTargets()).thenReturn(List.of(new GoalScenarioService.PlanTarget(12, subject, FACTS_12, List.of(saving, cma))));
+	}
+
+	private void rolesReady() {
+		TypeRoleStore.Role role = new TypeRoleStore.Role("이 유형은 몫이에요.", "{비중}%를 담아요.", "");
+		when(store.find(eq(VERSION), any(), anyString())).thenReturn(java.util.Optional.of(role));
+	}
+
+	@Test
+	void 지금_자료에_맞는_조합이_있으면_AI를_부르지_않는다() {
+		planSetup();
+		when(plans.touch(PLAN_VERSION, 12, "fp-12")).thenReturn(true);
+		assertThat(job.runPlans()).isEqualTo(new GoalTypeRoleJob.Result(0, 1, 0, false));
+		verify(client, never()).plan(anyString());
+	}
+
+	@Test
+	void 유형_해설이_아직_없으면_조합을_미룬다() {
+		planSetup();
+		when(store.find(eq(VERSION), any(), anyString())).thenReturn(java.util.Optional.empty());
+		assertThat(job.runPlans()).isEqualTo(new GoalTypeRoleJob.Result(0, 0, 1, false));
+		verify(client, never()).plan(anyString());
+	}
+
+	@Test
+	void 기한마다_조합을_한_번_받아_검사하고_저장한다() {
+		planSetup();
+		rolesReady();
+		when(client.plan(anyString())).thenReturn(new GoalScenarioAiClient.Result(PLAN, "gpt-test", 100, 200));
+		assertThat(job.runPlans()).isEqualTo(new GoalTypeRoleJob.Result(1, 0, 0, false));
+		// 기한과 통계만 보낸다(금액·회원 정보 없음)
+		verify(client).plan("{\"months\":12,\"stats\":[]}");
+		verify(quota).reserveService();
+		verify(plans).save(eq(PLAN_VERSION), eq(12), eq("fp-12"), any(), eq("gpt-test"));
+		verify(plans).deleteUnseen();
+	}
+
+	@Test
+	void 단계_범위를_어긴_조합은_저장하지_않는다() {
+		planSetup();
+		rolesReady();
+		// 균형 조합의 투자 몫을 20%로 바꾼다
+		String off = PLAN.replace("\"SAVINGS\":50,\"CMA\":0,\"KR_INDEX_ETF\":0,\"US_INDEX_ETF\":50", "\"SAVINGS\":80,\"CMA\":0,\"KR_INDEX_ETF\":0,\"US_INDEX_ETF\":20");
+		assertThat(off).isNotEqualTo(PLAN);
+		when(client.plan(anyString())).thenReturn(new GoalScenarioAiClient.Result(off, "gpt-test", 100, 200));
+		assertThat(job.runPlans()).isEqualTo(new GoalTypeRoleJob.Result(0, 0, 1, false));
+		verify(plans, never()).save(any(), org.mockito.ArgumentMatchers.anyInt(), any(), any(), any());
 	}
 }

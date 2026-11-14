@@ -1,47 +1,37 @@
 package com.flexable.web.goalscenario;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 조합을 정하는 제안기(policies §7-6). 키가 있으면 OpenAI 제안기(OpenAiScenarioProposer)가 붙는다.
- * 제안기는 상품 유형과 비중·문구만 내고, 금액·확률은 서버가 계산한다.
+ * 제안기는 worker가 기한마다 미리 부르고(#431), 요청 중에는 부르지 않는다. 상품 유형과 비중·문구만 내고, 금액·확률은 서버가 계산한다.
  */
 interface ScenarioProposer {
 
 	/** 쓸 수 있는지(키가 있는지). */
 	boolean enabled();
 
-	/** 조합을 만든 프롬프트 버전. 재사용 조합은 같은 버전일 때만 다시 쓴다(#406). 모르면 null. */
-	default String version() {
+	/** 미리 만드는 조합의 프롬프트 버전(#431). 저장된 조합을 찾는 데 쓴다. 모르면 null이고, 그러면 AI 조합을 쓰지 않는다. */
+	default String planVersion() {
 		return null;
 	}
 
-	/**
-	 * 목표 금액·기한·월 납입 가능액과 유형별 통계에 맞춘 시나리오 3개. 실패하면 Failed를 던진다.
-	 * 목표 이름·회원 식별자는 넘기지 않는다(외부 전송 항목을 줄인다).
-	 */
-	List<Proposals.Draft> propose(Input input);
-
-	/** 미리 만든 유형 해설의 프롬프트 버전(#417). 저장된 해설을 찾는 데 쓴다. 모르면 null이고, 그러면 짧은 길을 쓰지 않는다. */
+	/** 미리 만든 유형 해설의 프롬프트 버전(#417). 저장된 해설을 찾는 데 쓴다. 모르면 null. */
 	default String typeRoleVersion() {
 		return null;
 	}
 
-	/** 유형 해설을 미리 만들어 둔 경우의 프롬프트 버전(#417). 모르면 null이고, 그러면 짧은 길을 쓰지 않는다. */
-	default String shortVersion() {
-		return null;
-	}
-
 	/**
-	 * 미리 만든 유형 해설(roles, 다섯 유형 모두)을 쓰는 짧은 길(#417). AI는 비중과 시나리오 칸만 쓰고,
-	 * 해설의 roles 칸은 비중이 있는 유형의 저장된 해설에 비중을 넣어 만든다. 실패하면 Failed.
+	 * 기한 하나의 안정·균형·적극 시나리오 3개(#431). 해설의 roles 칸은 비중이 있는 유형의 미리 만든 해설(roles, 다섯 유형 모두)에 비중을 넣어 만든다.
+	 * 실패하면 Failed를 던진다. 금액·회원 정보는 넘기지 않는다.
 	 */
-	default List<Proposals.Draft> proposeShort(Input input, java.util.Map<ProductType, TypeRoleStore.Role> roles) {
+	default List<Proposals.Draft> proposePlan(PlanInput input, Map<ProductType, TypeRoleStore.Role> roles) {
 		throw new Failed("NO_KEY");
 	}
 
-	/** AI에게 보내는 값 전부. monthlyBudget은 사용자가 넣은 월 납입 가능액이고 넣지 않았으면 null이다. */
-	record Input(long targetAmount, int months, Long monthlyBudget, List<TypeStat> stats) {
+	/** AI에게 보내는 값 전부: 기한(개월)과 유형별 통계. 시작 금액·월 금액·목표 금액은 보내지 않는다. */
+	record PlanInput(int months, List<TypeStat> stats) {
 	}
 
 	/**

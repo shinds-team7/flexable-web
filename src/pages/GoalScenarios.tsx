@@ -1,30 +1,28 @@
-import { Fragment, useCallback, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useLoginModal } from '@/components/LoginModal';
 import {
-  FALLBACK_TEXT, GOAL_LIMITS, GOAL_PRESETS, TYPE_LABEL, deleteSavedScenario, periodText, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
-  type ExplanationParts, type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
+  FALLBACK_TEXT, GOAL_LIMITS, TYPE_LABEL, deleteSavedScenario, periodText, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
+  type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
+  type SeriesPoint,
 } from '@/data/goalScenarios';
 import { ApiError, errorText } from '@/lib/api';
 import '@/styles/goal-plan.css';
 
-// F7 v2 목표 달성 시나리오(/goal, Issue #175·#201, docs/policies.md §7).
-// 금액·확률·비중은 모두 서버 계산 값이고, 화면은 그리기만 한다(ADR-3). 회원은 플랜 전체를 그때 결과 그대로 최대 5개 저장한다(§7-8).
+// F7 목표 달성 시나리오(/goal, Issue #175·#201·#431, docs/policies.md §7).
+// 시작 금액·월 납입 가능액·기한(목표 금액 선택)으로 안정·균형·적극 세 조합을 비교한다.
+// 금액·확률·비중·그래프 값은 모두 서버 계산 값이고, 화면은 그리기만 한다(ADR-3). 회원은 플랜 전체를 그때 결과 그대로 이름을 붙여 최대 5개 저장한다(§7-8).
 const COLORS: Record<ScenarioProductType, string> = {
   SAVINGS: 'var(--color-series-1)', CMA: 'var(--color-series-3)', KR_INDEX_ETF: 'var(--color-series-2)',
   US_INDEX_ETF: 'var(--color-series-4)', KOSPI_TOP5: 'var(--color-series-5)',
 };
 
-/** 해설 네 칸의 소제목(policies §7-6). 빈 칸은 소제목째 숨긴다. */
-const PART_LABELS: [keyof ExplanationParts, string][] = [
-  ['reason', '이렇게 짠 이유'], ['roles', '유형별 역할'], ['comparison', '다른 시나리오와 차이'], ['fit', '주의할 점과 맞는 사람'],
-];
 const AI_REUSE_TIP = '같은 조건으로 만든 AI 조합은 횟수가 차감되지 않아요.';
 /** AI 해설의 전망 고지(policies §7-6, #398). 전망은 AI 학습 지식으로만 쓴다. */
 const AI_OUTLOOK_NOTICE = '전망은 AI가 학습한 일반적인 내용이에요. 최신 뉴스나 실적을 확인한 것이 아니고 수익을 보장하지 않아요.';
-/** 유형별 역할 문단의 첫머리(띄어쓰기 뺌)로 어느 유형인지 찾는다. 프롬프트 v9는 유형마다 문단을 유형 이름으로 시작하게 한다. */
+/** 유형별 역할 문단의 첫머리(띄어쓰기 뺌)로 어느 유형인지 찾는다. 유형 해설은 유형 이름으로 시작한다. */
 // 유형 이름 바로 뒤에 "은/는"이 와야 한다. "적금·CMA는"처럼 여러 유형을 묶어 시작하는 문단은 한 유형 문단이 아니다(#402).
 const ROLE_PREFIX: [ScenarioProductType, RegExp][] = [
   ['SAVINGS', /^적금[은는]/], ['CMA', /^CMA[은는]/i], ['KR_INDEX_ETF', /^국내(대표)?(지수)?ETF[은는]/i], ['US_INDEX_ETF', /^미국(대표)?(지수)?ETF[은는]/i],
@@ -39,21 +37,24 @@ function roleType(line: string, plan: GoalScenario): ScenarioProductType | null 
 const won = (n: number) => n.toLocaleString('ko-KR');
 /** 표시용 만 원 단위(내림). 서버 값을 읽기 쉽게 바꿀 뿐 계산 결과를 바꾸지 않는다. */
 function manwon(n: number) {
-  const man = Math.floor(n / 10_000);
+  const sign = n < 0 ? '−' : '';
+  const abs = Math.abs(n);
+  const man = Math.floor(abs / 10_000);
   const eok = Math.floor(man / 10_000);
   const rest = man % 10_000;
-  if (!eok && !rest) return `${won(n)}원`;
-  return [eok ? `${eok}억` : '', rest ? `${won(rest)}만` : ''].filter(Boolean).join(' ') + ' 원';
+  if (!eok && !rest) return `${sign}${won(abs)}원`;
+  return sign + [eok ? `${eok}억` : '', rest ? `${won(rest)}만` : ''].filter(Boolean).join(' ') + ' 원';
 }
+/** 수익은 원 단위 그대로 부호를 붙여 보여 준다(+는 이익, −는 손실). 예: +4,107,130원 */
+const gainText = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${won(Math.abs(n))}원`;
 const pct = (bp: number) => `${Math.floor(bp / 100)}%`;
 const digits = (s: string) => s.replace(/[^0-9]/g, '');
 const savedDate = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
-
-/** 월 납입 가능액과 비교한 배지(policies §7-5). 가능액이 없거나 옛 저장본이면 그리지 않는다. */
-function BudgetBadge({ plan }: { plan: GoalScenario }) {
-  if (plan.withinBudget === null) return null;
-  if (plan.withinBudget) return <span className="gp-badge gp-plan-budget">월 납입 가능액 안</span>;
-  return <span className="gp-badge gp-badge-muted gp-plan-budget">{plan.overBudgetBy !== null ? `가능액보다 월 ${won(plan.overBudgetBy)}원 많아요` : '월 납입 가능액을 넘어요'}</span>;
+/** 그래프 축 눈금용 짧은 금액(만 원 단위 반올림 없이 내림). */
+function axisMoney(n: number) {
+  if (n >= 100_000_000) return `${Math.floor(n / 10_000_000) / 10}억`;
+  if (n >= 10_000) return `${won(Math.floor(n / 10_000))}만`;
+  return won(n);
 }
 
 type SubProduct = { key: string; name: string; meta: string | null; basis: boolean };
@@ -88,21 +89,92 @@ function afterMaturity(p: ScenarioProduct | undefined, months: number) {
   return `만기 ${periodText(term)} · 남은 ${periodText(months - term)}은 CMA 예시 금리로 계산했어요`;
 }
 
-function RangeBar({ low, median, high, target }: { low: number; median: number; high: number; target: number }) {
-  const min = Math.min(low, target) * 0.92;
-  const max = Math.max(high, target) * 1.04;
-  const pos = (v: number) => `${((v - min) / (max - min)) * 100}%`;
-  return <div className="gp-range" role="img" aria-label={`잘 안 풀릴 때 ${manwon(low)}, 보통 ${manwon(median)}, 잘 풀릴 때 ${manwon(high)}, 목표 ${manwon(target)}`}>
+/** 결과 범위 막대. 목표 금액이 있을 때만 목표 표시를 둔다. */
+function RangeBar({ low, median, high, target }: { low: number; median: number; high: number; target: number | null }) {
+  const min = Math.min(low, target ?? low) * 0.92;
+  const max = Math.max(high, target ?? high) * 1.04;
+  const pos = (v: number) => `${((v - min) / (max - min || 1)) * 100}%`;
+  return <div className="gp-range" role="img" aria-label={`하위 10% ${manwon(low)}, 중간값 ${manwon(median)}, 상위 10% ${manwon(high)}${target !== null ? `, 목표 ${manwon(target)}` : ''}`}>
     <span className="gp-range-track" />
     <span className="gp-range-fill" style={{ left: pos(low), width: `calc(${pos(high)} - ${pos(low)})` }} />
     <span className="gp-range-median" style={{ left: pos(median) }} />
-    <span className="gp-range-target" style={{ left: pos(target) }}><span>목표</span></span>
+    {target !== null && <span className="gp-range-target" style={{ left: pos(target) }}><span>목표</span></span>}
   </div>;
 }
 
-/** 시나리오 하나의 상품 배분·예상 금액·해설. 방금 계산한 결과와 저장한 결과가 같이 쓴다. */
-function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
-  resultKey: string; plan: GoalScenario; products: ScenarioProduct[]; targetAmount: number; months: number; demo: boolean;
+/** 달마다의 하위 10%·중간값·상위 10% 세 선을 한 그래프에 겹쳐 그린다(policies §7-5 series). 값은 서버가 준 그대로다. */
+function GrowthChart({ series, monthly, target }: { series: SeriesPoint[]; monthly: number; target: number | null }) {
+  const W = 360;
+  const H = 190;
+  const pad = { l: 40, r: 10, t: 12, b: 22 };
+  const last = series[series.length - 1];
+  const months = last.month;
+  const top = Math.max(...series.map((p) => p.high), target ?? 0) * 1.06 || 1;
+  const x = (m: number) => pad.l + (m / (months || 1)) * (W - pad.l - pad.r);
+  const y = (v: number) => pad.t + (1 - v / top) * (H - pad.t - pad.b);
+  const line = (k: 'low' | 'median' | 'high') => series.map((p) => `${x(p.month).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ');
+  const band = `${series.map((p) => `${x(p.month).toFixed(1)},${y(p.high).toFixed(1)}`).join(' ')} ${[...series].reverse().map((p) => `${x(p.month).toFixed(1)},${y(p.low).toFixed(1)}`).join(' ')}`;
+  const ticks = [0, 1 / 3, 2 / 3, 1].map((f) => Math.floor(top * f));
+  const xTicks = months <= 12 ? [0, Math.round(months / 2), months] : Array.from({ length: Math.floor(months / 12) + 1 }, (_, i) => i * 12).concat(months % 12 ? [months] : []);
+  const label = `월 납입 금액이 ${won(monthly)}원일 때 ${periodText(months)} 동안의 자산 증가 추이. 기한 말 하위 10% ${manwon(last.low)}, 중간값 ${manwon(last.median)}, 상위 10% ${manwon(last.high)}`;
+  return <figure className="gp-growth">
+    <figcaption className="gp-growth-title">월 납입 금액이 <b className="num">{won(monthly)}원</b>일 때 자산 증가 추이</figcaption>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="gp-growth-svg">
+      {ticks.map((t) => <g key={t}>
+        <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} className="gp-growth-grid" />
+        <text x={pad.l - 6} y={y(t)} className="gp-growth-axis" textAnchor="end" dominantBaseline="middle">{axisMoney(t)}</text>
+      </g>)}
+      {xTicks.map((m) => <text key={m} x={x(m)} y={H - 6} className="gp-growth-axis" textAnchor={m === 0 ? 'start' : m === months ? 'end' : 'middle'}>{m === 0 ? '시작' : periodText(m)}</text>)}
+      <polygon points={band} className="gp-growth-band" />
+      {target !== null && <g>
+        <line x1={pad.l} x2={W - pad.r} y1={y(target)} y2={y(target)} className="gp-growth-target" />
+        <text x={W - pad.r} y={y(target) - 4} className="gp-growth-axis" textAnchor="end">목표</text>
+      </g>}
+      <polyline points={line('low')} className="gp-growth-line gp-growth-low" />
+      <polyline points={line('high')} className="gp-growth-line gp-growth-high" />
+      <polyline points={line('median')} className="gp-growth-line gp-growth-median" />
+    </svg>
+    <ul className="gp-growth-legend" aria-hidden="true">
+      <li><span className="gp-growth-key gp-growth-high" />상위 10%</li>
+      <li><span className="gp-growth-key gp-growth-median" />중간값</li>
+      <li><span className="gp-growth-key gp-growth-low" />하위 10%</li>
+    </ul>
+  </figure>;
+}
+
+/** AI 해설 카드. 머리에 제목과 오른쪽 동작(저장)을 두고, 조합 이유 → 유형별 역할 → 참고 해설(차이·주의할 점·계산 결과) 순으로 보여 준다. */
+function AiCard({ plan, demo, action }: { plan: GoalScenario; demo: boolean; action?: ReactNode }) {
+  const parts = plan.explanationParts;
+  const roles = parts?.roles.split(/\n+/).filter((l) => l.trim()) ?? [];
+  const extra = parts ? [parts.comparison, parts.fit].filter((t) => t.trim()) : [];
+  return <div className="gp-card gp-ai">
+    <div className="gp-ai-head">
+      <h3 className="gp-ai-title">{demo ? '조합 해설' : <><AiBotIcon />AI 해설</>} {demo && <span className="gp-badge gp-badge-muted">예시 문구</span>}</h3>
+      {action}
+    </div>
+    {parts ? <>
+      {parts.reason.trim() && <p className="gp-ai-lead">{parts.reason}</p>}
+      {roles.length > 0 && <section className="gp-ai-part">
+        <h4 className="gp-h4 gp-h4-roles">유형별 역할</h4>
+        {/* 문단이 유형 이름으로 시작하면 그 유형 소제목을 붙인다(#398). 데모 조합 해설은 유형마다 나눈 글이 아니라 붙이지 않는다(#402) */}
+        {roles.map((line, i) => {
+          const type = !demo ? roleType(line, plan) : null;
+          return <div key={i} className="gp-role">{type && <h5 className="gp-h5">{TYPE_LABEL[type]}</h5>}<p>{line}</p></div>;
+        })}
+      </section>}
+    </> : <p className="gp-ai-lead">{plan.explanation}</p>}
+    <section className="gp-ai-part">
+      <h4 className="gp-h4">참고 해설</h4>
+      {extra.map((t, i) => <p key={i}>{t}</p>)}
+      <p>{plan.resultText}</p>
+    </section>
+    {!demo && <p className="gp-ai-notice">{AI_OUTLOOK_NOTICE}</p>}
+  </div>;
+}
+
+/** 시나리오 하나의 상품 배분·예상 금액·해설. 방금 계산한 결과와 저장한 결과가 같이 쓴다. action은 해설 카드 머리 오른쪽(저장 버튼). */
+function PlanDetail({ resultKey, plan, products, targetAmount, months, demo, action }: {
+  resultKey: string; plan: GoalScenario; products: ScenarioProduct[]; targetAmount: number | null; months: number; demo: boolean; action?: ReactNode;
 }) {
   const productOf = (t: ScenarioProductType) => products.find((p) => p.type === t);
   const listId = useId();
@@ -113,10 +185,11 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
   if (fold.key !== foldKey) setFold({ key: foldKey, open: DEFAULT_OPEN });
   const open = fold.key === foldKey ? fold.open : DEFAULT_OPEN;
   const toggle = (t: ScenarioProductType) => setFold((cur) => ({ ...cur, open: cur.open.includes(t) ? cur.open.filter((x) => x !== t) : [...cur.open, t] }));
+  const o = plan.outcome;
   return <>
     <div className="gp-detail">
       <div className="gp-card">
-        <h3 className="gp-h3">어떤 상품에, 매달 얼마씩? <span className="gp-badge gp-badge-muted">{demo ? '예시 비중' : 'AI 제안 비중'}</span></h3>
+        <h3 className="gp-h3">어떤 상품에, 얼마씩? <span className="gp-badge gp-badge-muted">{demo ? '예시 비중' : 'AI 제안 비중'}</span></h3>
         <div className="gp-bar" role="img" aria-label={plan.mix.map((m) => `${TYPE_LABEL[m.type]} ${m.ratioPercent}%`).join(', ')}>
           {plan.mix.map((m) => <span key={m.type} style={{ width: `${m.ratioPercent}%`, background: COLORS[m.type] }} />)}
         </div>
@@ -126,7 +199,8 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
             const isOpen = open.includes(m.type);
             const subId = `${listId}-${m.type}`;
             const dot = <span className="gp-dot" style={{ background: COLORS[m.type] }} />;
-            const amt = <span className="gp-product-amt num">{m.monthly !== null ? `월 ${won(m.monthly)}원` : '-'}</span>;
+            const amt = <span className="gp-product-amt num">{m.monthly !== null ? `월 ${won(m.monthly)}원` : '-'}
+              {m.start ? <small>시작 {won(m.start)}원</small> : null}</span>;
             const ratio = <span className="gp-product-pct num">{m.ratioPercent}%</span>;
             return <li key={m.type}>
               {subs.length > 0
@@ -144,6 +218,7 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
                 </li>)}
                 {m.type === 'KOSPI_TOP5' && <li className="gp-subproduct-note">5종목에 같은 금액으로 나눠 넣어요</li>}
                 {m.type === 'SAVINGS' && afterMaturity(productOf('SAVINGS'), months) && <li className="gp-subproduct-note">{afterMaturity(productOf('SAVINGS'), months)}</li>}
+                {m.type === 'SAVINGS' && m.start ? <li className="gp-subproduct-note">시작 금액 중 적금 몫은 CMA 예시 금리로 계산했어요</li> : null}
               </ul></div>}
             </li>;
           })}
@@ -151,39 +226,23 @@ function PlanDetail({ resultKey, plan, products, targetAmount, months, demo }: {
       </div>
       <div className="gp-card">
         <h3 className="gp-h3">{periodText(months)} 뒤 예상 금액 {plan.paid !== null && <span className="gp-badge gp-badge-muted">넣은 돈 {manwon(plan.paid)}</span>}</h3>
-        {!plan.outcome
-          ? <div className="gp-fixed">목표 금액 안의 월 금액으로는 10번 중 8번 목표에 닿지 못했어요. 기한을 늘리거나 목표를 조정해 보세요.</div>
-          : plan.outcome.kind === 'FIXED' && plan.outcome.fixedAmount !== null
-            ? <div className="gp-fixed">이자가 정해진 상품만 있어 결과가 하나로 정해져요.<b className="num">{manwon(plan.outcome.fixedAmount)}</b>목표 {manwon(targetAmount)} 달성 · 세후 이자 포함</div>
-            : plan.outcome.low !== null && plan.outcome.median !== null && plan.outcome.high !== null && <>
-              <RangeBar low={plan.outcome.low} median={plan.outcome.median} high={plan.outcome.high} target={targetAmount} />
+        {plan.series && plan.monthly !== null && <GrowthChart series={plan.series} monthly={plan.monthly} target={targetAmount} />}
+        {!o
+          ? <div className="gp-fixed">{plan.resultText}</div>
+          : o.kind === 'FIXED' && o.fixedAmount !== null
+            ? <div className="gp-fixed">이자가 정해진 상품만 있어 결과가 하나로 정해져요.<b className="num">{manwon(o.fixedAmount)}</b>
+              {targetAmount !== null ? (o.fixedAmount >= targetAmount ? `목표 ${manwon(targetAmount)} 달성 · ` : `목표 ${manwon(targetAmount)}에 못 미침 · `) : ''}세후 이자 포함</div>
+            : o.low !== null && o.median !== null && o.high !== null && <>
+              <RangeBar low={o.low} median={o.median} high={o.high} target={targetAmount} />
               <div className="gp-range-legend">
-                <div>잘 안 풀릴 때<b className="num">{manwon(plan.outcome.low)}</b>하위 10%</div>
-                <div className="gp-range-mid">보통<b className="num">{manwon(plan.outcome.median)}</b>중간값</div>
-                <div>잘 풀릴 때<b className="num">{manwon(plan.outcome.high)}</b>상위 10%</div>
+                <div>하위 10%<b className="num">{manwon(o.low)}</b></div>
+                <div className="gp-range-mid">중간값<b className="num">{manwon(o.median)}</b></div>
+                <div>상위 10%<b className="num">{manwon(o.high)}</b></div>
               </div>
             </>}
       </div>
     </div>
-    <div className="gp-card gp-ai">
-      <h3 className="gp-h3">{demo ? '조합 해설' : <span className="gp-ai-title"><AiBotIcon />AI 해설</span>} {demo && <span className="gp-badge gp-badge-muted">예시 문구</span>}</h3>
-      {plan.explanationParts
-        ? PART_LABELS.filter(([k]) => plan.explanationParts?.[k].trim()).map(([k, label]) => <section key={k} className="gp-ai-part">
-          <h4 className="gp-h4">{label}</h4>
-          {/* 줄마다 문단을 띄운다. 유형별 역할은 문단이 유형 이름으로 시작하면 그 유형 소제목을 붙인다(#398) */}
-          {(plan.explanationParts?.[k] ?? '').split(/\n+/).filter((line) => line.trim()).map((line, i) => {
-            // 데모 조합 해설은 유형마다 나눈 글이 아니라 소제목을 붙이지 않는다(#402)
-            const type = k === 'roles' && !demo ? roleType(line, plan) : null;
-            return <Fragment key={i}>{type && <h5 className="gp-h5">{TYPE_LABEL[type]}</h5>}<p>{line}</p></Fragment>;
-          })}
-        </section>)
-        : <p>{plan.explanation}</p>}
-      <section className="gp-ai-part">
-        <h4 className="gp-h4">계산 결과</h4>
-        <p>{plan.resultText}</p>
-      </section>
-      {!demo && <p className="gp-ai-notice">{AI_OUTLOOK_NOTICE}</p>}
-    </div>
+    <AiCard plan={plan} demo={demo} action={action} />
   </>;
 }
 
@@ -205,14 +264,22 @@ function Assumptions({ paths, returnsFrom, returnsTo, assumptions, notice }: { p
     <details className="gp-assumptions">
       <summary>계산 방법과 가정</summary>
       <ul>
-        <li><b>필요한 월 금액</b>: 매달 이 금액을 넣으면, 계산해 본 {won(paths)}가지 경우 중 10번에 8번은 목표 이상 모여요. 적금·CMA만 있는 조합은 이자가 정해져 있어 금액이 확정돼요.</li>
         <li><b>{won(paths)}가지 경우</b>: {returnsFrom}부터 {returnsTo}까지 상품이 실제로 오르내린 기록을 1년 단위로 잘라, 무작위로 이어 붙여 만든 가상의 미래예요. 같은 입력이면 늘 같은 결과가 나와요.</li>
+        <li><b>하위 10%·중간값·상위 10%</b>: {won(paths)}가지 결과를 줄 세웠을 때 아래에서 10%, 가운데, 위에서 10% 자리의 금액이에요. 그래프는 달마다 같은 방법으로 고른 값이라 한 경우를 따라간 선이 아니에요.</li>
+        <li><b>상위 10%의 수익</b>: 상위 10% 금액에서 넣은 돈(시작 금액 + 월 금액 × 기간)을 뺀 값이에요. 적금·CMA만 있는 조합은 이자가 정해져 있어 결과가 하나예요.</li>
+        <li><b>목표 달성 추정</b>: 목표 금액을 넣었을 때 기한 말 금액이 목표 이상인 경우의 비율이에요.</li>
         <li><b>원금 손실 가능성</b>: 넣은 돈보다 적게 남은 경우의 비율이에요.</li>
         {assumptions.map((a) => <li key={a}>{a}</li>)}
       </ul>
     </details>
     <p className="gp-foot">{notice}</p>
   </>;
+}
+
+/** 저장본·결과의 조건 한 줄: 기간 · 시작 금액 · 월 금액 · 목표. */
+function conditionText(v: { months: number; startAmount: number; monthlyBudget: number | null; targetAmount: number | null }) {
+  return [periodText(v.months), v.startAmount > 0 ? `시작 ${manwon(v.startAmount)}` : null, v.monthlyBudget !== null ? `월 ${won(v.monthlyBudget)}원` : null,
+    v.targetAmount !== null ? `목표 ${manwon(v.targetAmount)}` : null].filter(Boolean).join(' · ');
 }
 
 /** 저장본 내용. 저장한 플랜이 먼저 열리고, 나머지 플랜이 있으면 선택 칸으로 바꿔 본다. 값은 저장할 때 그대로다. */
@@ -226,7 +293,7 @@ function SavedPlanView({ viewing, loading, onClose, onRecalc }: {
     <div className="gp-view-head">
       <div>
         <h2 id="gp-view-title" className="gp-view-name">{viewing.name}</h2>
-        <p className="gp-view-meta">{plan.title} · {periodText(viewing.months)} 뒤 {manwon(viewing.targetAmount)}{viewing.monthlyBudget !== null && ` · 월 납입 가능액 ${won(viewing.monthlyBudget)}원`} · {savedDate(viewing.savedAt)}에 저장
+        <p className="gp-view-meta">{plan.title} · {conditionText(viewing)} · {savedDate(viewing.savedAt)}에 저장
           <span className="gp-badge">{viewing.asOf} 기준 결과</span></p>
       </div>
       <button type="button" className="gp-text-btn" onClick={onClose} autoFocus>닫기</button>
@@ -234,13 +301,10 @@ function SavedPlanView({ viewing, loading, onClose, onRecalc }: {
     {plans.length > 1 && <nav className="gp-view-rail" aria-label="플랜 선택">
       {plans.map((p) => <button type="button" key={p.id} className="gp-view-tab" aria-pressed={p.id === plan.id} onClick={() => setActiveId(p.id)}>{p.title}</button>)}
     </nav>}
-    {plan.reachable && plan.monthly !== null && <p className="gp-insight">
-      그때 계산으로는 매달 <b className="num">{won(plan.monthly)}원</b>을 넣으면 {plan.outcome?.kind === 'FIXED' ? '목표에 닿아요(확정).' : '10번 중 8번은 목표에 닿았어요.'} <BudgetBadge plan={plan} />
-    </p>}
     <PlanDetail resultKey={`saved-${viewing.id}`} plan={plan} products={viewing.products} targetAmount={viewing.targetAmount} months={viewing.months} demo={viewing.proposer === 'DEMO'} />
     <Assumptions paths={viewing.paths} returnsFrom={viewing.returnsFrom} returnsTo={viewing.returnsTo} assumptions={viewing.assumptions} notice={viewing.notice} />
     <div className="gp-view-actions">
-      <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>
+      {viewing.monthlyBudget !== null && <button type="button" className="gp-secondary" onClick={() => onRecalc(viewing)} disabled={loading}>지금 시세로 다시 계산하기</button>}
       <button type="button" className="gp-text-btn" onClick={onClose}>닫기</button>
     </div>
   </div>;
@@ -268,16 +332,66 @@ function SavedScenarioDialog({ viewing, loading, onClose, onRecalc }: {
   </dialog>;
 }
 
+/** 저장할 이름을 받는 창(policies §7-8, 1~20자). */
+function SaveNameDialog({ open, saving, error, onSave, onCancel }: {
+  open: boolean; saving: boolean; error: string; onSave: (name: string) => void; onCancel: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [name, setName] = useState('');
+  const [local, setLocal] = useState('');
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) {
+      setName('');
+      setLocal('');
+      d.showModal();
+    }
+    if (!open && d.open) d.close();
+  }, [open]);
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > GOAL_LIMITS.nameMax) { setLocal(`이름은 1~${GOAL_LIMITS.nameMax}자로 적어 주세요.`); return; }
+    setLocal('');
+    onSave(trimmed);
+  };
+  const message = local || error;
+  return <dialog ref={ref} aria-labelledby="gp-save-title" onCancel={(e) => { e.preventDefault(); onCancel(); }}>
+    <form className="dlg gp-save-dlg" onSubmit={submit} noValidate>
+      <h2 id="gp-save-title">이 시나리오를 저장할까요?</h2>
+      <p>나중에 알아보기 쉬운 이름을 붙여 주세요. 저장한 시나리오에서 그때 결과 그대로 다시 볼 수 있어요.</p>
+      <label htmlFor="gp-save-name" className="gp-save-label">이름</label>
+      <input id="gp-save-name" className="gp-save-input" value={name} maxLength={GOAL_LIMITS.nameMax} placeholder="예: 여행 자금" autoFocus
+        aria-invalid={message ? true : undefined} aria-describedby={message ? 'gp-save-error' : undefined} onChange={(e) => setName(e.target.value)} />
+      {message && <p id="gp-save-error" className="gp-error" role="alert">{message}</p>}
+      <div className="acts">
+        <button type="button" className="btn btn-line" onClick={onCancel}>취소</button>
+        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? '저장 중…' : '저장'}</button>
+      </div>
+    </form>
+  </dialog>;
+}
+
+/** 원 단위 입력칸. 쉼표를 넣어 보여 주고 숫자만 보관한다. */
+function MoneyInput({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return <div className="gp-unit">
+    <input id={id} className="num" inputMode="numeric" placeholder={placeholder} value={value}
+      onChange={(e) => { const d = digits(e.target.value).slice(0, 10); onChange(d ? won(Number(d)) : ''); }} />
+    <span>원</span>
+  </div>;
+}
+
 export default function GoalScenarios() {
   const { status } = useSession();
   const { openLogin } = useLoginModal();
   const location = useLocation();
   const member = status === 'member';
 
-  const [name, setName] = useState(GOAL_PRESETS[0].name);
-  const [amount, setAmount] = useState(won(GOAL_PRESETS[0].amount));
-  const [months, setMonths] = useState(GOAL_PRESETS[0].months);
+  const [start, setStart] = useState('');
   const [budget, setBudget] = useState('');
+  const [months, setMonths] = useState(36);
+  const [target, setTarget] = useState('');
   const [result, setResult] = useState<GoalScenarioResult | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -285,7 +399,9 @@ export default function GoalScenarios() {
 
   const [savedList, setSavedList] = useState<SavedScenarioList | null>(null);
   const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
   const [viewing, setViewing] = useState<SavedGoalScenario | null>(null);
   const [toDelete, setToDelete] = useState<number | null>(null);
@@ -319,26 +435,25 @@ export default function GoalScenarios() {
     setToDelete(null);
     setSavedList(null);
     setSavedPlanId(null);
+    setNaming(false);
     setSaveMessage('');
   }, [member, refreshSaved]);
 
-  const amountValue = Number(digits(amount) || 0);
-  /** 월 납입 가능액은 선택이다. 비우면 null로 보내지 않는다. */
-  const budgetValue = digits(budget) ? Number(digits(budget)) : null;
-  const preset = GOAL_PRESETS.find((c) => c.amount === amountValue && c.months === months && c.name === name);
   const periodYears = Math.floor(months / 12);
   const periodMonths = months % 12;
   /** 기한은 6~60개월(policies §7-1). 연을 바꿔 범위를 벗어나면 가장 가까운 값으로 맞춘다. */
   const inRange = (total: number) => total >= GOAL_LIMITS.monthsMin && total <= GOAL_LIMITS.monthsMax;
   const setPeriod = (total: number) => setMonths(Math.min(GOAL_LIMITS.monthsMax, Math.max(GOAL_LIMITS.monthsMin, total)));
 
-  const run = async (q: { name: string; targetAmount: number; months: number; monthlyBudget: number | null }) => {
-    const trimmed = q.name.trim();
-    if (!trimmed || trimmed.length > GOAL_LIMITS.nameMax) { setError(`목표 이름은 1~${GOAL_LIMITS.nameMax}자로 적어 주세요.`); return; }
-    if (q.targetAmount < GOAL_LIMITS.amountMin || q.targetAmount > GOAL_LIMITS.amountMax) { setError('목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요.'); return; }
+  const run = async (q: { startAmount: number | null; monthlyBudget: number | null; months: number; targetAmount: number | null }) => {
+    if (q.startAmount === null || q.startAmount > GOAL_LIMITS.startMax) { setError('시작 금액은 0원부터 10억 원까지 넣어 주세요. 없으면 0을 넣어 주세요.'); return; }
+    if (q.monthlyBudget === null || q.monthlyBudget < GOAL_LIMITS.budgetMin || q.monthlyBudget > GOAL_LIMITS.budgetMax || q.monthlyBudget % GOAL_LIMITS.budgetUnit !== 0) {
+      setError('월 납입 가능액은 1만 원부터 1,000만 원까지 천 원 단위로 넣어 주세요.');
+      return;
+    }
     if (q.months < GOAL_LIMITS.monthsMin || q.months > GOAL_LIMITS.monthsMax) { setError('기한은 6개월부터 5년까지 정할 수 있어요.'); return; }
-    if (q.monthlyBudget !== null && (q.monthlyBudget < GOAL_LIMITS.budgetMin || q.monthlyBudget > q.targetAmount || q.monthlyBudget % GOAL_LIMITS.budgetUnit !== 0)) {
-      setError('월 납입 가능액은 1만 원부터 목표 금액까지 천 원 단위로 넣을 수 있어요.');
+    if (q.targetAmount !== null && (q.targetAmount < GOAL_LIMITS.targetMin || q.targetAmount > GOAL_LIMITS.targetMax)) {
+      setError('목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요. 없으면 비워 두세요.');
       return;
     }
     setError('');
@@ -346,12 +461,12 @@ export default function GoalScenarios() {
     setLoading(true);
     const id = ++requestId.current;
     try {
-      const r = await fetchGoalScenarios({ name: trimmed, targetAmount: q.targetAmount, months: q.months, ...(q.monthlyBudget !== null && { monthlyBudget: q.monthlyBudget }) });
+      const r = await fetchGoalScenarios({ startAmount: q.startAmount, monthlyBudget: q.monthlyBudget, months: q.months, ...(q.targetAmount !== null && { targetAmount: q.targetAmount }) });
       if (id !== requestId.current) return;
       setResult(r);
       setSavedPlanId(null);
       setViewing(null);
-      setSelected(r.scenarios.find((s) => s.id === 'spread')?.id ?? r.scenarios[0]?.id ?? null);
+      setSelected(r.scenarios.find((s) => s.id === 'balanced')?.id ?? r.scenarios[0]?.id ?? null);
       scrollTo(resultRef.current);
     } catch (err) {
       if (id !== requestId.current) return;
@@ -364,29 +479,37 @@ export default function GoalScenarios() {
     }
   };
 
+  const numberOrNull = (s: string) => (digits(s) ? Number(digits(s)) : null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    void run({ name, targetAmount: amountValue, months, monthlyBudget: budgetValue });
+    void run({ startAmount: numberOrNull(start), monthlyBudget: numberOrNull(budget), months, targetAmount: numberOrNull(target) });
   };
 
   const plan = result?.scenarios.find((s) => s.id === selected) ?? null;
   const demo = result?.proposer === 'DEMO';
   const full = !!savedList && savedList.items.length >= savedList.limit;
 
-  const save = async () => {
+  const askSave = () => {
     if (!result || !plan) return;
     if (!member) { openLogin(location.pathname); return; }
+    setSaveError('');
+    setNaming(true);
+  };
+
+  const save = async (name: string) => {
+    if (!result || !plan) return;
     setSaving(true);
-    setSaveMessage('');
+    setSaveError('');
     try {
-      await saveScenario({ resultId: result.resultId, scenarioId: plan.id });
+      await saveScenario({ resultId: result.resultId, scenarioId: plan.id, name });
       setSavedPlanId(plan.id);
-      setSaveMessage(`'${result.name}' 시나리오를 저장했어요. 저장한 시나리오에서 다시 볼 수 있어요.`);
+      setNaming(false);
+      setSaveMessage(`'${name}'(으)로 저장했어요. 저장한 시나리오에서 다시 볼 수 있어요.`);
       void refreshSaved();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'GOAL_SCENARIO_LIMIT') setSaveMessage('시나리오는 5개까지 저장할 수 있어요. 저장한 시나리오에서 하나를 지운 뒤 다시 저장해 주세요.');
-      else if (err instanceof ApiError && err.code === 'GOAL_SCENARIO_EXPIRED') setSaveMessage('계산한 지 30분이 지나 저장할 수 없어요. [시나리오 보기]로 다시 계산해 주세요.');
-      else setSaveMessage(errorText(err, '저장하지 못했어요'));
+      if (err instanceof ApiError && err.code === 'GOAL_SCENARIO_LIMIT') setSaveError('시나리오는 5개까지 저장할 수 있어요. 저장한 시나리오에서 하나를 지운 뒤 다시 저장해 주세요.');
+      else if (err instanceof ApiError && err.code === 'GOAL_SCENARIO_EXPIRED') setSaveError('계산한 지 30분이 지나 저장할 수 없어요. [시나리오 보기]로 다시 계산해 주세요.');
+      else setSaveError(errorText(err, '저장하지 못했어요'));
     } finally {
       setSaving(false);
     }
@@ -416,37 +539,41 @@ export default function GoalScenarios() {
   };
 
   const recalc = (v: SavedGoalScenario) => {
-    setName(v.name);
-    setAmount(won(v.targetAmount));
-    setMonths(v.months);
+    setStart(won(v.startAmount));
     setBudget(v.monthlyBudget !== null ? won(v.monthlyBudget) : '');
-    void run({ name: v.name, targetAmount: v.targetAmount, months: v.months, monthlyBudget: v.monthlyBudget });
+    setMonths(v.months);
+    setTarget(v.targetAmount !== null ? won(v.targetAmount) : '');
+    void run({ startAmount: v.startAmount, monthlyBudget: v.monthlyBudget, months: v.months, targetAmount: v.targetAmount });
   };
+
+  const saveButton = result && plan && <span className="gp-save-slot">
+    <button type="button" className="gp-secondary" onClick={askSave} disabled={saving || savedPlanId === plan.id || (member && full)}>
+      {!member ? '로그인하고 저장' : savedPlanId === plan.id ? '저장했어요' : '저장'}
+    </button>
+    {member && savedList && <span className="gp-save-count">{savedList.items.length}/{savedList.limit}</span>}
+  </span>;
 
   return <div className="gp-page">
     <div className={`gp-wrap ${member ? 'gp-wrap-side' : ''}`}>
       <div className="gp-crumb">AI 목표 달성 {(!result || result.isSample) && <span className="gp-badge">예시 포함</span>}</div>
-      <h1 className="gp-title">목표만 알려 주세요.<br />모으는 방법은 AI가 같이 찾아 볼게요.</h1>
-      <p className="gp-lead">적금·CMA·지수 ETF·주식을 섞은 조합마다, 매달 얼마를 넣어야 하는지 비교해 보세요.</p>
+      <h1 className="gp-title">넣을 수 있는 돈만 알려 주세요.<br />불리는 방법은 AI가 같이 찾아 볼게요.</h1>
+      <p className="gp-lead">시작 금액과 매달 넣을 돈으로 안정·균형·적극 세 가지 방법에 나눠 넣으면 기한 뒤 얼마가 될지 비교해 보세요.</p>
 
       <div className={member ? 'gp-layout' : undefined}>
       <div className="gp-main">
 
       <section aria-labelledby="gp-form-title">
-        <h2 id="gp-form-title" className="gp-h2"><span className="gp-step">1</span>나의 목표</h2>
-        <p className="gp-sub">세 가지만 입력하면 돼요. 월 납입 가능액은 넣지 않아도 돼요. 마음에 드는 시나리오는 로그인하고 저장할 수 있어요.</p>
+        <h2 id="gp-form-title" className="gp-h2"><span className="gp-step">1</span>나의 조건</h2>
+        <p className="gp-sub">시작 금액·월 납입 가능액·기한을 넣어 주세요. 목표 금액은 넣지 않아도 돼요. 마음에 드는 시나리오는 로그인하고 저장할 수 있어요.</p>
         <form className="gp-card" onSubmit={submit} noValidate>
           <div className="gp-form">
-            <div className="gp-field gp-field-name">
-              <label htmlFor="gp-name">목표 이름</label>
-              <input id="gp-name" value={name} maxLength={GOAL_LIMITS.nameMax} onChange={(e) => setName(e.target.value)} />
+            <div className="gp-field">
+              <label htmlFor="gp-start">시작 금액</label>
+              <MoneyInput id="gp-start" value={start} onChange={setStart} placeholder="예: 1,000,000" />
             </div>
             <div className="gp-field">
-              <label htmlFor="gp-amount">목표 금액</label>
-              <div className="gp-unit">
-                <input id="gp-amount" className="num" inputMode="numeric" value={amount} onChange={(e) => { const d = digits(e.target.value).slice(0, 10); setAmount(d ? won(Number(d)) : ''); }} />
-                <span>원</span>
-              </div>
+              <label htmlFor="gp-budget">월 납입 가능액</label>
+              <MoneyInput id="gp-budget" value={budget} onChange={setBudget} placeholder="예: 500,000" />
             </div>
             <div className="gp-field">
               <label htmlFor="gp-years">목표 기한</label>
@@ -459,31 +586,22 @@ export default function GoalScenarios() {
                 </select>
               </div>
             </div>
-            <div className="gp-field gp-field-budget">
-              <label htmlFor="gp-budget">월 납입 가능액 <small>(선택)</small></label>
-              <div className="gp-unit">
-                <input id="gp-budget" className="num" inputMode="numeric" placeholder="예: 500,000" value={budget} onChange={(e) => { const d = digits(e.target.value).slice(0, 10); setBudget(d ? won(Number(d)) : ''); }} />
-                <span>원</span>
-              </div>
+            <div className="gp-field">
+              <label htmlFor="gp-target">목표 금액 <small>(선택)</small></label>
+              <MoneyInput id="gp-target" value={target} onChange={setTarget} placeholder="예: 30,000,000" />
             </div>
             <button type="submit" className="gp-primary" disabled={loading}>{loading ? '계산 중…' : '시나리오 보기'}</button>
           </div>
-          <div className="gp-chips" role="group" aria-label="목표 예시로 채우기">
-            <small>예시로 채우기</small>
-            {GOAL_PRESETS.map((c) => <button type="button" key={c.id} className="gp-chip" aria-pressed={preset?.id === c.id}
-              onClick={() => { setName(c.name); setAmount(won(c.amount)); setMonths(c.months); setError(''); }}>{c.chip}</button>)}
-          </div>
           {error && <p className="gp-error" role="alert">{error}</p>}
-          <p className="gp-help">시작 금액은 0원으로 계산해요. 기한은 6개월부터 5년까지 정할 수 있어요. 월 납입 가능액을 넣으면 시나리오마다 필요한 월 금액이 그 안인지 함께 보여 드려요(천 원 단위).</p>
         </form>
       </section>
 
-      {loading && <div className="gp-loading" role="status"><span className="gp-spinner" />상품 목록에서 조합을 고르고, 2,000가지 경우를 계산하고 있어요…</div>}
+      {loading && <div className="gp-loading" role="status"><span className="gp-spinner" />세 가지 조합으로 2,000가지 경우를 계산하고 있어요…</div>}
 
       <div ref={resultRef}>
         {result && plan && !loading && <section aria-labelledby="gp-result-title">
           <h2 id="gp-result-title" className="gp-h2"><span className="gp-step">2</span>{demo ? '세 가지 방법' : 'AI가 고른 방법'}
-            {demo ? <span className="gp-badge gp-badge-muted">예시 조합</span> : <span className="gp-badge">AI 조합</span>}
+            {demo && <span className="gp-badge gp-badge-muted">예시 조합</span>}
             {result.aiUsage && <span className="gp-usage">
               <span className="gp-badge gp-badge-muted">오늘 AI 조합 {result.aiUsage.remainingToday}/{result.aiUsage.limitPerDay}회 남음</span>
               <span className="gp-help-tip">
@@ -495,51 +613,35 @@ export default function GoalScenarios() {
             <span>{FALLBACK_TEXT[result.fallbackReason]}</span>
             {result.fallbackReason === 'GUEST' && <button type="button" className="gp-secondary" onClick={() => openLogin(location.pathname)}>로그인하고 AI 조합 받기</button>}
           </div>}
-          <div className="gp-summary">
-            <div><b>{result.name}</b> · {periodText(result.months)} 뒤 {manwon(result.targetAmount)} · 시작 금액 0원{result.monthlyBudget !== null && ` · 월 납입 가능액 ${won(result.monthlyBudget)}원`}</div>
-            <span className="gp-badge">자료 기준일 {result.asOf}</span>
-          </div>
-          {result.months <= 12 && <p className="gp-insight">기한이 짧으면 투자를 섞어도 월 금액이 크게 줄지 않아요. 오르내림을 회복할 시간이 부족해서예요.</p>}
+          {result.months <= 12 && <p className="gp-insight">기한이 짧으면 투자를 섞어도 결과가 크게 달라지지 않아요. 오르내림을 회복할 시간이 부족해서예요.</p>}
 
           <div className="gp-plans">
             {result.scenarios.map((s, i) => <button type="button" key={s.id} className="gp-plan" aria-pressed={selected === s.id} onClick={() => { setSelected(s.id); setSaveMessage(''); }}>
               <span className="gp-plan-tag">PLAN 0{i + 1}{savedPlanId === s.id && <span className="gp-saved-mark">저장함</span>}</span>
               <span className="gp-plan-title">{s.title}</span>
-              <span className="gp-plan-desc">{s.summary}</span>
-              {s.reachable && s.outcome && s.monthly !== null ? <>
-                <span className="gp-plan-label">{s.outcome.kind === 'FIXED' ? '필요한 월 금액 · 확정' : '필요한 월 금액 · 10번 중 8번 달성'}</span>
-                <span className="gp-plan-monthly num">{won(s.monthly)}<small>원</small></span>
-              </> : <>
-                <span className="gp-plan-label">필요한 월 금액</span>
-                <span className="gp-plan-none">이 조합으로는 찾지 못했어요</span>
+              {s.outcome && s.outcome.highGain !== null && <>
+                <span className="gp-plan-label">{s.outcome.kind === 'FIXED' ? '확정 수익(세후 이자)' : '상위 10%의 수익'}</span>
+                <span className={`gp-plan-monthly num${s.outcome.highGain < 0 ? ' is-loss' : ''}`}>{gainText(s.outcome.highGain)}</span>
               </>}
-              <BudgetBadge plan={s} />
               <span className="gp-mini" aria-hidden="true">{s.mix.map((m) => <span key={m.type} style={{ width: `${m.ratioPercent}%`, background: COLORS[m.type] }} />)}</span>
               {s.outcome && <span className="gp-plan-stats">
-                <span>목표 달성 추정<b>{s.outcome.kind === 'FIXED' ? '확정' : pct(s.outcome.chanceBp)}</b></span>
+                <span>목표 달성 추정<b>{s.outcome.chanceBp === null ? '목표 없음' : pct(s.outcome.chanceBp)}</b></span>
                 <span>원금 손실 가능성<b>{s.outcome.kind === 'FIXED' ? '없음' : pct(s.outcome.lossBp)}</b></span>
               </span>}
             </button>)}
           </div>
 
-          <PlanDetail resultKey={result.resultId} plan={plan} products={result.products} targetAmount={result.targetAmount} months={result.months} demo={demo} />
-
-          <div className="gp-save-row">
-            <button type="button" className="gp-secondary" onClick={save} disabled={saving || savedPlanId !== null || (member && full)}>
-              {!member ? '로그인하고 이 시나리오 저장' : savedPlanId !== null ? '저장했어요' : saving ? '저장 중…' : `'${result.name}' 저장`}
-            </button>
-            {member && savedList && <span className="gp-save-count">{savedList.items.length}/{savedList.limit}개 저장</span>}
-            {member && full && savedPlanId === null && <span className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</span>}
-          </div>
+          <PlanDetail resultKey={result.resultId} plan={plan} products={result.products} targetAmount={result.targetAmount} months={result.months} demo={demo} action={saveButton} />
+          {member && full && savedPlanId === null && <p className="gp-save-note">5개가 다 찼어요. 저장한 시나리오에서 하나를 지우면 저장할 수 있어요.</p>}
           {saveMessage && <p className="gp-save-message" role="status">{saveMessage}</p>}
 
           <Assumptions paths={result.paths} returnsFrom={result.returnsFrom} returnsTo={result.returnsTo} assumptions={result.assumptions} notice={result.notice} />
         </section>}
       </div>
 
-
       <SavedScenarioDialog viewing={viewing} loading={loading} onClose={() => setViewing(null)}
         onRecalc={(v) => { setViewing(null); recalc(v); }} />
+      <SaveNameDialog open={naming} saving={saving} error={saveError} onSave={(n) => void save(n)} onCancel={() => setNaming(false)} />
 
       </div>
       {member && <aside className="gp-saved" aria-labelledby="gp-saved-title">
@@ -552,8 +654,8 @@ export default function GoalScenarios() {
           {savedList.items.map((s) => <li key={s.id} className={`gp-card gp-saved-item gp-saved-item-side ${viewing?.id === s.id ? 'is-open' : ''}`}>
             <div className="gp-saved-main">
               <b className="gp-saved-name">{s.name}</b>
-              <span>{s.title} · {periodText(s.months)} 뒤 {manwon(s.targetAmount)}</span>
-              <small>{s.reachable && s.monthly !== null ? `월 ${won(s.monthly)}원${s.kind === 'FIXED' ? ' · 확정' : ' · 10번 중 8번'}` : '월 금액을 찾지 못한 조합'} · {s.asOf} 기준 · {savedDate(s.savedAt)} 저장</small>
+              <span>{s.title} · {conditionText(s)}</span>
+              <small>{s.asOf} 기준 · {savedDate(s.savedAt)} 저장</small>
             </div>
             <div className="gp-saved-actions">
               <button type="button" className="gp-text-btn" onClick={() => void open(s.id)} aria-label={`${s.name} ${s.title} 보기`}>보기</button>
@@ -571,3 +673,4 @@ export default function GoalScenarios() {
     </div>
   </div>;
 }
+

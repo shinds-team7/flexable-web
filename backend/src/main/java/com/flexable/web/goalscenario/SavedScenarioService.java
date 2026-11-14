@@ -33,16 +33,24 @@ public class SavedScenarioService implements UserWithdrawalListener {
 
 	static final int LIMIT = 5;
 	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
-	private static final JsonMapper JSON = JsonMapper.builder().build();
+	/** #431 전 저장본에는 지금 없는 칸(reachShare·reachable·withinBudget 등)이 있어 모르는 칸은 건너뛴다. */
+	private static final JsonMapper JSON = JsonMapper.builder().disable(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build();
 
 	/**
-	 * snapshot 칸에 넣는 JSON. 목록·상세에 필요한 값을 모두 담는다. scenario는 고른 플랜, alternatives는 나머지 플랜이고 예전 저장본에는 없다(null).
-	 * monthlyBudget은 저장할 때 넣은 월 납입 가능액이고, 넣지 않았거나 #399 전 저장본이면 null이다(가능액 비교와 대안 문장도 플랜에 그대로 저장한다).
+	 * snapshot 칸에 넣는 JSON. 목록·상세에 필요한 값을 모두 담는다. scenario는 고른 플랜, alternatives는 나머지 플랜이다.
+	 * version 3(#431)부터 startAmount·monthlyBudget·targetAmount(없으면 null)를 담는다. version이 없는 옛 저장본은 시작 금액 0원,
+	 * 월 금액은 그때의 필요 월 금액, 목표 금액은 행의 target_amount로 읽는다(policies §7-8).
 	 */
-	record Snapshot(int months, String proposer, String asOf, String returnsFrom, String returnsTo, int paths, BigDecimal reachShare,
-			List<Product> products, Scenario scenario, List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample,
-			Long monthlyBudget) {
+	record Snapshot(Integer version, int months, String proposer, String asOf, String returnsFrom, String returnsTo, int paths, List<Product> products,
+			Scenario scenario, List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample, Long startAmount,
+			Long monthlyBudget, Long targetAmount) {
+		boolean legacy() {
+			return version == null || version < VERSION;
+		}
 	}
+
+	static final int VERSION = 3;
+	static final int NAME_MAX = 20;
 
 	private final SavedScenarioRepository saved;
 	private final ScenarioResultCache results;
@@ -72,6 +80,10 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		if (req.scenarioId() == null || req.scenarioId().isBlank()) {
 			throw ApiException.invalid("scenarioId", "저장할 시나리오를 골라 주세요");
 		}
+		String name = req.name() == null ? "" : req.name().strip();
+		if (name.isEmpty() || name.length() > NAME_MAX) {
+			throw ApiException.invalid("name", "이름은 1~20자로 적어 주세요");
+		}
 		Result r = results.find(req.resultId()).orElseThrow(() -> new ApiException(ErrorCode.GOAL_SCENARIO_EXPIRED));
 		Scenario s = r.scenarios().stream().filter(x -> x.id().equals(req.scenarioId())).findFirst()
 			.orElseThrow(() -> ApiException.invalid("scenarioId", "이 계산 결과에 없는 시나리오예요"));
@@ -79,11 +91,13 @@ public class SavedScenarioService implements UserWithdrawalListener {
 			throw new ApiException(ErrorCode.GOAL_SCENARIO_LIMIT);
 		}
 		// 결과 문장은 저장하지 않고 조회할 때 저장된 숫자로 만든다(policies §7-8)
-		Snapshot snap = new Snapshot(r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.reachShare(),
-				r.products(), s.withResultText(null), r.scenarios().stream().filter(x -> !x.id().equals(s.id())).map(x -> x.withResultText(null)).toList(),
-				r.assumptions(), r.notice(), r.isSample(), r.monthlyBudget());
+		Snapshot snap = new Snapshot(VERSION, r.months(), r.proposer(), r.asOf().toString(), r.returnsFrom(), r.returnsTo(), r.paths(), r.products(),
+				s.withResultText(null), r.scenarios().stream().filter(x -> !x.id().equals(s.id())).map(x -> x.withResultText(null)).toList(),
+				r.assumptions(), r.notice(), r.isSample(), r.startAmount(), r.monthlyBudget(), r.targetAmount());
 		Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS); // DB(DATETIME(6))와 같은 정밀도로 돌려준다
-		SavedScenario row = saved.save(new SavedScenario(userId, now, r.name(), r.targetAmount(), r.months(), JSON.writeValueAsString(snap)));
+		// target_amount 칸은 NOT NULL이라 목표가 없으면 0으로 둔다(목표 금액은 100만 원 이상)
+		SavedScenario row = saved.save(new SavedScenario(userId, now, name, r.targetAmount() == null ? 0 : r.targetAmount(), r.months(),
+				JSON.writeValueAsString(snap)));
 		// 동시에 저장해 5개를 넘겼으면 이번 저장을 되돌린다
 		if (saved.countByUserId(userId) > LIMIT) {
 			throw new ApiException(ErrorCode.GOAL_SCENARIO_LIMIT);
@@ -119,23 +133,50 @@ public class SavedScenarioService implements UserWithdrawalListener {
 		return i.atZone(SEOUL).toOffsetDateTime();
 	}
 
+	/** 목표 금액: 새 저장본은 스냅샷 값, 옛 저장본은 행의 값. 0은 목표 없음. */
+	private static Long target(SavedScenario row, Snapshot s) {
+		Long t = s.legacy() ? Long.valueOf(row.getTargetAmount()) : s.targetAmount();
+		return t == null || t == 0 ? null : t;
+	}
+
+	private static long start(Snapshot s) {
+		return s.legacy() || s.startAmount() == null ? 0 : s.startAmount();
+	}
+
+	/** 월 금액: 새 저장본은 입력한 월 납입 가능액, 옛 저장본은 고른 플랜의 필요 월 금액(찾지 못했으면 null). */
+	private static Long monthly(Snapshot s) {
+		return s.legacy() ? s.scenario().monthly() : s.monthlyBudget();
+	}
+
 	private static SavedSummary summary(SavedScenario row) {
 		Snapshot s = read(row);
-		return new SavedSummary(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), LocalDate.parse(s.asOf()),
-				s.scenario().title(), s.scenario().reachable(), s.scenario().monthly(),
-				s.scenario().outcome() == null ? null : s.scenario().outcome().kind());
+		return new SavedSummary(row.getId(), at(row.getSavedAt()), row.getName(), start(s), monthly(s), row.getMonths(), target(row, s),
+				LocalDate.parse(s.asOf()), s.scenario().title(), s.scenario().outcome() == null ? null : s.scenario().outcome().kind());
 	}
 
 	private static Saved detail(SavedScenario row) {
 		Snapshot s = read(row);
-		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), row.getTargetAmount(), row.getMonths(), s.monthlyBudget(), s.proposer(),
-				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), s.reachShare(), products(s), withText(s.scenario(), s.months()),
-				s.alternatives() == null ? List.of() : s.alternatives().stream().map(x -> withText(x, s.months())).toList(), s.assumptions(), s.notice(),
-				s.isSample());
+		Long target = target(row, s);
+		long start = start(s);
+		return new Saved(row.getId(), at(row.getSavedAt()), row.getName(), start, monthly(s), row.getMonths(), target, s.proposer(),
+				LocalDate.parse(s.asOf()), s.returnsFrom(), s.returnsTo(), s.paths(), products(s), withText(s.scenario(), start, target, s.months()),
+				s.alternatives() == null ? List.of() : s.alternatives().stream().map(x -> withText(x, start, target, s.months())).toList(), s.assumptions(),
+				s.notice(), s.isSample());
 	}
 
-	/** 저장된 월 금액·결과로 결과 문장을 만든다(옛 저장본 포함, policies §7-5). 옛 저장본의 explanationParts는 없어 null로 읽힌다. */
-	private static Scenario withText(Scenario x, int months) {
-		return x.withResultText(ScenarioResultText.of(x.reachable(), x.monthly(), x.outcome(), months));
+	/**
+	 * 저장된 월 금액·결과로 결과 문장을 만든다(policies §7-5). 옛 저장본은 상위 10% 수익(highGain)이 없어 저장된 값으로 채운다.
+	 * 옛 저장본의 explanationParts·series는 없어 null로 읽힌다.
+	 */
+	private static Scenario withText(Scenario x, long start, Long target, int months) {
+		GoalScenarioDtos.Outcome o = x.outcome();
+		if (o != null && o.highGain() == null && x.paid() != null) {
+			Long top = "FIXED".equals(o.kind()) ? o.fixedAmount() : o.high();
+			o = new GoalScenarioDtos.Outcome(o.kind(), o.fixedAmount(), o.low(), o.median(), o.high(), top == null ? null : top - x.paid(), o.chanceBp(),
+					o.lossBp());
+		}
+		Scenario filled = new Scenario(x.id(), x.title(), x.summary(), x.explanation(), x.explanationParts(), null, x.mix(), x.monthly(), x.paid(), o,
+				x.series());
+		return filled.withResultText(ScenarioResultText.of(start, x.monthly(), o, target, months));
 	}
 }

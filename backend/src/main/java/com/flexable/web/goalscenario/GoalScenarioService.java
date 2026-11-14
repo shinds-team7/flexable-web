@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.SplittableRandom;
-import java.util.function.LongFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +28,7 @@ import com.flexable.web.goalscenario.GoalScenarioDtos.Product;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Request;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Result;
 import com.flexable.web.goalscenario.GoalScenarioDtos.Scenario;
+import com.flexable.web.goalscenario.GoalScenarioDtos.SeriesPoint;
 import com.flexable.web.goalscenario.Proposals.Plan;
 import com.flexable.web.market.Board;
 import com.flexable.web.market.DailyClose;
@@ -49,7 +49,6 @@ public class GoalScenarioService {
 	static final long SEED = 20261103L;
 	static final int BLOCK = 12;
 	static final int HISTORY = 60;
-	static final int REACH_BP = 8000;
 	/** 기한(개월) 범위(policies §7-1). */
 	static final int MIN_MONTHS = 6;
 	static final int MAX_MONTHS = 60;
@@ -59,7 +58,8 @@ public class GoalScenarioService {
 	static final String NOTICE = "이 결과는 입력한 조건과 과거 자료·계산 모형을 바탕으로 AI와 계산 서버가 만든 추정 시나리오예요. "
 			+ "실제 수익과 목표 달성 여부를 보장하지 않으며, 투자한 원금의 일부 또는 전부를 잃을 수 있어요. 자료 기준일과 계산 가정을 함께 확인해 주세요.";
 	static final List<String> ASSUMPTIONS = List.of(
-			"시작 금액은 0원이고 매달 초에 같은 금액을 비중대로 나눠 넣어요. 리밸런싱·중도 인출은 없어요.",
+			"시작 금액은 첫 달 초에 한 번에, 월 금액은 매달 초에 비중대로 나눠 넣어요. 리밸런싱·중도 인출은 없어요.",
+			"적금은 매달 같은 돈을 넣는 상품이라 시작 금액 중 적금 몫은 CMA 예시 금리 연 2.5%로 계산했어요.",
 			"적금은 개인이 가입할 수 있는 은행 상품 중 기본금리가 가장 높은 상품을 골라 기본금리(우대금리 제외)로, CMA는 예시 금리 연 2.5%로 계산했어요.",
 			"이자와 미국 지수 ETF 이익에는 15.4% 세금을 뺐어요. 국내 지수 ETF·주식은 세금을 넣지 않았어요.",
 			"배당·매매 수수료는 넣지 않았어요.",
@@ -76,9 +76,11 @@ public class GoalScenarioService {
 	private final ScenarioAiQuota quota;
 	private final GoalScenarioAiProperties aiProps;
 	private final TypeRoleStore typeRoles;
+	private final ScenarioPlanStore plans;
 
 	GoalScenarioService(MarketService market, SavingsService savings, ObjectProvider<ScenarioProposer> proposer, ScenarioResultCache results,
-			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps, TypeRoleStore typeRoles) {
+			ScenarioAiQuota quota, GoalScenarioAiProperties aiProps, TypeRoleStore typeRoles, ScenarioPlanStore plans) {
+		this.plans = plans;
 		this.aiProps = aiProps;
 		this.typeRoles = typeRoles;
 		this.market = market;
@@ -103,12 +105,13 @@ public class GoalScenarioService {
 	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage, boolean reused, String path) {
 	}
 
-	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(데모 조합, GUEST). */
+	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(데모 조합, GUEST). 요청 중에는 AI를 부르지 않는다(#431). */
 	Result calculate(Request req, Long userId) {
-		String name = validate(req);
-		long target = req.targetAmount();
+		validate(req);
+		long start = req.startAmount();
+		long monthly = req.monthlyBudget();
 		int months = req.months();
-		Long budget = req.monthlyBudget();
+		Long target = req.targetAmount();
 
 		long started = System.nanoTime();
 		// 기준일 = 수집된 마지막 거래일. 수익률은 그 직전 달까지 60개월
@@ -118,100 +121,87 @@ public class GoalScenarioService {
 		long pickedAt = System.nanoTime();
 		int[][] draws = draws(blocks(months));
 		Map<String, BigDecimal[]> factors = new HashMap<>();
+		Map<String, BigDecimal[]> growths = new HashMap<>();
 		for (ProductType t : INVEST) {
-			picked.items().get(t).forEach(i -> factors.put(i.code(), factors(picked.returns().get(i.code()), draws, months)));
+			picked.items().get(t).forEach(i -> {
+				factors.put(i.code(), factors(picked.returns().get(i.code()), draws, months));
+				growths.put(i.code(), growths(picked.returns().get(i.code()), draws, months));
+			});
 		}
 		long drawnAt = System.nanoTime();
 
-		Chosen chosen = choose(target, months, budget, asOf, userId, picked);
+		Chosen chosen = choose(start, monthly, months, target, asOf, userId, picked);
 		long choseAt = System.nanoTime();
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Plan plan : chosen.plans()) {
-			scenarios.add(scenario(plan, target, months, picked, factors).withBudget(budget));
+			scenarios.add(scenario(plan, start, monthly, months, target, picked, factors, growths, draws));
 		}
 		long calculatedAt = System.nanoTime();
-		// 단계별 시간만 남긴다(#417). 목표 금액·기한·이름·회원 정보는 남기지 않는다(policies §7-6)
+		// 단계별 시간만 남긴다(#417·#431). 금액·기한·회원 정보는 남기지 않는다(policies §7-6)
 		log.info("goal scenario timing: path={} pickMs={} drawMs={} chooseMs={} calcMs={} totalMs={}", chosen.path(), ms(started, pickedAt),
 				ms(pickedAt, drawnAt), ms(drawnAt, choseAt), ms(choseAt, calculatedAt), ms(started, calculatedAt));
 		List<String> assumptions = picked.savingTerm() < months
 				? java.util.stream.Stream.concat(ASSUMPTIONS.stream(), java.util.stream.Stream.of(AFTER_MATURITY)).toList()
 				: ASSUMPTIONS;
-		Result result = new Result(null, name, target, months, budget, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
-				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, new BigDecimal("0.8"),
-				products(picked), scenarios, assumptions, NOTICE, true, chosen.aiUsage(), chosen.reused());
+		Result result = new Result(null, start, monthly, months, target, chosen.fallbackReason() == null ? "AI" : "DEMO", chosen.fallbackReason(), asOf,
+				last.minusMonths(HISTORY - 1).toString(), last.toString(), PATHS, SEED, products(picked), scenarios, assumptions, NOTICE, true,
+				chosen.aiUsage(), chosen.reused());
 		return results.remember(result);
 	}
 
-	/** 앞뒤 공백을 뺀 이름을 돌려준다. */
-	static String validate(Request req) {
-		String name = req.name() == null ? "" : req.name().strip();
-		if (name.isEmpty() || name.length() > 20) {
-			throw ApiException.invalid("name", "목표 이름은 1~20자로 적어 주세요");
-		}
-		if (req.targetAmount() == null || req.targetAmount() < 1_000_000 || req.targetAmount() > 1_000_000_000) {
-			throw ApiException.invalid("targetAmount", "목표 금액은 100만 원부터 10억 원까지 넣을 수 있어요");
-		}
+	static void validate(Request req) {
+		ScenarioBudget.validateStart(req.startAmount());
+		ScenarioBudget.validateMonthly(req.monthlyBudget());
 		if (req.months() == null || req.months() < MIN_MONTHS || req.months() > MAX_MONTHS) {
 			throw ApiException.invalid("months", "기한은 6개월부터 5년까지 정할 수 있어요");
 		}
-		ScenarioBudget.validate(req.monthlyBudget(), req.targetAmount());
-		return name;
+		ScenarioBudget.validateTarget(req.targetAmount());
 	}
 
 	/**
-	 * 제안기(AI) 결과를 검증해 쓰고, 쓸 수 없으면 데모 조합(§7-6).
-	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 금액·기한·월 납입 가능액·기준일 재사용(차감 없음) → 회원 횟수(LIMIT)·전체 상한(DAILY_CAP)
-	 * → 호출 실패(AI_FAILED)·규칙 위반(AI_REJECTED). 결과를 못 받으면 회원 횟수는 되돌리고 전체 횟수는 그대로 둔다.
+	 * worker가 미리 만든 이 기한의 AI 조합을 검증해 쓰고, 쓸 수 없으면 데모 조합(§7-6). 요청 중에는 AI를 부르지 않는다(#431).
+	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 조건 다시 보기(차감 없음) → 미리 만든 조합 없음(AI_PENDING)
+	 * → 회원 하루 횟수(LIMIT) → 규칙 위반(AI_REJECTED).
 	 */
-	private Chosen choose(long target, int months, Long budget, LocalDate asOf, Long userId, Picked picked) {
+	private Chosen choose(long start, long monthly, int months, Long target, LocalDate asOf, Long userId, Picked picked) {
 		ScenarioProposer p = proposer.getIfAvailable();
 		String reason;
-		if (p == null || !p.enabled()) {
+		if (p == null || !p.enabled() || p.planVersion() == null) {
 			reason = "AI_UNAVAILABLE";
 		}
 		else if (userId == null) {
 			reason = "GUEST";
 		}
 		else {
-			ProposalText.Facts facts = facts(target, months, budget, picked);
-			// 다섯 유형 해설이 모두 미리 만들어져 있으면 짧은 길(#417): AI는 비중과 시나리오 칸만 쓴다. 하나라도 없으면 지금처럼 다 쓴다
-			Map<ProductType, TypeRoleStore.Role> stored = storedRoles(p, picked, months);
-			String fullVersion = java.util.Objects.requireNonNullElse(p.version(), "unknown");
-			String version = stored != null ? p.shortVersion() : fullVersion;
-			// 재사용은 지금 쓰는 프롬프트 버전(짧은 길·긴 길)으로 만든 조합만(#406·#417). 버전을 모르는 제안기는 "unknown"으로 두고, 버전이 없는 옛 행(null)은 맞지 않는다
-			List<String> versions = p.shortVersion() == null ? List.of(fullVersion) : List.of(fullVersion, p.shortVersion());
-			Optional<List<Plan>> reused = quota.cached(userId, target, months, budget, asOf, versions).map(d -> Proposals.check(d, facts).plans());
-			if (reused.isPresent()) {
+			ProposalText.Facts facts = facts(months, picked);
+			ScenarioAiQuota.Key key = new ScenarioAiQuota.Key(userId, start, monthly, months, target, asOf, p.planVersion());
+			Optional<List<Plan>> reused = quota.cached(key).map(d -> Proposals.check(d, facts).plans());
+			if (reused.isPresent() && reused.get() != null) {
 				return new Chosen(reused.get(), null, usage(userId), true, "reused");
 			}
-			ScenarioAiQuota.Reserve r = quota.reserve(userId);
-			if (r == ScenarioAiQuota.Reserve.GONE) {
-				// 토큰은 유효하지만 회원이 없다(탈퇴). 다른 회원 API와 같이 401
-				throw new ApiException(ErrorCode.UNAUTHORIZED);
-			}
-			if (r == ScenarioAiQuota.Reserve.OK) {
-				try {
-					ScenarioProposer.Input input = new ScenarioProposer.Input(target, months, budget, stats(picked, months));
-					List<Proposals.Draft> drafts = stored != null ? p.proposeShort(input, stored) : p.propose(input);
-					// 미리 만든 유형 해설도 이 요청의 사실(기한·비중)로 한 번 더 검사한다
-					Proposals.Checked checked = Proposals.check(drafts, facts);
-					if (checked.plans() != null) {
-						checked.removed().forEach(n -> log.warn("goal scenario AI sentence removed: {}", n.logLine(aiProps.logRejected())));
-						quota.cache(userId, target, months, budget, asOf, drafts, "openai", version);
-						return new Chosen(checked.plans(), null, usage(userId), false, stored != null ? "ai-short" : "ai-full");
-					}
-					// 어긴 규칙·위치만 남긴다. 옵션을 켜면 걸린 칸의 문구도 남긴다(목표 이름·회원 번호는 남기지 않음)
-					log.warn("goal scenario AI rejected: {}", checked.logLine(aiProps.logRejected()));
-					reason = "AI_REJECTED";
-				}
-				catch (ScenarioProposer.Failed e) {
-					log.warn("goal scenario AI failed: {}", e.getMessage());
-					reason = "AI_FAILED";
-				}
-				quota.refund(userId);
+			PlanSubject subject = planSubject(months, picked);
+			Optional<ScenarioPlanStore.Stored> stored = plans.find(p.planVersion(), months, subject.fingerprint());
+			if (stored.isEmpty()) {
+				reason = "AI_PENDING";
 			}
 			else {
-				reason = r == ScenarioAiQuota.Reserve.DAILY_CAP ? "DAILY_CAP" : "LIMIT";
+				Proposals.Checked checked = Proposals.check(stored.get().drafts(), facts);
+				if (checked.plans() == null) {
+					log.warn("goal scenario stored plan rejected: {}", checked.logLine(aiProps.logRejected()));
+					reason = "AI_REJECTED";
+				}
+				else {
+					ScenarioAiQuota.Reserve r = quota.reserve(userId);
+					if (r == ScenarioAiQuota.Reserve.GONE) {
+						// 토큰은 유효하지만 회원이 없다(탈퇴). 다른 회원 API와 같이 401
+						throw new ApiException(ErrorCode.UNAUTHORIZED);
+					}
+					if (r == ScenarioAiQuota.Reserve.OK) {
+						quota.cache(key, stored.get().drafts(), stored.get().model());
+						return new Chosen(checked.plans(), null, usage(userId), false, "ai");
+					}
+					reason = "LIMIT";
+				}
 			}
 		}
 		return new Chosen(Proposals.validate(Proposals.DEMO).orElseThrow(() -> new IllegalStateException("데모 조합이 규칙에 맞지 않아요")), reason,
@@ -223,10 +213,10 @@ public class GoalScenarioService {
 	}
 
 	/**
-	 * AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름(함께 볼 상품 포함)·목표 금액·월 납입 가능액·기한·적금·CMA 금리·
-	 * 세율 15.4%·통계.
+	 * AI에게 보낸 사실(§7-6): 문구 속 숫자는 이 값과 같을 때만 허용한다. 상품 이름(함께 볼 상품 포함)·기한·적금·CMA 금리·세율 15.4%·통계.
+	 * 금액은 AI에게 보내지 않으므로(#431) 금액 숫자는 늘 걸린다.
 	 */
-	private static ProposalText.Facts facts(long target, int months, Long budget, Picked picked) {
+	static ProposalText.Facts facts(int months, Picked picked) {
 		java.util.Set<String> names = new java.util.HashSet<>();
 		names.add(picked.saving().name());
 		names.add(picked.saving().company());
@@ -240,7 +230,7 @@ public class GoalScenarioService {
 		}
 		names.remove(null);
 		List<ScenarioProposer.TypeStat> sent = stats(picked, months);
-		return new ProposalText.Facts(target, budget == null ? 0 : budget, months, names, percents,
+		return new ProposalText.Facts(0, 0, months, names, percents,
 				java.util.Map.of(ProposalText.StatKind.MEAN, statPercents(sent, ScenarioProposer.TypeStat::meanMonthlyReturn, ScenarioProposer.AltStat::meanMonthlyReturn),
 						ProposalText.StatKind.VOLATILITY, statPercents(sent, ScenarioProposer.TypeStat::monthlyVolatility, ScenarioProposer.AltStat::monthlyVolatility),
 						ProposalText.StatKind.DRAWDOWN, statPercents(sent, ScenarioProposer.TypeStat::maxDrawdown, ScenarioProposer.AltStat::maxDrawdown)));
@@ -331,7 +321,7 @@ public class GoalScenarioService {
 				continue;
 			}
 			Picked p = pick(sp, inv);
-			ProposalText.Facts f = facts(0, MAX_MONTHS, null, p);
+			ProposalText.Facts f = facts(MAX_MONTHS, p);
 			for (TypeRoleSubject s : subjects(p, months)) {
 				out.putIfAbsent(s.type() + ":" + s.fingerprint(), new TypeRoleTarget(s, f));
 			}
@@ -339,19 +329,37 @@ public class GoalScenarioService {
 		return List.copyOf(out.values());
 	}
 
-	/** 이 요청의 다섯 유형 해설이 모두 저장돼 있으면 그 해설, 하나라도 없으면 null(지금처럼 AI가 유형 해설까지 쓴다, #417). */
-	private Map<ProductType, TypeRoleStore.Role> storedRoles(ScenarioProposer p, Picked picked, int months) {
-		String version = p.typeRoleVersion();
-		if (version == null || p.shortVersion() == null) {
-			return null;
-		}
-		Map<ProductType, TypeRoleStore.Role> out = new EnumMap<>(ProductType.class);
-		for (TypeRoleSubject s : subjects(picked, months)) {
-			Optional<TypeRoleStore.Role> role = typeRoles.find(version, s.type(), s.fingerprint());
-			if (role.isEmpty()) {
-				return null;
+	/** 기한 하나의 미리 만들 조합 대상(#431). input은 AI에게 보내는 값 전부이고 fingerprint는 그 JSON의 SHA-256이다. */
+	record PlanSubject(ScenarioProposer.PlanInput input, String fingerprint) {
+	}
+
+	private static PlanSubject planSubject(int months, Picked picked) {
+		ScenarioProposer.PlanInput input = new ScenarioProposer.PlanInput(months, stats(picked, months));
+		return new PlanSubject(input, TypeRoleSubject.sha256(PLAN_JSON.writeValueAsString(input)));
+	}
+
+	private static final tools.jackson.databind.json.JsonMapper PLAN_JSON = tools.jackson.databind.json.JsonMapper.builder().build();
+
+	/** worker가 미리 만들 조합 하나: 기한, 보낼 값·지문, 검사할 사실, 이 기한의 유형 해설 대상 다섯 개. */
+	record PlanTarget(int months, PlanSubject subject, ProposalText.Facts facts, List<TypeRoleSubject> roles) {
+	}
+
+	/** 기한 6~60개월마다 미리 만들 조합(#431). 이 기한에 맞는 적금이 없으면(요청도 503) 뺀다. */
+	List<PlanTarget> planTargets() {
+		LocalDate asOf = Optional.ofNullable(market.status().pricesAsOf()).orElseThrow(() -> unavailable(ProductType.KR_INDEX_ETF.name()));
+		InvestPick inv = invest(YearMonth.from(asOf).minusMonths(1));
+		Map<Integer, List<FixedCandidate>> openFixed = new HashMap<>();
+		List<PlanTarget> out = new ArrayList<>();
+		for (int months = MIN_MONTHS; months <= MAX_MONTHS; months++) {
+			SavingPick sp;
+			try {
+				sp = saving(months, (term, n) -> openFixed.computeIfAbsent(term, t -> savings.openFixed(t, n)));
 			}
-			out.put(s.type(), role.get());
+			catch (ApiException e) {
+				continue;
+			}
+			Picked p = pick(sp, inv);
+			out.add(new PlanTarget(months, planSubject(months, p), facts(months, p), subjects(p, months)));
 		}
 		return out;
 	}
@@ -558,53 +566,92 @@ public class GoalScenarioService {
 	static BigDecimal[] factors(BigDecimal[] returns, int[][] draws, int months) {
 		BigDecimal[] out = new BigDecimal[draws.length];
 		for (int p = 0; p < draws.length; p++) {
-			BigDecimal[] path = new BigDecimal[draws[p].length * BLOCK];
-			for (int y = 0; y < draws[p].length; y++) {
-				System.arraycopy(returns, draws[p][y], path, y * BLOCK, BLOCK);
-			}
-			out[p] = ScenarioMath.factor(Arrays.copyOf(path, months));
+			out[p] = ScenarioMath.factor(Arrays.copyOf(path(returns, draws[p]), months));
 		}
 		return out;
 	}
 
-	/**
-	 * 월 금액 → 경로별 기한 말 금액. 적금·CMA는 모든 경로에서 같고, 투자 유형은 경로 배수를 곱한다.
-	 * itemFactors는 유형마다 상품별 경로 배수(KOSPI_TOP5는 5개).
-	 */
-	static LongFunction<long[]> finals(Map<ProductType, Integer> mix, int months, int n, BigDecimal savingsRate, boolean savingsCompound,
-			Map<ProductType, List<BigDecimal[]>> itemFactors) {
-		return finals(mix, months, months, n, savingsRate, savingsCompound, itemFactors);
+	/** 경로마다 시작 금액 1원의 기한 말 배수(성장 배수). 묶음을 이어 붙인 뒤 앞에서 months개월만 쓴다. */
+	static BigDecimal[] growths(BigDecimal[] returns, int[][] draws, int months) {
+		BigDecimal[] out = new BigDecimal[draws.length];
+		for (int p = 0; p < draws.length; p++) {
+			out[p] = ScenarioMath.growth(Arrays.copyOf(path(returns, draws[p]), months));
+		}
+		return out;
 	}
 
-	/** savingsTerm은 적금 만기 개월(기한 이하). */
-	static LongFunction<long[]> finals(Map<ProductType, Integer> mix, int months, int savingsTerm, int n, BigDecimal savingsRate,
-			boolean savingsCompound, Map<ProductType, List<BigDecimal[]>> itemFactors) {
-		return monthly -> {
-			Map<ProductType, Long> alloc = ScenarioMath.allocate(monthly, mix);
-			long fixed = 0;
-			if (alloc.containsKey(ProductType.SAVINGS)) {
-				fixed += savingsFinal(alloc.get(ProductType.SAVINGS), months, savingsTerm, savingsRate, savingsCompound);
+	private static BigDecimal[] path(BigDecimal[] returns, int[] draw) {
+		BigDecimal[] path = new BigDecimal[draw.length * BLOCK];
+		for (int y = 0; y < draw.length; y++) {
+			System.arraycopy(returns, draw[y], path, y * BLOCK, BLOCK);
+		}
+		return path;
+	}
+
+	/** 한 시나리오의 계산 조건. 유형별 월 금액·시작 금액 몫은 여기서 나눈다(§7-4). */
+	record Inputs(Map<ProductType, Integer> mix, long start, long monthly, int months, int savingsTerm, BigDecimal savingsRate,
+			boolean savingsCompound) {
+		Map<ProductType, Long> monthlyParts() {
+			return ScenarioMath.allocate(monthly, mix);
+		}
+
+		Map<ProductType, Long> startParts() {
+			return ScenarioMath.allocateStart(start, mix);
+		}
+
+		/** 적금 몫의 시작 금액은 적금에 한 번에 넣을 수 없어 CMA 몫과 함께 CMA로 계산한다(§7-4). */
+		long cmaStart() {
+			Map<ProductType, Long> s = startParts();
+			return s.getOrDefault(ProductType.SAVINGS, 0L) + s.getOrDefault(ProductType.CMA, 0L);
+		}
+
+		/** 넣은 돈 = 시작 금액 + 월 금액 × 개월. */
+		long paid() {
+			return start + monthly * months;
+		}
+	}
+
+	/** 상품 하나에 넣는 시작 금액. 유형 몫을 상품 수로 나누고 내림으로 남은 돈은 첫 상품에 더한다(§7-4). */
+	static long itemStart(long typeStart, int items, int index) {
+		long each = typeStart / items;
+		return index == 0 ? typeStart - each * (items - 1) : each;
+	}
+
+	/**
+	 * 경로별 기한 말 금액(§7-3). 적금·CMA는 모든 경로에서 같고, 투자 유형은 경로 배수를 곱한다.
+	 * itemFactors·itemGrowths는 유형마다 상품별 경로 배수(KOSPI_TOP5는 5개). n은 경로 수(투자가 없으면 1).
+	 */
+	static long[] finals(Inputs in, int n, Map<ProductType, List<BigDecimal[]>> itemFactors, Map<ProductType, List<BigDecimal[]>> itemGrowths) {
+		Map<ProductType, Long> m = in.monthlyParts();
+		Map<ProductType, Long> st = in.startParts();
+		long fixed = 0;
+		if (m.containsKey(ProductType.SAVINGS)) {
+			fixed += savingsFinal(m.get(ProductType.SAVINGS), in.months(), in.savingsTerm(), in.savingsRate(), in.savingsCompound());
+		}
+		long cmaStart = in.cmaStart();
+		long cmaMonthly = m.getOrDefault(ProductType.CMA, 0L);
+		if (cmaStart > 0 || cmaMonthly > 0) {
+			fixed += ScenarioMath.cma(cmaStart, cmaMonthly, in.months(), CMA_RATE).finalAmount();
+		}
+		long[] out = new long[n];
+		Arrays.fill(out, fixed);
+		for (ProductType t : INVEST) {
+			Long amount = m.get(t);
+			if (amount == null) {
+				continue;
 			}
-			if (alloc.containsKey(ProductType.CMA)) {
-				fixed += ScenarioMath.cma(alloc.get(ProductType.CMA), months, CMA_RATE).finalAmount();
-			}
-			long[] out = new long[n];
-			Arrays.fill(out, fixed);
-			for (ProductType t : INVEST) {
-				Long amount = alloc.get(t);
-				if (amount == null) {
-					continue;
+			List<BigDecimal[]> fs = itemFactors.get(t);
+			List<BigDecimal[]> gs = itemGrowths.get(t);
+			long each = amount / fs.size();
+			long typeStart = st.getOrDefault(t, 0L);
+			for (int i = 0; i < fs.size(); i++) {
+				long itemStart = itemStart(typeStart, fs.size(), i);
+				for (int p = 0; p < n; p++) {
+					out[p] += ScenarioMath.invest(each, itemStart, in.months(), fs.get(i)[p], gs.get(i)[p], t == ProductType.US_INDEX_ETF).finalAmount();
 				}
-				List<BigDecimal[]> fs = itemFactors.get(t);
-				long each = amount / fs.size();
-				for (BigDecimal[] f : fs) {
-					for (int p = 0; p < n; p++) {
-						out[p] += ScenarioMath.invest(each, months, f[p], t == ProductType.US_INDEX_ETF).finalAmount();
-					}
-				}
 			}
-			return out;
-		};
+		}
+		return out;
 	}
 
 	/**
@@ -616,47 +663,155 @@ public class GoalScenarioService {
 		return term >= months ? matured : ScenarioMath.cma(matured, monthly, months - term, CMA_RATE).finalAmount();
 	}
 
-	/** 계산 결과 하나. reachable=false면 monthly·outcome이 없다. */
-	record Computed(long monthly, long paid, long[] values, Outcome outcome) {
-	}
-
-	/** 필요 월 금액과 그 금액에서의 결과(§7-5). n은 경로 수(투자가 없으면 1). 닿지 못하면 null. */
-	static Computed compute(long target, int months, int n, boolean invest, LongFunction<long[]> finals) {
-		long monthly = ScenarioMath.requiredMonthly(target, ScenarioMath.needed(n, REACH_BP), finals);
-		if (monthly < 0) {
-			return null;
-		}
-		long paid = monthly * months;
-		long[] values = finals.apply(monthly);
-		int chance = ScenarioMath.bp(ScenarioMath.reached(values, target), n);
+	/**
+	 * 기한 말 결과(§7-5). values는 경로별 기한 말 금액, paid는 넣은 돈, target은 목표 금액(없으면 null).
+	 * 투자가 없으면 확정형(FIXED), 있으면 범위(RANGE). highGain = 상위 10%(확정형은 확정 금액) − 넣은 돈.
+	 */
+	static Outcome outcome(long[] values, long paid, Long target, boolean invest) {
+		int n = values.length;
+		Integer chance = target == null ? null : ScenarioMath.bp(ScenarioMath.reached(values, target), n);
 		int loss = ScenarioMath.bp((int) Arrays.stream(values).filter(v -> v < paid).count(), n);
 		if (!invest) {
-			return new Computed(monthly, paid, values, new Outcome("FIXED", values[0], null, null, null, chance, loss));
+			return new Outcome("FIXED", values[0], null, null, null, values[0] - paid, chance, loss);
 		}
 		long[] sorted = values.clone();
 		Arrays.sort(sorted);
-		return new Computed(monthly, paid, values, new Outcome("RANGE", null, sorted[ScenarioMath.quantileIndex(n, 1000)],
-				sorted[ScenarioMath.quantileIndex(n, 5000)], sorted[ScenarioMath.quantileIndex(n, 9000)], chance, loss));
+		long high = sorted[ScenarioMath.quantileIndex(n, 9000)];
+		return new Outcome("RANGE", null, sorted[ScenarioMath.quantileIndex(n, 1000)], sorted[ScenarioMath.quantileIndex(n, 5000)], high,
+				high - paid, chance, loss);
 	}
 
-	private Scenario scenario(Plan plan, long target, int months, Picked picked, Map<String, BigDecimal[]> factors) {
+	/**
+	 * 달마다(0 = 시작, 1..기한) 경로별 금액의 하위 10%·중간값·상위 10%(§7-5 그래프). 그 달에 끝낸다고 보고 세금을 뺀 값이고,
+	 * 화면 그래프용이라 소수(double)로 계산해 원 단위 내림한다. 적금 이자는 만기 달에 붙는다. 마지막 달은 기한 말 결과(정확한 계산)로 바꾼다.
+	 */
+	static List<SeriesPoint> series(Inputs in, int n, Map<ProductType, List<BigDecimal[]>> itemReturns, int[][] draws, Outcome last) {
+		int months = in.months();
+		double[] fixed = fixedSeries(in);
+		double[][] totals = new double[months + 1][n];
+		for (int m = 0; m <= months; m++) {
+			Arrays.fill(totals[m], fixed[m]);
+		}
+		Map<ProductType, Long> mp = in.monthlyParts();
+		Map<ProductType, Long> st = in.startParts();
+		for (ProductType t : INVEST) {
+			Long amount = mp.get(t);
+			if (amount == null) {
+				continue;
+			}
+			List<BigDecimal[]> items = itemReturns.get(t);
+			double each = amount / items.size();
+			long typeStart = st.getOrDefault(t, 0L);
+			boolean taxed = t == ProductType.US_INDEX_ETF;
+			for (int i = 0; i < items.size(); i++) {
+				double[] r = toDouble(items.get(i));
+				double start = itemStart(typeStart, items.size(), i);
+				for (int p = 0; p < n; p++) {
+					int[] draw = draws[p];
+					double f = 0;
+					double g = 1;
+					totals[0][p] += start;
+					for (int m = 1; m <= months; m++) {
+						double ret = r[draw[(m - 1) / BLOCK] + (m - 1) % BLOCK];
+						f = (f + 1) * (1 + ret);
+						g = g * (1 + ret);
+						double value = each * f + start * g;
+						if (taxed) {
+							value -= Math.max(0, Math.floor((value - (each * m + start)) * 0.154));
+						}
+						totals[m][p] += value;
+					}
+				}
+			}
+		}
+		List<SeriesPoint> out = new ArrayList<>();
+		for (int m = 0; m <= months; m++) {
+			double[] col = totals[m];
+			Arrays.sort(col);
+			out.add(new SeriesPoint(m, (long) Math.floor(col[ScenarioMath.quantileIndex(n, 1000)]),
+					(long) Math.floor(col[ScenarioMath.quantileIndex(n, 5000)]), (long) Math.floor(col[ScenarioMath.quantileIndex(n, 9000)])));
+		}
+		if ("FIXED".equals(last.kind())) {
+			out.set(months, new SeriesPoint(months, last.fixedAmount(), last.fixedAmount(), last.fixedAmount()));
+		}
+		else {
+			out.set(months, new SeriesPoint(months, last.low(), last.median(), last.high()));
+		}
+		return out;
+	}
+
+	private static double[] toDouble(BigDecimal[] r) {
+		double[] out = new double[r.length];
+		for (int i = 0; i < r.length; i++) {
+			out[i] = r[i].doubleValue();
+		}
+		return out;
+	}
+
+	/** 적금·CMA 몫의 달마다 금액(모든 경로에서 같다). 적금은 만기 전에는 넣은 돈, 만기 달에 만기 금액, 그 뒤는 CMA로 이어 간다. */
+	static double[] fixedSeries(Inputs in) {
+		int months = in.months();
+		double[] out = new double[months + 1];
+		Map<ProductType, Long> mp = in.monthlyParts();
+		long sm = mp.getOrDefault(ProductType.SAVINGS, 0L);
+		if (sm > 0) {
+			int term = Math.min(in.savingsTerm(), months);
+			long matured = SavingsService.maturity(sm, term, in.savingsRate(), in.savingsCompound()).finalAmount();
+			long balance = 0;
+			long interest = 0;
+			for (int m = 1; m <= months; m++) {
+				if (m < term) {
+					out[m] += sm * m;
+				}
+				else if (m == term) {
+					balance = matured;
+					out[m] += matured;
+				}
+				else {
+					balance += sm;
+					long i = ScenarioMath.monthInterest(balance, CMA_RATE);
+					balance += i;
+					interest += i;
+					out[m] += balance - ScenarioMath.tax(interest);
+				}
+			}
+		}
+		long cmaStart = in.cmaStart();
+		long cmaMonthly = mp.getOrDefault(ProductType.CMA, 0L);
+		out[0] += cmaStart;
+		long balance = cmaStart;
+		long interest = 0;
+		for (int m = 1; m <= months; m++) {
+			balance += cmaMonthly;
+			long i = ScenarioMath.monthInterest(balance, CMA_RATE);
+			balance += i;
+			interest += i;
+			out[m] += balance - ScenarioMath.tax(interest);
+		}
+		return out;
+	}
+
+	private Scenario scenario(Plan plan, long start, long monthly, int months, Long target, Picked picked, Map<String, BigDecimal[]> factors,
+			Map<String, BigDecimal[]> growths, int[][] draws) {
 		boolean invest = plan.mix().keySet().stream().anyMatch(ProductType::invest);
 		int n = invest ? PATHS : 1;
 		Map<ProductType, List<BigDecimal[]>> itemFactors = new EnumMap<>(ProductType.class);
+		Map<ProductType, List<BigDecimal[]>> itemGrowths = new EnumMap<>(ProductType.class);
+		Map<ProductType, List<BigDecimal[]>> itemReturns = new EnumMap<>(ProductType.class);
 		for (ProductType t : INVEST) {
 			itemFactors.put(t, picked.items().get(t).stream().map(i -> factors.get(i.code())).toList());
+			itemGrowths.put(t, picked.items().get(t).stream().map(i -> growths.get(i.code())).toList());
+			itemReturns.put(t, picked.items().get(t).stream().map(i -> picked.returns().get(i.code())).toList());
 		}
 		FixedCandidate s = picked.saving();
-		Computed c = compute(target, months, n, invest, finals(plan.mix(), months, picked.savingTerm(), n, s.baseRate(), s.compound(), itemFactors));
-		if (c == null) {
-			List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), null)).toList();
-			return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), plan.parts(), ScenarioResultText.of(false, null, null, months),
-					mix, false, null, null, null, null, null);
-		}
-		Map<ProductType, Long> alloc = ScenarioMath.allocate(c.monthly(), plan.mix());
-		List<MixItem> mix = plan.mix().entrySet().stream().map(e -> new MixItem(e.getKey(), e.getValue(), alloc.get(e.getKey()))).toList();
+		Inputs in = new Inputs(plan.mix(), start, monthly, months, picked.savingTerm(), s.baseRate(), s.compound());
+		Outcome outcome = outcome(finals(in, n, itemFactors, itemGrowths), in.paid(), target, invest);
+		Map<ProductType, Long> mp = in.monthlyParts();
+		Map<ProductType, Long> st = in.startParts();
+		List<MixItem> mix = plan.mix().entrySet().stream()
+			.map(e -> new MixItem(e.getKey(), e.getValue(), mp.get(e.getKey()), st.getOrDefault(e.getKey(), 0L))).toList();
 		return new Scenario(plan.id(), plan.title(), plan.summary(), plan.explanation(), plan.parts(),
-				ScenarioResultText.of(true, c.monthly(), c.outcome(), months), mix, true, c.monthly(), c.paid(), c.outcome(), null, null);
+				ScenarioResultText.of(start, monthly, outcome, target, months), mix, monthly, in.paid(), outcome, series(in, n, itemReturns, draws, outcome));
 	}
 
 	private static List<Product> products(Picked picked) {

@@ -16,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * 목표 시나리오 유형 해설을 미리 만든다(#417, policies §7-6). 시세 수집 직후(MarketSyncJob)와 매시 10분에 돈다.
+ * 매시 10분에는 이어서 기한(6~60개월)마다 안정·균형·적극 조합도 미리 만든다(#431, runPlans). 조합은 기한마다 AI를 한 번 불러 시간이 걸려 시세 수집 뒤에는 돌리지 않는다.
  * 지금 자료(상품·금리·통계·만기 경우)에 맞는 해설이 없을 때만 AI를 부르므로, 자료가 바뀐 날 말고는 호출이 없다.
  * 호출은 서비스 전체 하루 상한에만 세고 회원 횟수와 상관없다. 검사(ProposalText)를 통과한 칸만 저장한다.
  */
@@ -34,9 +35,11 @@ public class GoalTypeRoleJob {
 	private final TypeRoleStore store;
 	private final ScenarioAiQuota quota;
 	private final GoalScenarioAiProperties aiProps;
+	private final ScenarioPlanStore plans;
 
 	GoalTypeRoleJob(GoalScenarioService service, GoalScenarioAiClient client, TypeRoleStore store, ScenarioAiQuota quota,
-			GoalScenarioAiProperties aiProps) {
+			GoalScenarioAiProperties aiProps, ScenarioPlanStore plans) {
+		this.plans = plans;
 		this.service = service;
 		this.client = client;
 		this.store = store;
@@ -51,6 +54,12 @@ public class GoalTypeRoleJob {
 		}
 		catch (RuntimeException e) {
 			log.warn("goal type roles failed: {}", e.getMessage());
+		}
+		try {
+			runPlans();
+		}
+		catch (RuntimeException e) {
+			log.warn("goal scenario plans failed: {}", e.getMessage());
 		}
 	}
 
@@ -93,6 +102,64 @@ public class GoalTypeRoleJob {
 		int deleted = store.deleteUnseen();
 		// 숫자만 남긴다. 상품 이름·문구는 남기지 않는다(문구는 옵션을 켠 경우 지운 문장만)
 		log.info("goal type roles: version={} targets={} made={} kept={} failed={} capped={} deleted={}", version, targets.size(), made, kept, failed,
+				capped, deleted);
+		return new Result(made, kept, failed, capped);
+	}
+
+	/**
+	 * 기한마다 안정·균형·적극 조합을 미리 만든다(#431). 지금 자료에 맞는 조합이 있으면 확인 시각만 고치고, 없으면 이 기한의 유형 해설 다섯 개가 모두 있을 때
+	 * AI를 한 번 불러 검사(Proposals.check: 개수·비중·단계 범위·문구)를 통과한 것만 저장한다. 해설이 아직 없으면 다음 실행으로 미룬다.
+	 */
+	public synchronized Result runPlans() {
+		if (!client.enabled() || client.planPromptVersion() == null || client.typeRolePromptVersion() == null) {
+			return new Result(0, 0, 0, false);
+		}
+		String version = client.planPromptVersion();
+		String roleVersion = client.typeRolePromptVersion();
+		List<GoalScenarioService.PlanTarget> targets = service.planTargets();
+		int made = 0;
+		int kept = 0;
+		int failed = 0;
+		boolean capped = false;
+		for (GoalScenarioService.PlanTarget target : targets) {
+			String fingerprint = target.subject().fingerprint();
+			if (plans.touch(version, target.months(), fingerprint)) {
+				kept++;
+				continue;
+			}
+			Map<ProductType, TypeRoleStore.Role> roles = new java.util.EnumMap<>(ProductType.class);
+			for (TypeRoleSubject r : target.roles()) {
+				store.find(roleVersion, r.type(), r.fingerprint()).ifPresent(role -> roles.put(r.type(), role));
+			}
+			if (roles.size() < target.roles().size()) {
+				failed++;
+				continue;
+			}
+			if (capped || !quota.reserveService()) {
+				capped = true;
+				continue;
+			}
+			try {
+				GoalScenarioAiClient.Result r = client.plan(JSON.writeValueAsString(target.subject().input()));
+				List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(r.content(), roles);
+				Proposals.Checked checked = Proposals.check(drafts, target.facts());
+				if (checked.plans() == null) {
+					log.warn("goal scenario plan rejected: months={} {}", target.months(), checked.logLine(aiProps.logRejected()));
+					failed++;
+					continue;
+				}
+				checked.removed().forEach(n -> log.warn("goal scenario plan sentence removed: months={} {}", target.months(), n.logLine(aiProps.logRejected())));
+				plans.save(version, target.months(), fingerprint, drafts, r.model());
+				made++;
+			}
+			catch (GoalScenarioAiClient.Failed | ScenarioProposer.Failed e) {
+				log.warn("goal scenario plan AI failed: months={} reason={}", target.months(), e instanceof GoalScenarioAiClient.Failed f ? f.reason() : e.getMessage());
+				failed++;
+			}
+		}
+		int deleted = plans.deleteUnseen();
+		// 숫자만 남긴다. 문구는 남기지 않는다(옵션을 켠 경우 걸린 문구만)
+		log.info("goal scenario plans: version={} targets={} made={} kept={} failed={} capped={} deleted={}", version, targets.size(), made, kept, failed,
 				capped, deleted);
 		return new Result(made, kept, failed, capped);
 	}

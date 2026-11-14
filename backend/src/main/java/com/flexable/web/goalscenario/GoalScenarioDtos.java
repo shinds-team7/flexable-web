@@ -1,6 +1,5 @@
 package com.flexable.web.goalscenario;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -11,11 +10,11 @@ final class GoalScenarioDtos {
 	private GoalScenarioDtos() {
 	}
 
-	/** 숫자 칸은 비어 있을 수 있어 래퍼 타입으로 받고 서비스가 검사한다. monthlyBudget(월 납입 가능액)은 선택이다(policies §7-1). */
-	record Request(String name, Long targetAmount, Integer months, Long monthlyBudget) {
-		Request(String name, Long targetAmount, Integer months) {
-			this(name, targetAmount, months, null);
-		}
+	/**
+	 * 숫자 칸은 비어 있을 수 있어 래퍼 타입으로 받고 서비스가 검사한다(policies §7-1).
+	 * 시작 금액·월 납입 가능액·기한은 필수, 목표 금액은 선택(null이면 목표 달성 추정을 계산하지 않는다).
+	 */
+	record Request(Long startAmount, Long monthlyBudget, Integer months, Long targetAmount) {
 	}
 
 	record Item(String code, String name, String company) {
@@ -35,70 +34,63 @@ final class GoalScenarioDtos {
 		}
 	}
 
-	record MixItem(ProductType type, int ratioPercent, Long monthly) {
-	}
-
-	record Outcome(String kind, Long fixedAmount, Long low, Long median, Long high, int chanceBp, int lossBp) {
+	/** 유형별 월 금액과 시작 금액의 몫. start는 #431 전 저장본이면 null. */
+	record MixItem(ProductType type, int ratioPercent, Long monthly, Long start) {
 	}
 
 	/**
-	 * explanationParts는 해설 네 칸(옛 재사용 조합·옛 저장본은 null), resultText는 서버가 만든 결과 문장(policies §7-5).
+	 * 기한 말 결과(§7-5). highGain = 상위 10%(확정형은 확정 금액) − 넣은 돈. chanceBp는 목표 금액이 있을 때만(없으면 null).
+	 * #431 전 저장본은 highGain이 없어 조회할 때 채운다.
+	 */
+	record Outcome(String kind, Long fixedAmount, Long low, Long median, Long high, Long highGain, Integer chanceBp, int lossBp) {
+	}
+
+	/** 그래프 한 점: month달 말(0은 시작) 경로별 금액의 하위 10%·중간값·상위 10%(§7-5). */
+	record SeriesPoint(int month, long low, long median, long high) {
+	}
+
+	/**
+	 * explanationParts는 해설 네 칸(옛 데이터는 null), resultText는 서버가 만든 결과 문장(policies §7-5).
 	 * 저장본 스냅샷에는 resultText를 넣지 않고 조회할 때 만든다(SavedScenarioService).
-	 * withinBudget·overBudgetBy는 월 납입 가능액과 필요 월 금액의 비교(§7-5). 가능액을 넣지 않았거나 옛 저장본이면 둘 다 null.
+	 * monthly는 이 시나리오의 월 금액(= 월 납입 가능액). #431 전 저장본은 그때의 필요 월 금액이고, 찾지 못했으면 monthly·paid·outcome이 null이다.
+	 * series는 달마다의 결과 범위(#431 전 저장본은 null).
 	 */
 	record Scenario(String id, String title, String summary, String explanation, Proposals.Parts explanationParts, String resultText,
-			List<MixItem> mix, boolean reachable, Long monthly, Long paid, Outcome outcome, Boolean withinBudget, Long overBudgetBy) {
+			List<MixItem> mix, Long monthly, Long paid, Outcome outcome, List<SeriesPoint> series) {
 		/** 같은 시나리오에 결과 문장만 바꿔 끼운다. */
 		Scenario withResultText(String text) {
-			return new Scenario(id, title, summary, explanation, explanationParts, text, mix, reachable, monthly, paid, outcome, withinBudget,
-					overBudgetBy);
-		}
-
-		/**
-		 * 월 납입 가능액과 비교한 값을 채운다(policies §7-5). 필요 월 금액이 가능액 이하면 안, 넘거나 월 금액을 찾지 못했으면 밖이다.
-		 * 밖이면 정해 둔 대안 문장(ScenarioBudget.OVER)을 해설의 "주의할 점과 맞는 사람" 칸 끝과 합친 해설 끝에 붙인다. budget이 null이면 그대로다.
-		 */
-		Scenario withBudget(Long budget) {
-			if (budget == null) {
-				return this;
-			}
-			boolean within = reachable && monthly != null && monthly <= budget;
-			if (within) {
-				return new Scenario(id, title, summary, explanation, explanationParts, resultText, mix, reachable, monthly, paid, outcome, true, null);
-			}
-			Proposals.Parts parts = explanationParts == null ? null
-					: new Proposals.Parts(explanationParts.reason(), explanationParts.roles(), explanationParts.comparison(),
-							ScenarioBudget.append(explanationParts.fit()));
-			String joined = parts == null ? ScenarioBudget.appendParagraph(explanation) : parts.joined();
-			return new Scenario(id, title, summary, joined, parts, resultText, mix, reachable, monthly, paid, outcome, false,
-					reachable && monthly != null ? monthly - budget : null);
+			return new Scenario(id, title, summary, explanation, explanationParts, text, mix, monthly, paid, outcome, series);
 		}
 	}
 
-	/** monthlyBudget은 입력한 월 납입 가능액(없으면 null). */
-	record Result(String resultId, String name, long targetAmount, int months, Long monthlyBudget, String proposer, String fallbackReason,
-			LocalDate asOf, String returnsFrom, String returnsTo, int paths, long seed, BigDecimal reachShare,
-			List<Product> products, List<Scenario> scenarios, List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage,
-			boolean aiReused) {
+	/** targetAmount는 입력한 목표 금액(없으면 null). */
+	record Result(String resultId, long startAmount, long monthlyBudget, int months, Long targetAmount, String proposer, String fallbackReason,
+			LocalDate asOf, String returnsFrom, String returnsTo, int paths, long seed, List<Product> products, List<Scenario> scenarios,
+			List<String> assumptions, String notice, boolean isSample, AiUsage aiUsage, boolean aiReused) {
+		Result withId(String id) {
+			return new Result(id, startAmount, monthlyBudget, months, targetAmount, proposer, fallbackReason, asOf, returnsFrom, returnsTo, paths, seed,
+					products, scenarios, assumptions, notice, isSample, aiUsage, aiReused);
+		}
 	}
 
-	/** 회원의 AI 조합 횟수(KST 하루). 비회원이면 응답에서 null. */
+	/** 회원의 시나리오 보기 횟수(KST 하루). 비회원이면 응답에서 null. */
 	record AiUsage(int limitPerDay, int remainingToday) {
 	}
 
-	record SaveRequest(String resultId, String scenarioId) {
+	/** name은 저장할 때 붙이는 이름(1~20자). */
+	record SaveRequest(String resultId, String scenarioId, String name) {
 	}
 
-	record SavedSummary(long id, OffsetDateTime savedAt, String name, long targetAmount, int months, LocalDate asOf, String title,
-			boolean reachable, Long monthly, String kind) {
+	/** monthlyBudget은 월 금액(#431 전 저장본은 저장한 플랜의 필요 월 금액, 찾지 못했으면 null). */
+	record SavedSummary(long id, OffsetDateTime savedAt, String name, long startAmount, Long monthlyBudget, int months, Long targetAmount,
+			LocalDate asOf, String title, String kind) {
 	}
 
 	record SavedList(List<SavedSummary> items, int limit) {
 	}
 
-	/** monthlyBudget은 저장할 때 넣은 월 납입 가능액(없었거나 옛 저장본이면 null). */
-	record Saved(long id, OffsetDateTime savedAt, String name, long targetAmount, int months, Long monthlyBudget, String proposer, LocalDate asOf,
-			String returnsFrom, String returnsTo, int paths, BigDecimal reachShare, List<Product> products, Scenario scenario,
-			List<Scenario> alternatives, List<String> assumptions, String notice, boolean isSample) {
+	record Saved(long id, OffsetDateTime savedAt, String name, long startAmount, Long monthlyBudget, int months, Long targetAmount, String proposer,
+			LocalDate asOf, String returnsFrom, String returnsTo, int paths, List<Product> products, Scenario scenario, List<Scenario> alternatives,
+			List<String> assumptions, String notice, boolean isSample) {
 	}
 }

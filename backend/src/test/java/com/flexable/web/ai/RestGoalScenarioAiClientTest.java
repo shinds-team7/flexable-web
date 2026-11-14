@@ -44,12 +44,12 @@ class RestGoalScenarioAiClientTest {
 			.andExpect(jsonPath("$.store").value(false)).andExpect(jsonPath("$.user").doesNotExist())
 			.andExpect(jsonPath("$.response_format.json_schema.strict").value(true))
 			.andExpect(jsonPath("$.response_format.json_schema.schema.properties.scenarios.items.properties.mix.required.length()").value(5))
-			.andExpect(jsonPath("$.messages[1].content").value("{\"targetAmount\":15000000}"))
+			.andExpect(jsonPath("$.messages[1].content").value("{\"months\":12}"))
 			.andRespond(withSuccess("""
 				{"choices":[{"finish_reason":"stop","message":{"content":"{\\"scenarios\\":[]}","refusal":null}}],
 				 "usage":{"prompt_tokens":300,"completion_tokens":200}}
 				""", MediaType.APPLICATION_JSON));
-		var result = client.propose("{\"targetAmount\":15000000}");
+		var result = client.plan("{\"months\":12}");
 		assertThat(result.content()).isEqualTo("{\"scenarios\":[]}");
 		assertThat(result.promptTokens()).isEqualTo(300);
 		server.verify();
@@ -60,15 +60,15 @@ class RestGoalScenarioAiClientTest {
 		server.expect(requestTo("https://example.com/v1/chat/completions")).andRespond(withSuccess("""
 				{"choices":[{"finish_reason":"length","message":{"content":"{}","refusal":null}}]}
 				""", MediaType.APPLICATION_JSON));
-		assertThatThrownBy(() -> client.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
+		assertThatThrownBy(() -> client.plan("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
 		server.reset();
 		server.expect(requestTo("https://example.com/v1/chat/completions")).andRespond(withServerError().body("secret-body"));
-		assertThatThrownBy(() -> client.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class)
+		assertThatThrownBy(() -> client.plan("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class)
 			.hasMessage("AI_FAILED").hasNoCause();
 	}
 
 	private void assertReason(String reason) {
-		assertThatThrownBy(() -> client.propose("{}")).isInstanceOfSatisfying(GoalScenarioAiClient.Failed.class, e -> {
+		assertThatThrownBy(() -> client.plan("{}")).isInstanceOfSatisfying(GoalScenarioAiClient.Failed.class, e -> {
 			assertThat(e.reason()).isEqualTo(reason);
 			assertThat(e.getMessage()).isEqualTo("AI_FAILED");
 			assertThat(e).hasNoCause();
@@ -100,93 +100,34 @@ class RestGoalScenarioAiClientTest {
 		assertReason("BAD_RESPONSE");
 	}
 
+	/** #431: 기한마다 미리 만드는 조합. 금액 없이 기한·통계만 받고, 단계 범위(안정 0~30·균형 31~60·적극 61~100)를 안내한다. */
 	@Test
-	void 프롬프트_v12는_v11_내용을_유지하고_위험_낮은_순서를_부탁한다() {
-		assertThat(RestGoalScenarioAiClient.PROMPT_VERSION).isEqualTo("goal-scenario-v12");
-		// 재사용 조합의 버전 비교에 쓰는 값(#406)
-		assertThat(client.promptVersion()).isEqualTo("goal-scenario-v12");
-		assertThat(RestGoalScenarioAiClient.PROMPT).startsWith("goal-scenario-v12.")
-			// 위험이 낮은 것부터 s1·s2·s3(서버도 같은 순서로 다시 줄 세운다)
-			.contains("시나리오는 위험이 낮은 것부터 내요. s1은 SAVINGS·CMA 비중 합이 가장 높은 가장 안정적인 조합")
-			// #406: 기한 최대 5년. 4~5년 fit 안내만 더하고 아래 v10 문구(유형별 칸·분량·모범 예시·전망 규칙)는 그대로다
-			.contains("기한이 4~5년이면 기간이 길어 떨어진 뒤 회복을 기다릴 여유가 더 있지만, 마지막 1~2년에는 투자 몫을 적금·CMA로 옮기는 시점")
-			// #398: 만기 뒤 남은 달, 기한 말 하락 조건문, 기한 길이별 주의점, 서버가 보여 주는 숫자, 늘린 부정문 예시
-			.contains("남은 달의 적금 몫을 CMA 예시 금리로 이어 가고")
-			.contains("기한 말 근처에 오면 기한 말 금액이 넣은 돈보다 적을 수 있어요")
-			.contains("기한이 1년 이하면").contains("기한이 2~3년이면")
+	void 프롬프트_v14는_금액_없이_단계_범위_안에서_비중을_정한다() {
+		assertThat(client.planPromptVersion()).isEqualTo("goal-scenario-v14");
+		assertThat(RestGoalScenarioAiClient.PLAN_PROMPT).startsWith("goal-scenario-v14.")
+			.contains("s1 안정: 투자 몫 0 이상 30 이하. s2 균형: 투자 몫 31 이상 60 이하. s3 적극: 투자 몫 61 이상 100 이하.")
+			.contains("기한이 짧을수록 투자 몫을 범위의 아래쪽으로")
+			.contains("금액은 입력에 없고 쓰지 않아요")
+			.contains("금액(매달 넣을 돈, 시작 금액, 목표 금액, 기한 말 금액)·수익률·확률·배수는 쓰지 않아요")
+			.contains("유형 하나하나의 설명이나 업황 전망을 되풀이하지 말고")
+			.contains("기한이 1년 이하면").contains("기한이 2~3년이면").contains("마지막 1~2년")
 			.contains("'적금·CMA 80%'처럼 이 시나리오의 유형 이름을 나열한 바로 뒤")
-			.contains("서버가 계산 결과 문장으로 따로 보여 줘요")
-			.contains("'매달 넣을 돈과 목표에 닿는 비율은 계산 결과에서 확인해요'")
-			.contains("'수익을 보장받지 못해요'")
-			.doesNotContain("23%처럼 정수로 줄이지 않아요")
-			.contains("monthlyBudget은 사용자가 매달 넣을 수 있다고 한 돈")
-			.contains("가능액 안에 든다거나 넘는다고 단정하지 않아요")
-			.contains("목표 금액, 월 납입 가능액,")
-			.contains("정확히 세 개")
-			// v10(#402): 유형마다 넣은 이유·근거·전망 칸, 칸별 분량, 비중 0인 유형은 빈 칸, 전망에는 숫자 없음
-			.contains("typeRoles: 유형 다섯 개(SAVINGS·CMA·KR_INDEX_ETF·US_INDEX_ETF·KOSPI_TOP5)마다 reason·basis·outlook 세 칸")
-			.contains("비중이 0인 유형은 세 칸을 모두 빈 문자열(\"\")로 둬요")
-			.contains("reason(넣은 이유): ").contains("basis(근거): 두 문장").contains("outlook(전망): 두 문장")
-			.contains("'다만 ~하면 줄어들 수 있어요'처럼 그 전망이 어긋날 때의 위험")
-			.contains("전망 문장에는 숫자를 쓰지 않아요")
-			// 화면이 문단 첫머리의 유형 이름으로 소제목을 붙인다
-			.contains("'적금은', 'CMA는', '국내 지수 ETF는', '미국 지수 ETF는', '코스피 대형주는'처럼 유형 이름으로 시작해요")
-			// 유형별 모범 예시(다섯 유형 모두, 숫자 자리는 〈 〉)
-			.contains("아래는 유형별 모범 예시예요")
-			.contains("reason: 적금은 ").contains("reason: CMA는 ").contains("reason: 국내 지수 ETF는 ").contains("reason: 미국 지수 ETF는 ")
-			.contains("reason: 코스피 대형주는 ")
-			.contains("국내 지수 ETF는 〈비중〉%로, 지난 60개월 월 평균 수익률은 〈월 평균〉%이고 월 변동폭은 〈월 변동폭〉%예요.")
-			.doesNotContain("roles: ")
-			.doesNotContain("앞으로 오르거나 내릴지 예측하지 않아요")
-			.contains("alternatives")
-			.contains("금리가 정해져 있어요")
-			.contains("'원금이 보장돼요', '보장된 금리', '확실한 수익'이라고 쓰지 않아요")
-			.contains("reason: ").contains("typeRoles: ").contains("comparison: ").contains("fit: ")
-			.contains("'나머지 70%', '둘을 합쳐 30%'처럼 합쳤다는 말 바로 뒤나,")
 			.contains("'지난 60개월 최대 하락 23.45%'")
-			.contains("앞으로의 수익을 예상하는 말처럼 쓰지 않아요")
-			.contains("수치 바로 앞에 '월 평균', '월 변동폭', '최대 하락' 중 맞는 말을 함께 써요")
-			.contains("'목표 수익'은 통계 수치와 같은 문장에 쓰지 않아요")
-			.contains("다른 시나리오의 비중은 숫자로 쓰지 말고")
-			.doesNotContain("최대 삼백 자")
-			.doesNotContain("테마");
+			.contains("'수익을 보장받지 못해요'")
+			.contains("'목표 금액을 보장해요'라고 쓰지 않아요")
+			.contains("정확히 세 개")
+			.doesNotContain("typeRoles").doesNotContain("monthlyBudget").doesNotContain("targetAmount");
 	}
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void 스키마는_해설_칸과_유형별_칸을_필수로_받는다() {
+	void 스키마는_해설_세_칸과_비중을_필수로_받고_유형별_칸은_없다() {
 		var scenarios = (java.util.Map<String, Object>) ((java.util.Map<String, Object>) RestGoalScenarioAiClient.schema().get("properties")).get("scenarios");
 		var scenario = (java.util.Map<String, Object>) scenarios.get("items");
 		var required = (java.util.List<String>) scenario.get("required");
-		assertThat(required).containsExactlyInAnyOrder("id", "title", "summary", "reason", "typeRoles", "comparison", "fit", "mix");
+		assertThat(required).containsExactlyInAnyOrder("id", "title", "summary", "reason", "comparison", "fit", "mix");
 		var props = (java.util.Map<String, Object>) scenario.get("properties");
 		assertThat(props).containsOnlyKeys(required);
-		// typeRoles: 유형 다섯 개 모두 필수, 유형마다 reason·basis·outlook 필수(v10, #402)
-		var typeRoles = (java.util.Map<String, Object>) props.get("typeRoles");
-		assertThat((java.util.List<String>) typeRoles.get("required")).containsExactly("SAVINGS", "CMA", "KR_INDEX_ETF", "US_INDEX_ETF", "KOSPI_TOP5");
-		assertThat(typeRoles).containsEntry("additionalProperties", false);
-		var savings = (java.util.Map<String, Object>) ((java.util.Map<String, Object>) typeRoles.get("properties")).get("SAVINGS");
-		assertThat((java.util.List<String>) savings.get("required")).containsExactly("reason", "basis", "outlook");
-		assertThat(savings).containsEntry("additionalProperties", false);
-	}
-
-	/** #417: 짧은 길(v13)은 유형별 칸 없이 받고 응답 상한이 3000이다. 유형 해설을 되풀이하지 말라고 안내한다. */
-	@Test
-	@SuppressWarnings("unchecked")
-	void 짧은_프롬프트_v13은_유형별_칸_없이_받는다() {
-		assertThat(client.shortPromptVersion()).isEqualTo("goal-scenario-v13");
-		assertThat(RestGoalScenarioAiClient.SHORT_PROMPT).startsWith("goal-scenario-v13.").doesNotContain("typeRoles")
-			.contains("유형 하나하나의 설명이나 업황 전망을 되풀이하지 말고").contains("마지막 1~2년").contains("'목표 금액을 보장해요'라고 쓰지 않아요");
-		server.expect(requestTo("https://example.com/v1/chat/completions"))
-			.andExpect(jsonPath("$.max_completion_tokens").value(3000))
-			.andExpect(jsonPath("$.messages[0].content").value(RestGoalScenarioAiClient.SHORT_PROMPT))
-			.andExpect(jsonPath("$.response_format.json_schema.schema.properties.scenarios.items.properties.typeRoles").doesNotExist())
-			.andExpect(jsonPath("$.response_format.json_schema.schema.properties.scenarios.items.required.length()").value(7))
-			.andRespond(withSuccess("""
-				{"choices":[{"finish_reason":"stop","message":{"content":"{}","refusal":null}}]}
-				""", MediaType.APPLICATION_JSON));
-		client.proposeShort("{}");
-		server.verify();
 	}
 
 	/** #417: 유형 해설은 유형 하나씩, 그 유형의 모범 예시만 붙여 세 칸으로 받는다. */
@@ -210,13 +151,14 @@ class RestGoalScenarioAiClientTest {
 	}
 
 	@Test
-	void 응답_토큰_상한은_6000이다() {
+	void 응답_토큰_상한은_3000이다() {
 		server.expect(requestTo("https://example.com/v1/chat/completions"))
-			.andExpect(jsonPath("$.max_completion_tokens").value(6000))
+			.andExpect(jsonPath("$.max_completion_tokens").value(3000))
+			.andExpect(jsonPath("$.messages[0].content").value(RestGoalScenarioAiClient.PLAN_PROMPT))
 			.andRespond(withSuccess("""
 				{"choices":[{"finish_reason":"stop","message":{"content":"{}","refusal":null}}]}
 				""", MediaType.APPLICATION_JSON));
-		client.propose("{}");
+		client.plan("{}");
 		server.verify();
 	}
 
@@ -227,16 +169,16 @@ class RestGoalScenarioAiClientTest {
 				{"choices":[{"finish_reason":"stop","message":{"content":"{\\"scenarios\\":[{\\"fit\\":\\"secret-text\\"}]}","refusal":null}}],
 				 "usage":{"prompt_tokens":321,"completion_tokens":4567}}
 				""", MediaType.APPLICATION_JSON));
-		client.propose("{\"targetAmount\":15000000,\"months\":12,\"monthlyBudget\":500000}");
-		assertThat(output).containsPattern("goal scenario AI call: version=goal-scenario-v12 promptTokens=321 completionTokens=4567 elapsedMs=\\d+")
-			.doesNotContain("15000000").doesNotContain("500000").doesNotContain("secret-text").doesNotContain("fake-test-key");
+		client.plan("{\"months\":12,\"stats\":[{\"description\":\"secret-stat\"}]}");
+		assertThat(output).containsPattern("goal scenario AI call: version=goal-scenario-v14 promptTokens=321 completionTokens=4567 elapsedMs=\\d+")
+			.doesNotContain("secret-stat").doesNotContain("secret-text").doesNotContain("fake-test-key");
 	}
 
 	@Test
 	@ExtendWith(OutputCaptureExtension.class)
 	void 실패한_호출은_호출_로그를_남기지_않는다(CapturedOutput output) {
 		server.expect(requestTo("https://example.com/v1/chat/completions")).andRespond(withServerError().body("secret-body"));
-		assertThatThrownBy(() -> client.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
+		assertThatThrownBy(() -> client.plan("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
 		assertThat(output).doesNotContain("goal scenario AI call").doesNotContain("secret-body");
 	}
 
@@ -244,6 +186,6 @@ class RestGoalScenarioAiClientTest {
 	void 키가_없으면_부르지_않는다() {
 		var none = new RestGoalScenarioAiClient(RestClient.builder(), new OpenAiProperties("", "https://example.com/v1", "gpt-4o-mini"));
 		assertThat(none.enabled()).isFalse();
-		assertThatThrownBy(() -> none.propose("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
+		assertThatThrownBy(() -> none.plan("{}")).isInstanceOf(GoalScenarioAiClient.Failed.class);
 	}
 }

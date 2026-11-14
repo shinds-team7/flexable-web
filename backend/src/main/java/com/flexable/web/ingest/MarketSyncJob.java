@@ -112,6 +112,10 @@ public class MarketSyncJob implements ApplicationRunner {
 		if (virtualSimRules != null) {
 			step("가상 시뮬레이션 룰셋", virtualSimRules::runOnce);
 		}
+		// 기한별 목표 시나리오 조합은 기한마다 AI를 불러 오래 걸릴 수 있어 맨 뒤에 만든다(#431). 자료가 그대로면 AI를 부르지 않는다
+		if (goalTypeRoles != null) {
+			step("목표 시나리오 기한별 조합", goalTypeRoles::runPlans);
+		}
 	}
 
 	private static void step(String name, Runnable task) {

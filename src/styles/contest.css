@@ -608,7 +608,7 @@
 .contest-weekdays li.today small { color:var(--color-brand-text); font-weight:700; }
 @media (max-width:420px) { .contest-weekdays small span { display:none; } .contest-weekdays b { font-size:10px; } }
 @media (max-width:640px) { .contest-metrics { grid-template-columns:repeat(2, minmax(0,1fr)); } .contest-metrics .contest-stat:first-child { grid-column:1 / -1; } }
-/* 오늘 할 일 무게: 오늘 평균 숫자·목표 막대·[판 시작]을 키워 오른쪽 열과 높이를 내용으로 맞춘다(빈칸으로 늘리지 않게) */
+/* 오늘 할 일 무게: 오늘 평균 숫자·목표 막대·[대회 입장]을 키워 오른쪽 열과 높이를 내용으로 맞춘다(빈칸으로 늘리지 않게) */
 .contest-today-goal { gap:calc(var(--density-gap)/3); }
 .contest-today-goal > p { align-items:baseline; }
 .contest-today-goal > p b { font-size:28px; font-weight:800; letter-spacing:-.6px; }
@@ -616,7 +616,7 @@
 .contest-play-btn { min-height:56px; min-width:180px; font-size:17px; }
 .contest-left p b { font-size:22px; }
 .contest-left-bar { height:8px; }
-/* 오른쪽 열을 조금 줄여 오늘 할 일과 내용 높이를 맞춘다(1280×800에서 [판 시작]이 접는 선 위에 오게) */
+/* 오른쪽 열을 조금 줄여 오늘 할 일과 내용 높이를 맞춘다(1280×800에서 [대회 입장]이 접는 선 위에 오게) */
 .contest-metrics .contest-stat { padding:calc(var(--density-gap)/2) calc(var(--density-gap)*.75); gap:calc(var(--density-gap)/12); }
 .contest-metrics .contest-stat-week { gap:calc(var(--density-gap)/4); }
 .contest-stat-week .contest-week { margin:calc(var(--density-gap)/6) 0; }

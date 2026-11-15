@@ -260,10 +260,9 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   /** 일반 판 중간 종료: 세션은 지금처럼 끝내되 화면은 마지막 스냅숏을 남긴다. 설정 화면으로는 [다시 설정하기]를 눌러야 간다 */
   const stopEarly = () => {
     generation.current++; setPlaying(false); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
-    // 구간 재생 중이면 남은 봉을 마저 그린 것으로 확정해 마지막 응답의 봉·선택·자산을 함께 보인다. 그 응답이 이미 끝난 판이면 완주 결과로 보인다
-    const last = latest.current;
-    setReveal(null); setShown(last?.candles.length ?? 0);
-    setStopped(last?.status !== 'FINISHED');
+    // 구간 재생 중이면 남은 봉을 마저 그린 것으로 확정해 마지막 응답의 봉·선택·자산을 함께 보인다. 그 응답이 이미 끝난 판이어도 사용자가 종료했으니 중간 종료로 보인다
+    setReveal(null); setShown(latest.current?.candles.length ?? 0);
+    setStopped(true);
     const old = token.current; token.current = null;
     if (old) void virtualSim('end', { sessionToken: old }).catch(() => {});
   };
@@ -290,7 +289,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   };
 
   // 마지막 봉까지 다 그린 뒤(구간 재생이 끝난 뒤) 한 번 내린다. 숨긴 탭에서는 내리지 않는다
-  const done = !revealing && snapshot?.status === 'FINISHED';
+  const done = !revealing && !stopped && snapshot?.status === 'FINISHED';
   // 대회 판은 완주하면 서버가 잔액을 바꾼다. 대회 화면의 내 기록을 다시 불러온다
   useEffect(() => { if (done) contestRef.current?.onSettled(); }, [done]);
   useEffect(() => {
@@ -318,7 +317,8 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   const candles = snapshot ? snapshot.candles.slice(0, shown) : [];
   const portfolio = revealing ? (snapshot!.frames[shown - reveal!.from - 1]?.portfolio ?? reveal!.prev.portfolio) : snapshot?.portfolio;
   const decisions = revealing ? reveal!.prev.decisions : snapshot?.decisions ?? [];
-  const finished = !revealing && snapshot?.status === 'FINISHED';
+  // 중간 종료가 완주보다 먼저다(마지막 응답이 끝난 판이어도 완주 결과 화면으로 바꾸지 않는다)
+  const finished = !revealing && !stopped && snapshot?.status === 'FINISHED';
   const bands: EventBand[] = decisions.map((r, i) => ({ n: i + 1, from: r.date, to: r.outcomeDate }));
   const restartLabel = contest ? (finished ? '대회 화면으로 돌아가기' : '판 그만하기') : finished ? '다른 가상 종목으로 다시 하기' : stopped ? '다시 설정하기' : '시뮬레이션 종료';
   // 일반 판의 진행 중 [시뮬레이션 종료]는 기록을 남기는 중간 종료, 그 밖(완주·중간 종료 뒤·대회 판)은 지금처럼 설정·대회 화면으로

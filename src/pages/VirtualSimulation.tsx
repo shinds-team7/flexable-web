@@ -260,7 +260,10 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   /** 일반 판 중간 종료: 세션은 지금처럼 끝내되 화면은 마지막 스냅숏을 남긴다. 설정 화면으로는 [다시 설정하기]를 눌러야 간다 */
   const stopEarly = () => {
     generation.current++; setPlaying(false); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
-    setStopped(true);
+    // 구간 재생 중이면 남은 봉을 마저 그린 것으로 확정해 마지막 응답의 봉·선택·자산을 함께 보인다. 그 응답이 이미 끝난 판이면 완주 결과로 보인다
+    const last = latest.current;
+    setReveal(null); setShown(last?.candles.length ?? 0);
+    setStopped(last?.status !== 'FINISHED');
     const old = token.current; token.current = null;
     if (old) void virtualSim('end', { sessionToken: old }).catch(() => {});
   };

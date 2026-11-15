@@ -424,7 +424,7 @@ function StatusBanner({ entry }: { entry: ContestEntry }) {
   return <div className={`contest-banner contest-enter-in ${up ? 'up' : 'down'}`} role="status"><b>{up ? '▲ 승급' : '▼ 강등'}</b> 주 점수 {points(change.weekPoints)}로 {BOARD_LABEL[change.from]}에서 {BOARD_LABEL[change.to]}로 {up ? '올라왔어요' : '내려왔어요'}. 잔액은 새 리그의 대회 시드머니로 다시 시작했어요. <small>{dateText(change.at)}</small></div>;
 }
 
-/** 오늘 할 일(참가 중): [판 시작] · 남은 판 · 오늘 매매 성과 평균과 목표 막대. 청산·오늘 판 소진이면 끝난 상태를 보인다 */
+/** 오늘 할 일(참가 중): [대회 입장] · 남은 판 · 오늘 매매 성과 평균과 목표 막대. 청산·오늘 판 소진이면 끝난 상태를 보인다 */
 function TodayCard({ info, entry, onPlay, busy }: { info: ContestInfo; entry: ContestEntry; onPlay: () => void; busy: boolean }) {
   const mounted = useMounted();
   const t = entry.today, rules = info.rules, day = dayPoints(rules);
@@ -451,7 +451,7 @@ function TodayCard({ info, entry, onPlay, busy }: { info: ContestInfo; entry: Co
     {entry.liquidated ? <div className="contest-cta-done down" role="status"><b>청산: 이번 대회는 여기까지예요</b><span>잔액이 {money(rules.liquidationBelow)} 미만으로 끝났어요. 지금 리그·점수로 순위에 남고, 다음 대회는 {nextStart} 00시에 배치고사로 시작해요.</span></div>
       : t.roundsLeft === 0 ? <div className="contest-cta-done" role="status"><b>오늘 {rules.roundsPerDay}판을 모두 했어요</b><span>내일 00시에 다시 할 수 있어요. 오늘 하루 점수는 자정이 지나 모든 판이 정산되면 정해요.</span></div>
       : <div className="contest-play">
-        <button className="btn btn-primary contest-play-btn" type="button" onClick={onPlay} disabled={busy}>{entry.activeRound ? '새 판 시작' : '판 시작'}</button>
+        <button className="btn btn-primary contest-play-btn" type="button" onClick={onPlay} disabled={busy}>{entry.activeRound ? '새 판 시작' : '대회 입장'}</button>
         <div className="contest-left">
           <p><b>{t.roundsLeft}판 남음</b><span>/ {rules.roundsPerDay}판</span></p>
           {/* 남은 판 막대 하나(서버 roundsLeft·roundsPerDay를 비율로 보여 주기만 한다) */}

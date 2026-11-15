@@ -127,6 +127,8 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   const [quantity, setQuantity] = useState('');
   // 선택 창을 접어 차트를 다시 볼 수 있게 한다(고른 값은 그대로 둔다)
   const [collapsed, setCollapsed] = useState(false);
+  // 일반 판을 중간에 끝낸 상태: 세션은 끝냈고 마지막 서버 응답(스냅숏)만 남겨 그때까지의 기록을 보인다(브라우저에 저장하지 않는다)
+  const [stopped, setStopped] = useState(false);
   const token = useRef<string | null>(null);
   const pending = useRef<Pending | null>(null);
   const inFlight = useRef(false);
@@ -170,7 +172,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
     else { setReveal(null); setShown(next?.candles.length ?? 0); }
   }, []);
   const revealing = !!reveal && !!snapshot && shown < snapshot.candles.length;
-  const visibleEvent = revealing ? null : snapshot?.event ?? null;
+  const visibleEvent = revealing || stopped ? null : snapshot?.event ?? null;
   // 숨겨진 화면(다른 탭·대회 밖)에 열린 모달이 남으면 top layer에서 페이지를 막으니, 보이는 동안만 연다
   const modalOpen = active && !!visibleEvent && !collapsed;
   useEffect(() => {
@@ -221,9 +223,9 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   }, [show]);
 
   useEffect(() => {
-    if (!active || !playing || !snapshot || error || revealing || busy || snapshot.status !== 'RUNNING' || document.hidden) return;
+    if (!active || !playing || !snapshot || stopped || error || revealing || busy || snapshot.status !== 'RUNNING' || document.hidden) return;
     void send({ path: 'step', body: { sessionToken: token.current, commandId: crypto.randomUUID(), expectedVersion: snapshot.version } });
-  }, [active, playing, busy, snapshot, revealing, error, send]);
+  }, [active, playing, busy, snapshot, stopped, revealing, error, send]);
   useEffect(() => {
     if (!playing || !revealing || error) return;
     // 구간 전체가 고른 속도의 시간(1배 3초)에 끝나도록 경과 시간으로 그릴 봉 수를 정한다(일시정지하거나 속도를 바꾸면 그 자리에서 이어서)
@@ -240,7 +242,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   }, [playing, revealing, error, snapshot, speed]);
 
   const reset = () => {
-    generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
+    generation.current++; setPlaying(false); show(null); setStopped(false); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
     setActiveBand(null); setPinnedBand(null); focusSetup.current = true; setRound(null);
     const old = token.current; token.current = null;
     const play = contestRef.current;
@@ -250,8 +252,17 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   };
   /** 대회 판: 끝난 판을 닫고 같은 화면의 판 시작 대기 화면으로 돌아간다(끝난 판은 이미 정산됨). 다음 판은 [판 시작]을 눌러야 시작한다 */
   const nextRound = () => {
-    generation.current++; setPlaying(false); show(null); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
+    generation.current++; setPlaying(false); show(null); setStopped(false); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
     setActiveBand(null); setPinnedBand(null); setRound(null); focusSetup.current = true;
+    const old = token.current; token.current = null;
+    if (old) void virtualSim('end', { sessionToken: old }).catch(() => {});
+  };
+  /** 일반 판 중간 종료: 세션은 지금처럼 끝내되 화면은 마지막 스냅숏을 남긴다. 설정 화면으로는 [다시 설정하기]를 눌러야 간다 */
+  const stopEarly = () => {
+    generation.current++; setPlaying(false); setError(''); setBusy(false); inFlight.current = false; pending.current = null;
+    // 구간 재생 중이면 남은 봉을 마저 그린 것으로 확정해 마지막 응답의 봉·선택·자산을 함께 보인다. 그 응답이 이미 끝난 판이어도 사용자가 종료했으니 중간 종료로 보인다
+    setReveal(null); setShown(latest.current?.candles.length ?? 0);
+    setStopped(true);
     const old = token.current; token.current = null;
     if (old) void virtualSim('end', { sessionToken: old }).catch(() => {});
   };
@@ -278,7 +289,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   };
 
   // 마지막 봉까지 다 그린 뒤(구간 재생이 끝난 뒤) 한 번 내린다. 숨긴 탭에서는 내리지 않는다
-  const done = !revealing && snapshot?.status === 'FINISHED';
+  const done = !revealing && !stopped && snapshot?.status === 'FINISHED';
   // 대회 판은 완주하면 서버가 잔액을 바꾼다. 대회 화면의 내 기록을 다시 불러온다
   useEffect(() => { if (done) contestRef.current?.onSettled(); }, [done]);
   useEffect(() => {
@@ -306,9 +317,12 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
   const candles = snapshot ? snapshot.candles.slice(0, shown) : [];
   const portfolio = revealing ? (snapshot!.frames[shown - reveal!.from - 1]?.portfolio ?? reveal!.prev.portfolio) : snapshot?.portfolio;
   const decisions = revealing ? reveal!.prev.decisions : snapshot?.decisions ?? [];
-  const finished = !revealing && snapshot?.status === 'FINISHED';
+  // 중간 종료가 완주보다 먼저다(마지막 응답이 끝난 판이어도 완주 결과 화면으로 바꾸지 않는다)
+  const finished = !revealing && !stopped && snapshot?.status === 'FINISHED';
   const bands: EventBand[] = decisions.map((r, i) => ({ n: i + 1, from: r.date, to: r.outcomeDate }));
-  const restartLabel = contest ? (finished ? '대회 화면으로 돌아가기' : '판 그만하기') : finished ? '다른 가상 종목으로 다시 하기' : '시뮬레이션 종료하고 다시 설정';
+  const restartLabel = contest ? (finished ? '대회 화면으로 돌아가기' : '판 그만하기') : finished ? '다른 가상 종목으로 다시 하기' : stopped ? '다시 설정하기' : '시뮬레이션 종료';
+  // 일반 판의 진행 중 [시뮬레이션 종료]는 기록을 남기는 중간 종료, 그 밖(완주·중간 종료 뒤·대회 판)은 지금처럼 설정·대회 화면으로
+  const endOrReset = !contest && !finished && !stopped ? stopEarly : reset;
   // 대회 판의 정산 값(끝 잔액·유지 비교·매매 성과)은 서버가 마지막 진행 응답에 함께 주지만, 남은 봉을 다 그린 뒤에만 보인다
   const settledContest = finished ? snapshot?.contest : null;
   const endBalance = settledContest?.endBalance ?? null;
@@ -396,26 +410,27 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           </dl>}
           <p className="vsim-intro"><Written sample={sample} /> {snapshot.company.intro}</p>
           <p className="practice-muted">처음 50%로 주식을 사고 나머지는 현금으로 시작했어요.</p>
+          {stopped && <p className="practice-muted">중간에 종료한 시뮬레이션이에요. 그 뒤 거래일은 진행하지 않았고, 기록은 이 화면을 떠나면 사라져요.</p>}
           {contest && !finished && <p className="practice-muted">그만두면 남은 사건은 유지로 보고 끝까지 계산해 잔액에 반영해요.</p>}
           {contest && finished && <button className="btn btn-primary practice-start" type="button" onClick={nextRound} disabled={busy || noRoundsLeft}>{noRoundsLeft ? '오늘 판을 모두 했어요' : '다음 판'}</button>}
-          <button className="btn practice-start" type="button" onClick={reset}>{contest && finished ? '대회 화면으로' : restartLabel}</button>
+          <button className={`btn practice-start ${stopped ? 'btn-primary' : ''}`} type="button" onClick={endOrReset}>{contest && finished ? '대회 화면으로' : restartLabel}</button>
         </section>}
         {contest ? <div className="practice-guide"><h3>대회 판은 이렇게 진행해요</h3><ol><li>가상 종목의 120거래일 구간을 재생하고, 가상 사건을 4번 만나요.</li><li>사건이 나오면 매수·매도·유지를 골라요.</li><li>채점은 없어요. 판이 끝난 총자산이 새 대회 잔액이에요.</li><li>사건마다 가만히 있었을 때보다 수익률이 그날 평균 {contest.today ? pp(contest.today.targetRate) : '목표'} 이상 높으면(매매 성과) {contest.roundsPerDay}판을 모두 했을 때 하루 점수 +{contest.dayPoints}점, 덜 했으면 0점이에요. 못 미치면 −{contest.dayPoints}점이에요.</li></ol></div>
           : <div className="practice-guide"><h3>이렇게 진행해요</h3><ol><li>가상 종목의 120~250거래일 구간을 재생하고, 가상 사건을 3번 이상 만나요.</li><li>사건과 사건 사이 시세가 {segmentSeconds(speed)}초 동안 지나가요.</li><li>사건이 나오면 방향과 거래를 선택해요.</li><li>채점은 없어요. 사건마다 공시 직후와 그다음 주 가상 등락, 그 유형 공시의 과거 통계를 보여 줘요.</li></ol><Link className="practice-guide-link" to="/simulation/guide">공시가 처음이면: 공시 읽는 법 ›</Link></div>}
       </aside>
       <main className="practice-market">
-        <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.company.industry : '가상 시뮬레이션'}</span><h2>{snapshot?.company.name ?? '다음 장면은 아직 몰라요'}{snapshot && <> <Written sample={sample} /></>}{k > 1 && <> <LeverageBadge k={k} /></>}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '시뮬레이션 완료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && !(contest && finished) && <button className={`btn btn-sm ${finished ? 'btn-primary' : ''}`} type="button" onClick={reset}>{restartLabel}</button>}</div></div>
+        <div className="practice-market-head"><div><span className="practice-muted">{snapshot ? snapshot.company.industry : '가상 시뮬레이션'}</span><h2>{snapshot?.company.name ?? '다음 장면은 아직 몰라요'}{snapshot && <> <Written sample={sample} /></>}{k > 1 && <> <LeverageBadge k={k} /></>}</h2></div><div className="practice-market-actions"><span className="practice-state">{finished ? '시뮬레이션 완료' : stopped ? '중간 종료' : visibleEvent ? '사건 도착' : !snapshot ? '시작 전' : playing ? '재생 중' : '일시정지'}</span>{snapshot && !(contest && finished) && <button className={`btn btn-sm ${finished || stopped ? 'btn-primary' : ''}`} type="button" onClick={endOrReset}>{restartLabel}</button>}</div></div>
         <div className="practice-quote">{snapshot ? <><strong>{money(candles.at(-1)!.close)}</strong><span>{candles.at(-1)!.date} {k > 1 ? `레버리지 ${k}배 가격 ` : ''}종가 · 가상 날짜</span></> : <p>가상 종목의 앞날은 한 번에 공개되지 않아요.<br />나의 판단을 먼저 남겨보세요.</p>}</div>
         {visibleEvent && collapsed && <div className="vsim-reopen" role="status"><p><b>{visibleEvent.categoryName} · 가상 사건</b> {visibleEvent.title}</p><button type="button" className="btn btn-sm btn-primary" onClick={expand}>선택 창 다시 열기</button></div>}
         <div ref={chartBox} className="practice-chart-box">
           {pinnedBand != null && decisions[pinnedBand - 1] && <div className="practice-pinned" role="status"><p><b>사건 {pinnedBand}</b> {decisions[pinnedBand - 1].title} · {decisions[pinnedBand - 1].date}{decisions[pinnedBand - 1].outcomeDate ? ` ~ ${decisions[pinnedBand - 1].outcomeDate}` : ''} 기간을 강조했어요.</p><span><button type="button" className="btn btn-sm" onClick={() => { const n = pinnedBand; scrollTo(articles.current[n]); articles.current[n]?.focus({ preventScroll: true }); }}>기록으로 돌아가기</button><button type="button" className="btn btn-sm" onClick={() => setPinnedBand(null)}>강조 끄기</button></span></div>}
           <CandleChart candles={candles} full={finished} bands={bands} activeBand={activeBand ?? pinnedBand} onActiveBand={setActiveBand} />
         </div>
-        <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : contest ? '120거래일의 가상 시장 여행' : '120~250거래일의 가상 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : `사건 사이 구간을 ${segmentSeconds(speed)}초에 재생 · 사건이 나오면 자동으로 멈춰요`}</span></div><div className="practice-playback-controls"><PlaybackSpeed speed={speed} onChange={setSpeed} /><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div></div>
+        <div className="practice-playback"><div><b>{snapshot ? `${candles.length} / ${snapshot.totalDays} 거래일` : contest ? '120거래일의 가상 시장 여행' : '120~250거래일의 가상 시장 여행'}</b><span>{finished ? '모든 거래일을 확인했어요' : stopped ? '중간에 종료해 여기까지만 진행했어요' : `사건 사이 구간을 ${segmentSeconds(speed)}초에 재생 · 사건이 나오면 자동으로 멈춰요`}</span></div><div className="practice-playback-controls"><PlaybackSpeed speed={speed} onChange={setSpeed} /><button ref={playButton} className="btn btn-sm" disabled={!snapshot || finished || stopped || !!visibleEvent || !!error} onClick={() => setPlaying(v => !v)}>{playing ? 'Ⅱ 일시정지' : '▶ 재생'}</button></div></div>
         <progress className="practice-progress" max={snapshot?.totalDays ?? 120} value={candles.length} aria-label="가상 시뮬레이션 진행" />
-        {snapshot && <section className="practice-journal vsim-journal" ref={journal} tabIndex={-1} aria-labelledby="vsimJournalTitle"><div className="practice-section-title"><h2 id="vsimJournalTitle">{finished ? (contest ? '이번 판 돌아보기' : '이번 시뮬레이션 돌아보기') : '나의 선택 기록'}</h2><span>{`${decisions.length}개의 선택`}</span></div>
+        {snapshot && <section className="practice-journal vsim-journal" ref={journal} tabIndex={-1} aria-labelledby="vsimJournalTitle"><div className="practice-section-title"><h2 id="vsimJournalTitle">{finished ? (contest ? '이번 판 돌아보기' : '이번 시뮬레이션 돌아보기') : stopped ? '여기까지의 기록' : '나의 선택 기록'}</h2><span>{`${decisions.length}개의 선택`}</span></div>
           {decisions.length > 0 && <p id="vsimJournalHint" className="practice-journal-hint">사건을 누르면 차트에서 그 기간을 다시 볼 수 있어요.</p>}
-          {!decisions.length ? <p className="practice-muted">아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.</p> : decisions.map((r, i) => <article className={`practice-decision ${r.movement === 'UP' ? 'vsim-moved-up' : r.movement === 'DOWN' ? 'vsim-moved-down' : ''} ${(activeBand ?? pinnedBand) === i + 1 ? 'active' : ''} practice-clickable`} key={r.eventId} tabIndex={0} ref={el => { articles.current[i + 1] = el; }}
+          {!decisions.length ? <p className="practice-muted">{stopped ? '종료하기 전에 고른 사건이 없어요.' : '아직 만난 사건이 없어요. 차트를 따라가다 보면 선택의 순간이 찾아와요.'}</p> : decisions.map((r, i) => <article className={`practice-decision ${r.movement === 'UP' ? 'vsim-moved-up' : r.movement === 'DOWN' ? 'vsim-moved-down' : ''} ${(activeBand ?? pinnedBand) === i + 1 ? 'active' : ''} practice-clickable`} key={r.eventId} tabIndex={0} ref={el => { articles.current[i + 1] = el; }}
             aria-describedby="vsimJournalHint" aria-current={pinnedBand === i + 1 ? 'true' : undefined} onClick={() => showOnChart(i + 1)}
             onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showOnChart(i + 1); } }}
             onMouseEnter={() => setActiveBand(i + 1)} onMouseLeave={() => setActiveBand(null)} onFocus={() => setActiveBand(i + 1)} onBlur={() => setActiveBand(null)}>
@@ -425,7 +440,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
           {finished && !contest && <p className="practice-result-note">{sample ? '사건 날과 그 뒤 5거래일 움직임은 학습용 예시 통계에서 무작위로 뽑아요. 사건 글에는 좋고 나쁨을 담지 않았어요.' : '사건 날과 그 뒤 5거래일 움직임은 같은 유형 실제 공시 당일과 그 뒤의 움직임에서 무작위로 뽑아요. 시장 전체가 오르내린 몫은 빼지 않았어요. 사건 글에는 좋고 나쁨을 담지 않았어요.'} 채점은 없고, 수익률과 사건마다 공시 직후·그다음 주 가상 등락을 보여 줘요. 그다음 주는 다음 날 종가에 샀다고 가정한 비교라, 다음 날 시가에 체결된 내 매매의 수익률과는 다를 수 있어요.</p>}
         </section>}
       </main>
-      <aside className="practice-wallet"><h2>{finished ? '최종 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '시뮬레이션을 시작하면 표시돼요'}</div><dl><div><dt>{contest ? '판 시작 잔액' : '처음 넣은 돈'}</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div><AveragePriceRows averagePrice={portfolio?.averagePrice} close={candles.at(-1)?.close} /></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p></aside>
+      <aside className="practice-wallet"><h2>{finished ? '최종 자산' : stopped ? '종료할 때의 자산' : '나의 자산'}</h2><span className="practice-muted">현금 + 주식 평가액</span><strong className="practice-total">{portfolio ? money(portfolio.total) : '—'}</strong><div className={`practice-profit ${tone(portfolio?.profit ?? 0)}`}>{portfolio ? `${portfolio.profit > 0 ? '+' : ''}${money(portfolio.profit)} (${percent(portfolio.returnRate)})` : '시뮬레이션을 시작하면 표시돼요'}</div><dl><div><dt>{contest ? '판 시작 잔액' : '처음 넣은 돈'}</dt><dd>{snapshot ? money(snapshot.initialAmount) : '—'}</dd></div><div><dt>사용 가능한 현금</dt><dd>{portfolio ? money(portfolio.cash) : '—'}</dd></div><div><dt>주식 평가액</dt><dd>{portfolio ? money(portfolio.stockValue) : '—'}</dd></div><div><dt>보유 수량</dt><dd>{portfolio ? `${fmt.format(portfolio.shares)}주` : '—'}</dd></div><AveragePriceRows averagePrice={portfolio?.averagePrice} close={candles.at(-1)?.close} /></dl>{portfolio && portfolio.shares === 0 && <p className="practice-muted">현재는 주식을 보유하지 않고 현금으로 기다리고 있어요.</p>}<p className="practice-wallet-note">매수·매도는 선택 다음 거래일의 시가로 계산해요. 배당·세금·수수료는 포함하지 않아요.</p></aside>
     </div>
     <footer className="practice-footnote">{snapshot?.notice ?? '가상 종목·가상 사건으로 연습하는 가상 투자예요. 미래 수익을 보장하거나 투자를 권유하지 않아요.'}{snapshot && <p>자료: {snapshot.sources.join(' · ')}{snapshot.ruleset.dataFrom && snapshot.ruleset.dataTo ? ` · 통계 기간 ${snapshot.ruleset.dataFrom}~${snapshot.ruleset.dataTo}` : ''}</p>}</footer>
     <dialog ref={dialog} className="practice-modal vsim-modal" onCancel={e => e.preventDefault()} aria-labelledby="vsimEventTitle">
@@ -461,7 +476,7 @@ export function VirtualSimulation({ active, onGoPast, contest }: { active: boole
         {error && <p role="alert" className="practice-rise">{error}</p>}
         <button className="btn btn-primary practice-start" type="submit" disabled={!action || !orderValid || busy || !!pending.current}>{busy ? '선택 반영 중…' : '선택하고 계속하기'}</button>
         {error && pending.current && <button type="button" className="btn practice-start" onClick={retry} disabled={busy}>같은 선택 다시 보내기</button>}
-        <button type="button" className="practice-modal-end" onClick={reset} disabled={busy}>{contest ? '판 그만하기(남은 사건은 유지로 계산)' : '시뮬레이션 종료'}</button>
+        <button type="button" className="practice-modal-end" onClick={contest ? reset : stopEarly} disabled={busy}>{contest ? '판 그만하기(남은 사건은 유지로 계산)' : '시뮬레이션 종료'}</button>
       </form>}
     </dialog>
   </>;

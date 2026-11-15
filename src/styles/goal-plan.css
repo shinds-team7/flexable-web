@@ -1,5 +1,5 @@
 /* F7 목표 달성 시나리오 화면(Issue #175·#431). 색·모서리·간격은 공통 토큰만 쓴다. */
-.gp-page{background:var(--color-bg-subtle);min-height:100vh;padding-bottom:calc(var(--density-gap)*3)}
+.gp-page{background:var(--color-bg-canvas);min-height:100vh;padding-bottom:calc(var(--density-gap)*3)}
 .gp-wrap{max-width:1080px;margin:auto;padding:var(--density-pad) calc(var(--density-gap)*2/3)}
 .gp-crumb{display:flex;align-items:center;gap:calc(var(--density-gap)/3);font-size:12px;color:var(--color-text-tertiary)}
 .gp-badge{display:inline-flex;align-items:center;white-space:nowrap;font-size:11px;font-weight:700;line-height:1.5;padding:calc(var(--density-gap)/12) calc(var(--density-gap)/3);color:var(--color-brand-text);background:var(--color-brand-subtle);border-radius:var(--radius-xs)}
@@ -221,3 +221,52 @@ html:has(dialog.gp-view-dialog[open]){overflow:hidden}
 .gp-save-input{width:100%;height:var(--density-control);border:1px solid var(--color-border-strong);border-radius:var(--radius-soft-sm);padding:0 calc(var(--density-gap)*7/12);font:inherit;background:var(--color-surface);color:var(--color-text-primary)}
 .gp-save-input:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
 .gp-save-dlg .gp-error{margin-top:calc(var(--density-gap)/3)}
+/* [시안] 위험 등급 배지와 3칸 지표 */
+.gp-plan-title{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--density-gap)/3)}
+.gp-risk{display:inline-flex;align-items:center;gap:calc(var(--density-gap)/4);font-size:12px;font-weight:700;white-space:nowrap;padding:calc(var(--density-gap)/12) calc(var(--density-gap)/3);border-radius:var(--radius-xs);color:var(--color-text-secondary);background:var(--color-border)}
+.gp-risk-bars{display:inline-flex;gap:2px}
+.gp-risk-bars i{width:4px;height:10px;border-radius:1px;background:var(--color-text-tertiary);opacity:.3}
+.gp-risk-bars i.on{opacity:1}
+.gp-risk-2{color:var(--color-warning);background:var(--color-warning-subtle)}
+.gp-risk-2 .gp-risk-bars i{background:var(--color-warning)}
+.gp-risk-3{color:var(--color-danger);background:var(--color-danger-subtle)}
+.gp-risk-3 .gp-risk-bars i{background:var(--color-danger)}
+.gp-plan-stats-3{grid-template-columns:1fr 1fr 1fr}
+.gp-plan-stats b.is-loss{color:var(--color-fall)}
+/* 나의 조건 카드: 파란 배경, 시나리오 보기 버튼은 흰 바탕에 파란 글자 */
+.gp-card-brand{background:var(--color-brand-primary);border-color:var(--color-brand-primary)}
+.gp-card-brand .gp-field label,.gp-card-brand .gp-field label small{color:var(--color-on-brand)}
+.gp-card-brand .gp-field label small{opacity:.8}
+.gp-card-brand .gp-field input,.gp-card-brand .gp-field select{border-color:transparent}
+.gp-card-brand .gp-field input:focus-visible,.gp-card-brand .gp-field select:focus-visible,.gp-card-brand .gp-primary:focus-visible{outline-color:var(--color-on-brand)}
+.gp-card-brand .gp-primary{background:var(--color-on-brand);color:var(--color-brand-primary)}
+.gp-card-brand .gp-primary:hover{background:var(--color-brand-subtle)}
+.gp-card-brand .gp-error{color:var(--color-on-brand);font-weight:600}
+/* 예상 금액 세 칸: 연한 하늘 → 하늘·파랑 → 진한 파랑 */
+.gp-range-legend .gp-range-low{background:var(--color-series-3);color:var(--color-brand-primary-hover)}
+.gp-range-legend .gp-range-low b{color:var(--color-brand-primary-hover)}
+.gp-range-legend .gp-range-mid{background:var(--color-series-2);color:var(--color-on-brand)}
+.gp-range-legend .gp-range-mid b{color:var(--color-on-brand)}
+.gp-range-legend .gp-range-high{background:var(--color-brand-primary);color:var(--color-on-brand)}
+.gp-range-legend .gp-range-high b{color:var(--color-on-brand)}
+.gp-growth-target-label{font-weight:700;fill:var(--color-text-secondary)}
+/* 목표 기한 달력 버튼 */
+.gp-cal{position:relative}
+.gp-cal-button{display:flex;align-items:center;gap:calc(var(--density-gap)/3);width:100%;height:var(--density-control);border:1px solid var(--color-border-strong);border-radius:var(--radius-soft-sm);padding:0 calc(var(--density-gap)*7/12);font:inherit;font-size:var(--font-size-body);background:var(--color-surface);color:var(--color-text-primary);cursor:pointer;text-align:left}
+.gp-card-brand .gp-cal-button{border-color:transparent}
+.gp-cal-button small{margin-left:auto;font-size:12px;color:var(--color-text-tertiary);white-space:nowrap}
+.gp-cal-button span{white-space:nowrap}
+.gp-cal-icon{color:var(--color-brand-primary);flex:none}
+.gp-cal-button:focus-visible{outline:2px solid var(--color-on-brand);outline-offset:2px}
+.gp-cal-pop{position:absolute;z-index:20;top:calc(100% + 6px);left:0;width:260px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-soft);box-shadow:0 8px 24px rgba(0,0,0,.12);padding:calc(var(--density-gap)*2/3)}
+.gp-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:calc(var(--density-gap)/2);color:var(--color-text-primary)}
+.gp-cal-head button{width:30px;height:30px;border:0;border-radius:var(--radius-soft-sm);background:transparent;font-size:20px;line-height:1;color:var(--color-text-secondary);cursor:pointer}
+.gp-cal-head button:hover:not(:disabled){background:var(--color-bg-subtle)}
+.gp-cal-head button:disabled{opacity:.3;cursor:default}
+.gp-cal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:calc(var(--density-gap)/4)}
+.gp-cal-grid button{height:36px;border:0;border-radius:var(--radius-soft-sm);background:transparent;font:inherit;font-size:14px;color:var(--color-text-primary);cursor:pointer}
+.gp-cal-grid button:hover:not(:disabled){background:var(--color-brand-subtle);color:var(--color-brand-text)}
+.gp-cal-grid button[aria-pressed="true"]{background:var(--color-brand-primary);color:var(--color-on-brand);font-weight:700}
+.gp-cal-grid button:disabled{color:var(--color-text-tertiary);opacity:.4;cursor:default}
+.gp-cal-pop button:focus-visible{outline:2px solid var(--color-focus);outline-offset:1px}
+.gp-cal-note{margin:calc(var(--density-gap)/2) 0 0;font-size:12px;color:var(--color-text-tertiary)}

@@ -6,7 +6,7 @@ import { useLoginModal } from '@/components/LoginModal';
 import {
   FALLBACK_TEXT, GOAL_LIMITS, TYPE_LABEL, deleteSavedScenario, periodText, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
   type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
-  type SeriesPoint, type StartDeposit,
+  type ScenarioOutcome, type SeriesPoint, type StartDeposit,
 } from '@/data/goalScenarios';
 import { ApiError, errorText } from '@/lib/api';
 import '@/styles/goal-plan.css';
@@ -48,6 +48,17 @@ function manwon(n: number) {
 /** 수익은 원 단위 그대로 부호를 붙여 보여 준다(+는 이익, −는 손실). 예: +4,107,130원 */
 const gainText = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${won(Math.abs(n))}원`;
 const pct = (bp: number) => `${Math.floor(bp / 100)}%`;
+
+// [시안] 위험 등급. 구간(하위 10%가 넣은 돈 이상 낮음 / 5% 이내 보통 / 그 밖 높음)은 정책 미정이라 예시 값이다.
+// 확정되면 하위 10% 손실액·등급을 서버 응답 필드로 받는다(ADR-3).
+type Risk = { level: 1 | 2 | 3; label: string; lowGain: number | null };
+function riskOf(o: ScenarioOutcome): Risk {
+  if (o.kind === 'FIXED' || o.low === null || o.high === null || o.highGain === null) return { level: 1, label: '낮음', lowGain: null };
+  const invested = o.high - o.highGain;
+  const lowGain = o.low - invested;
+  if (lowGain >= 0) return { level: 1, label: '낮음', lowGain };
+  return -lowGain * 100 <= invested * 5 ? { level: 2, label: '보통', lowGain } : { level: 3, label: '높음', lowGain };
+}
 const digits = (s: string) => s.replace(/[^0-9]/g, '');
 const savedDate = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
 /** 그래프 축 눈금용 짧은 금액(만 원 단위 반올림 없이 내림). */
@@ -58,8 +69,6 @@ function axisMoney(n: number) {
 }
 
 type SubProduct = { key: string; name: string; meta: string | null; basis: boolean };
-const YEAR_OPTIONS = [0, 1, 2, 3, 4, 5];
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i);
 /** 세부 상품 목록을 처음부터 펼쳐 둘 카테고리. */
 const DEFAULT_OPEN: ScenarioProductType[] = ['SAVINGS'];
 
@@ -112,15 +121,21 @@ function RangeBar({ low, median, high, target }: { low: number; median: number; 
 function GrowthChart({ series, monthly, target }: { series: SeriesPoint[]; monthly: number; target: number | null }) {
   const W = 360;
   const H = 190;
-  const pad = { l: 40, r: 10, t: 12, b: 22 };
+  const pad = { l: 56, r: 10, t: 12, b: 22 };
   const last = series[series.length - 1];
   const months = last.month;
-  const top = Math.max(...series.map((p) => p.high), target ?? 0) * 1.06 || 1;
+  // 세로축은 0이 아니라 가장 낮은 값(보통 시작 금액) 근처에서 시작해 세 선의 차이가 보이게 한다
+  const hi = Math.max(...series.map((p) => p.high), target ?? 0);
+  const lo = Math.min(...series.map((p) => p.low), target ?? Infinity);
+  const span = hi - lo || hi || 1;
+  const top = hi + span * 0.06;
+  // 아래 여백을 두면 시작 금액이 작을 때 축이 0으로 내려가므로, 가장 낮은 값(시작 금액)에서 바로 시작한다
+  const bottom = Math.max(0, lo);
   const x = (m: number) => pad.l + (m / (months || 1)) * (W - pad.l - pad.r);
-  const y = (v: number) => pad.t + (1 - v / top) * (H - pad.t - pad.b);
+  const y = (v: number) => pad.t + (1 - (v - bottom) / (top - bottom)) * (H - pad.t - pad.b);
   const line = (k: 'low' | 'median' | 'high') => series.map((p) => `${x(p.month).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ');
   const band = `${series.map((p) => `${x(p.month).toFixed(1)},${y(p.high).toFixed(1)}`).join(' ')} ${[...series].reverse().map((p) => `${x(p.month).toFixed(1)},${y(p.low).toFixed(1)}`).join(' ')}`;
-  const ticks = [0, 1 / 3, 2 / 3, 1].map((f) => Math.floor(top * f));
+  const ticks = [0, 1 / 3, 2 / 3, 1].map((f) => Math.floor(bottom + (top - bottom) * f));
   const xTicks = months <= 12 ? [0, Math.round(months / 2), months] : Array.from({ length: Math.floor(months / 12) + 1 }, (_, i) => i * 12).concat(months % 12 ? [months] : []);
   const label = `월 납입 금액이 ${won(monthly)}원일 때 ${periodText(months)} 동안의 자산 증가 추이. 기한 말 하위 10% ${manwon(last.low)}, 중간값 ${manwon(last.median)}, 상위 10% ${manwon(last.high)}`;
   return <figure className="gp-growth">
@@ -128,13 +143,14 @@ function GrowthChart({ series, monthly, target }: { series: SeriesPoint[]; month
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="gp-growth-svg">
       {ticks.map((t) => <g key={t}>
         <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} className="gp-growth-grid" />
-        <text x={pad.l - 6} y={y(t)} className="gp-growth-axis" textAnchor="end" dominantBaseline="middle">{axisMoney(t)}</text>
+        {/* 목표 글자와 겹치는 눈금 숫자는 뺀다 */}
+        {(target === null || Math.abs(y(t) - y(target)) >= 12) && <text x={pad.l - 6} y={y(t)} className="gp-growth-axis" textAnchor="end" dominantBaseline="middle">{axisMoney(t)}</text>}
       </g>)}
       {xTicks.map((m) => <text key={m} x={x(m)} y={H - 6} className="gp-growth-axis" textAnchor={m === 0 ? 'start' : m === months ? 'end' : 'middle'}>{m === 0 ? '시작' : periodText(m)}</text>)}
       <polygon points={band} className="gp-growth-band" />
       {target !== null && <g>
         <line x1={pad.l} x2={W - pad.r} y1={y(target)} y2={y(target)} className="gp-growth-target" />
-        <text x={W - pad.r} y={y(target) - 4} className="gp-growth-axis" textAnchor="end">목표</text>
+        <text x={pad.l - 6} y={y(target)} className="gp-growth-axis gp-growth-target-label" textAnchor="end" dominantBaseline="middle">목표</text>
       </g>}
       <polyline points={line('low')} className="gp-growth-line gp-growth-low" />
       <polyline points={line('high')} className="gp-growth-line gp-growth-high" />
@@ -245,9 +261,9 @@ function PlanDetail({ resultKey, plan, products, startDeposit, targetAmount, mon
             : o.low !== null && o.median !== null && o.high !== null && <>
               <RangeBar low={o.low} median={o.median} high={o.high} target={targetAmount} />
               <div className="gp-range-legend">
-                <div>하위 10%<b className="num">{manwon(o.low)}</b></div>
+                <div className="gp-range-low">하위 10%<b className="num">{manwon(o.low)}</b></div>
                 <div className="gp-range-mid">중간값<b className="num">{manwon(o.median)}</b></div>
-                <div>상위 10%<b className="num">{manwon(o.high)}</b></div>
+                <div className="gp-range-high">상위 10%<b className="num">{manwon(o.high)}</b></div>
               </div>
             </>}
       </div>
@@ -384,6 +400,51 @@ function SaveNameDialog({ open, saving, error, onSave, onCancel }: {
 }
 
 /** 원 단위 입력칸. 쉼표를 넣어 보여 주고 숫자만 보관한다. */
+/** 목표 기한: 달력 버튼을 누르면 연·월을 고르는 창이 열린다. 지금부터 min~max개월 안의 달만 고를 수 있다. */
+function PeriodPicker({ id, months, min, max, onChange }: { id: string; months: number; min: number; max: number; onChange: (months: number) => void }) {
+  const now = new Date();
+  const base = now.getFullYear() * 12 + now.getMonth();
+  const at = (offset: number) => ({ year: Math.floor((base + offset) / 12), month: ((base + offset) % 12) + 1 });
+  const chosen = at(months);
+  const [open, setOpen] = useState(false);
+  const [year, setYear] = useState(chosen.year);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  const first = at(min).year;
+  const last = at(max).year;
+  const offsetOf = (y: number, m: number) => y * 12 + (m - 1) - base;
+  return <div className="gp-cal" ref={box}>
+    <button type="button" id={id} className="gp-cal-button" aria-haspopup="dialog" aria-expanded={open}
+      onClick={() => { setYear(chosen.year); setOpen((v) => !v); }}>
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="gp-cal-icon"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+      <span>{chosen.year}년 {chosen.month}월</span>
+      <small>{periodText(months)} 뒤</small>
+    </button>
+    {open && <div className="gp-cal-pop" role="dialog" aria-label="목표 기한 고르기">
+      <div className="gp-cal-head">
+        <button type="button" aria-label="이전 해" disabled={year <= first} onClick={() => setYear(year - 1)}>‹</button>
+        <b>{year}년</b>
+        <button type="button" aria-label="다음 해" disabled={year >= last} onClick={() => setYear(year + 1)}>›</button>
+      </div>
+      <div className="gp-cal-grid">
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+          const off = offsetOf(year, m);
+          return <button type="button" key={m} disabled={off < min || off > max} aria-pressed={off === months}
+            onClick={() => { onChange(off); setOpen(false); }}>{m}월</button>;
+        })}
+      </div>
+      <p className="gp-cal-note">{periodText(min)}~{periodText(max)} 뒤까지 고를 수 있어요</p>
+    </div>}
+  </div>;
+}
+
 function MoneyInput({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return <div className="gp-unit">
     <input id={id} className="num" inputMode="numeric" placeholder={placeholder} value={value}
@@ -449,14 +510,11 @@ export default function GoalScenarios() {
     setSaveMessage('');
   }, [member, refreshSaved]);
 
-  const periodYears = Math.floor(months / 12);
-  const periodMonths = months % 12;
   /** 기한은 6~60개월(policies §7-1). 연을 바꿔 범위를 벗어나면 가장 가까운 값으로 맞춘다. */
-  const inRange = (total: number) => total >= GOAL_LIMITS.monthsMin && total <= GOAL_LIMITS.monthsMax;
   const setPeriod = (total: number) => setMonths(Math.min(GOAL_LIMITS.monthsMax, Math.max(GOAL_LIMITS.monthsMin, total)));
 
   const run = async (q: { startAmount: number | null; monthlyBudget: number | null; months: number; targetAmount: number | null }) => {
-    if (q.startAmount === null || q.startAmount > GOAL_LIMITS.startMax) { setError('시작 금액은 0원부터 10억 원까지 넣어 주세요. 없으면 0을 넣어 주세요.'); return; }
+    if (q.startAmount === null || q.startAmount > GOAL_LIMITS.startMax) { setError('시작 금액은 10억 원까지 넣을 수 있어요.'); return; }
     if (q.monthlyBudget === null || q.monthlyBudget < GOAL_LIMITS.budgetMin || q.monthlyBudget > GOAL_LIMITS.budgetMax || q.monthlyBudget % GOAL_LIMITS.budgetUnit !== 0) {
       setError('월 납입 가능액은 1만 원부터 1,000만 원까지 천 원 단위로 넣어 주세요.');
       return;
@@ -492,7 +550,9 @@ export default function GoalScenarios() {
   const numberOrNull = (s: string) => (digits(s) ? Number(digits(s)) : null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    void run({ startAmount: numberOrNull(start), monthlyBudget: numberOrNull(budget), months, targetAmount: numberOrNull(target) });
+    // 시작 금액을 비워 두면 0원으로 채운다
+    if (!digits(start)) setStart('0');
+    void run({ startAmount: numberOrNull(start) ?? 0, monthlyBudget: numberOrNull(budget), months, targetAmount: numberOrNull(target) });
   };
 
   const plan = result?.scenarios.find((s) => s.id === selected) ?? null;
@@ -566,8 +626,8 @@ export default function GoalScenarios() {
   return <div className="gp-page">
     <div className={`gp-wrap ${member ? 'gp-wrap-side' : ''}`}>
       <div className="gp-crumb">AI 목표 달성 {(!result || result.isSample) && <span className="gp-badge">예시 포함</span>}</div>
-      <h1 className="gp-title">넣을 수 있는 돈만 알려 주세요.<br />불리는 방법은 AI가 같이 찾아 볼게요.</h1>
-      <p className="gp-lead">시작 금액과 매달 넣을 돈으로 안정·균형·적극 세 가지 방법에 나눠 넣으면 기한 뒤 얼마가 될지 비교해 보세요.</p>
+      <h1 className="gp-title">목표 금액까지, 나만의 투자 로드맵.</h1>
+      <p className="gp-lead">투자 가능 금액과 목표를 입력해 보세요. AI가 나에게 맞는 자산 성장 계획을 설계해 드려요.</p>
 
       <div className={member ? 'gp-layout' : undefined}>
       <div className="gp-main">
@@ -575,26 +635,19 @@ export default function GoalScenarios() {
       <section aria-labelledby="gp-form-title">
         <h2 id="gp-form-title" className="gp-h2"><span className="gp-step">1</span>나의 조건</h2>
         <p className="gp-sub">시작 금액·월 납입 가능액·기한을 넣어 주세요. 목표 금액은 넣지 않아도 돼요. 마음에 드는 시나리오는 로그인하고 저장할 수 있어요.</p>
-        <form className="gp-card" onSubmit={submit} noValidate>
+        <form className="gp-card gp-card-brand" onSubmit={submit} noValidate>
           <div className="gp-form">
             <div className="gp-field">
               <label htmlFor="gp-start">시작 금액</label>
-              <MoneyInput id="gp-start" value={start} onChange={setStart} placeholder="예: 1,000,000" />
+              <MoneyInput id="gp-start" value={start} onChange={setStart} placeholder="0" />
             </div>
             <div className="gp-field">
               <label htmlFor="gp-budget">월 납입 가능액</label>
               <MoneyInput id="gp-budget" value={budget} onChange={setBudget} placeholder="예: 500,000" />
             </div>
             <div className="gp-field">
-              <label htmlFor="gp-years">목표 기한</label>
-              <div className="gp-period">
-                <select id="gp-years" aria-label="목표 기한 연" value={periodYears} onChange={(e) => setPeriod(Number(e.target.value) * 12 + periodMonths)}>
-                  {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}년</option>)}
-                </select>
-                <select aria-label="목표 기한 개월" value={periodMonths} onChange={(e) => setPeriod(periodYears * 12 + Number(e.target.value))}>
-                  {MONTH_OPTIONS.map((m) => <option key={m} value={m} disabled={!inRange(periodYears * 12 + m)}>{m}개월</option>)}
-                </select>
-              </div>
+              <label htmlFor="gp-period">목표 기한</label>
+              <PeriodPicker id="gp-period" months={months} min={GOAL_LIMITS.monthsMin} max={GOAL_LIMITS.monthsMax} onChange={setPeriod} />
             </div>
             <div className="gp-field">
               <label htmlFor="gp-target">목표 금액 <small>(선택)</small></label>
@@ -628,15 +681,17 @@ export default function GoalScenarios() {
           <div className="gp-plans">
             {result.scenarios.map((s, i) => <button type="button" key={s.id} className="gp-plan" aria-pressed={selected === s.id} onClick={() => { setSelected(s.id); setSaveMessage(''); }}>
               <span className="gp-plan-tag">PLAN 0{i + 1}{savedPlanId === s.id && <span className="gp-saved-mark">저장함</span>}</span>
-              <span className="gp-plan-title">{s.title}</span>
+              <span className="gp-plan-title">{s.title}
+                {s.outcome && (() => { const r = riskOf(s.outcome); return <span className={`gp-risk gp-risk-${r.level}`} aria-label={`위험 ${r.label}`}>
+                  <span className="gp-risk-bars" aria-hidden="true">{[1, 2, 3].map((n) => <i key={n} className={n <= r.level ? 'on' : ''} />)}</span>위험 {r.label}</span>; })()}</span>
               {s.outcome && s.outcome.highGain !== null && <>
                 <span className="gp-plan-label">{s.outcome.kind === 'FIXED' ? '확정 수익(세후 이자)' : '상위 10%의 수익'}</span>
                 <span className={`gp-plan-monthly num${s.outcome.highGain < 0 ? ' is-loss' : ''}`}>{gainText(s.outcome.highGain)}</span>
               </>}
               <span className="gp-mini" aria-hidden="true">{s.mix.map((m) => <span key={m.type} style={{ width: `${m.ratioPercent}%`, background: COLORS[m.type] }} />)}</span>
               {s.outcome && <span className="gp-plan-stats">
-                <span>목표 달성 추정<b>{s.outcome.chanceBp === null ? '목표 없음' : pct(s.outcome.chanceBp)}</b></span>
-                <span>원금 손실 가능성<b>{s.outcome.kind === 'FIXED' ? '없음' : pct(s.outcome.lossBp)}</b></span>
+                <span>손실 확률<b>{s.outcome.kind === 'FIXED' ? '없음' : pct(s.outcome.lossBp)}</b></span>
+                <span title="목표가 높을수록 낮아져요">목표 금액 달성<b>{s.outcome.chanceBp === null ? '−' : pct(s.outcome.chanceBp)}</b></span>
               </span>}
             </button>)}
           </div>

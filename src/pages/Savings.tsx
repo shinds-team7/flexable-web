@@ -122,18 +122,16 @@ function ProductDetail({ id, term, monthly, reserveType }: { id: string; term: S
               <span className="k">월 한도</span>
               <span className="v">{p.maxLimit == null ? '없음' : won(p.maxLimit) + '원'}</span>
             </div>
-            <a
-              href={p.disclosureUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: 'inline-block',
-                marginTop: 12,
-                fontWeight: 600,
-              }}
-            >
-              공시 원문 보기(금융상품한눈에) ↗
-            </a>
+            <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginTop: 12 }}>
+              <a href={p.disclosureUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                공시 원문 보기(금융상품한눈에) ↗
+              </a>
+              {p.companyHomepageUrl && (
+                <a href={p.companyHomepageUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                  {p.company} 홈페이지 ↗
+                </a>
+              )}
+            </div>
           </>
         )
       )}

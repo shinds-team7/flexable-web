@@ -46,7 +46,8 @@ export type SavingsProduct = {
   result: SavingsResult; // 요청한 monthly·termMonths로 서버가 계산한 기본금리 기준 결과
 };
 
-export type SavingsProductDetail = Omit<SavingsProduct, 'result'> & { specialConditionText: string };
+// 금융회사 홈페이지(finlife 금융회사 공시, #449). 상품 가입 페이지가 아니고, 없으면 null이라 링크를 숨긴다
+export type SavingsProductDetail = Omit<SavingsProduct, 'result'> & { specialConditionText: string; companyHomepageUrl: string | null };
 
 export type SavingsListParams = {
   monthly: number;

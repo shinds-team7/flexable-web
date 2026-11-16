@@ -719,12 +719,12 @@ export default function GoalScenarios() {
           {savedList.items.map((s) => <li key={s.id} className={`gp-card gp-saved-item gp-saved-item-side ${viewing?.id === s.id ? 'is-open' : ''}`}>
             <div className="gp-saved-main">
               <b className="gp-saved-name">{s.name}</b>
-              <span>{s.title} · {conditionText(s)}</span>
+              <span>{conditionText(s)}</span>
               <small>{s.asOf} 기준 · {savedDate(s.savedAt)} 저장</small>
             </div>
             <div className="gp-saved-actions">
-              <button type="button" className="gp-text-btn" onClick={() => void open(s.id)} aria-label={`${s.name} ${s.title} 보기`}>보기</button>
-              <button type="button" className="gp-text-btn gp-danger" onClick={() => setToDelete(s.id)} aria-label={`${s.name} ${s.title} 지우기`}>지우기</button>
+              <button type="button" className="gp-text-btn" onClick={() => void open(s.id)} aria-label={`${s.name} 보기`}>보기</button>
+              <button type="button" className="gp-text-btn gp-danger" onClick={() => setToDelete(s.id)} aria-label={`${s.name} 지우기`}>지우기</button>
             </div>
           </li>)}
         </ul>}

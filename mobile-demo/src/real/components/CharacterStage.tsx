@@ -2,13 +2,14 @@
  * 캐릭터 홈 상단 UI — 예산을 잘 지키고 출석할수록 높은 단계(광부→농부→상인→기사→귀족→왕족, 6단계), 못 지킬수록 광부.
  * 단계·게이지 값은 부르는 쪽(서비스 홈, 서버 점수 pointsStatus)이 계산해서 넘긴다.
  */
-import { useEffect, type ReactNode } from 'react';
-import { Animated, Image, StyleSheet, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Animated, Image, Platform, StyleSheet, View } from 'react-native';
 
 import { colors, motion } from '@/real/theme';
 import { useGuideTarget } from './guideTargets';
 import { levelName } from './LevelIcon';
 import { useAnimValue, useReducedMotion } from './ui';
+import { afterSplashHidden } from '@/real/service/splashVisibility';
 
 export type Level = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -80,17 +81,30 @@ function Gauge({ status }: { status: PaceStatus }) {
   const top = level === TOP_LEVEL;
   const fill = useAnimValue(0);
   const reduced = useReducedMotion();
+  const [railWidth, setRailWidth] = useState(0);
   useEffect(() => {
     if (reduced) {
       fill.setValue(progress);
       return;
     }
-    const anim = Animated.timing(fill, { toValue: progress, duration: 700, easing: motion.easeOut, useNativeDriver: false });
-    anim.start();
-    return () => anim.stop();
-  }, [progress, reduced, fill]);
+    if (!railWidth) return;
+    let frame: number | undefined;
+    let anim: Animated.CompositeAnimation | undefined;
+    const unsubscribe = afterSplashHidden(() => {
+      // Give the first visible home frame to layout and the video player.
+      frame = requestAnimationFrame(() => {
+        anim = Animated.timing(fill, { toValue: progress, duration: 700, easing: motion.easeOut, useNativeDriver: Platform.OS !== 'web' });
+        anim.start();
+      });
+    });
+    return () => {
+      unsubscribe();
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      anim?.stop();
+    };
+  }, [progress, reduced, fill, railWidth]);
   const pct = Math.round(progress * 100);
-  const at = fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const at = fill.interpolate({ inputRange: [0, 1], outputRange: [0, railWidth] });
   return (
     <View
       style={styles.gauge}
@@ -99,14 +113,14 @@ function Gauge({ status }: { status: PaceStatus }) {
       accessibilityLabel={top ? `최고 단계, ${label}` : `${levelName(level)} 단계, 승급 게이지 ${pct}%, ${label}`}
       accessibilityValue={{ min: 0, max: 100, now: pct }}
     >
-      <View style={styles.track}>
-        <Animated.View style={[styles.bar, { width: at }]}>
+      <View style={styles.track} onLayout={(event) => setRailWidth(Math.max(0, event.nativeEvent.layout.width - INSET * 2))}>
+        <Animated.View style={[styles.bar, { transform: [{ scaleX: fill }] }]}>
           <View style={styles.shine} />
         </Animated.View>
       </View>
       {/* 채움 끝을 따라가는 단계 아이콘 */}
       <View style={styles.markRail} pointerEvents="none">
-        <Animated.View style={[styles.mark, { left: at }]}>
+        <Animated.View style={[styles.mark, { transform: [{ translateX: at }] }]}>
           <Image source={WALKING_CAT} style={styles.cat} resizeMode="cover" accessible={false} />
         </Animated.View>
       </View>
@@ -144,14 +158,17 @@ const styles = StyleSheet.create({
   // 연회색 홈: 위쪽 안 그림자로 파인 느낌, 아래 흰 선으로 떠오른 가장자리
   track: {
     height: TRACK,
-    padding: INSET,
     borderRadius: TRACK / 2,
     backgroundColor: '#E1E5EC',
     boxShadow: 'inset 0 2px 3px rgba(16,26,51,0.14), 0 1px 0 rgba(255,255,255,0.9)',
   },
   bar: {
-    height: '100%',
-    minWidth: TRACK - INSET * 2,
+    position: 'absolute',
+    left: INSET,
+    right: INSET,
+    top: INSET,
+    bottom: INSET,
+    transformOrigin: 'left center',
     borderRadius: TRACK / 2,
     backgroundColor: colors.brand,
     overflow: 'hidden',
@@ -163,6 +180,7 @@ const styles = StyleSheet.create({
   markRail: { position: 'absolute', left: INSET, right: INSET, top: 0, bottom: 0 },
   mark: {
     position: 'absolute',
+    left: 0,
     top: 0,
     width: MARK,
     height: MARK,

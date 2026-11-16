@@ -44,6 +44,7 @@ const won = (m: RegExpMatchArray) => Number(m[2].replace(/[,\s]/g, ""));
 const unsigned = (s: string) => s.replace(/^[+\-−–]\s*/, "");
 
 export const REVIEW_TYPE = "입금인지 출금인지 확인이 필요해요";
+export const REVIEW_DATE = "날짜가 인식되지 않았습니다";
 
 /**
  * OCR이 한 줄로 합쳐 준 "10.26 CU 광화문점 -6,800원", "체크카드 잔액 2,336,700원" 같은 줄을
@@ -177,20 +178,22 @@ function detect(rows: OcrLine[][]): ImportSource | null {
   // 위아래를 자르면 앱 이름·버튼·원 단위가 모두 사라질 수 있다.
   // 날짜 뒤의 거래/시각/잔액 열이 맞을 때만 기존 토스 규칙으로 읽는다.
   let dated = false;
-  return rows.some((row, i) => {
+  let bankPairs = 0;
+  const datedPair = rows.some((row, i) => {
     if (
       DATE_DOT.test(row[0]?.text ?? "") ||
       DATE_KOR.test(row.map((l) => l.text).join(" "))
     )
       dated = true;
-    return (
-      dated &&
+    const pair =
       hasBankColumns(row, rows[i + 1] ?? []) &&
-      BANK_LOOSE_AMOUNT.test(row[row.length - 1].text)
-    );
-  })
-    ? "toss"
-    : null;
+      BANK_LOOSE_AMOUNT.test(row[row.length - 1].text);
+    if (pair) bankPairs++;
+    return dated && pair;
+  });
+  // 날짜가 화면에 하나도 안 보여도 두 거래 이상의 금액·시각·잔액 열이
+  // 맞으면 검토할 수 있다. 날짜는 사용자가 직접 고른다.
+  return datedPair || bankPairs >= 2 ? "toss" : null;
 }
 
 /** 원 없는 금액을 화면 판별과 거래 해석에서 같은 행·열 조건으로 제한한다. */
@@ -219,21 +222,32 @@ type Raw = {
 };
 
 function finish(source: ImportSource, raws: Raw[]): ImportCandidate[] {
-  // 화면은 최신순이다. 다음 항목(더 오래된 거래)의 잔액과 비교하면 부호를 확인할 수 있다.
+  // OCR 누락·필터로 거래가 연속하지 않을 수 있다. 잔액 차이가 정확히 맞을 때만 부호 확인에 쓴다.
   return raws.map((r, i) => {
     const review: string[] = [];
+    if (!r.date) review.push(REVIEW_DATE);
     let type: ImportCandidate["type"] = null;
     const next = raws[i + 1];
     if (r.sign) type = r.sign === "+" ? "INCOME" : "EXPENSE";
-    else if (r.balance != null && next?.balance != null)
-      type = r.balance - next.balance === r.amount ? "INCOME" : "EXPENSE";
+    else if (
+      r.balance != null &&
+      next?.balance != null &&
+      r.balance - next.balance === r.amount
+    )
+      type = "INCOME";
+    else if (
+      r.balance != null &&
+      next?.balance != null &&
+      r.balance - next.balance === -r.amount
+    )
+      type = "EXPENSE";
     else if (REFUND.test(r.sub) || /입금|급여/.test(r.sub)) type = "INCOME";
     if (type === null) review.push(REVIEW_TYPE);
     let balanceOk = false;
     if (r.balance != null && next?.balance != null && type) {
       const delta = type === "INCOME" ? r.amount : -r.amount;
       balanceOk = r.balance - next.balance === delta;
-      if (!balanceOk) review.push("잔액과 금액이 맞지 않아요");
+      // +/-와 금액이 명확하면 앞뒤 잔액 차이만으로 정상 거래를 막지 않는다.
     }
     // 원 자리가 다른 글자로 읽힌 금액은 잔액으로 맞는지 확인될 때만 확인 없이 가져온다.
     if (r.amountReview && !balanceOk)
@@ -274,9 +288,26 @@ function parseBalanceStyle(rows: OcrLine[][], today: string): Raw[] {
     // 원 없는 숫자는 날짜가 있고, 아래 행의 시각과 별도 오른쪽 잔액 열이 확인될 때만 후보로 둔다.
     const bankColumns = hasBankColumns(row, subRow);
     const exactAmount = amountLine?.text.match(AMOUNT);
+    // 화면 맨 아래 거래는 시각·잔액 줄이 잘릴 수 있다. 날짜가 보이고
+    // 금액이 별도 오른쪽 열에 있을 때만 원 없는 숫자를 검토 후보로 남긴다.
+    const noMoreTransactionColumns = rows
+      .slice(i + 1)
+      .every((later) =>
+        later.every(
+          (line) => !TIME.test(line.text) && !BANK_LOOSE_AMOUNT.test(line.text),
+        ),
+      );
+    const croppedAmount =
+      date &&
+      noMoreTransactionColumns &&
+      row.length >= 2 &&
+      amountLine.x > row[row.length - 2].x * 2 &&
+      BARE_AMOUNT.test(amountLine.text)
+        ? amountLine.text.match(BANK_LOOSE_AMOUNT)
+        : null;
     const am =
       exactAmount ??
-      (bankColumns ? amountLine.text.match(BANK_LOOSE_AMOUNT) : null);
+      (bankColumns ? amountLine.text.match(BANK_LOOSE_AMOUNT) : croppedAmount);
     if (!am || (row.length < 2 && !DATE_DOT.test(row[0].text))) continue;
     const rest = row.slice(0, -1);
     const title = rest
@@ -284,7 +315,9 @@ function parseBalanceStyle(rows: OcrLine[][], today: string): Raw[] {
       .map((l) => l.text)
       .join(" ")
       .trim();
-    if (!title || !date) continue;
+    // 화면 위쪽이 잘려 날짜 머리글이 없어도 거래·금액·시각·잔액 열이
+    // 모두 맞으면 검토 목록에 남긴다. 날짜는 사용자가 고르기 전까지 비워 둔다.
+    if (!title || (!date && !bankColumns)) continue;
     const bm =
       balLine &&
       (unsigned(balLine.text.replace(/^잔액\s*/, "")).match(AMOUNT) ??
@@ -295,14 +328,15 @@ function parseBalanceStyle(rows: OcrLine[][], today: string): Raw[] {
       .join(" ")
       .trim();
     out.push({
-      date,
+      date: date ?? "",
       title,
       sub,
       amountText: amountLine.text,
       amount: won(am),
       sign: am[1] ? (am[1] === "+" ? "+" : "-") : null,
       balance: bm ? won(bm) : null,
-      amountReview: !exactAmount && !BARE_AMOUNT.test(amountLine.text),
+      amountReview:
+        !exactAmount && (!BARE_AMOUNT.test(amountLine.text) || !bankColumns),
     });
     if (bm || bankColumns) i++;
   }

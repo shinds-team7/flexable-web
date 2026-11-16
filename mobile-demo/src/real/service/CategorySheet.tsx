@@ -22,7 +22,15 @@ const icons = [
   "bus",
   "film",
   "cart",
+  "home",
+  "phone-portrait",
+  "medkit",
+  "school",
+  "play-circle",
   "cash",
+  "trending-up",
+  "receipt",
+  "ribbon",
   "gift",
 ];
 export function CategorySheet({
@@ -30,30 +38,46 @@ export function CategorySheet({
   onClose,
   type,
   onCreated,
+  category,
+  resetKey = 0,
 }: {
   visible: boolean;
   onClose: () => void;
   type: Kind;
   onCreated: (category: Category) => void;
+  category?: Category | null;
+  resetKey?: number;
 }) {
   const session = useSession();
-  const [name, setName] = useState("");
-  const [color, setColor] = useState(palette[0]);
-  const [icon, setIcon] = useState(icons[0]);
+  const [name, setName] = useState(category?.name ?? "");
+  const [color, setColor] = useState(category?.color ?? palette[0]);
+  const [icon, setIcon] = useState(category?.icon ?? icons[0]);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const [opened, setOpened] = useState(-1);
+  // 시트 자체는 유지해 열림 애니메이션·동작 줄이기 설정을 보존하고, 폼 값만 새로 시작한다.
+  if (visible && opened !== resetKey) {
+    setOpened(resetKey);
+    setName(category?.name ?? "");
+    setColor(category?.color ?? palette[0]);
+    setIcon(category?.icon ?? icons[0]);
+    setError(undefined);
+  }
   const save = async () => {
     if (lock.current || !name.trim()) return;
     lock.current = true;
     setBusy(true);
     setError(undefined);
     try {
-      const category = await api<Category>("/categories", {
-        method: "POST",
-        body: { name: name.trim(), type, color, icon },
-      });
-      onCreated(category);
+      const saved = await api<Category>(
+        category ? `/categories/${category.id}` : "/categories",
+        {
+          method: category ? "PATCH" : "POST",
+          body: { name: name.trim(), ...(!category && { type }), color, icon },
+        },
+      );
+      onCreated(saved);
       session.invalidate();
       setName("");
       onClose();
@@ -70,7 +94,7 @@ export function CategorySheet({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title="카테고리 추가"
+      title={category ? "카테고리 수정" : "카테고리 추가"}
     >
       <ScrollView
         style={{ maxHeight: 440 }}
@@ -134,7 +158,15 @@ export function CategorySheet({
         </View>
         <ErrorNotice error={error} />
         <Button
-          label={busy ? "추가 중…" : error ? "다시 시도" : "추가하기"}
+          label={
+            busy
+              ? "저장 중…"
+              : error
+                ? "다시 시도"
+                : category
+                  ? "저장하기"
+                  : "추가하기"
+          }
           disabled={busy || !name.trim()}
           onPress={save}
         />

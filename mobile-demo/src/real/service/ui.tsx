@@ -169,7 +169,7 @@ export function Guard({
   if (!s.ready) return <Loading />;
   if (s.error) return <ErrorNotice error={s.error} retry={s.retry} />;
   if (!s.user) return <Redirect href="/" />;
-  if (budget && !s.user.onboarded) return <Redirect href="/budget-settings" />;
+  if (budget && !s.user.onboarded) return <Redirect href="/onboarding" />;
   return <>{children}</>;
 }
 export function Page({
@@ -269,6 +269,15 @@ export function useResource<T>(path: string | null) {
         }),
     retry: () => bump((x) => x + 1),
   };
+}
+/** 월/기간 요청 중에는 직전 성공 결과를 유지해 카드가 사라지지 않게 한다. 계정 간에는 공유하지 않는다. */
+export function usePreviousWhileLoading<T>(data: T | undefined, loading: boolean) {
+  const { user } = useSession();
+  const [previous, setPrevious] = useState<{ userId: number; data: T } | null>(null);
+  if (data !== undefined && user && (previous?.userId !== user.id || previous.data !== data))
+    setPrevious({ userId: user.id, data });
+  const stale = data === undefined && loading && previous?.userId === user?.id;
+  return { displayData: data ?? (stale ? previous?.data : undefined), stale };
 }
 export function seoulDate() {
   return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });

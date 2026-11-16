@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { readStorage, writeStorage } from "./storage";
 // Whether to schedule a device reminder. A per-device choice like the home style,
-// because the reminder itself is scheduled on the device. On unless the user turned it off.
-function deviceSetting(key: string) {
+// because the reminder itself is scheduled on the device. Preserve explicit choices.
+function deviceSetting(key: string, defaultOn = true) {
   let current: boolean | null = null;
   const listeners = new Set<(on: boolean) => void>();
   return function useSetting() {
-    const [on, setOn] = useState(current ?? true);
+    const [on, setOn] = useState(current ?? defaultOn);
     useEffect(() => {
       listeners.add(setOn);
       if (current === null)
         readStorage(key)
           .then((saved) => {
-            current = saved !== "off";
+            if (current !== null) return;
+            current = saved === "on" || (saved !== "off" && defaultOn);
             listeners.forEach((l) => l(current!));
           })
           .catch(() => {});
@@ -39,6 +40,7 @@ export const useEntryReminderSetting = deviceSetting(
 // Always-on "today's remaining budget" notification in the Android notification shade.
 export const useBudgetNotificationSetting = deviceSetting(
   "flexable.service.budgetNotification",
+  false,
 );
 
 // Time of day for the record reminder, "HH:MM". Null means automatic: 24 hours after the last record.

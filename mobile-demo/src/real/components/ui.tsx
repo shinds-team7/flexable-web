@@ -110,9 +110,9 @@ export function Card({ children, style, onPress, accessibilityLabel }: { childre
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-export function Screen({ children }: { children: ReactNode }) {
+export function Screen({ children, scrollRef, accessibilityLabel, tightBottom }: { children: ReactNode; scrollRef?: RefObject<ScrollView | null>; accessibilityLabel?: string; /** 아래에 고정 버튼이 따로 있으면 마지막 항목 바로 아래에서 스크롤이 끝나게 한다 */ tightBottom?: boolean }) {
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} accessibilityLabel={accessibilityLabel} keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={tightBottom ? [styles.screen, { paddingBottom: 6 }] : styles.screen} showsVerticalScrollIndicator={false}>
       {children}
     </ScrollView>
   );
@@ -158,13 +158,35 @@ export function Segment<K extends string>({
   items,
   value,
   onChange,
+  animated = false,
 }: {
   items: { key: K; label: string }[];
   value: K;
   onChange: (k: K) => void;
+  animated?: boolean;
 }) {
+  const [width, setWidth] = useState(0);
+  const reduced = useReducedMotion();
+  const index = items.findIndex((item) => item.key === value);
+  const position = useAnimValue(index);
+  useEffect(() => {
+    Animated.timing(position, {
+      toValue: index,
+      duration: reduced ? 0 : 220,
+      easing: motion.easeOut,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start();
+  }, [index, position, reduced]);
+  const cellWidth = (width - 8 - 4 * (items.length - 1)) / items.length;
   return (
-    <View style={styles.segment}>
+    <View style={styles.segment} onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+      {animated && width > 0 && (
+        <Animated.View pointerEvents="none" style={[styles.segOn, {
+          position: 'absolute', left: 4, top: 4, bottom: 4,
+          width: cellWidth, borderRadius: radius.sm,
+          transform: [{ translateX: position.interpolate({ inputRange: [0, items.length - 1], outputRange: [0, (cellWidth + 4) * (items.length - 1)] }) }],
+        }]} />
+      )}
       {items.map((it) => {
         const on = it.key === value;
         return (
@@ -174,7 +196,7 @@ export function Segment<K extends string>({
             accessibilityState={{ selected: on }}
             aria-selected={on}
             onPress={() => onChange(it.key)}
-            style={[styles.segItem, pressTransition, on && styles.segOn]}
+            style={[styles.segItem, pressTransition, on && !animated && styles.segOn]}
           >
             <T size={15} weight={on ? '700' : '500'} color={on ? colors.text : colors.textSub}>
               {it.label}

@@ -115,9 +115,8 @@ export function ScheduleCard({
                 setAmountText(n == null ? "" : won(n));
                 setDraft((d) => ({ ...d, amount: n }));
               }}
-              onBlur={() => {
-                if (draft.amount != null) setEditingAmount(false);
-              }}
+              // Keep the input mounted through blur so a neighboring chip does
+              // not move between pointer-down and pointer-up.
               onSubmitEditing={() => {
                 if (draft.amount != null) setEditingAmount(false);
               }}

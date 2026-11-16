@@ -17,6 +17,7 @@ export const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.card },
   center: { textAlign: "center" },
   roomHeader: {
+    flexShrink: 0,
     height: 52,
     flexDirection: "row",
     alignItems: "center",
@@ -34,6 +35,9 @@ export const styles = StyleSheet.create({
   },
   hero: { height: 210, alignItems: "center", justifyContent: "center" },
   heroImg: { width: 180, height: 180 },
+  menuHero: { height: 142 },
+  menuHeroImg: { width: 126, height: 126 },
+  menuDots: { top: 12, marginLeft: 44 },
   dots: {
     position: "absolute",
     // 화면 폭과 상관없이 캐릭터(가운데 180px) 오른쪽 위 머리 옆에 붙인다
@@ -73,6 +77,7 @@ export const styles = StyleSheet.create({
     boxShadow: "0 6px 16px rgba(0,70,255,0.25)",
   },
   menuContent: { padding: space[5], paddingTop: 0, gap: space[5] },
+  menuContentCompact: { padding: space[3], paddingTop: 0, gap: space[3] },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space[3] },
   topic: {
     flexBasis: "46%",
@@ -87,6 +92,7 @@ export const styles = StyleSheet.create({
     borderColor: "#EEF1F6",
     ...elevation1,
   },
+  topicCompact: { paddingVertical: 10, paddingHorizontal: space[2], gap: 4 },
   topicIcon: {
     width: 44,
     height: 44,
@@ -96,6 +102,7 @@ export const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: "#EEF3FF",
   },
+  topicIconCompact: { width: 36, height: 36, marginBottom: 0 },
   voiceStatus: {
     flexDirection: "row",
     paddingHorizontal: space[4],
@@ -105,6 +112,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   composer: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: space[2],

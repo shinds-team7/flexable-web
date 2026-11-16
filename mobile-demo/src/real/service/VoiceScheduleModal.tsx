@@ -6,6 +6,7 @@ import { useToast } from "@/real/components/Toast";
 import { colors } from "@/real/theme";
 import { won } from "@/real/utils/format";
 import { api, ApiError, sessionGeneration } from "./api/client";
+import { IncomeActionCard } from "./IncomeActionCard";
 import { ScheduleCard, type ScheduleSubmit } from "./ScheduleCard";
 import { confirmSpeech } from "./scheduleDraft";
 import { useSession } from "./Session";
@@ -16,6 +17,7 @@ import { speak, stopSpeaking, useVoiceReply } from "./voiceReply";
 
 type Schedule = NonNullable<NonNullable<ChatResponse["action"]>["schedule"]>;
 type State =
+  | { kind: "income"; heard: string; action: NonNullable<ChatResponse["action"]> }
   | { kind: "listening" }
   | { kind: "thinking"; heard: string }
   | { kind: "card"; heard: string; schedule: Schedule }
@@ -42,7 +44,9 @@ export function VoiceScheduleModal({
       visible={visible}
       onClose={onClose}
       title="음성 입력"
-      subtitle="날짜와 할 일을 말하면 예정 지출로 등록해요. 예: 금요일에 친구랑 저녁"
+      subtitle={
+        "일정이나 받은 수입, 월 수입 설정을 말해 주세요.\n예: 오늘 용돈 5만 원 받았어"
+      }
     >
       {visible ? <VoiceSchedule onClose={onClose} /> : <View />}
     </Sheet>
@@ -51,6 +55,7 @@ export function VoiceScheduleModal({
 
 function VoiceSchedule({ onClose }: { onClose: () => void }) {
   const session = useSession();
+  const userId = session.user?.id;
   const toast = useToast();
   const voiceReply = useVoiceReply();
   const [state, setState] = useState<State>({ kind: "listening" });
@@ -92,12 +97,12 @@ function VoiceSchedule({ onClose }: { onClose: () => void }) {
       controller.current = c;
       try {
         const saved = (
-          await readStorage("chatbot.mate").catch(() => null)
+          await readStorage(`chatbot.mate.${userId}`).catch(() => null)
         )?.toUpperCase();
         const mate = MATES.find((m) => m === saved) ?? "ANALYST";
         const body: ChatRequest = {
           mate,
-          accepts: ["SCHEDULE"],
+          accepts: ["SCHEDULE", "INCOME", "EXPENSE"],
           messages: [{ role: "USER", text: text.slice(0, 1000) }],
         };
         const result = await api<ChatResponse>("/chat/messages", {
@@ -111,14 +116,17 @@ function VoiceSchedule({ onClose }: { onClose: () => void }) {
           result.action?.type === "SCHEDULE"
             ? result.action.schedule
             : undefined;
-        if (schedule) {
+        if (result.action?.type === "INCOME_TRANSACTION" || result.action?.type === "INCOME_SETTINGS" || result.action?.type === "EXPENSE_TRANSACTION") {
+          setState({ kind: "income", heard: text, action: result.action });
+          if (voiceReply.on) speak(result.reply);
+        } else if (schedule) {
           setState({ kind: "card", heard: text, schedule });
           if (voiceReply.on) speak(confirmSpeech(schedule));
         } else {
           setState({
             kind: "message",
             heard: text,
-            text: "말씀에서 예정 지출로 등록할 일정을 찾지 못했어요. 날짜와 할 일을 함께 말해 주세요.\n예: 금요일에 친구랑 저녁",
+            text: result.reply,
           });
         }
       } catch (e) {
@@ -126,7 +134,7 @@ function VoiceSchedule({ onClose }: { onClose: () => void }) {
         setState({ kind: "message", heard: text, text: failText(e) });
       }
     },
-    [voiceReply.on],
+    [voiceReply.on, userId],
   );
 
   // 말이 끝나면(듣기가 멈추면) 들은 문장을 보낸다. 못 알아들었으면 안내를 보여 준다
@@ -200,7 +208,7 @@ function VoiceSchedule({ onClose }: { onClose: () => void }) {
           <ActivityIndicator color={colors.brand} />
           <T size={13} color={colors.textMuted}>
             {state.kind === "thinking"
-              ? "예상 금액을 계산하고 있어요"
+              ? "말씀을 확인하고 있어요"
               : "등록하고 있어요"}
           </T>
         </View>
@@ -219,6 +227,7 @@ function VoiceSchedule({ onClose }: { onClose: () => void }) {
           onSubmit={(v) => void register(state.schedule, v)}
         />
       )}
+      {state.kind === "income" && <IncomeActionCard action={state.action} onSaved={onClose} />}
       {state.kind === "message" && (
         <>
           <T size={14} color={colors.textSub} style={{ lineHeight: 21 }}>

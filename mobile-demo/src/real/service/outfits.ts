@@ -6,6 +6,9 @@
 import type { ImageSourcePropType } from "react-native";
 
 export const DEFAULT_OUTFIT_ID = "costume-lv1";
+export const ATTENDANCE_OUTFIT_ID = "outfit-06";
+/** 아직 공개하지 않은 코스튬의 공통 실루엣. 실제 보상 영상과 별도로 유지한다. */
+export const LOCKED_OUTFIT_SOURCE: ImageSourcePropType = require("../../../assets/real/outfits/cat-unlock.png");
 
 // 파일이 저장소에 들어오면 id마다 영상과 첫 장면을 함께 한 줄씩 추가한다(스크립트가 줄을 출력한다).
 // require는 빌드할 때 파일이 있어야 해서 미리 적어 둘 수 없다.
@@ -26,6 +29,14 @@ const VIDEOS: Record<string, { video: number; poster: ImageSourcePropType }> = {
     video: require("../../../assets/real/outfits/costume-lv4.mp4"),
     poster: require("../../../assets/real/outfits/costume-lv4.jpg"),
   },
+  "costume-lv5": {
+    video: require("../../../assets/real/outfits/costume-lv5.mp4"),
+    poster: require("../../../assets/real/outfits/costume-lv5.jpg"),
+  },
+  "costume-lv6": {
+    video: require("../../../assets/real/outfits/costume-lv6.mp4"),
+    poster: require("../../../assets/real/outfits/costume-lv6.jpg"),
+  },
   "outfit-01": {
     video: require("../../../assets/real/outfits/outfit-01.mp4"),
     poster: require("../../../assets/real/outfits/outfit-01.jpg"),
@@ -45,6 +56,10 @@ const VIDEOS: Record<string, { video: number; poster: ImageSourcePropType }> = {
   "outfit-05": {
     video: require("../../../assets/real/outfits/outfit-05.mp4"),
     poster: require("../../../assets/real/outfits/outfit-05.jpg"),
+  },
+  "outfit-06": {
+    video: require("../../../assets/real/outfits/outfit-06.mp4"),
+    poster: require("../../../assets/real/outfits/outfit-06.jpg"),
   },
   "outfit-07": {
     video: require("../../../assets/real/outfits/outfit-07.mp4"),

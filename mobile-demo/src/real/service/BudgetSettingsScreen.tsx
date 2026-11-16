@@ -15,6 +15,7 @@ import {
 import { useSession } from "./Session";
 import type { BudgetSettings } from "./types";
 import { ErrorNotice, Loading, MoneyField, useResource } from "./ui";
+import { SeedMoneyHelp } from "./SeedMoneyHelp";
 
 type Saved = BudgetSettings & {
   fixedExpenses: (BudgetSettings["fixedExpenses"][number] & { id?: number })[];
@@ -143,7 +144,16 @@ function Form({ initial }: { initial: Saved }) {
           />
         </Section>
         <Section
-          title="모아둔 돈"
+          title={
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <T size={17} weight="800" accessibilityRole="header">
+                모아둔 돈
+              </T>
+              <SeedMoneyHelp label />
+            </View>
+          }
           note="생활비와 따로 모아둔 돈이에요"
         >
           <MoneyField
@@ -180,16 +190,20 @@ function Section({
   note,
   children,
 }: {
-  title: string;
+  title: ReactNode;
   note?: string;
   children: ReactNode;
 }) {
   return (
     <View style={{ gap: 12, marginTop: 8 }}>
       <View style={{ gap: 4 }}>
-        <T size={17} weight="800" accessibilityRole="header">
-          {title}
-        </T>
+        {typeof title === "string" ? (
+          <T size={17} weight="800" accessibilityRole="header">
+            {title}
+          </T>
+        ) : (
+          title
+        )}
         {note && (
           <T size={13} color={colors.textMuted}>
             {note}

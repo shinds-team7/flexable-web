@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { Platform, Pressable, Share, StyleSheet, View } from "react-native";
+import { Linking, Platform, Pressable, Share, StyleSheet, View } from "react-native";
 import {
   Button,
   Card,
@@ -15,9 +15,11 @@ import { useToast } from "@/real/components/Toast";
 import { colors } from "@/real/theme";
 import { ApiError, api, sessionGeneration } from "./api/client";
 import { getReferral, registerReferral } from "./coinApi";
+import { requestBudgetNotificationPermission, useBudgetNotificationStatus } from "./budgetNotification";
 import { APP_VERSION, SUPPORT_EMAIL } from "./config";
 import {
   useEntryReminderSetting,
+  useBudgetNotificationSetting,
   useEntryReminderTime,
   useSeedReminderSetting,
 } from "./reminderSetting";
@@ -25,12 +27,41 @@ import {
   EntryReminderTimeSheet,
   reminderTimeText,
 } from "./EntryReminderTimeSheet";
+import { devToolsAvailable } from "./DevNotificationsScreen";
 import { markHomeGuidePending } from "./HomeGuide";
 import { useSession } from "./Session";
 import { ErrorNotice, Field } from "./ui";
 import { PROVIDER_NAME } from "./oauth";
 import type { Referral, User } from "./types";
 import { publishWallet } from "./wallet";
+/**
+ * 앱 버전. 개발자 빌드(preview·development 채널)에서만 3초 안에 7번 누르면 숨은 개발자용 알림 원문 확인으로 간다.
+ * 운영 앱에서는 눌러도 아무 일도 없다.
+ */
+function VersionText() {
+  const taps = useRef<number[]>([]);
+  const label = (
+    <T size={13} color={colors.textMuted}>
+      앱 버전 {APP_VERSION}
+    </T>
+  );
+  if (!devToolsAvailable()) return label;
+  return (
+    <Pressable
+      accessibilityLabel={`앱 버전 ${APP_VERSION}`}
+      onPress={() => {
+        const now = Date.now();
+        taps.current = [...taps.current.filter((t) => now - t < 3000), now];
+        if (taps.current.length >= 7) {
+          taps.current = [];
+          router.push("/dev-notifications");
+        }
+      }}
+    >
+      {label}
+    </Pressable>
+  );
+}
 /** 이메일, 그리고 카카오·Google 계정이면 어느 계정으로 로그인했는지 */
 export function AccountLine({ user }: { user: User }) {
   const social =
@@ -174,6 +205,9 @@ export function MyScreen() {
   const [remind, setRemind] = useSeedReminderSetting();
   // Same for the reminder to record; the service layout reschedules it.
   const [remindEntry, setRemindEntry] = useEntryReminderSetting();
+  // 알림창 상시 알림. 끄면 지우고, 켜면 서비스 레이아웃이 다시 띄운다.
+  const [showBudget, setShowBudget] = useBudgetNotificationSetting();
+  const budgetStatus = useBudgetNotificationStatus();
   const [entryTime, setEntryTime] = useEntryReminderTime();
   const [timeSheet, setTimeSheet] = useState(false);
   // 시트를 열 때마다 새로 만들어 저장하지 않은 선택이 남지 않게 한다
@@ -212,18 +246,7 @@ export function MyScreen() {
         </View>
       </Card>
       <ReferralCard />
-      {/* 시연: 실제 앱에서는 Android에서만 보인다 */}
-      {(
-        <Card style={styles.group}>
-          <Row
-            first
-            label="신한카드 자동 기록"
-            caption="결제 알림을 읽어 지출로 기록해요"
-            onPress={() => router.push("/payment-notifications")}
-          />
-        </Card>
-      )}
-      {/* 시연: 실제 앱에서는 기기 알림이 있는 앱에서만 보인다. 알림창 상시 알림 토글은 실제 화면 캡처를 받은 뒤 넣는다 */}
+      {/* 시연: 실제 앱에서는 기기 알림이 있는 앱(Android)에서만 보인다 */}
       {(
         <Card style={styles.group}>
           <Row
@@ -259,10 +282,10 @@ export function MyScreen() {
               }}
             />
           )}
-          {/* 신한카드 자동 기록은 알림 설정과 같은 카드, 기록 알림 시간 아래 */}
-          {Platform.OS === "android" && (
+          {/* 카드 자동 기록은 알림 설정과 같은 카드, 기록 알림 시간 아래. 시연: 실제 앱에서는 Android에서만 보인다 */}
+          {(
             <Row
-              label="신한카드 자동 기록"
+              label="카드 자동 기록"
               caption="결제 알림을 읽어 지출로 기록해요"
               onPress={() => router.push("/payment-notifications")}
             />
@@ -274,19 +297,47 @@ export function MyScreen() {
           [
             ["예산 설정 바꾸기", "/budget/settings"],
             ["카테고리 관리", "/categories"],
+            ["상시 알림", null],
             ["웹사이트 연동", "/web-links"],
-            ["고객지원", "/support"],
-            ["서비스 이용약관", "/terms"],
-            ["개인정보처리방침", "/privacy"],
           ] as const
-        ).map(([label, href], i) => (
-          <Row
-            key={href}
-            first={i === 0}
-            label={label}
-            onPress={() => router.push(href)}
-          />
-        ))}
+        ).map(([label, href], i) =>
+          href ? (
+            <Row
+              key={href}
+              first={i === 0}
+              label={label}
+              onPress={() => router.push(href)}
+            />
+          ) : (
+            // 알림창 상시 알림은 기본 꺼짐. 직접 켤 때 권한을 요청한다.
+            Platform.OS !== "web" && (
+              <Row
+                key="budget-notification"
+                label="알림창에 오늘 남은 예산"
+                caption={showBudget
+                  ? budgetStatus === "unavailable" ? "설치된 앱에 알림 기능이 없어요. 새 앱 빌드가 필요해요"
+                  : budgetStatus === "permission" ? "휴대폰에서 이 앱의 알림을 허용해 주세요"
+                  : budgetStatus === "error" ? "알림을 표시하지 못했어요. 다시 켜 보세요"
+                  : budgetStatus === "checking" ? "알림을 준비하고 있어요"
+                  : "알림창을 내리면 남은 예산을 볼 수 있어요"
+                  : "알림창에서 남은 예산을 표시하지 않아요"}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: showBudget }}
+                aria-checked={showBudget}
+                right={<SwitchMark on={showBudget} />}
+                onPress={() => {
+                  if (showBudget) setShowBudget(false);
+                  else void requestBudgetNotificationPermission()
+                    .catch(() => false)
+                    .then(() => setShowBudget(true));
+                }}
+              />
+            )
+          ),
+        )}
+        {Platform.OS === "android" && showBudget && budgetStatus === "permission" && (
+          <Row label="휴대폰 알림 설정 열기" onPress={() => void Linking.openSettings()} />
+        )}
         {session.user && (
           <Row
             label="사용 가이드 다시 보기"
@@ -299,10 +350,13 @@ export function MyScreen() {
           />
         )}
       </Card>
+      <Card style={styles.group}>
+        {([ ["고객지원", "/support"], ["서비스 이용약관", "/terms"], ["개인정보처리방침", "/privacy"] ] as const).map(([label, href], i) => (
+          <Row key={href} first={i === 0} label={label} onPress={() => router.push(href)} />
+        ))}
+      </Card>
       <View style={{ gap: 4, paddingHorizontal: 4 }}>
-        <T size={13} color={colors.textMuted}>
-          앱 버전 {APP_VERSION}
-        </T>
+        <VersionText />
         <T size={13} color={colors.textMuted}>
           문의: {SUPPORT_EMAIL}
         </T>

@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import { Button, Card, ConfirmModal, T } from "@/real/components/ui";
@@ -7,6 +7,7 @@ import { api } from "./api/client";
 import { DateField } from "./DateField";
 import { CategoryPicker } from "./CategoryPicker";
 import { validDate } from "./occurredAt";
+import { scheduledInputError } from "./scheduledInput";
 import { useSession } from "./Session";
 import { useServerExtensions } from "./serverExtensions";
 import type { Category, ScheduledExpense } from "./types";
@@ -17,7 +18,6 @@ import {
   MoneyField,
   Page,
   money,
-  seoulDate,
   useResource,
 } from "./ui";
 
@@ -48,7 +48,6 @@ function ScheduledForm({ initial }: { initial: string }) {
   const [amount, setAmount] = useState(0);
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [editing, setEditing] = useState<ScheduledExpense | null>(null);
   const [remove, setRemove] = useState<ScheduledExpense | null>(null);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
@@ -62,12 +61,6 @@ function ScheduledForm({ initial }: { initial: string }) {
   const selectedCategory = categories.data?.some((c) => c.id === categoryId)
     ? categoryId
     : (categories.data?.[0]?.id ?? null);
-  const clear = () => {
-    setEditing(null);
-    setAmount(0);
-    setTitle("");
-    setDate(activeDate);
-  };
   const run = async (action: () => Promise<void>) => {
     if (lock.current) return;
     lock.current = true;
@@ -84,37 +77,27 @@ function ScheduledForm({ initial }: { initial: string }) {
     }
   };
   const save = () => {
-    if (
-      !selectedCategory ||
-      !Number.isInteger(amount) ||
-      amount < 1 ||
-      amount >= 1e12 ||
-      !title.trim() ||
-      title.trim().length > 40 ||
-      !validDate(date)
-    ) {
-      setError("금액·카테고리·내용·날짜를 확인해 주세요");
-      return;
-    }
-    if (date <= seoulDate() && date !== editing?.date) {
-      setError("내일부터의 날짜를 선택해 주세요");
+    const invalid = scheduledInputError({
+      amount,
+      title,
+      date,
+      categoryId: selectedCategory,
+    });
+    if (invalid) {
+      setError(invalid);
       return;
     }
     void run(async () => {
-      await api(
-        editing ? `/scheduled-expenses/${editing.id}` : "/scheduled-expenses",
-        {
-          method: editing ? "PUT" : "POST",
-          body: {
-            amount,
-            categoryId: selectedCategory,
-            title: title.trim(),
-            date,
-          },
+      await api("/scheduled-expenses", {
+        method: "POST",
+        body: {
+          amount,
+          categoryId: selectedCategory,
+          title: title.trim(),
+          date,
         },
-      );
+      });
       setActiveDate(date);
-      setEditing(null);
       setAmount(0);
       setTitle("");
       toast("지출 예정을 저장했어요");
@@ -123,7 +106,7 @@ function ScheduledForm({ initial }: { initial: string }) {
   return (
     <Page title="지출 예정 등록">
       <Card style={{ gap: 12 }}>
-        <T weight="700">{editing ? "지출 예정 수정" : "미리 기록해 둘 지출"}</T>
+        <T weight="700">미리 기록해 둘 지출</T>
         <T size={13}>
           예정 지출은 실제 거래와 별도로 보관해요. 다음 수입일 전까지의 예정
           금액은 남은 생활비에서 미리 빼 두고 그날 하루 예산에 더해요. 실제로
@@ -155,24 +138,10 @@ function ScheduledForm({ initial }: { initial: string }) {
         />
         <ErrorNotice error={error} />
         <Button
-          label={
-            busy
-              ? "저장 중이에요"
-              : editing
-                ? "예정 지출 수정"
-                : "예정 지출 등록"
-          }
+          label={busy ? "저장 중이에요" : "예정 지출 등록"}
           disabled={busy || !amount || !selectedCategory || !title.trim()}
           onPress={save}
         />
-        {editing && (
-          <Button
-            label="수정 취소"
-            variant="ghost"
-            disabled={busy}
-            onPress={clear}
-          />
-        )}
       </Card>
       <T size={18} weight="700">
         {activeDate} 지출 예정
@@ -194,13 +163,8 @@ function ScheduledForm({ initial }: { initial: string }) {
                 label={`${item.title} 수정`}
                 variant="soft"
                 disabled={busy}
-                onPress={() => {
-                  setEditing(item);
-                  setAmount(item.amount);
-                  setTitle(item.title);
-                  setDate(item.date);
-                  setCategoryId(item.categoryId);
-                }}
+                // 수정은 이 등록 화면과 분리된 상세 화면에서 한다
+                onPress={() => router.push(scheduledDetailHref(item))}
               />
               <Button
                 label={`${item.title} 삭제`}
@@ -223,10 +187,17 @@ function ScheduledForm({ initial }: { initial: string }) {
           if (item)
             void run(async () => {
               await api(`/scheduled-expenses/${item.id}`, { method: "DELETE" });
-              if (editing?.id === item.id) clear();
             });
         }}
       />
     </Page>
   );
+}
+
+/** 예정 지출 한 건의 상세(수정·삭제) 화면 주소. 단건 조회 API가 없어 날짜를 함께 넘긴다 */
+export function scheduledDetailHref(item: Pick<ScheduledExpense, "id" | "date">) {
+  return {
+    pathname: "/scheduled-expenses/[id]" as const,
+    params: { id: String(item.id), date: item.date },
+  };
 }

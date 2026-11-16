@@ -10,10 +10,12 @@ import {
 } from "./native";
 import {
   importPaymentNotices,
+  pickExpenseCategory,
   paymentIdempotencyKey,
   type PaymentBody,
   type PaymentProblem,
 } from "./process";
+import { extraPaymentSources } from "./sources";
 
 type State = {
   owner?: string;
@@ -69,6 +71,8 @@ export function useAutomaticPaymentImport() {
       return;
     }
     rejected = new Map();
+    // 검증한 파서가 있는 카드 앱만 네이티브 수집 대상으로 알린다(원격 업데이트로 카드사를 하나씩 더한다)
+    void native.setSources?.(extraPaymentSources()).catch(() => {});
     let alive = true;
     let requested = false;
     const generation = sessionGeneration();
@@ -98,13 +102,9 @@ export function useAutomaticPaymentImport() {
         let categories: Category[] | undefined;
         const result = await importPaymentNotices(notices, {
           current,
-          category: async () => {
+          category: async (title) => {
             categories ??= await api<Category[]>("/categories?type=EXPENSE");
-            return (
-              categories.find(
-                (category) => category.isDefault && category.name === "기타",
-              )?.id ?? null
-            );
+            return pickExpenseCategory(categories, title);
           },
           existing: async (date) =>
             (

@@ -152,7 +152,7 @@ function Form({
         !existing &&
         e instanceof Error &&
         "code" in e &&
-        (e.code === "NETWORK" || e.code === "INTERNAL_ERROR")
+        (e.code === "NETWORK" || e.code === "TIMEOUT" || e.code === "INTERNAL_ERROR")
       )
         setUncertain(true);
       else {
@@ -287,7 +287,8 @@ function Form({
               ? "거래 삭제 다시 시도"
               : "거래 삭제"
           }
-          variant="ghost"
+          variant="neutral"
+          style={{ backgroundColor: "#D9DEE7" }}
           disabled={busy}
           onPress={() => setConfirm(true)}
         />

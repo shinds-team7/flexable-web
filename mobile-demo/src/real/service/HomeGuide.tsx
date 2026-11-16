@@ -1,7 +1,8 @@
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Modal } from "@/components/PhoneModal";
+import Svg, { Circle, Defs, Mask, Rect } from "react-native-svg";
 import { Button, styles as ui, T } from "@/real/components/ui";
 import {
   hasGuideTarget,
@@ -58,16 +59,16 @@ const STEPS: Step[] = [
   {
     target: "record",
     title: "+ 버튼으로 거래를 기록해요",
-    body: "쓴 돈·받은 돈을 직접 입력하거나, 결제내역 스크린샷으로 여러 건을 한 번에 기록해요. 어느 탭에서나 보여요",
+    body: "수입/지출을 직접 입력하거나, 결제내역 스크린샷으로 여러 건을 한 번에 기록해요.\n카드 결제 자동 기록도 지원해요.",
   },
   {
     target: "hero",
     title: "오늘 쓸 수 있는 돈",
-    body: "입력한 잔액·기록 기준으로 다음 수입일까지 나눈 오늘 금액이에요. 옆으로 밀면 시드머니 카드가 나와요",
+    body: "입력한 잔액·기록 기준으로 다음 수입일까지 나눈 오늘 예산이에요. 옆으로 밀면 시드머니 카드가 나와요",
   },
   {
     target: "character",
-    title: "캐릭터를 누르면 상점이에요",
+    title: "캐릭터를 누르면 상점을 볼 수 있어요",
     body: "코인으로 코스튬을 사고 바꿔 입힐 수 있어요",
   },
   {
@@ -83,7 +84,7 @@ const STEPS: Step[] = [
   {
     target: "coin",
     title: "내 코인",
-    body: "누르면 코인 내역이 열려요. 쌓인 코인을 [모으기]로 받을 수 있어요",
+    body: "누르면 코인 내역이 열려요. 시간이 지나 모은 코인을 [모으기]로 받을 수 있어요",
   },
   {
     target: "ai",
@@ -96,19 +97,19 @@ const STEPS: Step[] = [
     body: "예산 초과, 고정지출 자동 기록, 코인 지급 같은 소식을 날짜별로 모아 봐요",
   },
   {
-    target: "tab:내역",
-    title: "내역",
-    body: "기록한 거래를 날짜별로 보고, 눌러서 고치거나 지울 수 있어요",
-  },
-  {
-    target: "tab:분석",
-    title: "분석",
-    body: "이번 기간에 어느 카테고리에 얼마를 썼는지 그래프로 봐요",
-  },
-  {
     target: "tab:마이",
     title: "마이",
     body: "예산 설정 바꾸기, 카테고리 관리, 계정 설정이 있어요. 이 가이드도 여기서 다시 볼 수 있어요",
+  },
+  {
+    target: "tab:마이",
+    title: "카드 결제 알림을 자동으로 기록해요",
+    body: "Android에서 마이 → [카드 자동 기록]으로 들어가 동의하고 알림 접근을 허용한 뒤 켜 주세요. 신한·삼성·현대·KB국민·롯데·NH농협카드 앱의 국내 원화 승인 알림을 모아, 앱을 열면 지출로 기록해요. 취소·해외 결제는 직접 확인해 주세요",
+  },
+  {
+    target: "tab:마이",
+    title: "알림창에서 오늘 남은 예산을 봐요",
+    body: "Android에서 마이 → [알림창에 오늘 남은 예산]을 켜면 휴대폰 알림창에서 남은 예산을 볼 수 있어요. 기본은 꺼져 있고, 직접 켤 때 알림 권한을 요청해요. 필요 없으면 언제든 다시 끌 수 있어요",
   },
 ];
 
@@ -120,30 +121,51 @@ const EDGE = 16;
 
 export function HomeGuide({
   visible,
+  onPrepare,
   onDone,
 }: {
   visible: boolean;
+  onPrepare: () => void;
   onDone: () => void;
 }) {
   const [index, setIndex] = useState(0);
   const [steps, setSteps] = useState<Step[]>([]);
   const [opened, setOpened] = useState(false);
+  const [prepared, setPrepared] = useState(false);
+  const [measured, setMeasured] = useState<{
+    key: string;
+    rect: GuideRect | null;
+  }>();
+  const [cardHeight, setCardHeight] = useState(250);
   const { width, height } = useWindowDimensions();
   // 열릴 때 지금 화면에 있는 요소만 단계로 쓴다(렌더 중 갱신: 열린 순간 한 번)
   if (visible !== opened) {
     setOpened(visible);
+    setPrepared(false);
+    setMeasured(undefined);
     if (visible) {
       setIndex(0);
       setSteps(STEPS.filter((st) => hasGuideTarget(st.target)));
     }
   }
+  useEffect(() => {
+    if (!visible) return;
+    onPrepare();
+    let second = 0;
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setPrepared(true));
+    });
+    return () => {
+      cancelAnimationFrame(first);
+      cancelAnimationFrame(second);
+    };
+  }, [visible, onPrepare]);
 
   const step = steps[Math.min(index, steps.length - 1)];
   // 잰 위치는 어느 단계·화면 크기에서 잰 것인지와 함께 둔다. 다르면 아직 재는 중이다
   const measureKey = `${step?.target}:${width}x${height}`;
-  const [measured, setMeasured] = useState<{ key: string; rect: GuideRect | null }>();
   useEffect(() => {
-    if (!visible || !step) return;
+    if (!visible || !prepared || !step) return;
     let alive = true;
     // 모달이 뜬 뒤에 잰다(바로 재면 레이아웃 전일 수 있다)
     const t = setTimeout(() => {
@@ -155,7 +177,7 @@ export function HomeGuide({
       alive = false;
       clearTimeout(t);
     };
-  }, [visible, step, measureKey]);
+  }, [visible, prepared, step, measureKey]);
   // undefined: 재는 중, null: 화면에서 못 찾음(가운데 카드로 보인다)
   const rect = measured?.key === measureKey ? measured.rect : undefined;
 
@@ -164,14 +186,25 @@ export function HomeGuide({
     setIndex(0);
     onDone();
   };
-  if (!visible || !step) return null;
+  if (!visible || !prepared || !step) return null;
 
-  const hole = rect && {
-    x: Math.max(0, rect.x - PAD),
-    y: Math.max(0, rect.y - PAD),
-    w: rect.width + PAD * 2,
-    h: rect.height + PAD * 2,
-  };
+  const circular = !["hero", "character", "gauge"].includes(step.target);
+  const diameter = rect ? Math.max(rect.width, rect.height) + PAD * 2 : 0;
+  const hole =
+    rect &&
+    (circular
+      ? {
+          x: rect.x + rect.width / 2 - diameter / 2,
+          y: rect.y + rect.height / 2 - diameter / 2,
+          w: diameter,
+          h: diameter,
+        }
+      : {
+          x: rect.x - PAD,
+          y: rect.y - PAD,
+          w: rect.width + PAD * 2,
+          h: rect.height + PAD * 2,
+        });
   const cardWidth = Math.min(width - EDGE * 2, CARD_MAX);
   const cardLeft = hole
     ? Math.min(
@@ -181,11 +214,14 @@ export function HomeGuide({
     : (width - cardWidth) / 2;
   // 비춘 칸이 화면 위쪽이면 그 아래에, 아래쪽이면 그 위에 설명을 둔다
   const below = hole ? hole.y + hole.h / 2 < height / 2 : false;
-  const cardPos = hole
+  const desiredTop = hole
     ? below
-      ? { top: hole.y + hole.h + GAP }
-      : { bottom: height - hole.y + GAP }
-    : { top: height / 2 - 120 };
+      ? hole.y + hole.h + GAP
+      : hole.y - GAP - cardHeight
+    : (height - cardHeight) / 2;
+  const cardPos = {
+    top: Math.max(EDGE, Math.min(desiredTop, height - EDGE - cardHeight)),
+  };
 
   return (
     <Modal
@@ -196,46 +232,126 @@ export function HomeGuide({
       onRequestClose={done}
     >
       <View style={StyleSheet.absoluteFill}>
-        {hole ? (
-          <>
-            {/* 비춘 칸을 뺀 나머지를 네 조각으로 어둡게 덮는다 */}
-            <View style={[s.dim, { left: 0, top: 0, right: 0, height: hole.y }]} />
-            <View style={[s.dim, { left: 0, top: hole.y + hole.h, right: 0, bottom: 0 }]} />
-            <View style={[s.dim, { left: 0, top: hole.y, width: hole.x, height: hole.h }]} />
-            <View
-              style={[s.dim, { left: hole.x + hole.w, top: hole.y, right: 0, height: hole.h }]}
-            />
-            <View
-              pointerEvents="none"
-              style={[s.ring, { left: hole.x, top: hole.y, width: hole.w, height: hole.h }]}
-            />
-          </>
-        ) : (
-          <View style={[s.dim, StyleSheet.absoluteFill]} />
-        )}
+        <Svg
+          width={width}
+          height={height}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        >
+          <Defs>
+            <Mask
+              id="home-guide-mask"
+              x={0}
+              y={0}
+              width={width}
+              height={height}
+              maskUnits="userSpaceOnUse"
+            >
+              <Rect width={width} height={height} fill="white" />
+              {hole &&
+                (circular ? (
+                  <Circle
+                    cx={hole.x + hole.w / 2}
+                    cy={hole.y + hole.h / 2}
+                    r={hole.w / 2}
+                    fill="black"
+                  />
+                ) : (
+                  <Rect
+                    x={hole.x}
+                    y={hole.y}
+                    width={hole.w}
+                    height={hole.h}
+                    rx={14}
+                    fill="black"
+                  />
+                ))}
+            </Mask>
+          </Defs>
+          <Rect
+            width={width}
+            height={height}
+            fill="rgba(16,26,51,0.62)"
+            mask="url(#home-guide-mask)"
+          />
+          {hole &&
+            (circular ? (
+              <Circle
+                id="home-guide-highlight"
+                cx={hole.x + hole.w / 2}
+                cy={hole.y + hole.h / 2}
+                r={hole.w / 2}
+                fill="none"
+                stroke="white"
+                strokeWidth={2}
+              />
+            ) : (
+              <Rect
+                x={hole.x}
+                y={hole.y}
+                width={hole.w}
+                height={hole.h}
+                rx={14}
+                fill="none"
+                stroke="white"
+                strokeWidth={2}
+              />
+            ))}
+        </Svg>
         {rect !== undefined && (
           <View
-            style={[ui.dialog, floating, s.card, { width: cardWidth, left: cardLeft }, cardPos]}
+            style={[
+              ui.dialog,
+              floating,
+              s.card,
+              { width: cardWidth, left: cardLeft },
+              cardPos,
+            ]}
             accessibilityViewIsModal
+            onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}
           >
-            <T size={13} weight="700" color={colors.brandDark}>
-              {index + 1} / {steps.length}
-            </T>
-            <T size={18} weight="800" accessibilityRole="header" style={{ marginTop: 6 }}>
+            <View style={s.cardHeader}>
+              <T size={13} weight="700" color={colors.brandDark}>
+                {index + 1} / {steps.length}
+              </T>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="건너뛰기"
+                onPress={done}
+                style={s.skip}
+              >
+                <T
+                  size={13}
+                  color={colors.textMuted}
+                  style={{ textDecorationLine: "underline" }}
+                >
+                  건너뛰기
+                </T>
+              </Pressable>
+            </View>
+            <T
+              size={18}
+              weight="800"
+              accessibilityRole="header"
+              style={{ marginTop: 6 }}
+            >
               {step.title}
             </T>
-            <T size={15} color={colors.textSub} style={{ marginTop: 6, lineHeight: 22 }}>
+            <T
+              size={15}
+              color={colors.textSub}
+              style={{ marginTop: 6, lineHeight: 22 }}
+            >
               {step.body}
             </T>
             <View style={{ flexDirection: "row", gap: 8, marginTop: 16 }}>
-              {!last && (
-                <Button
-                  label="건너뛰기"
-                  variant="soft"
-                  style={{ flex: 1, height: 48 }}
-                  onPress={done}
-                />
-              )}
+              <Button
+                label="이전"
+                variant="neutral"
+                style={{ flex: 1, height: 48 }}
+                disabled={index === 0}
+                onPress={() => setIndex(Math.max(0, index - 1))}
+              />
               <Button
                 label={last ? "시작하기" : "다음"}
                 style={{ flex: 1, height: 48 }}
@@ -250,12 +366,17 @@ export function HomeGuide({
 }
 
 const s = StyleSheet.create({
-  dim: { position: "absolute", backgroundColor: "rgba(16,26,51,0.62)" },
-  ring: {
-    position: "absolute",
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: "#fff",
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  skip: {
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: colors.sunken,
   },
   card: { position: "absolute", padding: 20 },
 });

@@ -17,6 +17,10 @@ import { BudgetDraftProvider } from "@/real/service/BudgetDraft";
 import { SessionProvider } from "@/real/service/Session";
 import { colors } from "@/theme";
 import "@/theme/webFont";
+import { markSplashHidden } from "@/real/service/splashVisibility";
+
+// 시연은 웹이라 기기 시작 화면(스플래시)이 없다. 앱의 웹 빌드처럼 바로 숨김 처리해 홈 등장 애니메이션이 시작되게 한다.
+markSplashHidden();
 
 export default function DemoLayout() {
   // 모달이 폰 틀 안에서 열리도록 틀의 DOM 요소를 모달에 넘긴다

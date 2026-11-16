@@ -1,28 +1,30 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useRef, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { Pressable, View } from "react-native";
 import { Donut } from "@/real/components/Donut";
-import { Button, Card, Screen, Segment, T } from "@/real/components/ui";
+import { Button, Card, Screen, Segment, Sheet, T } from "@/real/components/ui";
 import {
   CategoryIcon,
   ErrorNotice,
   Loading,
   money,
   seoulDate,
+  usePreviousWhileLoading,
   useResource,
 } from "./ui";
 import type { Analysis, Today } from "./types";
 import { colors } from "@/real/theme";
 const SPANS = [
-  [1, "1개월"],
   [3, "3개월"],
   [6, "6개월"],
   [12, "1년"],
 ] as const;
 export function AnalysisScreen() {
-  const [period, setPeriod] = useState("week");
+  const [period, setPeriod] = useState("month");
   // "전체"에서 고르는 기간(개월). 서버가 한 번에 읽는 최대 366일 안이다
   const [span, setSpan] = useState(12);
+  const [spanOpen, setSpanOpen] = useState(false);
   const [offset, setOffset] = useState(0);
   const [selection, setSelection] = useState<{
     from: string;
@@ -37,7 +39,7 @@ export function AnalysisScreen() {
         openedCategory.current = false;
         return;
       }
-      setPeriod("week");
+      setPeriod("month");
       setSpan(12);
       setOffset(0);
       setSelection(undefined);
@@ -55,10 +57,14 @@ export function AnalysisScreen() {
   )
     .toISOString()
     .slice(0, 10);
-  const monday = new Date(d.getTime() - day * 86400000)
+  const monday = new Date(
+    d.getTime() + ((period === "week" ? offset * 7 : 0) - day) * 86400000,
+  )
     .toISOString()
     .slice(0, 10);
-  const sunday = new Date(d.getTime() + (6 - day) * 86400000)
+  const sunday = new Date(
+    d.getTime() + ((period === "week" ? offset * 7 : 0) + 6 - day) * 86400000,
+  )
     .toISOString()
     .slice(0, 10);
   // "전체" covers the last `span` months up to today (12 months is at most 366 days, the longest range the API accepts).
@@ -74,10 +80,19 @@ export function AnalysisScreen() {
         ? month.toISOString().slice(0, 10)
         : spanStart;
   const to = period === "week" ? sunday : period === "month" ? monthEnd : date;
-  const result = useResource<Analysis>(
-    from ? `/analysis/summary?from=${from}&to=${to}` : null,
-  );
-  const s = result.data;
+  const baseMonday = new Date(d.getTime() - day * 86400000).toISOString().slice(0, 10);
+  const baseSunday = new Date(d.getTime() + (6 - day) * 86400000).toISOString().slice(0, 10);
+  const baseMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const baseMonthEnd = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  // 세 기본 기간을 함께 읽어 두면 탭을 바꾸는 순간 이미 그릴 데이터가 있다.
+  const weekResult = useResource<Analysis>(`/analysis/summary?from=${baseMonday}&to=${baseSunday}`);
+  const monthResult = useResource<Analysis>(`/analysis/summary?from=${baseMonth.toISOString().slice(0, 10)}&to=${baseMonthEnd}`);
+  const allResult = useResource<Analysis>(`/analysis/summary?from=${spanStart}&to=${date}`);
+  const shiftedResult = useResource<Analysis>(offset !== 0 && period !== "all"
+    ? `/analysis/summary?from=${from}&to=${to}` : null);
+  const result = offset !== 0 && period !== "all" ? shiftedResult
+    : period === "week" ? weekResult : period === "month" ? monthResult : allResult;
+  const { displayData: s } = usePreviousWhileLoading(result.data, result.loading);
   const selected =
     selection?.from === from && selection.to === to
       ? s?.byCategory.find((c) => c.categoryId === selection.categoryId)
@@ -85,6 +100,7 @@ export function AnalysisScreen() {
   return (
     <Screen>
       <Segment
+        animated
         items={[
           { key: "week", label: "이번 주" },
           { key: "month", label: "이번 달" },
@@ -97,83 +113,110 @@ export function AnalysisScreen() {
           setSelection(undefined);
         }}
       />
-      {period === "month" && (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Button
-            label="이전 달"
-            variant="ghost"
-            onPress={() => {
-              setOffset((x) => x - 1);
-              setSelection(undefined);
-            }}
-          />
-          <T weight="700">
-            {month.getUTCFullYear()}년 {month.getUTCMonth() + 1}월
-          </T>
-          <Button
-            label="다음 달"
-            variant="ghost"
-            onPress={() => {
-              setOffset((x) => x + 1);
-              setSelection(undefined);
-            }}
-          />
-        </View>
-      )}
       <ErrorNotice error={today.error} retry={today.retry} />
       <ErrorNotice error={result.error} retry={result.retry} />
-      {result.loading && <Loading />}
-      {s && !result.loading && (
+      {result.loading && !s && <Loading />}
+      {s && (
         <>
           <Card style={{ alignItems: "center", gap: 12 }}>
             {period === "all" ? (
               <View
-                style={{ alignSelf: "flex-end", flexDirection: "row", gap: 6 }}
+                style={{
+                  flexDirection: "row",
+                  alignSelf: "stretch",
+                  alignItems: "center",
+                  gap: 8,
+                }}
               >
-                {SPANS.map(([months, label]) => {
-                  const on = months === span;
-                  return (
-                    <Pressable
-                      key={months}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${label} 기간으로 보기`}
-                      accessibilityState={{ selected: on }}
-                      onPress={() => {
-                        setSpan(months);
-                        setSelection(undefined);
-                      }}
-                      style={{
-                        paddingHorizontal: 10,
-                        paddingVertical: 6,
-                        borderRadius: 999,
-                        backgroundColor: on ? colors.brand : colors.sunken,
-                      }}
-                    >
-                      <T
-                        size={12}
-                        weight="700"
-                        color={on ? colors.onBrand : colors.textSub}
-                      >
-                        {label}
-                      </T>
-                    </Pressable>
-                  );
-                })}
+                <T size={18} weight="800" style={{ flex: 1 }}>
+                  기록한 지출 {s.expenseCount}건
+                </T>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="분석 기간 선택"
+                  onPress={() => setSpanOpen(true)}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    minHeight: 44,
+                    paddingHorizontal: 10,
+                  }}
+                >
+                  <T weight="700">
+                    {SPANS.find(([months]) => months === span)?.[1]}
+                  </T>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color={colors.textSub}
+                  />
+                </Pressable>
               </View>
             ) : (
-              <T style={{ alignSelf: "flex-start" }}>
-                {s.from} ~ {s.to}
-              </T>
+              <>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    alignSelf: "stretch",
+                  }}
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      period === "week" ? "이전 주" : "이전 달"
+                    }
+                    onPress={() => {
+                      setOffset((x) => x - 1);
+                      setSelection(undefined);
+                    }}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={22}
+                      color={colors.text}
+                    />
+                  </Pressable>
+                  <T weight="700" style={{ flex: 1, textAlign: "center" }}>
+                    {period === "week"
+                      ? `${shortDay(from)} ~ ${shortDay(to)}`
+                      : `${month.getUTCFullYear()}년 ${month.getUTCMonth() + 1}월`}
+                  </T>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      period === "week" ? "다음 주" : "다음 달"
+                    }
+                    onPress={() => {
+                      setOffset((x) => x + 1);
+                      setSelection(undefined);
+                    }}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color={colors.text}
+                    />
+                  </Pressable>
+                </View>
+                <T size={20} weight="800" style={{ alignSelf: "flex-start" }}>
+                  기록한 지출 {s.expenseCount}건
+                </T>
+              </>
             )}
-            <T size={20} weight="800" style={{ alignSelf: "flex-start" }}>
-              기록한 지출 {s.expenseCount}건
-            </T>
             <View
               style={{
                 flexDirection: "row",
@@ -347,6 +390,32 @@ export function AnalysisScreen() {
           </Card>
         </>
       )}
+      <Sheet
+        visible={spanOpen && period === "all"}
+        title="분석 기간 선택"
+        onClose={() => setSpanOpen(false)}
+      >
+        <View style={{ gap: 8 }}>
+          {SPANS.map(([months, label]) => (
+            <Button
+              key={months}
+              label={label}
+              accessibilityLabel={`${label} 기간으로 보기`}
+              variant={months === span ? "primary" : "neutral"}
+              onPress={() => {
+                setSpan(months);
+                setSelection(undefined);
+                setSpanOpen(false);
+              }}
+            />
+          ))}
+        </View>
+      </Sheet>
     </Screen>
   );
+}
+
+function shortDay(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
 }

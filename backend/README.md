@@ -42,9 +42,9 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `practice` | 사건 퀴즈·정수 주 가상 매매·30분 메모리 세션 | `market` |
 | `virtualsim` | 가상 시뮬레이션(`/virtual-sim/*`, policies §8): 전체 공시·룰셋·가상 회사 글 저장소, 시드 가상 시세, 30분 메모리 세션, 회원 월간 대회(`VirtualContest*`, policies §8-8: 배치고사·판 기록·하루/주 판정·랭킹, 1분 정리 `VirtualContestJob`). 매매·평가는 `practice.PracticeEngine` | `market`, `practice` |
 | `insight` | 사건 설명(사전 생성·검수 상태). 코드 없음 | `market` |
-| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53). 정책 적금 계산은 `policysavings` | `common` |
+| `savings` | 일반 적금 상품·금리(finlife 공시 DB)·만기 계산·청년정책 목록(#53)·finlife 금융회사 홈페이지(`FinlifeCompanyCatalog`, #449). 정책 적금 계산은 `policysavings` | `common` |
 | `policysavings` | 청년미래적금 규칙과 만기 계산(`/savings/policy/{code}`, policies §9, #113). 규칙은 코드에 두고 응답은 `UNVERIFIED` | `common` |
-| `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음 | `common` |
+| `deposit` | 정기예금 상품·금리(finlife 공시 DB)·만기 계산(#140). `savings`와 같은 구조, 적립 방식 없음. 상품 상세의 금융회사 홈페이지는 `savings.FinlifeCompanyCatalog`에서 읽는다(#449) | `common`, `savings` |
 | `cashcatalog` | 파킹·CMA 공시 조건 조회·출처별 스냅샷. 공식 페이지 수집은 `ingest.CashCatalogJob`이 맡으며 계산·공개 입력 API는 없음(#218) | `common` |
 | `simulation` | 투자 시뮬레이션 계산(섞어보기 계산·프리셋은 아직 없음, 적금 계산은 `savings`) | `market`, `savings`, `seedmoney` |
 | `goalscenario` | F7 v2 목표 달성 시나리오(`POST /goal/scenarios`, policies §7, #175). 제안기(AI 연결 전 데모 조합) 검증·필요 월 금액·결과 범위 계산, 회원의 시나리오 저장(최대 5개, `/me/goal/scenarios`) | `market`, `savings`, `user` |
@@ -103,10 +103,10 @@ project2 `backend/`와 맞춘다: Spring Boot 4 · Java 21 · Gradle · MySQL ·
 | `GET /savings/products` | 없음 | `?monthly=&termMonths=&sort=BASE_RATE\|MAX_RATE\|TERM&direction=&reserveType=FIXED\|FREE&sectors=BANK,SAVINGS_BANK&companies=은행이름,…&page=&size=` → `{items[], total, page, size, minInterestAfterTax, maxInterestAfterTax, noRateCount, disclosureMonth, dataAsOf, notice, isSample: false}`. 로컬 DB(finlife 공시 복사본)에서 읽고 `items[].result`(기본금리 기준 만기 계산)는 서버가 계산한다. 월 한도를 넘는 돈은 `excludedAmount` |
 | `GET /savings/companies` | 없음 | 공시가 있는 금융회사 `[{name, sector}]`(가나다순). 화면의 은행 선택지 |
 | `GET /savings/policies` | 없음 | `?ids=정책번호,…` → 청년정책(적금·저축·통장 계열, 온통청년) `[{id, name, summary, support, agency, applyPeriod, minAge, maxAge, applyMethod, documents, applyUrl, …}]`. 금리가 없어 계산하지 않는다 |
-| `GET /savings/products/{id}` | 없음 | `?termMonths=&reserveType=` → 상품 상세(우대조건 원문 `specialConditionText` 포함) |
+| `GET /savings/products/{id}` | 없음 | `?termMonths=&reserveType=` → 상품 상세(우대조건 원문 `specialConditionText`, 금융회사 홈페이지 `companyHomepageUrl`(없으면 null, #449) 포함) |
 | `GET /deposit/products` | 없음 | `?amount=&termMonths=&sort=&direction=&interestType=SIMPLE\|COMPOUND&sectors=&companies=&page=&size=` → 적금 목록과 같은 모양. 맡긴 돈을 기간 동안 두었을 때의 기본금리 기준 결과를 서버가 계산(가입 한도 초과분은 `excludedAmount`) |
 | `GET /deposit/companies` | 없음 | 정기예금 공시가 있는 금융회사 `[{name, sector}]`(가나다순) |
-| `GET /deposit/products/{id}` | 없음 | `?termMonths=&interestType=` → 상품 상세(우대조건 원문 포함) |
+| `GET /deposit/products/{id}` | 없음 | `?termMonths=&interestType=` → 상품 상세(우대조건 원문, 금융회사 홈페이지 `companyHomepageUrl` 포함) |
 | `POST /deposit/simulate` | 없음 | `{productId, amount, termMonths, interestType, rateBasis: BASE\|MAX}` → 만기 계산 + `series` + `assumptions` |
 | `POST /savings/simulate` | 없음 | `{productId, monthly, termMonths, reserveType, rateBasis: BASE\|MAX}` → 만기 계산 + `assumptions` |
 | `GET /youth-news?age=&region=&category=` | 없음 | 청년 금융 소식 `{items:[{id, category, categories, title, summary, benefit, audience:{summary, ageMin, ageMax, incomeLimit}, regions, applyStart, applyDeadline, alwaysOpen, action, source:{org, url, asOf}, postedAt, keywords, calcLink:{to, label}\|null, correctedAt, slot}]}`. 정본은 [`web-api.yaml`](../docs/contracts/web-api.yaml). 수집한 소식을 **사람 검수 없이** 내보내고 반려(`REJECTED`)한 것과 출처·지역이 빠진 것만 뺀다([결정](../docs/decisions/2026-10-26-youth-news-auto-publish.md)). `summary`는 worker가 만든 AI 요약(없으면 `null`), `benefit`·`action`은 지금 `null`이다. `regions`는 `"NATIONWIDE"` 또는 시도 이름 목록, 날짜는 `YYYY-MM-DD`, 원문에서 확인 못 한 값은 `null`(조건 없음이 아님). 필터는 모두 선택: `age`(만 나이, 나이 범위를 모르는 쪽은 막지 않음), `region`(시도 이름, 전국 소식 포함), `category`(`TRANSPORT`·`HOUSING`·`FINANCE`·`JOB`·`EDUCATION`·`CULTURE`·`TAX`·`ETC`(기타), 그 밖은 400, `categories` 중 하나라도 맞으면 포함). `category`는 대표 분야(배지), `categories`는 드는 분야 전부(분야가 없으면 `["ETC"]`). 신청 날짜가 없고 상시도 아닌데 원문의 사업기간(`bizPrdEndYmd`)이 끝난 소식은 마감으로 보고 뺀다(마감일이 지난 소식은 화면이 목록에서 내린다). `Cache-Control: public, max-age=300` |

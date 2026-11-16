@@ -26,7 +26,7 @@ final class SavingsDtos {
 	record ProductDetail(String id, String company, String name, String sector, BigDecimal baseRate,
 			BigDecimal maxRate, int termMonths, String reserveType, String interestType, String disclosureMonth,
 			Long maxLimit, String joinMember, String joinDeny, Boolean openToAll, String disclosureUrl,
-			String dataAsOf, String specialConditionText) {
+			String companyHomepageUrl, String dataAsOf, String specialConditionText) {
 	}
 
 	/** items는 요청한 쪽(page)만. total·minInterestAfterTax·maxInterestAfterTax는 조건에 맞는 전체 기준이다. */

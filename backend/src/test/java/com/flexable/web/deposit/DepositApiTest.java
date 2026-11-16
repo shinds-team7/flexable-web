@@ -19,6 +19,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.flexable.web.deposit.DepositCatalogService.OptionData;
+import com.flexable.web.savings.FinlifeCompanyCatalog;
+import com.flexable.web.savings.FinlifeCompanyCatalog.CompanyData;
 import com.flexable.web.deposit.DepositCatalogService.ProductData;
 
 @SpringBootTest
@@ -30,6 +32,9 @@ class DepositApiTest {
 
 	@Autowired
 	DepositCatalogService catalog;
+
+	@Autowired
+	FinlifeCompanyCatalog companies;
 
 	private static ProductData product(String code, String sector, String name, Long maxLimit, String deny, OptionData... options) {
 		return new ProductData("0010001", code, sector, "202610", "예시은행", name, "영업점", "만기 후 이율", "우대 원문", deny, "실명의 개인",
@@ -136,9 +141,15 @@ class DepositApiTest {
 			.getResponse()
 			.getContentAsString(StandardCharsets.UTF_8);
 		String id = com.jayway.jsonpath.JsonPath.read(list, "$.items[1].id");
+		companies.replaceAll(List.of(new CompanyData("0010001", "예시은행", "https://www.example-bank.co.kr")));
 		mvc.perform(get("/api/v1/deposit/products/" + id + "?termMonths=12"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.specialConditionText").value("우대 원문"));
+			.andExpect(jsonPath("$.specialConditionText").value("우대 원문"))
+			.andExpect(jsonPath("$.companyHomepageUrl").value("https://www.example-bank.co.kr")); // 금융회사 홈페이지(#449)
+		companies.replaceAll(List.of(new CompanyData("0010001", "예시은행", "")));
+		mvc.perform(get("/api/v1/deposit/products/" + id + "?termMonths=12"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.companyHomepageUrl").doesNotExist());
 		mvc.perform(get("/api/v1/deposit/products/abc?termMonths=12")).andExpect(status().isNotFound());
 	}
 }

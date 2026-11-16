@@ -73,6 +73,7 @@ import com.flexable.web.news.NewsDtos.SummaryResult;
 import com.flexable.web.news.NewsDtos.SummaryTarget;
 import com.flexable.web.news.NewsService;
 import com.flexable.web.deposit.DepositCatalogService;
+import com.flexable.web.savings.FinlifeCompanyCatalog;
 import com.flexable.web.savings.SavingsCatalogService;
 import com.flexable.web.savings.SavingsCatalogService.OptionData;
 import com.flexable.web.savings.SavingsCatalogService.PolicyData;
@@ -145,6 +146,8 @@ class ContractTest {
 
 	@Autowired
 	DepositCatalogService deposits;
+	@Autowired
+	FinlifeCompanyCatalog companies;
 	@Autowired
 	JdbcTemplate jdbc;
 	@MockitoBean
@@ -264,6 +267,9 @@ class ContractTest {
 						List.of(new DepositCatalogService.OptionData("M", 12, new BigDecimal("3.80"), null))),
 				new DepositCatalogService.ProductData("0010001", "C", "BANK", "202610", "예시은행", "금리 없는 정기예금", "영업점", null, null, "1", null, null,
 						null, "20261001", null, "202610011000", List.of(new DepositCatalogService.OptionData("S", 12, null, new BigDecimal("2.00"))))));
+		// 금융회사 홈페이지(#449): 예시은행은 주소 있음(상세 companyHomepageUrl 문자열), 예시저축은행은 없음(null)
+		companies.replaceAll(List.of(new FinlifeCompanyCatalog.CompanyData("0010001", "예시은행", "https://www.example-bank.co.kr"),
+				new FinlifeCompanyCatalog.CompanyData("0010002", "예시저축은행", null)));
 		savings.replacePolicies(List.of(
 				new PolicyData("P1", "청년 저축 지원(예시)", "설명", "지원 내용", "금융", "취약계층 및 금융지원", "○○부", "운영기관", "20261007 ~ 20261016", null,
 						null, null, "온라인 신청", null, null, "https://example.com", null, null, 19, 34, null, null, null, "2026-10-20 00:00:00", "전국"),
@@ -444,6 +450,7 @@ class ContractTest {
 		call(get("/api/v1/savings/policies"), 200);
 		call(get("/api/v1/savings/policies?ids=P1"), 200);
 		call(get("/api/v1/savings/products/" + id + "?termMonths=12"), 200);
+		call(get("/api/v1/savings/products/" + JsonPath.read(body, "$.items[1].id") + "?termMonths=12"), 200); // 홈페이지 있는 회사(#449)
 		call(get("/api/v1/savings/products/" + id + "?termMonths=36"), 404);
 		call(get("/api/v1/savings/products/" + id + "?termMonths=12&reserveType=NOPE"), 400);
 		String sim = "{\"productId\":\"%s\",\"monthly\":78000,\"termMonths\":12,\"reserveType\":\"FIXED\",\"rateBasis\":\"%s\"}";
@@ -483,6 +490,7 @@ class ContractTest {
 		call(get("/api/v1/deposit/products?amount=10000000&termMonths=12&interestType=NOPE"), 400);
 		call(get("/api/v1/deposit/companies"), 200);
 		call(get("/api/v1/deposit/products/" + id + "?termMonths=12"), 200);
+		call(get("/api/v1/deposit/products/" + JsonPath.read(body, "$.items[0].id") + "?termMonths=12"), 200); // 홈페이지 없는 회사(#449)
 		call(get("/api/v1/deposit/products/" + id + "?termMonths=12&interestType=SIMPLE"), 200);
 		call(get("/api/v1/deposit/products/" + id + "?termMonths=36"), 404);
 		call(get("/api/v1/deposit/products/" + id + "?termMonths=12&interestType=COMPOUND"), 404);

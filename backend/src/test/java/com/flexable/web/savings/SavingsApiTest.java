@@ -18,6 +18,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.flexable.web.savings.FinlifeCompanyCatalog.CompanyData;
 import com.flexable.web.savings.SavingsCatalogService.OptionData;
 import com.flexable.web.savings.SavingsCatalogService.ProductData;
 import com.jayway.jsonpath.JsonPath;
@@ -31,6 +32,9 @@ class SavingsApiTest {
 
 	@Autowired
 	SavingsCatalogService catalog;
+
+	@Autowired
+	FinlifeCompanyCatalog companies;
 
 	private static ProductData product(String code, String sector, String name, Long maxLimit, String deny, OptionData... options) {
 		return new ProductData("0010001", code, sector, "202610", "예시은행", name, "영업점", "만기 후 이율", "우대 원문", deny, "실명의 개인",
@@ -154,6 +158,28 @@ class SavingsApiTest {
 		return new SavingsCatalogService.PolicyData(no, name, "설명", "지원 내용", "금융", "취약계층 및 금융지원", agency, "운영기관",
 				"20261007 ~ 20261016", null, null, null, "온라인 신청", null, null, "https://example.com", null, null, 19, 0, null, null,
 				null, "2026-10-20 00:00:00", "대구");
+	}
+
+	/** 상품 상세에 그 금융회사 홈페이지(#449). 회사 공시에 없거나 사라지면 null. */
+	@Test
+	void detailCarriesCompanyHomepage() throws Exception {
+		String list = mvc.perform(get("/api/v1/savings/products?monthly=78000&termMonths=12"))
+			.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+		String id = JsonPath.read(list, "$.items[1].id");
+
+		companies.replaceAll(List.of(new CompanyData("0010001", "예시은행", "www.example-bank.co.kr"), new CompanyData("0020001", "다른은행", "ftp://x.co.kr")));
+		mvc.perform(get("/api/v1/savings/products/" + id + "?termMonths=12"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.companyHomepageUrl").value("http://www.example-bank.co.kr"));
+
+		companies.replaceAll(List.of(new CompanyData("0020001", "다른은행", "https://other.example.co.kr")));
+		org.assertj.core.api.Assertions.assertThat(companies.homepage("0010001")).isNull();
+		mvc.perform(get("/api/v1/savings/products/" + id + "?termMonths=12"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.companyHomepageUrl").doesNotExist());
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> companies.replaceAll(List.of()))
+			.isInstanceOf(IllegalArgumentException.class);
+		org.assertj.core.api.Assertions.assertThat(companies.homepage("0020001")).isEqualTo("https://other.example.co.kr");
 	}
 
 	@Test

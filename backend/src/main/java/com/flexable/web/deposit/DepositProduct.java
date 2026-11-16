@@ -101,6 +101,10 @@ class DepositProduct {
 		return id;
 	}
 
+	String getFinCoNo() {
+		return finCoNo;
+	}
+
 	String getSector() {
 		return sector;
 	}

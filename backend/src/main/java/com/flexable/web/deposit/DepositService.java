@@ -23,6 +23,7 @@ import com.flexable.web.deposit.DepositDtos.ProductList;
 import com.flexable.web.deposit.DepositDtos.Result;
 import com.flexable.web.deposit.DepositDtos.SimulateRequest;
 import com.flexable.web.deposit.DepositDtos.Simulation;
+import com.flexable.web.savings.FinlifeCompanyCatalog;
 
 /** 로컬 DB에 저장된 정기예금 공시를 조회하고, 같은 조건으로 만기 금액을 계산한다(ADR-3: 계산은 서버). */
 @Service
@@ -34,11 +35,14 @@ public class DepositService {
 
 	private final DepositProductRepository products;
 	private final DepositRateOptionRepository options;
+	private final FinlifeCompanyCatalog companies;
 	private final Clock clock;
 
-	DepositService(DepositProductRepository products, DepositRateOptionRepository options, Clock clock) {
+	DepositService(DepositProductRepository products, DepositRateOptionRepository options, FinlifeCompanyCatalog companies,
+			Clock clock) {
 		this.products = products;
 		this.options = options;
+		this.companies = companies;
 		this.clock = clock;
 	}
 
@@ -137,7 +141,7 @@ public class DepositService {
 		return new ProductDetail(String.valueOf(p.getId()), p.getKorCoNm(), p.getFinPrdtNm(), p.getSector(), pick.base(),
 				pick.max(), termMonths, interestType(pick.option()), formatMonth(p.getDclsMonth()), p.getMaxLimit(),
 				orDash(p.getJoinMember(), "제한 없음"), joinDeny(p.getJoinDeny()), openToAll(p), DISCLOSURE_URL,
-				asOf(p.getFetchedAt()), orDash(p.getSpclCnd(), "우대조건 없음"));
+				companies.homepage(p.getFinCoNo()), asOf(p.getFetchedAt()), orDash(p.getSpclCnd(), "우대조건 없음"));
 	}
 
 	@Transactional(readOnly = true)

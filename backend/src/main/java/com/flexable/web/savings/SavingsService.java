@@ -35,13 +35,15 @@ public class SavingsService {
 	private final SavingsProductRepository products;
 	private final SavingsRateOptionRepository options;
 	private final SavingsPolicyRepository policies;
+	private final FinlifeCompanyCatalog companies;
 	private final Clock clock;
 
 	SavingsService(SavingsProductRepository products, SavingsRateOptionRepository options,
-			SavingsPolicyRepository policies, Clock clock) {
+			SavingsPolicyRepository policies, FinlifeCompanyCatalog companies, Clock clock) {
 		this.products = products;
 		this.options = options;
 		this.policies = policies;
+		this.companies = companies;
 		this.clock = clock;
 	}
 
@@ -172,7 +174,7 @@ public class SavingsService {
 		return new ProductDetail(String.valueOf(p.getId()), p.getKorCoNm(), p.getFinPrdtNm(), p.getSector(), pick.base(),
 				pick.max(), termMonths, reserveType, interestType(pick.option()), formatMonth(p.getDclsMonth()),
 				p.getMaxLimit(), orDash(p.getJoinMember(), "제한 없음"), joinDeny(p.getJoinDeny()), openToAll(p),
-				DISCLOSURE_URL, asOf(p.getFetchedAt()), orDash(p.getSpclCnd(), "우대조건 없음"));
+				DISCLOSURE_URL, companies.homepage(p.getFinCoNo()), asOf(p.getFetchedAt()), orDash(p.getSpclCnd(), "우대조건 없음"));
 	}
 
 	@Transactional(readOnly = true)

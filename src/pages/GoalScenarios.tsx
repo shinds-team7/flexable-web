@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useLoginModal } from '@/components/LoginModal';
 import {
-  FALLBACK_TEXT, GOAL_LIMITS, TYPE_LABEL, deleteSavedScenario, periodText, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
+  FALLBACK_TEXT, GOAL_LIMITS, TYPE_LABEL, conditionText, deleteSavedScenario, manwon, periodText, savedDate, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
   type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
   type ScenarioOutcome, type SeriesPoint, type StartDeposit,
 } from '@/data/goalScenarios';
@@ -35,16 +35,6 @@ function roleType(line: string, plan: GoalScenario): ScenarioProductType | null 
   return found && plan.mix.some((m) => m.type === found && m.ratioPercent > 0) ? found : null;
 }
 const won = (n: number) => n.toLocaleString('ko-KR');
-/** 표시용 만 원 단위(내림). 서버 값을 읽기 쉽게 바꿀 뿐 계산 결과를 바꾸지 않는다. */
-function manwon(n: number) {
-  const sign = n < 0 ? '−' : '';
-  const abs = Math.abs(n);
-  const man = Math.floor(abs / 10_000);
-  const eok = Math.floor(man / 10_000);
-  const rest = man % 10_000;
-  if (!eok && !rest) return `${sign}${won(abs)}원`;
-  return sign + [eok ? `${eok}억` : '', rest ? `${won(rest)}만` : ''].filter(Boolean).join(' ') + ' 원';
-}
 /** 수익은 원 단위 그대로 부호를 붙여 보여 준다(+는 이익, −는 손실). 예: +4,107,130원 */
 const gainText = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${won(Math.abs(n))}원`;
 const pct = (bp: number) => `${Math.floor(bp / 100)}%`;
@@ -60,7 +50,6 @@ function riskOf(o: ScenarioOutcome): Risk {
   return -lowGain * 100 <= invested * 5 ? { level: 2, label: '보통', lowGain } : { level: 3, label: '높음', lowGain };
 }
 const digits = (s: string) => s.replace(/[^0-9]/g, '');
-const savedDate = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');
 /** 그래프 축 눈금용 짧은 금액(만 원 단위 반올림 없이 내림). */
 function axisMoney(n: number) {
   if (n >= 100_000_000) return `${Math.floor(n / 10_000_000) / 10}억`;
@@ -300,12 +289,6 @@ function Assumptions({ paths, returnsFrom, returnsTo, assumptions, notice }: { p
     </details>
     <p className="gp-foot">{notice}</p>
   </>;
-}
-
-/** 저장본·결과의 조건 한 줄: 기간 · 시작 금액 · 월 금액 · 목표. */
-function conditionText(v: { months: number; startAmount: number; monthlyBudget: number | null; targetAmount: number | null }) {
-  return [periodText(v.months), v.startAmount > 0 ? `시작 ${manwon(v.startAmount)}` : null, v.monthlyBudget !== null ? `월 ${won(v.monthlyBudget)}원` : null,
-    v.targetAmount !== null ? `목표 ${manwon(v.targetAmount)}` : null].filter(Boolean).join(' · ');
 }
 
 /** 저장본 내용. 저장한 플랜이 먼저 열리고, 나머지 플랜이 있으면 선택 칸으로 바꿔 본다. 값은 저장할 때 그대로다. */
@@ -594,6 +577,19 @@ export default function GoalScenarios() {
       void refreshSaved();
     }
   };
+
+  // 마이페이지 저장 목록에서 누르면 /goal?saved=<id>로 온다(#446). 회원이면 그 저장본을 열고, 새로고침·뒤로 가기에 다시 열리지 않게 주소에서 뺀다.
+  // 없거나 남의 저장본이면 [보기]와 같은 열기 실패 안내를 보인다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const savedParam = searchParams.get('saved');
+  useEffect(() => {
+    if (!member || savedParam === null) return;
+    setSearchParams((p) => { p.delete('saved'); return p; }, { replace: true });
+    const id = Number(savedParam);
+    if (Number.isInteger(id) && id > 0) void open(id);
+    // open은 렌더마다 새로 만들어지지만 주소의 id가 바뀔 때만 연다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member, savedParam]);
 
   const remove = async () => {
     const id = toDelete;

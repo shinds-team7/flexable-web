@@ -29,6 +29,9 @@ import Support from '@/pages/Support';
 
 // 화면·경로 기준: docs/product/README.md §5. 새 화면은 Placeholder 자리를 바꿔 끼운다.
 export const router = createBrowserRouter([
+  // 프로젝트 소개(전시용 세로 모니터 화면). 메뉴·링크 없이 주소로만 들어오고, 상단 바 없이 단독으로 그린다
+  { path: '/info-web', errorElement: <RouteError />, lazy: () => import('@/pages/info/web').then((m) => ({ Component: m.default })) },
+  { path: '/info-app', errorElement: <RouteError />, lazy: () => import('@/pages/info/app').then((m) => ({ Component: m.default })) },
   {
     element: <Layout />,
     errorElement: <RouteError />,

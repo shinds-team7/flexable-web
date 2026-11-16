@@ -386,6 +386,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 |---|---|---|---|---|
 | **금감원 금융상품통합비교공시(finlife) Open API** | 가능, 32자리 인증키 [확인: https://finlife.fss.or.kr/finlife/api/fncCoApi/list.do?menuNo=700051] | 개인은 **일일 검색 허용 횟수 초과 시 오류(020)** — 수치 [미확인], 1회 조회 기본 100건 [확인] | 금융회사·정기예금·**적금**·연금저축·대출 API [확인]. **현재 공시 중인 상품·금리만** 제공 | 적금 추천·시뮬레이션 1차 소스. **과거 금리는 없음 → 오늘부터 매일 스냅숏 저장** |
 | 적금 API 응답 필드(단리/복리 `intr_rate_type`, 저축기간 `save_trm`, 기본금리 `intr_rate`, 최고우대금리 `intr_rate2`, 적립유형 `rsrv_type` 등) | — | — | 필드명은 경험상 위와 같으나 이번 조사에서 명세 페이지를 열지 못함 [미확인] | 첫 주에 실제 응답으로 확인 |
+| 금융회사 API(`companySearch.json`) 응답 필드: 금융회사코드 `fin_co_no`, 금융회사 명 `kor_co_nm`, 홈페이지주소 `homp_url`, 콜센터전화번호 `cal_tel` 등 | 가능, 같은 인증키 [확인: https://finlife.fss.or.kr/finlife/api/fncCoApi/list.do?menuNo=700051, 2026-11-16] | 적금과 같음 | 예시 응답의 `homp_url`은 `http://www.…` 형식. 실제 응답에 늘 `http(s)://`가 붙는지는 [미확인] | 은행·저축은행 권역을 매일 받아 상품 상세의 "○○ 홈페이지" 링크에만 쓴다(#449). 상품 가입 페이지 주소는 공시에 없고 가입 버튼은 두지 않는다(01 R2) |
 | **한국은행 ECOS** 예금은행 신규취급액 기준 수신금리(통계표 121Y002) | 가능 [2차: https://bullstory.io/datasets/korea-bank-deposit-rates] | API 호출 제한 **미확인**(일/초당 요청 수·1회 응답 건수는 구분해서 확인) | 월별 가중평균. 저축성수신금리 항목 `BEABAA2` [2차]. **정기적금 항목코드 미확인** — 다른 수신금리를 대신 넣지 않음 | 과거 평균 적금 비교의 금리 근사치. 아래 출처·가공 표시 적용 |
 
 **ECOS 이용 조건(2026-10-18 확인):** [한국은행 저작권보호방침](https://www.bok.or.kr/portal/main/contents.do?menuNo=200228) 1항은 공표된 제공대상 공공데이터의 자유이용, 4항은 **한국은행 출처 및 수정·변경·가공 여부 표시**를 규정한다. 출처 표시 의무는 확인. ECOS Open API의 **상업적 이용 가능 여부·호출 제한은 미확인**이며, 일반 방침만으로 개별 API 조건을 확정하지 않는다. 화면에는 “한국은행 ECOS · 은행 평균 적금 금리 · ○년 ○월 기준 · 이 금리로 계산한 추정”을 표시한다. 항목코드·시점·금리 기준과 API 이용 조건을 확인한 뒤 데이터를 적재한다.
@@ -424,7 +425,7 @@ web: /oauth/callback 라우트 → POST /api/v1/auth/oauth/exchange {code, codeV
 | `events-detect` | `corporate-actions` 직후 | 수정종가·거래량·시장 대용·거시 달력 | `market_events` | `(instrument, 날짜, detector_version)` |
 | `events-evidence` | `events-detect` 직후 | DART `list.json`, 거시 달력, 사건 카드 | `event_evidence` | `(event, source, external_id)` |
 | `explain-batch` | 매일 19:00 제출, 다음 실행 때 수거 | 근거 붙은 새 사건(시연 종목만) | `event_explanations`(DRAFT), `llm_usage` | `(event, prompt_version, input_hash)` |
-| `savings-snapshot` | 매일 10:00 | finlife 적금(·정기예금) | `savings_products`, `savings_rate_options`(바뀔 때만 새 행) | `(job, 날짜)` |
+| `savings-snapshot` | 매일 10:00 | finlife 적금(·정기예금·금융회사) | `savings_products`, `savings_rate_options`(바뀔 때만 새 행), `finlife_companies`(금융회사 홈페이지, #449) | `(job, 날짜)` |
 | `savings-averages` | 매월 20일 | ECOS 수신금리 월별 | `savings_rate_averages` | `(series, 월)` |
 | `savings-rankings` | `savings-snapshot` 직후 | 표준 시나리오(월 5·10·30·50만원 × 6·12·24·36개월 × 정렬 3종) | `savings_rankings` | `(scenario, 날짜)` |
 | `youth-collect` | 매일 06:00 | 온통청년, 공공서비스(혜택), 정책브리핑 | `youth_news_raw` | `(source, external_id)` |

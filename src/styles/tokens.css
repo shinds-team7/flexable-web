@@ -66,6 +66,7 @@
   --radius-soft:12px;     /* 카드·모달·큰 면 */
   --radius-soft-sm:8px;   /* 버튼·입력·칩·안쪽 타일 */
   --radius-xs:4px;        /* 막대·코드 */
+  --radius-pill:999px;    /* 알약 모양 버튼 */
   --radius-login:12px;    /* 로그인 버튼 세 개(카카오·Google·이메일). 카카오 규정이 12px라 셋을 같이 맞춘다 */
   --shadow-subtle:0 1px 2px rgba(17,24,39,.05);
   --shadow-overlay:0 8px 28px rgba(17,24,39,.14);

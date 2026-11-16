@@ -38,6 +38,7 @@ export type Msg = {
   choices?: Choice[];
   /** 예정 지출 제안. 한 줄 카드와 [반영 | 수정]을 붙인다 */
   schedule?: Schedule;
+  income?: Proposal;
   used?: boolean;
   ui?: boolean;
 };

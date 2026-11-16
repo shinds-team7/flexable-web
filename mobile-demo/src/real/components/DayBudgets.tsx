@@ -72,7 +72,7 @@ export function DayBudgets({
           style={({ pressed }) => [styles.edit, pressed && { opacity: 0.6 }]}
         >
           <T size={13} weight="700" color={colors.brandDark}>
-            바꾸기
+            변경
           </T>
         </Pressable>
       </View>

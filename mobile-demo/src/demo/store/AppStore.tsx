@@ -17,7 +17,7 @@ import {
   type Transaction,
 } from '@/demo/data/mock';
 import { addDays, diffDays, endOfWeek, startOfDay, startOfWeek, toKey } from '@/utils/date';
-import { seedDemoServer } from '@/demo/server';
+import { seedDemoServer, seedFreshDemoServer } from '@/demo/server';
 import { computeBudget, type BudgetInput, type BudgetSummary, type LargePlan, type ScheduledSpend } from './budget';
 
 type Income = { amount: number; payday: number };
@@ -28,6 +28,8 @@ type Store = {
   today: Date;
   onboarded: boolean;
   completeOnboarding: () => void;
+  /** 예산 설정 전 새 계정으로 시작(실제 앱의 예산 설정 5단계를 그대로 거친다) */
+  startFresh: () => void;
   restartOnboarding: () => void;
 
   income: Income;
@@ -226,6 +228,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           fixed: fixed.map((f) => ({ name: f.name, amount: f.amount, day: f.day })),
           protectedItems: protectedList.map((p) => ({ name: p.name, amount: p.amount })),
         });
+        writeOnboarded(true);
+        setOnboarded(true);
+      },
+      startFresh: () => {
+        seedFreshDemoServer();
         writeOnboarded(true);
         setOnboarded(true);
       },

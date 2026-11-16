@@ -8,15 +8,12 @@ import type { CoinReward } from "./types";
 // 서버는 SIGNUP_GIFT·BUDGET_BONUS·REFERRAL_INVITER·REFUND만 안내로 보낸다(나머지 사유는 만들 때 본 것으로 기록).
 // 계약의 reason에는 다른 사유도 있으므로 모르는 사유는 일반 문구로 보여 준다.
 const TITLES: Partial<Record<CoinReward["reason"], string>> = {
-  SIGNUP_GIFT: "업데이트 기념 200코인 선물",
   BUDGET_BONUS: "어제 예산을 지켰어요",
   REFERRAL_INVITER: "추천 코드가 사용됐어요",
   REFUND: "코스튬 구매 코인을 돌려드려요",
 };
 
 function bodyOf(r: CoinReward): string {
-  if (r.reason === "SIGNUP_GIFT")
-    return `앱에서 쓰는 코인 ${r.amount}개를 드려요`;
   if (r.reason === "BUDGET_BONUS")
     return `보너스 코인 ${r.amount}개를 받았어요`;
   if (r.reason === "REFUND")
@@ -61,9 +58,13 @@ export function RewardModal({
               accessibilityRole="header"
               style={{ textAlign: "center", marginTop: 8 }}
             >
-              {title ?? TITLES[reward.reason] ?? "코인을 받았어요"}
+              {title ??
+                (reward.reason === "SIGNUP_GIFT"
+                  ? `신규가입 ${reward.amount}코인 선물`
+                  : TITLES[reward.reason]) ??
+                "코인을 받았어요"}
             </T>
-            {!plain && (
+            {!plain && reward.reason !== "SIGNUP_GIFT" && (
               <>
                 <T
                   size={14}

@@ -23,7 +23,7 @@ export const FIXED_PRESETS = [
 
 /**
  * 수입일 선택. 한 줄에 왼쪽 [매달 말일], 오른쪽 날짜 버튼. 날짜 버튼은 1~31일 달력 창을 연다.
- * 31은 매달 말일과 같다(policies §1: 없는 날은 말일, 휴일이면 다음 평일). 값이 없으면(0) 1일로 보인다.
+ * 31은 매달 말일과 같다(policies §1: 없는 날은 말일, 휴일이면 다음 평일). 값이 없으면(0) 말일(31일)로 보인다.
  */
 export function PaydayPicker({
   value,
@@ -36,7 +36,7 @@ export function PaydayPicker({
   hideLabel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const shown = value >= 1 && value <= 31 ? value : 1;
+  const shown = value >= 1 && value <= 31 ? value : 31;
   const last = shown === 31;
   return (
     <View style={{ gap: 8 }}>
@@ -121,7 +121,11 @@ function MonthDayField({
         accessibilityRole="button"
         accessibilityLabel={`${label}, ${value >= 1 ? `${value}일` : "고르기"}`}
         onPress={() => setOpen(true)}
-        style={({ pressed }) => [s.choice, s.date, pressed && { opacity: 0.7 }]}
+        style={({ pressed }) => [
+          s.box,
+          s.date,
+          pressed && { opacity: 0.7 },
+        ]}
       >
         <T
           size={17}
@@ -200,37 +204,57 @@ export function FixedExpensesEditor({
   items,
   onChange,
   onError,
+  onImportPdf,
+  importBusy,
+  importNote,
 }: {
   items: FixedItem[];
   onChange: (next: FixedItem[]) => void;
   onError: (message?: string) => void;
+  /** 주면 추가 버튼 아래에 [거래내역서 PDF 등록]을 보인다(온보딩) */
+  onImportPdf?: () => void;
+  /** 거래내역서를 올리는 중 */
+  importBusy?: boolean;
+  /** 거래내역서 저장 결과 문장 */
+  importNote?: string;
 }) {
   const e = useItemEditing(items, onChange);
   const full = items.length >= 30;
+  const editing = e.open !== null;
   return (
     <View style={{ gap: 12 }}>
       <View style={s.chips}>
-        {FIXED_PRESETS.map((name) => (
-          <Pressable
-            key={name}
-            accessibilityRole="button"
-            accessibilityLabel={`${name} 추가`}
-            disabled={full || e.open !== null}
-            onPress={() => {
-              onError(undefined);
-              e.add({ name, amount: 0, day: 0 });
-            }}
-            style={({ pressed }) => [
-              s.chip,
-              (full || e.open !== null) && { opacity: 0.4 },
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <T size={14} weight="700" color={colors.onBrand}>
-              + {name}
-            </T>
-          </Pressable>
-        ))}
+        {FIXED_PRESETS.map((name) => {
+          // 평소엔 밝은 회색, 눌러서 항목이 생기면 파랑. 펼친 항목의 칩만 가리지 않는다.
+          const on = items.some((x) => x.name === name);
+          const current = editing && items[e.open as number]?.name === name;
+          return (
+            <Pressable
+              key={name}
+              accessibilityRole="button"
+              accessibilityLabel={`${name} 추가`}
+              disabled={full || editing}
+              onPress={() => {
+                onError(undefined);
+                e.add({ name, amount: 0, day: 0 });
+              }}
+              style={({ pressed }) => [
+                s.chip,
+                on && s.chipOn,
+                (full || editing) && !current && s.covered,
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <T
+                size={14}
+                weight="700"
+                color={on ? colors.onBrand : colors.textSub}
+              >
+                + {name}
+              </T>
+            </Pressable>
+          );
+        })}
       </View>
       {items.map((x, i) => {
         const update = (patch: Partial<FixedItem>) =>
@@ -277,12 +301,27 @@ export function FixedExpensesEditor({
       <Button
         label="+ 고정지출 추가"
         variant="soft"
-        disabled={full || e.open !== null}
+        disabled={full || editing}
+        style={editing && s.covered}
         onPress={() => {
           onError(undefined);
           e.add({ name: "", amount: 0, day: 0 });
         }}
       />
+      {onImportPdf && (
+        <Button
+          label={importBusy ? "거래내역서를 읽는 중이에요" : "거래내역서 PDF 등록"}
+          variant="neutral"
+          disabled={editing || importBusy}
+          style={editing && s.covered}
+          onPress={onImportPdf}
+        />
+      )}
+      {onImportPdf && importNote && (
+        <T size={14} color={colors.textSub} accessibilityRole="alert">
+          {importNote}
+        </T>
+      )}
     </View>
   );
 }
@@ -340,6 +379,7 @@ export function ProtectedItemsEditor({
         label="+ 저축할 돈 추가"
         variant="soft"
         disabled={items.length >= 30 || e.open !== null}
+        style={e.open !== null && s.covered}
         onPress={() => {
           onError(undefined);
           e.add({ name: "", amount: 0 });
@@ -393,7 +433,7 @@ function ItemCard({
       </Card>
     );
   return (
-    <Card style={{ gap: 12 }}>
+    <Card style={s.openCard}>
       {children}
       <View style={{ flexDirection: "row", gap: 10 }}>
         <Button
@@ -405,24 +445,28 @@ function ItemCard({
         <Button
           label="확인"
           onPress={onConfirm}
-          style={{ flex: 2, backgroundColor: colors.brandDark }}
+          style={{ flex: 2 }}
         />
       </View>
     </Card>
   );
 }
 
+const box = {
+  height: 52,
+  flexDirection: "row",
+  gap: 6,
+  borderRadius: radius.soft,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: colors.brand,
+} as const;
+
 const s = StyleSheet.create({
-  choice: {
-    flex: 1,
-    height: 52,
-    flexDirection: "row",
-    gap: 6,
-    borderRadius: radius.soft,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.brand,
-  },
+  // 세로로 쌓는 칸. flex: 1을 주면 높이가 사라진다
+  box,
+  // 한 줄에 나란히 놓는 칸
+  choice: { ...box, flex: 1 },
   // 매달 말일은 늘 파랑 바탕·흰 글자, 고르면 더 짙은 파랑 + 체크
   choiceOn: { backgroundColor: colors.brandDark },
   date: {
@@ -437,6 +481,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: radius.pill,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.sunken,
   },
+  chipOn: { backgroundColor: colors.brand },
+  // 펼친 입력 카드가 있을 때 나머지 버튼에 씌우는 흰 막
+  covered: { opacity: 0.4 },
+  openCard: { gap: 12, borderWidth: 1.5, borderColor: colors.brand },
 });

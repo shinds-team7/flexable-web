@@ -6,9 +6,9 @@
  * [반영]·[수정]을 누른 뒤에만 POST /scheduled-expenses로 저장한다. 하루 예산은 GET /budget/today의 서버 값을 그대로 보여 준다.
  * AI 음성 답변을 켜 두면 예정 지출 확인 질문 한 줄만 기기 음성 합성으로 읽는다.
  */
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Keyboard, Platform, ScrollView, View } from "react-native";
+import { Keyboard, Platform, ScrollView, View } from "react-native";
 import { goBack } from "@/real/components/SubHeader";
 import { ConfirmModal, T } from "@/real/components/ui";
 import { colors } from "@/real/theme";
@@ -30,7 +30,6 @@ import {
   BotGroup,
 } from "./chatbot/bubbles";
 import {
-  mateImg,
   MATE_KEY,
   whenText,
   type MateId,
@@ -79,7 +78,8 @@ export function ChatbotScreen() {
 function ChatbotRoom() {
   const params = useLocalSearchParams<{ question?: string }>();
   const session = useSession();
-  const [step, setStep] = useState<Step>("loading");
+  const mateKey = session.user ? `${MATE_KEY}.${session.user.id}` : null;
+  const [step, setStep] = useState<Step>(session.user ? "loading" : "select");
   const [mate, setMate] = useState<MateId>("ANALYST");
   // 톱니로 스타일 선택을 열었으면 돌아갈 화면(메뉴·대화), 처음 선택이면 null
   const [settingsFrom, setSettingsFrom] = useState<"menu" | "chat" | null>(
@@ -136,7 +136,8 @@ function ChatbotRoom() {
   // 한 번 고른 스타일은 저장해 두고 다음부터는 메뉴부터 보여 준다.
   useEffect(() => {
     let alive = true;
-    readStorage(MATE_KEY)
+    if (!mateKey) return;
+    readStorage(mateKey)
       .then((v) => {
         if (!alive) return;
         const saved = mates.find((m) => m.id === v?.toUpperCase());
@@ -149,7 +150,7 @@ function ChatbotRoom() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [mateKey]);
 
   const mateName = mates.find((m) => m.id === mate)!.name;
 
@@ -166,7 +167,7 @@ function ChatbotRoom() {
       started !== focus.current || generation !== sessionGeneration();
     const body: ChatRequest = {
       mate,
-      accepts: ["SCHEDULE"],
+      accepts: ["SCHEDULE", "INCOME", "EXPENSE"],
       pending: proposal.current
         ? {
             title: proposal.current.title,
@@ -193,16 +194,34 @@ function ChatbotRoom() {
       if (stale()) return;
       const schedule =
         result.action?.type === "SCHEDULE" ? result.action.schedule : undefined;
+      const income =
+        result.action?.type === "INCOME_TRANSACTION" ||
+        result.action?.type === "INCOME_SETTINGS" ||
+        result.action?.type === "EXPENSE_TRANSACTION"
+          ? result.action
+          : undefined;
       if (result.action) proposal.current = schedule ?? null;
       push({
         from: "bot",
         text: result.reply,
         card,
         schedule,
+        income,
+        ui: !!income,
         choices:
-          result.action && !schedule
+          result.action && !schedule && !income
             ? confirmChoices(result.action)
-            : undefined,
+            : !result.action &&
+                /배분/.test(result.reply) &&
+                /예산|요일|하루/.test(result.reply) &&
+                /바꾸|변경|조정|버튼/.test(result.reply)
+              ? [
+                  {
+                    label: "하루 예산 배분 바꾸기",
+                    run: () => router.push("/budget/day-weights"),
+                  },
+                ]
+              : undefined,
       });
       if (schedule && speakOn.current) speak(confirmSpeech(schedule));
     } catch (e) {
@@ -387,7 +406,7 @@ function ChatbotRoom() {
 
   const chooseMate = (m: MateId) => {
     setMate(m);
-    writeStorage(MATE_KEY, m).catch(() => {});
+    if (mateKey) writeStorage(mateKey, m).catch(() => {});
     if (settingsFrom === "chat") {
       setSettingsFrom(null);
       setStep("chat");
@@ -533,15 +552,11 @@ function Chat({
             scroll.current?.scrollToEnd({ animated: true })
           }
           keyboardShouldPersistTaps="handled"
+          onLayout={() => scroll.current?.scrollToEnd({ animated: false })}
           showsVerticalScrollIndicator={false}
         >
           {/* 메뉴의 캐릭터·스타일 이름을 작게 이어 받아 같은 대화방처럼 보이게 한다 */}
           <View style={styles.chatIntro}>
-            <Image
-              source={mateImg}
-              style={styles.chatIntroImg}
-              accessibilityLabel="AI 메이트 캐릭터"
-            />
             <View style={[styles.modeBadge, { alignSelf: "center" }]}>
               <T size={12} weight="700" color={colors.brand}>
                 {m.emoji} {m.name}
@@ -564,7 +579,6 @@ function Chat({
           {listening && <ListeningBubble />}
           {busy && (
             <View style={styles.botRow}>
-              <View style={styles.avatarSlot} />
               <TypingBubble />
             </View>
           )}

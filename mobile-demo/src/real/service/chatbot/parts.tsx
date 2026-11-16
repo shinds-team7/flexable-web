@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { Modal } from "@/components/PhoneModal";
 import Svg, {
@@ -26,9 +27,9 @@ import { mateImg, type MateId, mates, type TopicId, topics } from "./model";
 import { styles } from "./styles";
 
 /** 캐릭터 뒤의 옅은 파란 빛. */
-function Hero({ dots }: { dots?: boolean }) {
+function Hero({ dots, compact = false }: { dots?: boolean; compact?: boolean }) {
   return (
-    <View style={styles.hero}>
+    <View style={[styles.hero, compact && styles.menuHero]}>
       <Svg
         style={StyleSheet.absoluteFill}
         viewBox="0 0 300 200"
@@ -45,11 +46,11 @@ function Hero({ dots }: { dots?: boolean }) {
       </Svg>
       <Image
         source={mateImg}
-        style={styles.heroImg}
+        style={[styles.heroImg, compact && styles.menuHeroImg]}
         accessibilityLabel="AI 메이트 캐릭터"
       />
       {dots && (
-        <View style={styles.dots}>
+        <View style={[styles.dots, compact && styles.menuDots]}>
           {[0, 1, 2].map((i) => (
             <View key={i} style={styles.dot} />
           ))}
@@ -142,7 +143,10 @@ export function EnterView({
   });
   return (
     <Animated.View
-      style={[{ flex: 1, opacity: v, transform: [{ translateY }] }, style]}
+      style={[
+        { flex: 1, minHeight: 0, opacity: v, transform: [{ translateY }] },
+        style,
+      ]}
     >
       {children}
     </Animated.View>
@@ -286,17 +290,19 @@ export function Menu({
   onSend: (text: string) => void;
 }) {
   const m = mates.find((x) => x.id === mate)!;
+  const { height } = useWindowDimensions();
+  const compact = height < 900;
   return (
     <KeyboardFrame>
       <RoomHeader onBack={onBack} onSettings={onSettings} />
       <EnterView>
         <ScrollView
-          contentContainerStyle={styles.menuContent}
+          contentContainerStyle={[styles.menuContent, compact && styles.menuContentCompact]}
           showsVerticalScrollIndicator={false}
         >
           {/* 가운데 정렬로 감싸면 Hero가 이미지 폭으로 줄어 배경 빛이 잘린다 */}
           <View style={{ gap: space[2] }}>
-            <Hero dots />
+            <Hero dots compact />
             <View style={[styles.modeBadge, { alignSelf: "center" }]}>
               <T size={12} weight="700" color={colors.brand}>
                 {m.emoji} {m.name}
@@ -320,11 +326,12 @@ export function Menu({
                 onPress={() => onTopic(t.id)}
                 style={({ pressed }) => [
                   styles.topic,
+                  compact && styles.topicCompact,
                   pressTransition,
                   pressed && { transform: [{ scale: 0.97 }] },
                 ]}
               >
-                <View style={styles.topicIcon}>
+                <View style={[styles.topicIcon, compact && styles.topicIconCompact]}>
                   <Ionicons name={t.icon} size={22} color={colors.brand} />
                 </View>
                 <T size={type.meta} weight="800" style={styles.center}>

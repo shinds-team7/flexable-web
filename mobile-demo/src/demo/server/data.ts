@@ -20,6 +20,8 @@ export type DemoSeed = {
   incomeAmount: number;
   fixed: { name: string; amount: number; day: number }[];
   protectedItems: { name: string; amount: number }[];
+  /** true면 예산 설정 전 계정(user.onboarded=false)으로 만든다. 예시 거래는 그대로 둔다(거래내역서로 가져온 것처럼) */
+  fresh?: boolean;
 };
 
 export type Settings = {
@@ -33,34 +35,49 @@ export type Settings = {
   seedBase: number;
   updatedAt: string;
 };
-export type SeedRow = { date: string; choice: 'GOAL' | 'ALL' | 'MANUAL' | 'EXTRA'; amount: number; createdAt: string };
+/** ADJUSTMENT는 총액 정정(차액, 음수 가능). 생활비에서 빠지지 않는다 */
+export type SeedRow = { date: string; choice: 'GOAL' | 'ALL' | 'MANUAL' | 'EXTRA' | 'ADJUSTMENT'; amount: number; createdAt: string };
 export type OutfitDef = { id: string; name: string; price: number | null; unlockLevel: number | null };
 
 /** 실제 서버 기본 카테고리(CategoryService.DEFAULTS)와 같은 이름·색·아이콘·순서 */
+/** 실제 서버 기본 카테고리(CategoryService.DEFAULTS, 2026-11-14 개편: 지출 12·수입 6) */
 const PRESETS: [string, 'EXPENSE' | 'INCOME', string, string][] = [
   ['식비', 'EXPENSE', '#12B76A', 'restaurant'],
-  ['카페·간식', 'EXPENSE', '#F79009', 'cafe'],
-  ['쇼핑', 'EXPENSE', '#7A5AF8', 'bag-handle'],
+  ['카페', 'EXPENSE', '#F79009', 'cafe'],
+  ['생활', 'EXPENSE', '#15B79E', 'cart'],
   ['교통', 'EXPENSE', '#2E90FA', 'bus'],
-  ['문화·여가', 'EXPENSE', '#EE46BC', 'film'],
-  ['생활·마트', 'EXPENSE', '#15B79E', 'cart'],
-  ['고정지출', 'EXPENSE', '#667085', 'repeat'],
+  ['주거', 'EXPENSE', '#6172F3', 'home'],
+  ['통신', 'EXPENSE', '#0BA5EC', 'phone-portrait'],
+  ['쇼핑', 'EXPENSE', '#7A5AF8', 'bag-handle'],
+  ['여가', 'EXPENSE', '#EE46BC', 'film'],
+  ['건강', 'EXPENSE', '#F04438', 'medkit'],
+  ['교육', 'EXPENSE', '#444CE7', 'school'],
+  ['구독', 'EXPENSE', '#DD2590', 'play-circle'],
   ['기타', 'EXPENSE', '#98A2B3', 'ellipsis-horizontal'],
   ['급여', 'INCOME', '#2E90FA', 'cash'],
   ['용돈', 'INCOME', '#12B76A', 'gift'],
+  ['금융수입', 'INCOME', '#F79009', 'trending-up'],
+  ['환급', 'INCOME', '#15B79E', 'receipt'],
+  ['지원금', 'INCOME', '#7A5AF8', 'ribbon'],
   ['기타 수입', 'INCOME', '#98A2B3', 'add-circle'],
 ];
 
-/** 실제 서버의 활성 코스튬(V8~V13 마이그레이션 결과). 레벨 코스튬 먼저, 상점 상품 뒤 */
+/** 실제 서버가 내려 주는 코스튬(V22~V28 마이그레이션 결과): 레벨 코스튬 6단계, 상점 상품, 7일째 출석 보상(outfit-06) */
 export const OUTFITS: OutfitDef[] = [
   { id: 'costume-lv1', name: '광부', price: null, unlockLevel: 1 },
-  { id: 'outfit-02', name: '직장냥이', price: null, unlockLevel: 2 },
-  { id: 'outfit-01', name: '잭팟', price: null, unlockLevel: 3 },
+  { id: 'costume-lv2', name: '농부', price: null, unlockLevel: 2 },
+  { id: 'costume-lv3', name: '상인', price: null, unlockLevel: 3 },
+  { id: 'costume-lv4', name: '기사', price: null, unlockLevel: 4 },
+  { id: 'costume-lv5', name: '귀족', price: null, unlockLevel: 5 },
+  { id: 'costume-lv6', name: '왕족', price: null, unlockLevel: 6 },
+  { id: 'outfit-01', name: '잭팟', price: 200, unlockLevel: null },
+  { id: 'outfit-02', name: '직장냥이', price: 200, unlockLevel: null },
   { id: 'outfit-03', name: '선비냥이', price: 200, unlockLevel: null },
   { id: 'outfit-04', name: '유령냥이', price: 200, unlockLevel: null },
   { id: 'outfit-05', name: '고양마녀', price: 200, unlockLevel: null },
   { id: 'outfit-07', name: '달밤 낚시 고양이', price: 200, unlockLevel: null },
   { id: 'outfit-08', name: '산타냥이', price: 200, unlockLevel: null },
+  { id: 'outfit-06', name: '출석 보상', price: null, unlockLevel: null },
 ];
 
 /** 시연 기본 코인 — 코인 코스튬을 모두 사고도 남는다 */
@@ -70,17 +87,17 @@ export const REFERRAL_REWARD = 100;
 
 const CATEGORY_OF: Partial<Record<CategoryId, string>> = {
   food: '식비',
-  cafe: '카페·간식',
+  cafe: '카페',
   shopping: '쇼핑',
   transport: '교통',
-  culture: '문화·여가',
-  living: '생활·마트',
+  culture: '여가',
+  living: '생활',
   etc: '기타',
   transfer: '기타',
   income: '급여',
 };
 const MEMOS: Record<string, string> = {
-  nbbang: '4명 회식 · 1/N로 받기로 함',
+  nbbang: '4명 회식 · 내가 먼저 결제',
   proxy: '동아리 비품, 나중에 돌려받아요',
   gift: '민지 생일 선물',
 };
@@ -137,7 +154,8 @@ export function buildTransactionsFor(seed: DemoSeed, categories: Category[], now
     fromFixed: false,
   });
   // 고정지출 자동 기록(fromFixed)
-  const fixedCat = byName('고정지출');
+  // 실제 서버와 같이 새 가입자의 고정지출 자동 기록은 '기타'로 남긴다(FixedExpensePoster, 2026-11-14)
+  const fixedCat = byName('기타');
   const from = out.reduce((a, t) => (kstDateOf(t.occurredAt) < a ? kstDateOf(t.occurredAt) : a), kstDate(now));
   for (const f of seed.fixed) {
     for (const d of fixedDates(f.day, from, kstDate(now))) {
@@ -167,7 +185,7 @@ export function buildScheduled(categories: Category[], now: number): ScheduledEx
   const rows: [number, string, number, string][] = [
     [2, '친구 생일 선물', 35000, '쇼핑'],
     [5, '팀 프로젝트 회식', 40000, '식비'],
-    [9, '콘서트 티켓', 99000, '문화·여가'],
+    [9, '콘서트 티켓', 99000, '여가'],
   ];
   const created = isoAt(now - 3 * DAY);
   return rows.map(([offset, title, amount, cat], i) => {

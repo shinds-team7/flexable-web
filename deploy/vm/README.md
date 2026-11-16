@@ -133,6 +133,7 @@ api·worker는 같은 `.env`를 `env_file`로 함께 읽는다(비밀 값이 컨
 | 증상 | 확인 |
 |---|---|
 | 화면은 뜨는데 API가 502 | `docker compose logs api --tail 100`(시작 실패는 대개 `.env` 누락) |
+| api 로그는 정상인데 502(`docker compose logs web`에 `connect() failed (111)`) | `docker compose exec -T web wget -qO- http://api:8080/api/v1/health`가 UP이면 nginx가 api의 예전 IP를 쓰는 것이다. `docker compose restart web`. `nginx.conf`가 요청마다 이름을 찾게 바뀐 뒤(#441)에는 생기지 않아야 한다 |
 | api가 계속 재시작 | `WEB_JWT_SECRET`·`DB_PASSWORD` 누락, `APP_LINK_BASE_URL`만 있고 `APP_LINK_ENCRYPTION_KEY` 없음 |
 | 소셜 로그인 콜백 오류 | `OAUTH_CALLBACK_BASE_URL`과 공급자 콘솔 Redirect URI가 같은지 |
 | 디스크 | `df -h`, `docker system df` |

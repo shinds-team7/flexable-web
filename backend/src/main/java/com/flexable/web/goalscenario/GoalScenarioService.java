@@ -107,7 +107,7 @@ public class GoalScenarioService {
 	private record Chosen(List<Plan> plans, String fallbackReason, GoalScenarioDtos.AiUsage aiUsage, boolean reused, String path) {
 	}
 
-	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(데모 조합, GUEST). 요청 중에는 AI를 부르지 않는다(#431). */
+	/** userId는 로그인한 회원이면 웹 회원 번호, 비회원이면 null(미리 만든 AI 조합을 횟수 차감 없이 본다). 요청 중에는 AI를 부르지 않는다(#431). */
 	Result calculate(Request req, Long userId) {
 		validate(req);
 		long start = req.startAmount();
@@ -182,8 +182,9 @@ public class GoalScenarioService {
 
 	/**
 	 * worker가 미리 만든 이 기한의 AI 조합을 검증해 쓰고, 쓸 수 없으면 데모 조합(§7-6). 요청 중에는 AI를 부르지 않는다(#431).
-	 * 순서: 키 없음(AI_UNAVAILABLE) → 비회원(GUEST) → 같은 회원의 같은 조건 다시 보기(차감 없음) → 미리 만든 조합 없음(AI_PENDING)
-	 * → 회원 하루 횟수(LIMIT) → 규칙 위반(AI_REJECTED).
+	 * 순서: 키 없음(AI_UNAVAILABLE) → 같은 회원의 같은 조건 다시 보기(차감 없음) → 미리 만든 조합 없음(AI_PENDING)
+	 * → 규칙 위반(AI_REJECTED) → 회원 하루 횟수(LIMIT). 비회원도 미리 만든 조합은 그대로 본다(저장만 로그인 필요). 비회원은 횟수를 차감하지 않고,
+	 * AI를 부르지 않으므로 비용도 늘지 않는다. 미리 만든 조합이 없을 때만 데모 조합이다.
 	 */
 	private Chosen choose(long start, long monthly, int months, Long target, LocalDate asOf, Long userId, Picked picked) {
 		ScenarioProposer p = proposer.getIfAvailable();
@@ -191,15 +192,14 @@ public class GoalScenarioService {
 		if (p == null || !p.enabled() || p.planVersion() == null) {
 			reason = "AI_UNAVAILABLE";
 		}
-		else if (userId == null) {
-			reason = "GUEST";
-		}
 		else {
 			ProposalText.Facts facts = facts(months, picked);
-			ScenarioAiQuota.Key key = new ScenarioAiQuota.Key(userId, start, monthly, months, target, asOf, p.planVersion());
-			Optional<List<Plan>> reused = quota.cached(key).map(d -> Proposals.check(d, facts).plans());
-			if (reused.isPresent() && reused.get() != null) {
-				return new Chosen(reused.get(), null, usage(userId), true, "reused");
+			if (userId != null) {
+				ScenarioAiQuota.Key key = new ScenarioAiQuota.Key(userId, start, monthly, months, target, asOf, p.planVersion());
+				Optional<List<Plan>> reused = quota.cached(key).map(d -> Proposals.check(d, facts).plans());
+				if (reused.isPresent() && reused.get() != null) {
+					return new Chosen(reused.get(), null, usage(userId), true, "reused");
+				}
 			}
 			PlanSubject subject = planSubject(months, picked);
 			Optional<ScenarioPlanStore.Stored> stored = plans.find(p.planVersion(), months, subject.fingerprint());
@@ -212,7 +212,11 @@ public class GoalScenarioService {
 					log.warn("goal scenario stored plan rejected: {}", checked.logLine(aiProps.logRejected()));
 					reason = "AI_REJECTED";
 				}
+				else if (userId == null) {
+					return new Chosen(checked.plans(), null, null, false, "ai-guest");
+				}
 				else {
+					ScenarioAiQuota.Key key = new ScenarioAiQuota.Key(userId, start, monthly, months, target, asOf, p.planVersion());
 					ScenarioAiQuota.Reserve r = quota.reserve(userId);
 					if (r == ScenarioAiQuota.Reserve.GONE) {
 						// 토큰은 유효하지만 회원이 없다(탈퇴). 다른 회원 API와 같이 401

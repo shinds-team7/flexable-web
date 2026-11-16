@@ -691,7 +691,7 @@ export default function GoalScenarios() {
               <span className="gp-mini" aria-hidden="true">{s.mix.map((m) => <span key={m.type} style={{ width: `${m.ratioPercent}%`, background: COLORS[m.type] }} />)}</span>
               {s.outcome && <span className="gp-plan-stats">
                 <span>손실 확률<b>{s.outcome.kind === 'FIXED' ? '없음' : pct(s.outcome.lossBp)}</b></span>
-                <span title="목표가 높을수록 낮아져요">목표 금액 달성<b>{s.outcome.chanceBp === null ? '−' : pct(s.outcome.chanceBp)}</b></span>
+                <span title="목표가 높을수록 낮아져요">목표 달성 확률<b>{s.outcome.chanceBp === null ? '−' : pct(s.outcome.chanceBp)}</b></span>
               </span>}
             </button>)}
           </div>

@@ -396,10 +396,22 @@ class GoalScenarioApiTest {
 	}
 
 	@Test
-	void 비회원은_미리_만든_조합이_있어도_데모() throws Exception {
+	void 비회원도_미리_만든_AI_조합을_받고_횟수는_없다() throws Exception {
 		prepare(12, GOOD);
 		String body = call(body(0, 500_000, 12), 200);
-		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("GUEST");
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("AI");
+		assertThat((Object) JsonPath.read(body, "$.fallbackReason")).isNull();
+		assertThat((Object) JsonPath.read(body, "$.aiUsage")).isNull();
+		assertThat((Boolean) JsonPath.read(body, "$.aiReused")).isFalse();
+	}
+
+	@Test
+	void 비회원은_미리_만든_조합이_없으면_AI_PENDING_데모() throws Exception {
+		when(proposer.enabled()).thenReturn(true);
+		when(proposer.planVersion()).thenReturn("goal-scenario-none");
+		String body = call(body(0, 500_000, 12), 200);
+		assertThat((String) JsonPath.read(body, "$.proposer")).isEqualTo("DEMO");
+		assertThat((String) JsonPath.read(body, "$.fallbackReason")).isEqualTo("AI_PENDING");
 		assertThat((Object) JsonPath.read(body, "$.aiUsage")).isNull();
 	}
 

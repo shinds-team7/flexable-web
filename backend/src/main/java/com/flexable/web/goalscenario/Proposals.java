@@ -192,7 +192,7 @@ final class Proposals {
 			ScenarioTier tier = ScenarioTier.values()[i];
 			Plan p = sorted.get(i);
 			if (!tier.accepts(p.mix())) {
-				return Checked.fail("MIX_TIER #" + (i + 1));
+				return Checked.fail("MIX_TIER #" + (i + 1) + " invest=" + ScenarioTier.investShare(p.mix()));
 			}
 			tiered.add(new Plan(tier.id(), p.title(), p.summary(), p.explanation(), p.parts(), p.mix()));
 		}

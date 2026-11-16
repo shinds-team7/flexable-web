@@ -25,6 +25,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class GoalTypeRoleJob {
 	private static final Logger log = LoggerFactory.getLogger(GoalTypeRoleJob.class);
 	private static final JsonMapper JSON = JsonMapper.builder().build();
+	/** 한 기한의 조합을 단계 범위 탈락 때문에 다시 부르는 최대 횟수(전체 하루 상한에도 센다). */
+	private static final int PLAN_ATTEMPTS = 3;
 
 	/** made 새로 만든 수, kept 이미 있던 수, failed 실패·검사 탈락 수, capped 전체 상한에 걸려 멈췄는지. */
 	public record Result(int made, int kept, int failed, boolean capped) {
@@ -135,22 +137,34 @@ public class GoalTypeRoleJob {
 				failed++;
 				continue;
 			}
-			if (capped || !quota.reserveService()) {
-				capped = true;
-				continue;
-			}
 			try {
-				GoalScenarioAiClient.Result r = client.plan(JSON.writeValueAsString(target.subject().input()));
-				List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(r.content(), roles);
-				Proposals.Checked checked = Proposals.check(drafts, target.facts());
-				if (checked.plans() == null) {
-					log.warn("goal scenario plan rejected: months={} {}", target.months(), checked.logLine(aiProps.logRejected()));
-					failed++;
-					continue;
+				// 투자 몫이 단계 범위를 벗어난 조합은 응답마다 달라서 다시 부르면 통과하는 경우가 많다. 그 사유일 때만 최대 PLAN_ATTEMPTS번 시도한다.
+				boolean saved = false;
+				for (int attempt = 1; attempt <= PLAN_ATTEMPTS && !saved; attempt++) {
+					if (capped || !quota.reserveService()) {
+						capped = true;
+						break;
+					}
+					GoalScenarioAiClient.Result r = client.plan(JSON.writeValueAsString(target.subject().input()));
+					List<Proposals.Draft> drafts = OpenAiScenarioProposer.parse(r.content(), roles);
+					Proposals.Checked checked = Proposals.check(drafts, target.facts());
+					if (checked.plans() == null) {
+						log.warn("goal scenario plan rejected: months={} attempt={} {}", target.months(), attempt, checked.logLine(aiProps.logRejected()));
+						if (checked.problem() != null && checked.problem().startsWith("MIX_TIER") && attempt < PLAN_ATTEMPTS) {
+							continue;
+						}
+						break;
+					}
+					checked.removed().forEach(n -> log.warn("goal scenario plan sentence removed: months={} {}", target.months(), n.logLine(aiProps.logRejected())));
+					plans.save(version, target.months(), fingerprint, drafts, r.model());
+					saved = true;
 				}
-				checked.removed().forEach(n -> log.warn("goal scenario plan sentence removed: months={} {}", target.months(), n.logLine(aiProps.logRejected())));
-				plans.save(version, target.months(), fingerprint, drafts, r.model());
-				made++;
+				if (saved) {
+					made++;
+				}
+				else if (!capped) {
+					failed++;
+				}
 			}
 			catch (GoalScenarioAiClient.Failed | ScenarioProposer.Failed e) {
 				log.warn("goal scenario plan AI failed: months={} reason={}", target.months(), e instanceof GoalScenarioAiClient.Failed f ? f.reason() : e.getMessage());

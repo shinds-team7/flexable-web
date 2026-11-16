@@ -46,7 +46,7 @@ class ProposalsTest {
 		List<Proposals.Draft> off = List.of(new Proposals.Draft("a", "안정", "설명", "해설이에요", Map.of("SAVINGS", 100)),
 				new Proposals.Draft("b", "균형", "설명", "해설이에요", Map.of("SAVINGS", 80, "US_INDEX_ETF", 20)),
 				new Proposals.Draft("c", "적극", "설명", "해설이에요", Map.of("KR_INDEX_ETF", 100)));
-		assertThat(Proposals.check(off, ProposalText.Facts.NONE).problem()).isEqualTo("MIX_TIER #2");
+		assertThat(Proposals.check(off, ProposalText.Facts.NONE).problem()).isEqualTo("MIX_TIER #2 invest=20");
 		// 경계값 30·31·61은 각 단계에 든다
 		List<Proposals.Draft> edge = List.of(new Proposals.Draft("a", "안정", "설명", "해설이에요", Map.of("SAVINGS", 70, "KR_INDEX_ETF", 30)),
 				new Proposals.Draft("b", "균형", "설명", "해설이에요", Map.of("SAVINGS", 69, "KR_INDEX_ETF", 31)),

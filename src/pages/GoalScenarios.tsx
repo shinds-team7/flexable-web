@@ -292,7 +292,7 @@ function Assumptions({ paths, returnsFrom, returnsTo, assumptions, notice }: { p
       <ul>
         <li><b>{won(paths)}가지 경우</b>: {returnsFrom}부터 {returnsTo}까지 상품이 실제로 오르내린 기록을 1년 단위로 잘라, 무작위로 이어 붙여 만든 가상의 미래예요. 같은 입력이면 늘 같은 결과가 나와요.</li>
         <li><b>하위 10%·중간값·상위 10%</b>: {won(paths)}가지 결과를 줄 세웠을 때 아래에서 10%, 가운데, 위에서 10% 자리의 금액이에요. 그래프는 달마다 같은 방법으로 고른 값이라 한 경우를 따라간 선이 아니에요.</li>
-        <li><b>상위 10%의 수익</b>: 상위 10% 금액에서 넣은 돈(시작 금액 + 월 금액 × 기간)을 뺀 값이에요. 적금·CMA만 있는 조합은 이자가 정해져 있어 결과가 하나예요.</li>
+        <li><b>상위 10% 금액</b>: 기한 말 상위 10% 자리의 금액으로, 넣은 돈(시작 금액 + 월 금액 × 기간)을 포함해요. 카드 아래 줄의 수익은 이 금액에서 넣은 돈을 뺀 값이에요. 적금·CMA만 있는 조합은 이자가 정해져 있어 결과가 하나예요.</li>
         <li><b>목표 달성 추정</b>: 목표 금액을 넣었을 때 기한 말 금액이 목표 이상인 경우의 비율이에요.</li>
         <li><b>원금 손실 가능성</b>: 넣은 돈보다 적게 남은 경우의 비율이에요.</li>
         {assumptions.map((a) => <li key={a}>{a}</li>)}
@@ -684,10 +684,18 @@ export default function GoalScenarios() {
               <span className="gp-plan-title">{s.title}
                 {s.outcome && (() => { const r = riskOf(s.outcome); return <span className={`gp-risk gp-risk-${r.level}`} aria-label={`위험 ${r.label}`}>
                   <span className="gp-risk-bars" aria-hidden="true">{[1, 2, 3].map((n) => <i key={n} className={n <= r.level ? 'on' : ''} />)}</span>위험 {r.label}</span>; })()}</span>
-              {s.outcome && s.outcome.highGain !== null && <>
-                <span className="gp-plan-label">{s.outcome.kind === 'FIXED' ? '확정 수익(세후 이자)' : '상위 10%의 수익'}</span>
-                <span className={`gp-plan-monthly num${s.outcome.highGain < 0 ? ' is-loss' : ''}`}>{gainText(s.outcome.highGain)}</span>
-              </>}
+              {s.outcome && s.outcome.highGain !== null && (() => {
+                // 큰 숫자는 그래프 마지막 달과 같은 기한 말 금액(넣은 돈 포함). 수익은 아래 줄에 나눠 보인다
+                const o = s.outcome;
+                const gain = o.highGain ?? 0;
+                const total = o.kind === 'FIXED' ? o.fixedAmount : o.high;
+                if (total === null) return null;
+                return <>
+                  <span className="gp-plan-label">{o.kind === 'FIXED' ? '기한 말 확정 금액(세후)' : '상위 10% 금액'}</span>
+                  <span className="gp-plan-monthly num">{won(total)}원</span>
+                  <span className={`gp-plan-sub num${gain < 0 ? ' is-loss' : ''}`}>넣은 돈 {manwon(total - gain)} · 수익 {gainText(gain)}</span>
+                </>;
+              })()}
               <span className="gp-mini" aria-hidden="true">{s.mix.map((m) => <span key={m.type} style={{ width: `${m.ratioPercent}%`, background: COLORS[m.type] }} />)}</span>
               {s.outcome && <span className="gp-plan-stats">
                 <span>손실 확률<b>{s.outcome.kind === 'FIXED' ? '없음' : pct(s.outcome.lossBp)}</b></span>

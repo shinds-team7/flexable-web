@@ -52,6 +52,8 @@
 .gp-plan-monthly.is-loss{color:var(--color-text-secondary)}
 .gp-plan-monthly{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:calc(var(--density-gap)/12) 0 calc(var(--density-gap)/2)}
 .gp-plan-monthly small{font-size:15px;font-weight:600}
+.gp-plan-monthly:has(+ .gp-plan-sub){margin-bottom:0}
+.gp-plan-sub{display:block;font-size:13px;font-weight:600;color:var(--color-text-secondary);margin-bottom:calc(var(--density-gap)/2)}
 .gp-plan-none{font-size:15px;font-weight:600;color:var(--color-text-secondary);margin:calc(var(--density-gap)/6) 0 calc(var(--density-gap)/2)}
 .gp-mini,.gp-bar{display:flex;gap:2px;overflow:hidden}
 .gp-mini{height:8px;border-radius:var(--radius-xs);margin-bottom:calc(var(--density-gap)/2)}

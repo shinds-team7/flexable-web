@@ -928,7 +928,7 @@ export default function Savings() {
   const compareLimit = COMPARE_MAX;
 
   return (
-    <section>
+    <section className="sv-screen">
       <div className="page">
         {seed.isPending ? <Loading /> : <NowMode key={pace} pace={pace} compareLimit={compareLimit} initialPolicy={initialPolicy} />}
       </div>

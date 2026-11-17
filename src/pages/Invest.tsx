@@ -193,7 +193,7 @@ export default function Invest() {
 
 
   return (
-    <section>
+    <section className="invest-page">
       <div className="page">
         <div className="page-head">
           <div>

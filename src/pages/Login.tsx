@@ -74,7 +74,7 @@ export function LoginPanel({ from, initialError = null, onSignedIn }: { from: st
     <div className="login-card">
       <h1 className="login-brand">
         <Logo />
-        <span className="logo-word">solpa</span>
+        <span className="logo-word">Solpa</span>
         <span className="sr-only">로그인</span>
       </h1>
       <form className="login-form" onSubmit={submit}>

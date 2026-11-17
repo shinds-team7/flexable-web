@@ -192,9 +192,9 @@ function LayoutBody() {
     <>
       <header className="topnav">
         <div className="wrap">
-          <Link className="logo" to="/home" aria-label="solpa 홈으로">
+          <Link className="logo" to="/home" aria-label="Solpa 홈으로">
             <Logo />
-            <span className="logo-word">solpa</span>
+            <span className="logo-word">Solpa</span>
           </Link>
           <nav className={'mainnav' + (menu ? ' open' : '')} id="mainnav" aria-label="주 메뉴">
             {NAV.map((n) => (

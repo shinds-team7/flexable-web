@@ -45,7 +45,7 @@ button{cursor:pointer}
 .mainnav a{display:inline-flex;align-items:center;height:var(--density-control-sm);color:var(--text-sub);font-weight:600;padding:0 12px;border-radius:var(--radius-soft-sm);white-space:nowrap;transition:background-color 140ms var(--ease)}
 .mainnav a:hover{color:var(--text);text-decoration:none}
 .mainnav a[aria-current="page"],.mainnav a[data-section="active"]{color:var(--brand-text)}
-.logo-word{font-size:20px;font-weight:800;letter-spacing:-.02em;text-transform:lowercase}
+.logo-word{font-size:22px;font-weight:800;letter-spacing:-.02em}
 /* 호버하면 아래에 파란 포인트 라인, 하위 메뉴가 있으면 패널이 열린다 */
 .mainnav{align-items:stretch}
 .navitem{position:relative;display:flex;align-items:center;height:var(--nav-h)}
@@ -1597,3 +1597,19 @@ a.news-hot-title:hover{color:var(--brand-text);text-decoration:underline;text-un
   .it-page .it-entry-h{font-size:24px;line-height:32px}
 }
 @media (max-width:480px){.ia-prose,.ia-step,.ia-prose ul{font-size:16px}}
+/* 예적금(.sv-screen·.cash-catalog)·청년소식(.news-screen) 글꼴 크기: 금융 가이드·투자 성향과 같은 단계로 맞춘다(제목 32 · 설명 17 · 섹션 제목 22 · 소제목 18 · 본문 15) */
+.cash-catalog .cash-heading h1{font-size:32px;line-height:42px;font-weight:800;letter-spacing:-.03em}
+.cash-catalog .cash-heading .sub{font-size:17px;line-height:26px;color:var(--color-text-secondary)}
+:is(.sv-screen,.cash-catalog) .card h2,.news-screen :is(.news-sec-title,.news-cond-title){font-size:22px;line-height:30px;font-weight:800;letter-spacing:-.025em}
+:is(.sv-screen,.cash-catalog) :is(.sec-title.sv-h3,.sv-main h3){font-size:18px;line-height:26px;font-weight:700;letter-spacing:-.025em}
+:is(.sv-screen,.cash-catalog) .card .sub:not(.cash-heading .sub){font-size:15px;line-height:23px}
+@media (max-width:767px){
+  .cash-catalog .cash-heading h1{font-size:24px;line-height:32px}
+  .cash-catalog .cash-heading .sub{font-size:15px;line-height:23px}
+  :is(.sv-screen,.cash-catalog) .card h2,.news-screen :is(.news-sec-title,.news-cond-title){font-size:20px;line-height:28px}
+}
+/* 투자 인사이트(/invest) 제목: 같은 '투자' 메뉴의 시뮬레이션 화면(practice.css .practice-heading)과 같은 크기로 맞춘다 */
+.invest-page .page-head{align-items:center;gap:var(--density-gap);margin-bottom:var(--density-gap);flex-wrap:nowrap}
+.invest-page .page-title{font-size:30px;line-height:inherit;letter-spacing:-1px;margin:0 0 calc(var(--density-gap)/3)}
+.invest-page .page-head .page-desc{margin-top:0;color:var(--color-text-tertiary);font-size:14px;line-height:1.65}
+@media (max-width:760px){.invest-page .page-head{flex-direction:column;align-items:flex-start}}

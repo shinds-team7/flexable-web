@@ -10,7 +10,7 @@
 
 ## 2026-11-16
 
-- [Closes #449] 적금·정기예금 **상품 상세에 금융회사 홈페이지 링크**("○○ 홈페이지 ↗")를 더한다(01 R2 "공시 원문·은행 페이지 링크만" 범위 안, 가입 버튼·상품 가입 페이지 링크 없음). `savings-snapshot`이 finlife 금융회사 API(`companySearch.json`, 은행·저축은행 권역)의 `homp_url`을 매일 받아 Flyway V41 `finlife_companies`에 두고, 수집이 실패해도 상품 수집과 기존 주소는 그대로다. 계약 `SavingsProductDetail`·`DepositProductDetail`에 `companyHomepageUrl`(필수·nullable, http·https만), 03 §4-3·수집 표. 목록·파킹·CMA·계산·개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
+- [#452, Closes #449] 적금·정기예금 **상품 상세에 금융회사 홈페이지 링크**("○○ 홈페이지 ↗")를 더한다(01 R2 "공시 원문·은행 페이지 링크만" 범위 안, 가입 버튼·상품 가입 페이지 링크 없음). `savings-snapshot`이 finlife 금융회사 API(`companySearch.json`, 은행·저축은행 권역)의 `homp_url`을 매일 받아 Flyway V41 `finlife_companies`에 두고, 수집이 실패해도 상품 수집과 기존 주소는 그대로다. 계약 `SavingsProductDetail`·`DepositProductDetail`에 `companyHomepageUrl`(필수·nullable, http·https만), 03 §4-3·수집 표. 목록·파킹·CMA·계산·개인정보 처리 변화 없음 — 영향: 프론트(`npm run gen:api`)·백엔드
 - [Closes #446] 마이페이지 레일 맨 위에 **AI 목표달성에서 저장한 시나리오 목록**을 다시 보여 준다(회원만, 목록만, 누르면 `/goal?saved=<id>`에서 그 저장본이 열림, 지우기는 `/goal`에서만). PRD F7·02 §5-3 현재 구현 문장을 고침 — 영향: 프론트
 - [no-issue] AI 목표달성을 **비회원도 미리 만든 AI 조합·해설로 본다**(횟수 차감 없음, 저장만 로그인). 미리 만든 조합이 없을 때만 데모 조합이고 `fallbackReason=GUEST`는 더 내려가지 않는다. worker는 투자 몫 단계 범위(`MIX_TIER`) 탈락 때 기한당 최대 3번 다시 만들고, 시나리오 카드 문구를 '목표 달성 확률'로 바꿨다(policies §7-6, [결정](decisions/2026-11-14-goal-budget-tiers.md)) — 영향: 프론트·백엔드·시연
 

@@ -18,6 +18,9 @@ class FinlifeCompanyCatalogTest {
 	void scheme이_없으면_http를_붙인다() {
 		assertThat(FinlifeCompanyCatalog.normalize("www.example-sb.co.kr")).isEqualTo("http://www.example-sb.co.kr");
 		assertThat(FinlifeCompanyCatalog.normalize("example.com/bank")).isEqualTo("http://example.com/bank");
+		assertThat(FinlifeCompanyCatalog.normalize("www.example-bank.co.kr?lang=ko")).isEqualTo("http://www.example-bank.co.kr?lang=ko");
+		assertThat(FinlifeCompanyCatalog.normalize("www.example-bank.co.kr#main")).isEqualTo("http://www.example-bank.co.kr#main");
+		assertThat(FinlifeCompanyCatalog.normalize("www.example-bank.co.kr:8080/main")).isEqualTo("http://www.example-bank.co.kr:8080/main");
 	}
 
 	@Test

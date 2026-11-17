@@ -179,6 +179,9 @@ class SavingsApiTest {
 			.andExpect(jsonPath("$.companyHomepageUrl").doesNotExist());
 		org.assertj.core.api.Assertions.assertThatThrownBy(() -> companies.replaceAll(List.of()))
 			.isInstanceOf(IllegalArgumentException.class);
+		// 회사 번호가 전부 비어 있는 목록도 빈 목록처럼 거부하고 기존 주소를 지우지 않는다
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> companies.replaceAll(List.of(new CompanyData(" ", "이름만", "https://x.example.co.kr"), new CompanyData(null, "번호 없음", null))))
+			.isInstanceOf(IllegalArgumentException.class);
 		org.assertj.core.api.Assertions.assertThat(companies.homepage("0020001")).isEqualTo("https://other.example.co.kr");
 	}
 

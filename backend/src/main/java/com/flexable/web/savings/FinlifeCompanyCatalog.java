@@ -23,8 +23,8 @@ public class FinlifeCompanyCatalog {
 	public record CompanyData(String finCoNo, String korCoNm, String homepage) {
 	}
 
-	/** "www.bank.co.kr"처럼 scheme 없이 온 주소. 공시 예시가 http라 http를 붙인다. */
-	private static final Pattern BARE_HOST = Pattern.compile("^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(/\\S*)?$");
+	/** "www.bank.co.kr"처럼 scheme 없이 온 주소(뒤에 포트·경로·query·fragment가 붙어도 된다). 공시 예시가 http라 http를 붙인다. */
+	private static final Pattern BARE_HOST = Pattern.compile("^[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:\\d{1,5})?([/?#]\\S*)?$");
 
 	private final FinlifeCompanyRepository companies;
 	private final Clock clock;
@@ -45,7 +45,7 @@ public class FinlifeCompanyCatalog {
 		return finCoNo == null ? null : companies.findById(finCoNo).map(FinlifeCompany::getHomepageUrl).orElse(null);
 	}
 
-	/** 전체 스냅숏 교체(같은 회사 번호는 갱신, 목록에 없는 회사는 삭제). 빈 목록은 받아들이지 않는다. 반영한 회사 수를 돌려준다. */
+	/** 전체 스냅숏 교체(같은 회사 번호는 갱신, 목록에 없는 회사는 삭제). 회사 번호가 있는 회사가 하나도 없으면 받아들이지 않는다. 반영한 회사 수를 돌려준다. */
 	@Transactional
 	public int replaceAll(List<CompanyData> snapshot) {
 		if (snapshot.isEmpty()) {
@@ -60,6 +60,10 @@ public class FinlifeCompanyCatalog {
 			FinlifeCompany c = companies.findById(d.finCoNo()).orElseGet(() -> new FinlifeCompany(d.finCoNo()));
 			c.apply(d.korCoNm() == null ? "" : d.korCoNm().strip(), normalize(d.homepage()), now);
 			companies.save(c);
+		}
+		if (keep.isEmpty()) {
+			// 회사 번호가 전부 비어 있으면 빈 목록과 같다. 기존 주소를 모두 지우지 않는다
+			throw new IllegalArgumentException("회사 번호가 있는 금융회사가 없어 교체할 수 없습니다");
 		}
 		List<String> stale = companies.findAll().stream().map(FinlifeCompany::getFinCoNo).filter(no -> !keep.contains(no)).toList();
 		if (!stale.isEmpty()) {

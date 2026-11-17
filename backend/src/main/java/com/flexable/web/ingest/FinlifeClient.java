@@ -95,7 +95,7 @@ public class FinlifeClient {
 			int maxPage = 1;
 			while (page <= maxPage) {
 				Result r = page(COMPANY, group, page);
-				maxPage = parseInt(r.maxPageNo(), 1);
+				maxPage = pageCount(r.maxPageNo(), group);
 				for (BaseBody b : r.baseList() == null ? List.<BaseBody>of() : r.baseList()) {
 					all.add(new CompanyData(b.finCoNo(), b.korCoNm(), b.hompUrl()));
 				}
@@ -167,6 +167,15 @@ public class FinlifeClient {
 
 	private static String key(String finCoNo, String finPrdtCd) {
 		return finCoNo + "|" + finPrdtCd;
+	}
+
+	/** 금융회사 응답의 전체 쪽 수. 없거나 숫자가 아니면 뒤 쪽을 빠뜨린 목록이 되므로 예외(그러면 기존 주소를 그대로 둔다). */
+	private static int pageCount(String maxPageNo, String groupCode) {
+		int n = parseInt(maxPageNo, -1);
+		if (n < 1) {
+			throw new IllegalStateException("finlife 응답의 쪽 수가 없음(" + COMPANY + ", 권역 " + groupCode + ")");
+		}
+		return n;
 	}
 
 	private static int parseInt(String s, int fallback) {

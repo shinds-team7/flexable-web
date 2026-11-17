@@ -79,6 +79,23 @@ class FinlifeClientTest {
 	}
 
 	@Test
+	void 쪽_수가_없으면_예외() {
+		RestClient.Builder builder = RestClient.builder();
+		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
+		String noPageCount = """
+				{"result":{"err_cd":"000","err_msg":"정상","baseList":[%s]}}""".formatted(company("0010001", "예시은행", "http://www.example-bank.co.kr"));
+		server.expect(requestTo(url("020000", 1))).andRespond(withSuccess(noPageCount, MediaType.APPLICATION_JSON));
+		server.expect(requestTo(url("030300", 1))).andRespond(withSuccess(noPageCount, MediaType.APPLICATION_JSON));
+
+		FinlifeClient client = new FinlifeClient(props, builder.build());
+
+		assertThatThrownBy(client::fetchCompanies)
+			.isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("쪽 수")
+			.hasMessageNotContaining("KEY");
+	}
+
+	@Test
 	void 오류_코드면_예외() {
 		RestClient.Builder builder = RestClient.builder();
 		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();

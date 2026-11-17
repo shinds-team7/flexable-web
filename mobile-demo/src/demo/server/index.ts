@@ -120,7 +120,7 @@ function create(seed: DemoSeed): State {
     user: {
       id: 1,
       email: 'demo@flexable.app',
-      onboarded: true,
+      onboarded: !seed.fresh,
       createdAt: isoAt(now - 60 * DAY),
       provider: 'email',
       hasPassword: true,
@@ -166,6 +166,12 @@ function db(): State {
 }
 
 /** 시연 온보딩을 마칠 때 그 값으로 예시 데이터를 새로 만든다. null이면 지운다(처음부터 다시 보기). */
+/** [시작하기]: 예산 설정 전 새 계정으로 목 서버를 다시 만든다 */
+export function seedFreshDemoServer() {
+  seedInput = { ...FALLBACK, fresh: true };
+  state = null;
+}
+
 export function seedDemoServer(seed: DemoSeed | null) {
   seedInput = seed;
   state = null;
@@ -195,7 +201,9 @@ function spentByDay(s: State) {
 }
 const record = (s: State) => fromRecords(spentByDay(s), today());
 const savedSince = (s: State, since: string) =>
-  s.seedRows.filter((r) => Date.parse(r.createdAt) > Date.parse(since)).reduce((a, r) => a + r.amount, 0);
+  s.seedRows
+    .filter((r) => r.choice !== 'ADJUSTMENT' && Date.parse(r.createdAt) > Date.parse(since))
+    .reduce((a, r) => a + r.amount, 0);
 function calc(s: State, date: string, goal = protectedTotal(s)) {
   return compute(
     {
@@ -238,7 +246,7 @@ function seedView(s: State) {
   const end = t === addDays(next, -1) ? t : addDays(previousPayday(t, s.settings.payday), -1);
   const goal = protectedTotal(s);
   const saved = s.seedRows.reduce((a, r) => a + r.amount, 0);
-  const done = s.seedRows.some((r) => r.choice !== 'EXTRA' && r.date === end);
+  const done = s.seedRows.some((r) => r.choice !== 'EXTRA' && r.choice !== 'ADJUSTMENT' && r.date === end);
   return {
     base: s.settings.seedBase,
     saved,
@@ -329,7 +337,8 @@ function attendanceView(s: State) {
     total: s.attendance.total,
     checkedToday: s.attendance.checkedToday,
     todayReward: attendanceReward(next),
-    todayOutfitId: null,
+    // 누적 7일째에 한 번만 출석 보상 코스튬(CoinService.ATTENDANCE_OUTFIT)
+    todayOutfitId: next === 7 && !s.owned.has('outfit-06') && !s.attendance.checkedToday ? 'outfit-06' : null,
   };
 }
 
@@ -440,6 +449,20 @@ export function handle(method: string, url: string, body: unknown, key?: string)
     s.user = { ...s.user, onboarded: true };
     return settingsView(s);
   }
+  if (route === 'PATCH /budget/settings/income') {
+    // AI 메이트가 제안한 수입일·월 수입 변경(사용자가 [반영]을 눌렀을 때)
+    const b = r.body;
+    if (!Number.isSafeInteger(b.incomeAmount) || b.incomeAmount < 0) invalid('incomeAmount', '수입을 다시 확인해 주세요');
+    if (!Number.isInteger(b.payday) || b.payday < 1 || b.payday > 31) invalid('payday', '수입일을 다시 확인해 주세요');
+    s.settings = { ...s.settings, incomeAmount: b.incomeAmount, payday: b.payday, updatedAt: isoAt() };
+    return settingsView(s);
+  }
+  if (route === 'POST /transactions/statement-import') {
+    // 시연: 고른 PDF는 읽지 않는다. 이미 들어 있는 예시 거래를 거래내역서에서 가져온 것처럼 알려 준다
+    const before = s.transactions.filter((t) => Date.parse(t.occurredAt) <= Date.parse(s.settings.balanceAt));
+    const dates = before.map((t) => kstDateOf(t.occurredAt)).sort();
+    return { bank: 'SHINHAN', from: dates[0] ?? today(), to: dates[dates.length - 1] ?? today(), imported: before.length, duplicates: 0, afterBalance: 0 };
+  }
   if (route === 'GET /budget/day-weights') return dayWeightsView(s);
   if (route === 'PUT /budget/day-weights') {
     const preset = r.body.preset as DayPreset;
@@ -471,6 +494,14 @@ export function handle(method: string, url: string, body: unknown, key?: string)
     if (amount > movable)
       invalid('amount', `지금 보낼 수 있는 돈(${movable.toLocaleString('ko-KR')}원)보다 많이 보낼 수 없어요`);
     s.seedRows.push({ date: today(), choice: 'EXTRA', amount, createdAt: isoAt() });
+    return seedView(s);
+  }
+  if (route === 'PUT /budget/seed-money/total') {
+    // 총액 정정: 차액을 정정 기록(ADJUSTMENT)으로 남기고 생활비는 바꾸지 않는다
+    const total = Number(r.body.total);
+    if (!Number.isSafeInteger(total) || total < 0) invalid('total', '금액을 0원 이상 입력해 주세요');
+    const diff = total - seedView(s).total;
+    if (diff !== 0) s.seedRows.push({ date: today(), choice: 'ADJUSTMENT', amount: diff, createdAt: isoAt() });
     return seedView(s);
   }
   if (route === 'PUT /budget/seed-money/base') {

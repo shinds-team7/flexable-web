@@ -400,6 +400,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/budget/settings/income": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 월 수입액·수입일만 변경(다른 예산 설정과 잔액 기준 시각 보존)
+         * @description 기존 값이 expected와 다르면 409 BUDGET_INCOME_CHANGED. 이미 요청 값이면 재시도 성공으로 처리한다. 초기 예산이 없으면 404 BUDGET_NOT_SET.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["IncomeSettingsRequest"];
+                };
+            };
+            responses: {
+                200: components["responses"]["Settings"];
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+            };
+        };
+        trace?: never;
+    };
     "/budget/today": {
         parameters: {
             query?: never;
@@ -627,6 +666,47 @@ export interface paths {
                     "application/json": {
                         /** Format: int64 */
                         base: number;
+                    };
+                };
+            };
+            responses: {
+                200: components["responses"]["SeedMoney"];
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                404: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/budget/seed-money/total": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * 지금까지 모은 시드머니 총액 정정. 생활비 잔액·과거 기록은 유지
+         * @description 0원 이상 1조 미만. 현재 총액과의 차액을 ADJUSTMENT 기록으로 남긴다. 같은 총액으로 다시 저장하면 기록을 추가하지 않는다. 총액 계산과 정정은 회원별 잠금 안에서 수행한다.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        total: number;
                     };
                 };
             };
@@ -1036,6 +1116,63 @@ export interface paths {
                 201: components["responses"]["Transaction"];
                 400: components["responses"]["Error"];
                 401: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transactions/statement-import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 거래내역서 PDF를 읽어 거래로 저장(policies §9). 신한은행 거래내역조회와 KB국민은행 계좌 거래내역 조회를 받는다
+         * @description 검토 없이 읽은 거래를 모두 저장한다. 단, 출금 뒤 31일 안에 같은 적요·내용·금액으로 들어온 입금(결제 취소)은 그 출금과 함께 저장하지 않고 건수에도 세지 않는다. 출금은 지출, 입금은 수입이고 카테고리는 내용으로 추정한다(못 맞추면 기타·기타 수입).
+         *     이미 있는 같은 거래(종류·금액·시각·제목)는 건너뛰고(duplicates), 잔액 기준 시각(balanceAt, 예산 설정 전이면 지금) 이후 거래도 건너뛴다(afterBalance).
+         *     한 줄이라도 읽지 못하거나 잔액이 이어지지 않으면 아무것도 저장하지 않고 400 STATEMENT_UNSUPPORTED.
+         *     PDF와 비밀번호는 저장하지 않는다. 읽기는 30초·글자 200만 자까지이고 넘으면 400 STATEMENT_UNSUPPORTED.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        /**
+                         * Format: binary
+                         * @description PDF, 10MB 이하·100쪽 이하
+                         */
+                        file: string;
+                        /** @description PDF 비밀번호. 없으면 생략 */
+                        password?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description 저장 결과 */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatementImport"];
+                    };
+                };
+                400: components["responses"]["Error"];
+                401: components["responses"]["Error"];
+                429: components["responses"]["Error"];
             };
         };
         delete?: never;
@@ -2023,7 +2160,7 @@ export interface components {
     schemas: {
         Error: {
             /** @enum {string} */
-            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "BUDGET_NOT_SET" | "EMAIL_UNAVAILABLE" | "CATEGORY_DUPLICATE" | "CATEGORY_DEFAULT" | "SEED_NOT_PENDING" | "OUTFIT_NOT_FOR_SALE" | "OUTFIT_OWNED" | "OUTFIT_LOCKED" | "COINS_NOT_ENOUGH" | "REFERRAL_CODE_INVALID" | "REFERRAL_ALREADY" | "LINK_CODE_INVALID" | "LINK_NOT_FOUND" | "TOO_MANY_ATTEMPTS" | "AD_NOT_REWARDED" | "CHAT_UNAVAILABLE" | "CHAT_FAILED" | "INTERNAL_ERROR";
+            code: "VALIDATION_FAILED" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "SOCIAL_ACCOUNT" | "OAUTH_CODE_INVALID" | "NOT_FOUND" | "BUDGET_NOT_SET" | "BUDGET_INCOME_CHANGED" | "EMAIL_UNAVAILABLE" | "CATEGORY_DUPLICATE" | "CATEGORY_DEFAULT" | "SEED_NOT_PENDING" | "OUTFIT_NOT_FOR_SALE" | "OUTFIT_OWNED" | "OUTFIT_LOCKED" | "COINS_NOT_ENOUGH" | "REFERRAL_CODE_INVALID" | "REFERRAL_ALREADY" | "LINK_CODE_INVALID" | "LINK_NOT_FOUND" | "TOO_MANY_ATTEMPTS" | "AD_NOT_REWARDED" | "CHAT_UNAVAILABLE" | "CHAT_FAILED" | "STATEMENT_PASSWORD" | "STATEMENT_UNSUPPORTED" | "INTERNAL_ERROR";
             message: string;
             /** @description VALIDATION_FAILED에서 필드별 문장 */
             fields?: {
@@ -2040,6 +2177,29 @@ export interface components {
              */
             provider?: "kakao" | "google";
         };
+        StatementImport: {
+            /**
+             * @description 읽은 거래내역서 형식: 신한은행 거래내역조회, KB국민은행 계좌 거래내역 조회
+             * @enum {string}
+             */
+            bank: "SHINHAN" | "KB";
+            /**
+             * Format: date
+             * @description 거래내역서 조회기간 시작
+             */
+            from: string;
+            /**
+             * Format: date
+             * @description 거래내역서 조회기간 끝
+             */
+            to: string;
+            /** @description 새로 저장한 거래 수 */
+            imported: number;
+            /** @description 이미 있어서 건너뛴 거래 수 */
+            duplicates: number;
+            /** @description 잔액 기준 시각 이후라 건너뛴 거래 수 */
+            afterBalance: number;
+        };
         /** @enum {string} */
         TxType: "EXPENSE" | "INCOME";
         /**
@@ -2048,10 +2208,10 @@ export interface components {
          */
         SeedChoice: "GOAL" | "ALL" | "MANUAL";
         /**
-         * @description 기록에 보이는 방법. GOAL·ALL·MANUAL은 수입일 전날 반영, EXTRA는 지금 예산에서 바로 옮김
+         * @description 기록에 보이는 방법. GOAL·ALL·MANUAL은 수입일 전날 반영, EXTRA는 지금 예산에서 바로 옮김, ADJUSTMENT는 생활비를 바꾸지 않는 총액 정정(차액은 음수 가능)
          * @enum {string}
          */
-        SeedEntryChoice: "GOAL" | "ALL" | "MANUAL" | "EXTRA";
+        SeedEntryChoice: "GOAL" | "ALL" | "MANUAL" | "EXTRA" | "ADJUSTMENT";
         User: {
             /** Format: int64 */
             id: number;
@@ -2378,7 +2538,7 @@ export interface components {
             base: number;
             /**
              * Format: int64
-             * @description 주기마다 옮긴 돈의 합
+             * @description 주기별 반영·바로 보내기·총액 정정 차액의 합. 정정으로 음수일 수 있으며 사용자 화면에는 total을 표시한다
              */
             saved: number;
             /** Format: int64 */
@@ -2410,7 +2570,7 @@ export interface components {
         SeedEntry: {
             /**
              * Format: date
-             * @description EXTRA는 옮긴 날짜
+             * @description EXTRA는 옮긴 날짜, ADJUSTMENT는 총액 정정 날짜
              */
             cycleEnd: string;
             choice: components["schemas"]["SeedEntryChoice"];
@@ -2521,6 +2681,45 @@ export interface components {
                 income: number;
             }[];
         };
+        IncomeSettingsRequest: {
+            /** Format: int64 */
+            incomeAmount: number;
+            payday: number;
+            /** Format: int64 */
+            expectedIncomeAmount: number;
+            expectedPayday: number;
+        };
+        IncomeSettingsProposal: components["schemas"]["IncomeSettingsRequest"];
+        IncomeTransactionProposal: {
+            /** @enum {string} */
+            operation: "CREATE" | "UPDATE";
+            /** Format: int64 */
+            transactionId: number | null;
+            title: string;
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            categoryId: number;
+            category: string;
+            /** Format: int64 */
+            amount: number;
+            changes: ("AMOUNT" | "DATE" | "TITLE" | "CATEGORY")[];
+        };
+        ExpenseTransactionProposal: {
+            /** @enum {string} */
+            operation: "CREATE" | "UPDATE";
+            /** Format: int64 */
+            transactionId: number | null;
+            title: string;
+            /** Format: date */
+            date: string;
+            /** Format: int64 */
+            categoryId: number;
+            category: string;
+            /** Format: int64 */
+            amount: number;
+            changes: ("AMOUNT" | "DATE" | "TITLE" | "CATEGORY")[];
+        };
         ChatMessage: {
             /**
              * @description USER 사용자, MODEL 이전 AI 답변
@@ -2537,8 +2736,8 @@ export interface components {
              * @enum {string}
              */
             mate?: "ANALYST" | "FRIEND" | "COACH";
-            /** @description 앱이 처리할 수 있는 제안 종류. SCHEDULE이 없으면 서버는 일정 제안(action.type SCHEDULE)을 하지 않는다(옛 앱 보호) */
-            accepts?: "SCHEDULE"[];
+            /** @description 앱이 처리할 수 있는 제안 종류. SCHEDULE·INCOME·EXPENSE를 각각 알린 앱에만 일정·수입·지출 기록 제안을 보낸다(옛 앱 보호) */
+            accepts?: ("SCHEDULE" | "INCOME" | "EXPENSE")[];
             /** @description 직전에 제안한 일정. 사용자가 수정 의견을 줄 때 함께 보내면 서버가 이것을 바탕으로 다시 제안한다 */
             pending?: {
                 title: string;
@@ -2565,12 +2764,15 @@ export interface components {
             reply: string;
             /**
              * @description 확인이 필요한 변경 제안. 없으면 null. 서버는 저장하지 않는다.
+             *     INCOME_TRANSACTION: 확인하면 기존 POST /transactions 또는 PATCH /transactions/{id}로 저장한다. UPDATE는 changes에 있는 필드만 보낸다.
+             *     INCOME_SETTINGS: 확인하면 PATCH /budget/settings/income으로 저장한다.
+             *     EXPENSE_TRANSACTION: 확인하면 기존 POST /transactions(type EXPENSE) 또는 PATCH /transactions/{id}로 저장한다. UPDATE는 changes에 있는 필드만 보낸다.
              *     DAY_PRESET: 확인하면 앱이 PUT /budget/day-weights {preset}으로 저장한다.
              *     SCHEDULE: 확인하면 앱이 POST /scheduled-expenses {amount, categoryId, title, date}로 등록한 뒤 GET /budget/today를 다시 받는다.
              */
             action: {
                 /** @enum {string} */
-                type: "DAY_PRESET" | "SCHEDULE";
+                type: "DAY_PRESET" | "SCHEDULE" | "INCOME_TRANSACTION" | "INCOME_SETTINGS" | "EXPENSE_TRANSACTION";
                 /**
                  * @description DAY_PRESET일 때만. CUSTOM은 제안하지 않는다. RECORD는 기록이 충분할 때만
                  * @enum {string}
@@ -2578,6 +2780,9 @@ export interface components {
                 preset?: "EVEN" | "RECORD" | "WEEKEND" | "WEEKDAY";
                 /** @description DAY_PRESET일 때만. 프리셋 이름(기본 배분·내 기록 기준·주말 넉넉히·평일 넉넉히) */
                 label?: string;
+                incomeTransaction?: components["schemas"]["IncomeTransactionProposal"];
+                incomeSettings?: components["schemas"]["IncomeSettingsProposal"];
+                expenseTransaction?: components["schemas"]["ExpenseTransactionProposal"];
                 /** @description SCHEDULE일 때만 */
                 schedule?: {
                     title: string;
@@ -2687,7 +2892,7 @@ export interface components {
             /** @description 누적 출석 일수(오늘 했으면 오늘 포함). 빠진 날이 있어도 초기화하지 않는다 */
             total: number;
             checkedToday: boolean;
-            /** @description 오늘 출석하면(했으면) 받는 코인. 기본 5에, 누적 7일 주기의 3번째 날(3·10·17…일째)은 보너스 20을 더해 25 */
+            /** @description 오늘 출석하면(했으면) 받는 코인. 7일 주기 5·5·10·5·5·5·30. 첫 7일째만 코인 0과 코스튬 보상 */
             todayReward: number;
             /** @description 오늘 출석하면(했으면) 받는 코스튬 id. 누적 7일째에 한 번만, 아니면 null */
             todayOutfitId: string | null;

@@ -2,6 +2,7 @@
 // 시작 금액·월 납입 가능액·기한(목표 금액 선택)으로 안정·균형·적극 세 조합을 계산한다. 조합은 worker가 기한마다 미리 만든 AI 조합이고
 // 비회원·횟수 초과·준비 전에는 서버가 데모 조합을 돌려준다(proposer=DEMO, §7-6).
 // 회원은 계산 결과의 플랜 전체를 그때 값 그대로 이름을 붙여 최대 5개 저장한다(policies §7-8, /me/goal/scenarios). 저장은 resultId(서버 30분 보관)로만 한다.
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export type ScenarioProductType = 'SAVINGS' | 'CMA' | 'KR_INDEX_ETF' | 'US_INDEX_ETF' | 'KOSPI_TOP5';
@@ -147,6 +148,8 @@ export type SavedGoalScenario = {
 export type SaveScenarioRequest = { resultId: string; scenarioId: string; name: string };
 
 export const listSavedScenarios = () => api<SavedScenarioList>('/me/goal/scenarios');
+/** 마이페이지 저장 목록(#446). 키가 ['me', …]라 로그아웃하면 세션이 지운다. /goal 화면은 자체 상태로 따로 불러온다. */
+export const useSavedScenarios = (enabled: boolean) => useQuery({ queryKey: ['me', 'goal-scenarios'], queryFn: listSavedScenarios, enabled });
 export const getSavedScenario = (id: number) => api<SavedGoalScenario>(`/me/goal/scenarios/${id}`);
 export const saveScenario = (q: SaveScenarioRequest) => api<SavedGoalScenario>('/me/goal/scenarios', { method: 'POST', json: q });
 export const deleteSavedScenario = (id: number) => api<void>(`/me/goal/scenarios/${id}`, { method: 'DELETE' });
@@ -174,3 +177,25 @@ export function periodText(months: number) {
   const m = months % 12;
   return [y ? `${y}년` : '', m ? `${m}개월` : ''].filter(Boolean).join(' ') || '0개월';
 }
+
+const won = (n: number) => n.toLocaleString('ko-KR');
+
+/** 표시용 만 원 단위(내림). 서버 값을 읽기 쉽게 바꿀 뿐 계산 결과를 바꾸지 않는다. */
+export function manwon(n: number) {
+  const sign = n < 0 ? '−' : '';
+  const abs = Math.abs(n);
+  const man = Math.floor(abs / 10_000);
+  const eok = Math.floor(man / 10_000);
+  const rest = man % 10_000;
+  if (!eok && !rest) return `${sign}${won(abs)}원`;
+  return sign + [eok ? `${eok}억` : '', rest ? `${won(rest)}만` : ''].filter(Boolean).join(' ') + ' 원';
+}
+
+/** 저장본·결과의 조건 한 줄: 기간 · 시작 금액 · 월 금액 · 목표. /goal과 마이페이지 저장 목록이 같이 쓴다. */
+export function conditionText(v: { months: number; startAmount: number; monthlyBudget: number | null; targetAmount: number | null }) {
+  return [periodText(v.months), v.startAmount > 0 ? `시작 ${manwon(v.startAmount)}` : null, v.monthlyBudget !== null ? `월 ${won(v.monthlyBudget)}원` : null,
+    v.targetAmount !== null ? `목표 ${manwon(v.targetAmount)}` : null].filter(Boolean).join(' · ');
+}
+
+/** 저장 일시를 "2026.11.16"으로. */
+export const savedDate = (iso: string) => iso.slice(0, 10).replace(/-/g, '.');

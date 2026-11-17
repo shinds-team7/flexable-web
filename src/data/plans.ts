@@ -39,7 +39,7 @@ async function fetchPlans(): Promise<Plans> {
       { title: '청년 금융 소식 전부', desc: '맞춤 필터와 챙기기까지 모두 무료예요' },
       { title: '투자 시뮬레이션', desc: '넣는 방식 3종, 기간 칩·날짜 지정, 사건 설명 전부' },
       { title: '적금 비교·정책 적금', desc: '지금 상품, 과거 평균, 정책 적금 조건 입력' },
-      { title: 'AI 목표 달성', desc: '목표 1개, AI 목표 안내 하루 3회' },
+      { title: 'AI 목표설계', desc: '목표 1개, AI 목표 안내 하루 3회' },
     ],
     compare: [
       { feature: '정책 마감 리마인더', free: '—', plus: '제공' },

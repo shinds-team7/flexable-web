@@ -117,7 +117,7 @@
 .fin-meta > span{display:inline-flex;align-items:center;gap:5px}
 .fin-meta svg{width:15px;height:15px}
 
-/* AI 목표 달성 안내 띠 */
+/* AI 목표설계 안내 띠 */
 /* 위 카테고리 카드의 하늘색 → 푸른 보라를 한 장에 잇는다 */
 .fin-cta{display:flex;align-items:center;gap:20px;padding:18px 20px 18px 24px;border-radius:var(--radius-soft);background:linear-gradient(100deg,color-mix(in srgb,var(--color-card-sky) 8%,var(--color-surface)),color-mix(in srgb,var(--color-card-violet) 14%,var(--color-surface)));border:1px solid color-mix(in srgb,var(--color-card-violet) 14%,var(--color-surface))}
 .fin-target-art{flex:0 0 auto;width:64px;height:60px}

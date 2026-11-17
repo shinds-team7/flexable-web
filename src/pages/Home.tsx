@@ -1,5 +1,5 @@
-// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선). 오른쪽 레일: 목표 → 저장한 소식 → 오늘의 청년 금융 소식.
-import { useEffect, useState, type FormEvent } from 'react';
+// 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선). 오른쪽 레일: 저장한 시나리오(회원) → 저장한 소식 → 오늘의 청년 금융 소식.
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
@@ -8,6 +8,7 @@ import { SeedLineChart } from '@/charts/SeedLineChart';
 import { DDay } from '@/components/Icons';
 import { RollingNumber } from '@/components/RollingNumber';
 import { useAppLink } from '@/data/appLink';
+import { conditionText, savedDate, useSavedScenarios } from '@/data/goalScenarios';
 import { useSeedMoney, useSetSeedManual, type SeedMoney } from '@/data/home';
 import { SavedNews } from '@/components/news/SavedNews';
 import { categoryLabel, useNews } from '@/data/news';
@@ -67,6 +68,21 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
 
   const draftText = draft === '' ? '' : won(Number(draft));
   const cancel = () => (setEditing(false), setError(''));
+  const open = () => (setDraft(String(amount)), setError(''), setEditing(true));
+
+  // 입력 폼과 [수정하기] 밖을 누르면 고치던 값을 버리고 닫는다(저장 중에는 닫지 않는다).
+  const amountRef = useRef<HTMLDivElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!editing || busy) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (amountRef.current?.contains(t) || submitRef.current?.contains(t)) return;
+      cancel();
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [editing, busy]);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -104,18 +120,33 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         <div className="hero-label">
           내 시드머니
           {manual != null && <span className="tag">직접 입력</span>}
+          {/* key를 나눠 두어야 같은 클릭에서 type=button이 submit으로 바뀌어 바로 저장되는 일이 없다 */}
           {editing ? (
-            <button type="submit" form="seed-manual-form" className="hero-edit hero-save" disabled={busy}>
-              {busy ? '저장 중…' : '저장'}
+            <button key="submit" ref={submitRef} type="submit" form="seed-manual-form" className="hero-edit hero-save" disabled={busy}>
+              {busy ? '저장 중…' : '수정하기'}
             </button>
           ) : (
-            <button type="button" className="hero-edit" onClick={() => (setDraft(String(amount)), setEditing(true))}>
+            <button key="open" type="button" className="hero-edit" onClick={open}>
               수정하기
             </button>
           )}
         </div>
-        <div className={'hero-amount' + (editing ? ' is-editing' : '')}>
-          <p className="hero-num num" style={{ visibility: editing ? 'hidden' : undefined }} aria-hidden={editing || undefined}>
+        <div ref={amountRef} className={'hero-amount' + (editing ? ' is-editing' : '')}>
+          <p
+            className="hero-num num hero-num-edit"
+            style={{ visibility: editing ? 'hidden' : undefined }}
+            aria-hidden={editing || undefined}
+            role={editing ? undefined : 'button'}
+            tabIndex={editing ? -1 : 0}
+            aria-label={editing ? undefined : `시드머니 ${won(amount)}원, 눌러서 수정`}
+            title={editing ? undefined : '눌러서 수정'}
+            onClick={editing ? undefined : open}
+            onKeyDown={(e) => {
+              if (editing || (e.key !== 'Enter' && e.key !== ' ')) return;
+              e.preventDefault();
+              open();
+            }}
+          >
             <RollingNumber value={amount} />
             <small>원</small>
           </p>
@@ -214,6 +245,57 @@ function SeedHistory({ seed }: { seed: SeedMoney }) {
 }
 
 /** 소식 화면에서 책갈피로 저장한 소식(이 브라우저에만 저장). 목록에서 빠진 소식도 '마감됨'으로 남는다 */
+/** AI 목표설계에서 저장한 시나리오(#446). 회원만, 목록만 보여 주고 누르면 /goal에서 그 저장본을 연다. 지우기는 /goal에서 한다. */
+function MySavedScenarios() {
+  const { data, isPending, isError, refetch } = useSavedScenarios(true);
+  return (
+    <div className="card" role="region" aria-labelledby="goal-saved-title">
+      <div className="card-head" style={{ marginBottom: 12 }}>
+        <h2 id="goal-saved-title">
+          저장한 목표달성 시나리오 {data && <span className="muted num">{data.items.length}/{data.limit}</span>}
+        </h2>
+        <Link to="/goal" style={{ fontSize: 14, fontWeight: 600 }}>
+          전체 보기
+        </Link>
+      </div>
+      {isPending ? (
+        <div className="col" style={{ gap: 8 }} aria-busy="true" aria-label="불러오는 중">
+          <div className="skel" style={{ height: 64 }} />
+          <div className="skel" style={{ height: 64 }} />
+        </div>
+      ) : isError ? (
+        <div role="alert">
+          <p className="meta">저장한 시나리오를 불러오지 못했어요.</p>
+          <button type="button" className="btn btn-line" style={{ marginTop: 8 }} onClick={() => void refetch()}>
+            다시 불러오기
+          </button>
+        </div>
+      ) : data.items.length === 0 ? (
+        <div className="news-saved-empty">
+          <p style={{ fontWeight: 700 }}>아직 저장한 시나리오가 없어요.</p>
+          <Link className="btn btn-line" to="/goal" style={{ marginTop: 8 }}>
+            AI 목표설계 해 보기
+          </Link>
+        </div>
+      ) : (
+        <ul className="goal-saved-list">
+          {data.items.map((s) => (
+            <li key={s.id}>
+              <Link className="goal-saved-item" to={`/goal?saved=${s.id}`} aria-label={`${s.name} 보기`}>
+                <span className="goal-saved-name">{s.name}</span>
+                <span className="meta">{conditionText(s)}</span>
+                <span className="goal-saved-date">
+                  {s.asOf} 기준 · {savedDate(s.savedAt)} 저장
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function MySavedNews() {
   const { saved, remove } = useSavedNews();
   const { data } = useNews();
@@ -299,6 +381,12 @@ function AppLinkIntro() {
   );
 }
 
+/** 비로그인 체험에서는 저장한 시나리오 카드를 두지 않는다. */
+function MemberSavedScenarios() {
+  const { status } = useSession();
+  return status === 'member' ? <MySavedScenarios /> : null;
+}
+
 export default function Home() {
   const seed = useSeedMoney();
   return (
@@ -339,7 +427,8 @@ export default function Home() {
               </>
             )}
           </div>
-          <aside className="col rail stagger" aria-label="목표와 저장한 소식·오늘의 소식">
+          <aside className="col rail stagger" aria-label="저장한 목표달성 시나리오·저장한 소식·오늘의 소식">
+            <MemberSavedScenarios />
             <MySavedNews />
             <HomeNews />
           </aside>

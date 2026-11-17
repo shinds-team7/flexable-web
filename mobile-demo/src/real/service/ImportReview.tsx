@@ -2,7 +2,8 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { randomUUID } from "./uuid";
 import { useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import { Button, Card, Segment, Sheet, T } from "@/real/components/ui";
+import { CalendarPicker } from "@/real/components/CalendarPicker";
+import { Button, Card, ConfirmModal, Segment, Sheet, T } from "@/real/components/ui";
 import { useToast } from "@/real/components/Toast";
 import { goBack } from "@/real/components/SubHeader";
 import { colors, radius } from "@/real/theme";
@@ -10,7 +11,7 @@ import { api } from "./api/client";
 import { DateField } from "./DateField";
 import { occurredAtFor, seoulDateOf, validDate } from "./occurredAt";
 import { guessCategoryName } from "./receiptImport/guessCategory";
-import { REVIEW_TYPE, type ImportCandidate } from "./receiptImport/parse";
+import { REVIEW_DATE, REVIEW_TYPE, type ImportCandidate } from "./receiptImport/parse";
 import { dateRange, dupKey } from "./receiptImport/review";
 import { clearPending, getPending } from "./receiptImport/store";
 import { useSession } from "./Session";
@@ -22,6 +23,7 @@ import {
   Loading,
   money,
   Page,
+  seoulDate,
   useResource,
 } from "./ui";
 import type { Category, Kind, Transaction } from "./types";
@@ -88,12 +90,16 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
   const toast = useToast();
   const [rows, setRows] = useState<Row[]>(() => initial.map(toRow));
   const [picking, setPicking] = useState<string | null>(null);
+  const [datePicking, setDatePicking] = useState<string | null>(null);
+  const [bulkDate, setBulkDate] = useState<{ id: string; date: string } | null>(null);
+  const firstDatePrompted = useRef(false);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const expense = useResource<Category[]>("/categories?type=EXPENSE");
   const income = useResource<Category[]>("/categories?type=INCOME");
-  const range = useMemo(() => dateRange(rows.map((r) => r.date)), [rows]);
+  const dated = useMemo(() => rows.map((r) => r.date).filter(validDate), [rows]);
+  const range = useMemo(() => dateRange(dated), [dated]);
   const existing = useResource<{ items: Transaction[] }>(
     range ? `/transactions?from=${range.from}&to=${range.to}` : null,
   );
@@ -108,7 +114,7 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
     [existing.data],
   );
   const isDup = (r: Row) =>
-    !!r.type && known.has(dupKey(r.date, r.type, Number(r.amount), r.title));
+    !!r.type && validDate(r.date) && known.has(dupKey(r.date, r.type, Number(r.amount), r.title));
   // 이미 기록된 것 같은 거래만 빼고 모두 기본 선택한다. 확인이 필요한 항목은 저장 전에 표시로 알린다.
   const isOn = (r: Row) => r.picked ?? !isDup(r);
   const listOf = (type: Kind | null) =>
@@ -127,6 +133,20 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
   };
   const patch = (id: string, p: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
+  const applyDate = (id: string, date: string, allMissing: boolean) =>
+    setRows((current) => current.map((r) => {
+      if (r.id !== id && (!allMissing || validDate(r.date))) return r;
+      return { ...r, date, review: r.review.filter((m) => m !== REVIEW_DATE) };
+    }));
+  const chooseDate = (id: string, date: string) => {
+    setDatePicking(null);
+    if (!validDate(rows.find((r) => r.id === id)?.date ?? "") &&
+        !firstDatePrompted.current &&
+        rows.filter((r) => !validDate(r.date)).length > 1) {
+      firstDatePrompted.current = true;
+      setBulkDate({ id, date });
+    } else applyDate(id, date, false);
+  };
   // 입금인지 출금인지 고르면 그 확인 요청은 풀린다.
   const chooseType = (r: Row, type: Kind) =>
     patch(r.id, {
@@ -140,7 +160,7 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
     expense.error ??
     income.error ??
     existing.error ??
-    (!range
+    (dated.length > 0 && !range
       ? "거래 날짜를 확인해 주세요. 한 번에 366일 안의 거래를 가져올 수 있어요"
       : undefined);
   const targets = rows.filter((r) => isOn(r) && r.status !== "saved");
@@ -162,6 +182,7 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
     setBusy(true);
     setError(undefined);
     let failed = 0;
+    const results: { id: string; update: Partial<Row> }[] = [];
     // 순서대로 보낸다. 응답을 못 받은 항목은 같은 본문·같은 키로만 다시 보낸다.
     for (const r of targets) {
       const body = r.body ?? {
@@ -174,16 +195,16 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
       };
       try {
         await api("/transactions", { method: "POST", body, key: r.key });
-        patch(r.id, { status: "saved", body, message: undefined });
+        results.push({ id: r.id, update: { status: "saved", body, message: undefined } });
       } catch (e) {
         failed++;
         const uncertain =
           e instanceof Error &&
           "code" in e &&
-          (e.code === "NETWORK" || e.code === "INTERNAL_ERROR");
-        patch(
-          r.id,
-          uncertain
+          (e.code === "NETWORK" || e.code === "TIMEOUT" || e.code === "INTERNAL_ERROR");
+        results.push({
+          id: r.id,
+          update: uncertain
             ? {
                 status: "uncertain",
                 picked: true,
@@ -196,7 +217,7 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
                 body: undefined,
                 message: e instanceof Error ? e.message : "저장하지 못했어요",
               },
-        );
+        });
       }
     }
     session.invalidate();
@@ -205,6 +226,10 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
       toast(`${targets.length}건을 기록했어요`, undefined, "top");
       goBack("/transactions");
     } else {
+      setRows((current) => current.map((row) => {
+        const result = results.find((item) => item.id === row.id);
+        return result ? { ...row, ...result.update } : row;
+      }));
       lock.current = false;
       setBusy(false);
       setError(`${failed}건을 저장하지 못했어요. 표시된 항목을 확인해 주세요`);
@@ -280,7 +305,7 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
                   {r.title}
                 </T>
                 <T size={12} color={colors.textMuted}>
-                  {r.date.replace(/-/g, ". ")}
+                  {r.date ? r.date.replace(/-/g, ". ") : REVIEW_DATE}
                 </T>
               </View>
               <T
@@ -297,7 +322,7 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
               {isDup(r) && <Badge text="이미 기록된 거래일 수 있어요" />}
               {r.status === "saved" && <Badge text="기록했어요" />}
             </View>
-            {r.review.map((m) => (
+            {r.review.filter((m) => m !== REVIEW_DATE).map((m) => (
               <T key={m} size={13} color={colors.danger}>
                 {m}
               </T>
@@ -318,7 +343,14 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
                 />
               </View>
             )}
-            {r.type && r.review.length > 0 && !locked && (
+            {!validDate(r.date) && !locked && (
+              <Button
+                label="날짜 선택하기"
+                variant="soft"
+                onPress={() => setDatePicking(r.id)}
+              />
+            )}
+            {r.type && r.review.some((m) => m !== REVIEW_DATE) && validDate(r.date) && !locked && (
               <Button
                 label="확인했어요"
                 variant="soft"
@@ -381,8 +413,8 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
                 />
                 <DateField
                   label="날짜"
-                  value={r.date}
-                  onChange={(date) => patch(r.id, { date })}
+                  value={r.date || seoulDate()}
+                  onChange={(date) => chooseDate(r.id, date)}
                 />
               </View>
             )}
@@ -418,6 +450,27 @@ function Review({ initial }: { initial: ImportCandidate[] }) {
           ))}
         </ScrollView>
       </Sheet>
+      <CalendarPicker
+        visible={datePicking !== null}
+        value={rows.find((r) => r.id === datePicking)?.date || seoulDate()}
+        onCancel={() => setDatePicking(null)}
+        onConfirm={(date) => datePicking && chooseDate(datePicking, date)}
+      />
+      <ConfirmModal
+        visible={bulkDate !== null}
+        title="같은 날짜로 적용할까요?"
+        message="날짜를 읽지 못한 다른 거래에도 방금 고른 날짜를 넣을까요?"
+        confirmLabel="모두 적용"
+        cancelLabel="이 거래만"
+        onConfirm={() => {
+          if (bulkDate) applyDate(bulkDate.id, bulkDate.date, true);
+          setBulkDate(null);
+        }}
+        onCancel={() => {
+          if (bulkDate) applyDate(bulkDate.id, bulkDate.date, false);
+          setBulkDate(null);
+        }}
+      />
     </Page>
   );
 }

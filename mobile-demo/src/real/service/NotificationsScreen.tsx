@@ -1,8 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Card, Screen, T } from "@/real/components/ui";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { T } from "@/real/components/ui";
 import { SubHeader } from "@/real/components/SubHeader";
 import { SwipeToDelete } from "@/real/components/SwipeToDelete";
 import { colors } from "@/real/theme";
@@ -39,15 +39,17 @@ export function NotificationsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <SubHeader title="알림함" fallback="/home" />
-      <Screen>
+      <ScrollView
+        accessibilityLabel="알림 목록"
+        style={{ flex: 1, backgroundColor: colors.card }}
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
         <ErrorNotice error={error} retry={retry} />
         {loading ? (
           <Loading />
         ) : (
           items && (
-            <Card
-              style={{ paddingTop: 0, paddingBottom: 8, overflow: "hidden" }}
-            >
+            <View style={{ flex: 1, backgroundColor: colors.card }}>
               {groups.size === 0 && (
                 <T style={{ paddingVertical: 24, textAlign: "center" }}>
                   최근 30일 동안 온 알림이 없어요
@@ -109,10 +111,10 @@ export function NotificationsScreen() {
                   ))}
                 </View>
               ))}
-            </Card>
+            </View>
           )
         )}
-      </Screen>
+      </ScrollView>
     </View>
   );
 }
@@ -175,14 +177,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginHorizontal: -20,
     paddingHorizontal: 20,
     paddingVertical: 8,
     backgroundColor: colors.brand,
   },
   readAll: { textDecorationLine: "underline" },
   // The unread background and the swipe area span the card edge to edge (card padding 20) without moving the text.
-  swipe: { marginHorizontal: -20 },
+  swipe: {},
   row: {
     flexDirection: "row",
     alignItems: "center",

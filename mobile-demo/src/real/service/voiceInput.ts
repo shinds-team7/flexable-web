@@ -45,7 +45,7 @@ export function voiceErrorMessage(code: string): string | null {
 
 /**
  * 마이크로 말한 내용을 글자로 받는다. onText는 인식 중(final=false)과 끝(final=true)에 지금까지 들은 문장을 준다.
- * 녹음은 저장하지 않고, 인식한 글자는 입력창에만 넣는다(보내기는 사용자가 누른다).
+ * 녹음은 저장하지 않는다. 최종 결과를 보낼지는 이 훅을 쓰는 화면이 정한다.
  */
 export function useVoiceInput(onText: (text: string, final: boolean) => void) {
   const mod = speech();

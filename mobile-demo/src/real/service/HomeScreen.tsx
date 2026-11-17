@@ -1,9 +1,10 @@
 import { CoinIcon } from "@/real/components/CoinIcon";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AppState,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,13 +36,17 @@ import { ErrorNotice, Loading, money, useResource } from "./ui";
 import type { CoinReward, SeedMoney, Today } from "./types";
 import { publishWallet, useWallet } from "./wallet";
 import { useServerExtensions } from "./serverExtensions";
+import { afterSplashHidden } from "./splashVisibility";
 export function HomeScreen() {
+  const { source } = useLocalSearchParams<{ source?: string }>();
   const extensions = useServerExtensions();
   const result = useResource<Today>("/budget/today");
   // Seed money is the hero's second page, swiped in from the right.
   const seed = useResource<SeedMoney>("/budget/seed-money");
   const [basis, setBasis] = useState(false);
   const [attendance, setAttendance] = useState(false);
+  const [splashHidden, setSplashHidden] = useState(false);
+  useEffect(() => afterSplashHidden(() => setSplashHidden(true)), []);
   const [levelHelp, setLevelHelp] = useState(false);
   const [week, setWeek] = useState(false);
   const [remind] = useSeedReminderSetting();
@@ -51,6 +56,25 @@ export function HomeScreen() {
   // 첫 check-in이 끝나야 가입 선물·출석 모달을 띄울지 알 수 있다. 첫 홈 가이드는 그 뒤에 띄운다
   const [checkedIn, setCheckedIn] = useState(false);
   const guide = useHomeGuide();
+  const homeScroll = useRef<ScrollView>(null);
+  const scrollHomeTop = useCallback(() => {
+    homeScroll.current?.scrollTo({ y: 0, animated: false });
+  }, []);
+  useFocusEffect(useCallback(() => {
+    if (source !== "budget-notification") return;
+    const frame = requestAnimationFrame(scrollHomeTop);
+    return () => cancelAnimationFrame(frame);
+  }, [source, scrollHomeTop]));
+  useEffect(() => {
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      if (/^flexable:\/\/home(?:\?|$)/.test(url))
+        requestAnimationFrame(scrollHomeTop);
+    });
+    return () => sub.remove();
+  }, [scrollHomeTop]);
+  const prepareGuide = useCallback(() => {
+    homeScroll.current?.scrollTo({ y: 0, animated: false });
+  }, []);
   // 자동 출석 모달은 하루(서버 날짜)에 한 번만 연다. 실패하거나 닫아도 같은 날 또 띄우지 않는다.
   const autoDay = useRef<string | null>(null);
   // Opening or returning to the home runs check-in; the coin chip reads the wallet it returns.
@@ -148,7 +172,7 @@ export function HomeScreen() {
   );
   return (
     <View style={{ flex: 1 }}>
-      <Screen>
+      <Screen scrollRef={homeScroll} accessibilityLabel="홈 내용">
         {result.loading && !s && <Loading />}
         <ErrorNotice error={result.error} retry={result.retry} />
         {s && status && (
@@ -205,7 +229,7 @@ export function HomeScreen() {
                   <T size={12}>레벨 안내</T>
                   <Ionicons
                     name="help-circle-outline"
-                    size={20}
+                    size={14}
                     color={colors.textSub}
                   />
                 </Pressable>
@@ -327,7 +351,7 @@ export function HomeScreen() {
                   label="예산 설정 수정"
                   onPress={() => {
                     setBasis(false);
-                    router.push("/budget-settings");
+                    router.push("/onboarding");
                   }}
                 />
               </ScrollView>
@@ -335,15 +359,16 @@ export function HomeScreen() {
           </>
         )}
       </Screen>
-      <RewardModal reward={shownReward} onClose={closeReward} />
+      <RewardModal reward={splashHidden ? shownReward : null} onClose={closeReward} />
       <AttendanceModal
-        visible={attendance && !shownReward}
+        visible={splashHidden && attendance && !shownReward}
         budgetBonus={budgetBonus}
         onClose={closeAttendance}
       />
       <HomeGuide
+        onPrepare={prepareGuide}
         visible={
-          guide.pending && checkedIn && !shownReward && !attendance && !!s
+          splashHidden && guide.pending && checkedIn && !shownReward && !attendance && !!s
         }
         onDone={guide.finish}
       />

@@ -31,7 +31,7 @@ export function ledgerTitle(e: Entry) {
 /** Extra line under the title, or "" when there is nothing to add. */
 export function ledgerDetail(e: Entry) {
   if (e.reason === "ATTENDANCE")
-    return e.amount > DAILY_REWARD ? "누적 출석 보너스" : "";
+    return e.amount === 0 ? "7일차 코스튬 보상" : e.amount > DAILY_REWARD ? "누적 출석 보너스" : "";
   if (e.reason !== "BUDGET_BONUS" || !e.refDate) return "";
   const [, m, d] = e.refDate.split("-").map(Number);
   return `${m}월 ${d}일 예산을 지켰어요`;

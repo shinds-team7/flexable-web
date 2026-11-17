@@ -4,6 +4,8 @@
  */
 export type PaymentNotice = {
   id: string;
+  /** 알림을 보낸 앱. 2.1.0 이전에 쌓인 항목에는 없고 신한 SOL페이로 본다 */
+  packageName?: string;
   title: string;
   body: string;
   postedAt: number;
@@ -25,6 +27,24 @@ export type PaymentNative = {
   prepare(owner: string, id: string, body: string): Promise<string>;
   acknowledge(owner: string, id: string): Promise<void>;
   clear(): Promise<void>;
+  // 아래는 2.1.0 네이티브부터 있다. 옛 빌드에서는 없으므로 부르기 전에 확인한다.
+  /** 신한 SOL페이 외에 자동 기록할 카드 앱 패키지(검증한 파서가 있는 것만) */
+  setSources?(packages: string[]): Promise<void>;
+  devStatus?(): Promise<{ enabled: boolean; count: number; allowed: boolean }>;
+  setDevCapture?(enabled: boolean): Promise<void>;
+  devCaptures?(): Promise<DevCapture[]>;
+};
+/** 개발자용 알림 원문 확인에서 기기에 남긴 알림 한 건(Android Notification extras 그대로) */
+export type DevCapture = {
+  packageName: string;
+  postedAt: number;
+  title: string;
+  text: string;
+  bigText: string;
+  textLines: string;
+  subText: string;
+  summary: boolean;
+  ongoing: boolean;
 };
 
 const listeners = new Set<() => void>();

@@ -32,14 +32,15 @@ const INVEST: Feature = { to: '/invest?demo=1', img: 'invest', name: '투자 인
 const REST: Feature[] = [
   { to: '/simulation', img: 'sim', name: '투자 시뮬레이션', head: '지난 시장으로 들어가\n사건마다 직접 판단해 봐요', desc: '업종을 펼쳐 종목을 직접 고르거나 무작위로 받아 지난 시세를 하루씩 재생해요. 공시가 나오면 멈추고 매수·유지·매도를 골라 봐요. 실제 주문은 없어요.', cta: '시뮬레이션 해보기' },
   { to: '/savings?demo=1', img: 'savings', name: '예적금 모아보기', head: '같은 금액, 같은 기간으로\n만기 수령액을 한눈에', desc: '금융권 공시 적금과 청년 정책 적금을 같은 금액 기준 만기 수령액으로 비교해요. 광고로 순서를 바꾸지 않아요.', cta: '적금 비교하기' },
-  { to: '/goal', img: 'goal', name: 'AI 목표달성', head: '목표까지 가는 길,\n세 가지 방법으로 비교해요', desc: '목표 금액과 기한, 투자 성향을 고르면 세 가지 조합의 달성 가능성과 위험 수준을 함께 보여 줘요. 추정치이고 수익이나 달성을 보장하지 않아요.', cta: '목표 세워 보기' },
+  { to: '/goal', img: 'goal', name: 'AI 목표설계', head: '목표까지 가는 길,\n세 가지 방법으로 비교해요', desc: '목표 금액과 기한, 투자 성향을 고르면 세 가지 조합의 달성 가능성과 위험 수준을 함께 보여 줘요. 추정치이고 수익이나 달성을 보장하지 않아요.', cta: '목표 세워 보기' },
   { to: '/news', img: 'news', name: '청년 금융 소식', head: '놓치기 쉬운 청년 정책,\n마감 가까운 순으로', desc: '교통·주거·금융·일자리 소식을 매일 아침 공공 출처에서 모아 AI로 요약해요. 마감 가까운 순으로 보여 주고 공고문으로 바로 가요.', cta: '소식 보기' },
 ];
 
-/** 오른쪽 위 화살표가 든 원 아이콘(테두리 버튼용) */
-const ArrowCircle = () => (
+/** 파란 원 안의 오른쪽 화살표(알약 모양 버튼용) */
+const ArrowRightCircle = () => (
   <svg viewBox="0 0 28 28" aria-hidden="true">
-    <path d="M14.0007 2.33203C7.56065 2.33203 2.33398 7.5587 2.33398 13.9987C2.33398 20.4387 7.56065 25.6654 14.0007 25.6654C20.4407 25.6654 25.6673 20.4387 25.6673 13.9987C25.6673 7.5587 20.4407 2.33203 14.0007 2.33203ZM16.194 13.462L10.4073 19.2487L8.76232 17.6037L14.549 11.817L12.064 9.33203L18.6557 9.3437L18.6673 15.9354L16.194 13.462Z" />
+    <circle className="land-cta-dot" cx="14" cy="14" r="14" />
+    <path className="land-cta-arrow" d="M8.5 14h10M14.5 9.5 19 14l-4.5 4.5" />
   </svg>
 );
 
@@ -65,7 +66,7 @@ function ShowCopy({ f, head = true }: { f: Feature; head?: boolean }) {
       <p className="land-show-desc">{f.desc}</p>
       <Link className="land-show-cta" to={f.to}>
         <span>{f.cta}</span>
-        <ArrowCircle />
+        <ArrowRightCircle />
       </Link>
     </>
   );
@@ -128,17 +129,11 @@ function AppPattern() {
   );
 }
 
-/** Google Play 다운로드 버튼(단색 아이콘) */
+/** Google Play 다운로드 배지(공식 배지 이미지) */
 function PlayBadge() {
   return (
     <a className="land-play" href={PLAY_URL} target="_blank" rel="noreferrer">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4.2 2.3c-.3.3-.5.8-.5 1.4v16.6c0 .6.2 1.1.5 1.4l9.3-9.7-9.3-9.7zm10.6 8.4 2.9-3-11-6.3 8.1 9.3zm0 2.6-8.1 9.3 11-6.3-2.9-3zm4.4-4.7-3.2 3.4 3.2 3.4 3.6-2.1c1-.6 1-2 0-2.6l-3.6-2.1z" />
-      </svg>
-      <span>
-        <b>Google Play에서</b>
-        <small>다운로드</small>
-      </span>
+      <img src="/landing/google-play.png" alt="Google Play에서 다운로드" />
     </a>
   );
 }
@@ -164,7 +159,7 @@ export default function Landing() {
             <span className="land-lead">청년들의 자산 증식을 도울 수 있도록, 정확한 금융 정보와 인사이트를 제공합니다.</span>
             <Link className="land-cta" to="/mypage">
               <span>체험 시작하기</span>
-              <ArrowCircle />
+              <ArrowRightCircle />
             </Link>
           </div>
         </div>
@@ -190,9 +185,12 @@ export default function Landing() {
             <PlayBadge />
           </div>
           <div className="land-phones reveal reveal-late">
-            <Phone side="left" src="/landing/app/splash.webp" alt="텅장관리 앱 시작 화면" />
-            <Phone side="center" src="/landing/app/home.webp" alt="텅장관리 앱 홈 화면(예시 데이터)" />
-            <Phone side="right" src="/landing/app/tx.webp" alt="텅장관리 앱 거래 내역 화면(예시 데이터)" />
+            <img
+              className="land-phones-img"
+              src="/landing/app/phones.png"
+              alt="텅장관리 앱 시작·홈·거래 내역 화면(예시 데이터)"
+              loading="lazy"
+            />
           </div>
         </div>
       </div>

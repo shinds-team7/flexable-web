@@ -10,6 +10,35 @@ export type PaymentParse =
   | { approval: PaymentApproval; reason?: never }
   | { approval?: never; reason: string };
 
+/**
+ * 알림의 "MM/DD HH:mm"(연도 없음)을 받은 시각 기준 올해·작년 중 맞는 서울 시각으로 바꾼다.
+ * 받은 시각보다 5분 넘게 미래이거나 48시간 넘게 과거면 null(다른 날 알림을 잘못 읽지 않게).
+ */
+export function resolveOccurredAt(
+  month: string,
+  day: string,
+  hour: string,
+  minute: string,
+  postedAt: number,
+): string | null {
+  const posted = new Date(postedAt + 9 * 3600000);
+  if (Number.isNaN(posted.getTime()) || Number(hour) > 23 || Number(minute) > 59)
+    return null;
+  const pad = (s: string) => s.padStart(2, "0");
+  const candidates = [posted.getUTCFullYear(), posted.getUTCFullYear() - 1].map(
+    (year) =>
+      `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:00+09:00`,
+  );
+  return (
+    candidates.find(
+      (iso) =>
+        validDate(iso.slice(0, 10)) &&
+        postedAt - Date.parse(iso) >= -5 * 60000 &&
+        postedAt - Date.parse(iso) <= 48 * 3600000,
+    ) ?? null
+  );
+}
+
 /** Conservative domestic approval parser. Never infer an amount from a cumulative total, foreign currency or cancellation. */
 export function parseShinhanNotice(notice: PaymentNotice): PaymentParse {
   const text = `${notice.title}\n${notice.body}`.replace(/\r/g, "");
@@ -55,23 +84,12 @@ export function parseShinhanNotice(notice: PaymentNotice): PaymentParse {
   if (dateMatches.length !== 1)
     return reject("결제 일시를 정확히 읽지 못했어요");
   const [, month, day, hour, minute] = dateMatches[0];
-  const posted = new Date(notice.postedAt + 9 * 3600000);
-  if (
-    Number.isNaN(posted.getTime()) ||
-    Number(hour) > 23 ||
-    Number(minute) > 59
-  )
-    return reject("결제 일시를 확인해 주세요");
-  const pad = (s: string) => s.padStart(2, "0");
-  const candidates = [posted.getUTCFullYear(), posted.getUTCFullYear() - 1].map(
-    (year) =>
-      `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${minute}:00+09:00`,
-  );
-  const occurredAt = candidates.find(
-    (iso) =>
-      validDate(iso.slice(0, 10)) &&
-      notice.postedAt - Date.parse(iso) >= -5 * 60000 &&
-      notice.postedAt - Date.parse(iso) <= 48 * 3600000,
+  const occurredAt = resolveOccurredAt(
+    month,
+    day,
+    hour,
+    minute,
+    notice.postedAt,
   );
   if (!occurredAt) return reject("알림의 결제 일시를 확인해 주세요");
   // Supported templates put a merchant on its own line, or explicitly label it.

@@ -12,6 +12,7 @@ export type User = S["User"];
 export type LoginProvider = User["provider"];
 export type AuthResponse = S["AuthResponse"];
 export type Category = S["Category"];
+export type StatementImport = S["StatementImport"];
 /** category는 서버가 거래의 카테고리를 찾지 못하면 null이다 */
 export type Transaction = S["Transaction"];
 /**

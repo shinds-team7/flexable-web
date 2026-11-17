@@ -42,7 +42,7 @@ const NAV: NavItem[] = [
       { to: '/simulation?mode=contest', label: '월간 시뮬레이션 대회' },
     ],
   },
-  { to: '/goal', label: 'AI 목표달성' },
+  { to: '/goal', label: 'AI 목표설계' },
   {
     to: '/savings',
     label: '예적금',

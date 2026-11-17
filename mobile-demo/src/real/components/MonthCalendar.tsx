@@ -3,11 +3,35 @@ import { T } from "./ui";
 import { colors } from "@/real/theme";
 import { DOW, won } from "@/real/utils/format";
 
-export type DayTotals = { expense: number; income: number };
+/** planned는 예정 지출 합계(실제 지출이 아니라 따로 표시) */
+export type DayTotals = { expense: number; income: number; planned?: number };
 
-/** 32,400 → "3.2만". 칸이 좁아 만 원 단위로 줄이고, 금액 규칙대로 내림한다 */
-function short(n: number) {
-  return n >= 10000 ? `${Math.floor(n / 1000) / 10}만` : won(n);
+/** 칸 안 금액 글자: 줄이지 않은 금액 + "원"(예: "-32,400원") */
+export function dayAmountText(sign: "+" | "-" | "예정 ", n: number) {
+  return `${sign}${won(n)}원`;
+}
+
+/** 금액이 길어질수록 글자를 줄인다(좁은 칸에 한 줄로). Android는 칸 폭에 맞춰 한 번 더 줄인다 */
+export function dayAmountSize(text: string) {
+  const n = text.length;
+  return n <= 6 ? 10 : n <= 8 ? 9 : n <= 10 ? 8 : 7;
+}
+
+function Amount({ text, color }: { text: string; color?: string }) {
+  return (
+    <T
+      size={dayAmountSize(text)}
+      weight="600"
+      color={color}
+      num
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.6}
+      style={{ maxWidth: "100%", letterSpacing: -0.4 }}
+    >
+      {text}
+    </T>
+  );
 }
 
 /** 일요일부터 시작하는 주 단위 칸. 그달이 아닌 칸은 null */
@@ -25,7 +49,7 @@ export function monthWeeks(year: number, month: number) {
 }
 
 /**
- * 한 달 달력에 날짜별 지출(-)·수입(+) 합계를 표시한다. 일요일부터 시작한다.
+ * 한 달 달력에 날짜별 수입(+)·지출(-) 합계와 예정 지출("예정")을 표시한다. 일요일부터 시작한다.
  * 합계는 화면이 받은 거래 금액을 날짜별로 더한 값을 props로 받는다.
  */
 export function MonthCalendar({
@@ -72,8 +96,9 @@ export function MonthCalendar({
             const t = totals.get(date);
             const label = [
               `${month}월 ${day}일${on ? ", 오늘" : ""}`,
-              t?.expense ? `지출 ${won(t.expense)}원` : null,
               t?.income ? `수입 ${won(t.income)}원` : null,
+              t?.expense ? `지출 ${won(t.expense)}원` : null,
+              t?.planned ? `예정 지출 ${won(t.planned)}원` : null,
             ]
               .filter(Boolean)
               .join(", ");
@@ -97,21 +122,21 @@ export function MonthCalendar({
                     {day}
                   </T>
                 </View>
-                {!!t?.expense && (
-                  <T size={10} weight="600" num numberOfLines={1}>
-                    -{short(t.expense)}
-                  </T>
-                )}
+                {/* 수입(+)을 지출(-) 위에 */}
                 {!!t?.income && (
-                  <T
-                    size={10}
-                    weight="600"
+                  <Amount
+                    text={dayAmountText("+", t.income)}
                     color={colors.brand}
-                    num
-                    numberOfLines={1}
-                  >
-                    +{short(t.income)}
-                  </T>
+                  />
+                )}
+                {!!t?.expense && (
+                  <Amount text={dayAmountText("-", t.expense)} />
+                )}
+                {!!t?.planned && (
+                  <Amount
+                    text={dayAmountText("예정 ", t.planned)}
+                    color={colors.warn}
+                  />
                 )}
               </Pressable>
             );
@@ -125,7 +150,14 @@ export function MonthCalendar({
 const styles = StyleSheet.create({
   row: { flexDirection: "row" },
   dow: { flex: 1, textAlign: "center", paddingVertical: 4 },
-  cell: { flex: 1, alignItems: "center", minHeight: 52, paddingVertical: 2 },
+  cell: {
+    flex: 1,
+    alignItems: "center",
+    minHeight: 52,
+    paddingVertical: 2,
+    paddingHorizontal: 1,
+    minWidth: 0,
+  },
   date: {
     width: 22,
     height: 22,

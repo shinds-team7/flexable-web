@@ -1,5 +1,5 @@
 // 홈(로그인 후). 왼쪽: 시드머니 히어로·쌓인 모양(꺾은선). 오른쪽 레일: 저장한 시나리오(회원) → 저장한 소식 → 오늘의 청년 금융 소식.
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useSession } from '@/auth/session';
@@ -68,6 +68,21 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
 
   const draftText = draft === '' ? '' : won(Number(draft));
   const cancel = () => (setEditing(false), setError(''));
+  const open = () => (setDraft(String(amount)), setError(''), setEditing(true));
+
+  // 입력 폼과 [수정하기] 밖을 누르면 고치던 값을 버리고 닫는다(저장 중에는 닫지 않는다).
+  const amountRef = useRef<HTMLDivElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!editing || busy) return;
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (amountRef.current?.contains(t) || submitRef.current?.contains(t)) return;
+      cancel();
+    };
+    document.addEventListener('pointerdown', onDown);
+    return () => document.removeEventListener('pointerdown', onDown);
+  }, [editing, busy]);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -105,18 +120,33 @@ function SeedHero({ seed }: { seed: SeedMoney }) {
         <div className="hero-label">
           내 시드머니
           {manual != null && <span className="tag">직접 입력</span>}
+          {/* key를 나눠 두어야 같은 클릭에서 type=button이 submit으로 바뀌어 바로 저장되는 일이 없다 */}
           {editing ? (
-            <button type="submit" form="seed-manual-form" className="hero-edit hero-save" disabled={busy}>
-              {busy ? '저장 중…' : '저장'}
+            <button key="submit" ref={submitRef} type="submit" form="seed-manual-form" className="hero-edit hero-save" disabled={busy}>
+              {busy ? '저장 중…' : '수정하기'}
             </button>
           ) : (
-            <button type="button" className="hero-edit" onClick={() => (setDraft(String(amount)), setEditing(true))}>
+            <button key="open" type="button" className="hero-edit" onClick={open}>
               수정하기
             </button>
           )}
         </div>
-        <div className={'hero-amount' + (editing ? ' is-editing' : '')}>
-          <p className="hero-num num" style={{ visibility: editing ? 'hidden' : undefined }} aria-hidden={editing || undefined}>
+        <div ref={amountRef} className={'hero-amount' + (editing ? ' is-editing' : '')}>
+          <p
+            className="hero-num num hero-num-edit"
+            style={{ visibility: editing ? 'hidden' : undefined }}
+            aria-hidden={editing || undefined}
+            role={editing ? undefined : 'button'}
+            tabIndex={editing ? -1 : 0}
+            aria-label={editing ? undefined : `시드머니 ${won(amount)}원, 눌러서 수정`}
+            title={editing ? undefined : '눌러서 수정'}
+            onClick={editing ? undefined : open}
+            onKeyDown={(e) => {
+              if (editing || (e.key !== 'Enter' && e.key !== ' ')) return;
+              e.preventDefault();
+              open();
+            }}
+          >
             <RollingNumber value={amount} />
             <small>원</small>
           </p>

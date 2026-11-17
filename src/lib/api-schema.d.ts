@@ -5396,7 +5396,7 @@ export interface components {
             dataAsOf: string;
             result: components["schemas"]["SavingsResult"];
         };
-        /** @description SavingsProduct에서 result 대신 우대조건 원문 */
+        /** @description SavingsProduct에서 result 대신 우대조건 원문과 금융회사 홈페이지 */
         SavingsProductDetail: {
             id: string;
             company: string;
@@ -5416,6 +5416,8 @@ export interface components {
             joinDeny: "제한 없음" | "서민 전용" | "일부 제한" | "확인 필요";
             openToAll: boolean | null;
             disclosureUrl: string;
+            /** @description 금융회사 홈페이지(finlife 금융회사 공시 `homp_url`, 매일 10:00 수집). http·https 주소만 넣고 없거나 형식이 다르면 null이며 화면은 링크를 숨긴다. 상품 가입 페이지가 아니다(01 R2 가입 버튼 없음) */
+            companyHomepageUrl: string | null;
             /** Format: date */
             dataAsOf: string;
             specialConditionText: string;
@@ -5641,7 +5643,7 @@ export interface components {
             dataAsOf: string;
             result: components["schemas"]["DepositResult"];
         };
-        /** @description DepositProduct에서 result 대신 우대조건 원문 */
+        /** @description DepositProduct에서 result 대신 우대조건 원문과 금융회사 홈페이지 */
         DepositProductDetail: {
             id: string;
             company: string;
@@ -5659,6 +5661,8 @@ export interface components {
             joinDeny: "제한 없음" | "서민 전용" | "일부 제한" | "확인 필요";
             openToAll: boolean | null;
             disclosureUrl: string;
+            /** @description 금융회사 홈페이지(finlife 금융회사 공시 `homp_url`, 매일 10:00 수집). http·https 주소만 넣고 없거나 형식이 다르면 null이며 화면은 링크를 숨긴다. 상품 가입 페이지가 아니다(01 R2 가입 버튼 없음) */
+            companyHomepageUrl: string | null;
             /** Format: date */
             dataAsOf: string;
             specialConditionText: string;

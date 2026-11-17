@@ -149,9 +149,16 @@ function ProductDetail({ kind, p: row, term, amount }: { kind: LumpKind; p: Depo
                 <span className="v">{p.depositProtected ? '보호 대상' : '보호 대상이 아니에요'}</span>
               </div>
             )}
-            <a href={p.disclosureUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, fontWeight: 600 }}>
-              공시 원문 보기(금융상품한눈에) ↗
-            </a>
+            <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginTop: 12 }}>
+              <a href={p.disclosureUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                공시 원문 보기(금융상품한눈에) ↗
+              </a>
+              {p.companyHomepageUrl && (
+                <a href={p.companyHomepageUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                  {p.company} 홈페이지 ↗
+                </a>
+              )}
+            </div>
           </>
         )
       )}

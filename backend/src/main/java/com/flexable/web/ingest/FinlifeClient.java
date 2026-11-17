@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -14,11 +15,13 @@ import org.springframework.web.client.RestClient;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.flexable.web.deposit.DepositCatalogService;
+import com.flexable.web.savings.FinlifeCompanyCatalog.CompanyData;
 import com.flexable.web.savings.SavingsCatalogService.OptionData;
 import com.flexable.web.savings.SavingsCatalogService.ProductData;
 
 /**
  * finlife 적금(savingProductsSearch.json)·정기예금(depositProductsSearch.json) 공시를 권역별로 모두 받아 상품+금리 옵션으로 묶는다.
+ * 금융회사(companySearch.json)는 상품 상세의 홈페이지 링크용으로 회사 번호·이름·홈페이지만 받는다(#449).
  * 요청 주소에 인증키가 들어가므로 원인 예외(메시지에 주소가 있음)는 밖으로 내보내지 않는다.
  */
 @Component
@@ -28,17 +31,28 @@ public class FinlifeClient {
 	static final Map<String, String> GROUPS = Map.of("020000", "BANK", "030300", "SAVINGS_BANK");
 	private static final String SAVING = "savingProductsSearch.json";
 	private static final String DEPOSIT = "depositProductsSearch.json";
+	private static final String COMPANY = "companySearch.json";
 
 	private final RestClient http;
 	private final FinlifeProperties props;
 
+	@Autowired
 	public FinlifeClient(FinlifeProperties props) {
+		this(props, defaultClient(props));
+	}
+
+	/** 테스트가 MockRestServiceServer에 묶은 RestClient를 넣는다. */
+	FinlifeClient(FinlifeProperties props, RestClient http) {
 		this.props = props;
+		this.http = http;
+	}
+
+	private static RestClient defaultClient(FinlifeProperties props) {
 		HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).connectTimeout(props.connectTimeout()).build();
 		JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
 		factory.setReadTimeout(props.readTimeout());
 		// finlife는 User-Agent가 없는 요청에서 연결을 끊는다
-		this.http = RestClient.builder().requestFactory(factory).defaultHeader("User-Agent", "Mozilla/5.0 (flexable-web)").build();
+		return RestClient.builder().requestFactory(factory).defaultHeader("User-Agent", "Mozilla/5.0 (flexable-web)").build();
 	}
 
 	public boolean configured() {
@@ -68,6 +82,24 @@ public class FinlifeClient {
 				all.add(new DepositCatalogService.ProductData(b.finCoNo(), b.finPrdtCd(), g.getValue(), b.dclsMonth(), b.korCoNm(),
 						b.finPrdtNm(), b.joinWay(), b.mtrtInt(), b.spclCnd(), b.joinDeny(), b.joinMember(), b.etcNote(), b.maxLimit(),
 						b.dclsStrtDay(), b.dclsEndDay(), b.finCoSubmDay(), opts));
+			}
+		}
+		return all;
+	}
+
+	/** 모든 권역의 금융회사(회사 번호·이름·홈페이지 원문). 한 쪽이라도 실패하면 예외(부분 결과로 기존 주소를 지우지 않는다). */
+	public List<CompanyData> fetchCompanies() {
+		List<CompanyData> all = new ArrayList<>();
+		for (String group : GROUPS.keySet()) {
+			int page = 1;
+			int maxPage = 1;
+			while (page <= maxPage) {
+				Result r = page(COMPANY, group, page);
+				maxPage = pageCount(r.maxPageNo(), group);
+				for (BaseBody b : r.baseList() == null ? List.<BaseBody>of() : r.baseList()) {
+					all.add(new CompanyData(b.finCoNo(), b.korCoNm(), b.hompUrl()));
+				}
+				page++;
 			}
 		}
 		return all;
@@ -137,6 +169,15 @@ public class FinlifeClient {
 		return finCoNo + "|" + finPrdtCd;
 	}
 
+	/** 금융회사 응답의 전체 쪽 수. 없거나 숫자가 아니면 뒤 쪽을 빠뜨린 목록이 되므로 예외(그러면 기존 주소를 그대로 둔다). */
+	private static int pageCount(String maxPageNo, String groupCode) {
+		int n = parseInt(maxPageNo, -1);
+		if (n < 1) {
+			throw new IllegalStateException("finlife 응답의 쪽 수가 없음(" + COMPANY + ", 권역 " + groupCode + ")");
+		}
+		return n;
+	}
+
 	private static int parseInt(String s, int fallback) {
 		try {
 			return Integer.parseInt(s.trim());
@@ -163,7 +204,7 @@ public class FinlifeClient {
 			@JsonProperty("join_deny") String joinDeny, @JsonProperty("join_member") String joinMember,
 			@JsonProperty("etc_note") String etcNote, @JsonProperty("max_limit") Long maxLimit,
 			@JsonProperty("dcls_strt_day") String dclsStrtDay, @JsonProperty("dcls_end_day") String dclsEndDay,
-			@JsonProperty("fin_co_subm_day") String finCoSubmDay) {
+			@JsonProperty("fin_co_subm_day") String finCoSubmDay, @JsonProperty("homp_url") String hompUrl) {
 	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)

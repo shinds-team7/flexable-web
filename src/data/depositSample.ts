@@ -125,7 +125,7 @@ export function sampleList(kind: LumpKind, q: DepositListParams): DepositProduct
 
 export function sampleDetail(kind: LumpKind, id: string, termMonths: SavingsTerm): DepositProductDetail {
   const { result: _result, ...rest } = asProduct(find(kind, id), 0, termMonths);
-  return { ...rest, specialConditionText: '예시 데이터예요. 우대조건 원문이 아니에요.' };
+  return { ...rest, specialConditionText: '예시 데이터예요. 우대조건 원문이 아니에요.', companyHomepageUrl: null };
 }
 
 export function sampleSimulate(kind: LumpKind, q: DepositSimulateRequest): DepositSimulation {

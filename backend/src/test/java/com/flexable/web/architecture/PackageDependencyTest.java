@@ -43,7 +43,7 @@ class PackageDependencyTest {
 			Map.entry("virtualsim", Set.of("market", "practice")),
 			Map.entry("insight", Set.of("market")),
 			Map.entry("savings", Set.of("common")),
-			Map.entry("deposit", Set.of("common")),
+			Map.entry("deposit", Set.of("common", "savings")), // 상품 상세의 금융회사 홈페이지(#449)
 			Map.entry("policysavings", Set.of("common")),
             Map.entry("cashcatalog", Set.of("common")),
 			Map.entry("simulation", Set.of("market", "savings", "seedmoney")),

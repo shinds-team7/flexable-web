@@ -43,7 +43,8 @@ export type DepositProduct = {
   result: DepositResult; // 요청한 amount·termMonths로 서버가 계산한 기본금리 기준 결과
 };
 
-export type DepositProductDetail = Omit<DepositProduct, 'result'> & { specialConditionText: string };
+// 금융회사 홈페이지(finlife 금융회사 공시, #449). 상품 가입 페이지가 아니고, 없으면 null이라 링크를 숨긴다(파킹·CMA 상세에는 없어 null)
+export type DepositProductDetail = Omit<DepositProduct, 'result'> & { specialConditionText: string; companyHomepageUrl: string | null };
 
 export type DepositListParams = {
   amount: number;
@@ -114,7 +115,7 @@ const withLumpDetail = (p: DepositProductDetail): DepositProductDetail => ({ ...
 async function fetchProduct(kind: LumpKind, id: string, termMonths: SavingsTerm, interestType: InterestType): Promise<DepositProductDetail> {
   if (useSample(kind)) return later(() => sampleDetail(kind, id, termMonths));
   const res = await api<DepositProductDetail>(`/${kind}/products/${encodeURIComponent(id)}?termMonths=${termMonths}&interestType=${interestType}`);
-  return kind === 'deposit' ? withLumpDetail(res) : res;
+  return { ...(kind === 'deposit' ? withLumpDetail(res) : res), companyHomepageUrl: res.companyHomepageUrl ?? null };
 }
 
 async function simulate(kind: LumpKind, q: DepositSimulateRequest): Promise<DepositSimulation> {

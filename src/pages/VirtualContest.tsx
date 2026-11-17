@@ -664,7 +664,7 @@ function roundFeedback(before: ContestEntry, after: ContestEntry) {
   return parts.join(' · ');
 }
 
-/** 투자 시뮬레이션의 "월간 대회" 탭 */
+/** 투자 시뮬레이션의 "월간 투자대회" 탭 */
 export function VirtualContest({ active }: { active: boolean }) {
   const { status } = useSession();
   const member = status === 'member';

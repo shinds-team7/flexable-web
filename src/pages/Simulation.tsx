@@ -255,11 +255,11 @@ function PastMarketPractice({ active }: { active: boolean }) {
 const MODES = [
   { id: 'past', label: '과거 시장 연습', lead: '사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
   { id: 'virtual', label: '가상 시뮬레이션', lead: '가상 종목의 가상 사건을 읽고, 선택하고, 그다음 시장을 만나보세요.' },
-  { id: 'contest', label: '월간 대회', lead: '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' },
+  { id: 'contest', label: '월간 투자대회', lead: '회원 월간 대회: 가상 종목 매매로 가만히 있을 때보다 얼마나 더 버는지 겨뤄요.' },
 ] as const;
 type Mode = typeof MODES[number]['id'];
 // 상단 메뉴가 ?mode=로 고른다. 값이 없거나 잘못되면 과거 시장 연습.
-// 월간 대회는 세 번째 탭이다(decisions/2026-11-11-contest-ux-redesign 1). 같은 페이지 안의 탭이라 자유 연습과 오가도 진행 중인 대회 판이 끊기지 않는다
+// 월간 투자대회는 세 번째 탭이다(decisions/2026-11-11-contest-ux-redesign 1). 같은 페이지 안의 탭이라 자유 연습과 오가도 진행 중인 대회 판이 끊기지 않는다
 const asMode = (v: string | null): Mode => v === 'virtual' || v === 'contest' ? v : 'past';
 
 export default function Simulation() {

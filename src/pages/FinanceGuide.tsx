@@ -1,5 +1,5 @@
 // 금융 가이드(/guide). 상단 메뉴 '금융정보'(/finance)와는 다른 화면. AI 계획에서 예적금·주식·ETF 등을 고르기 전에, 처음 쓰는 사람에게 개념을 안내한다.
-// 경로 표시·제목·검색(GuideSearch, 검색해도 화면을 스크롤하지 않음) → 검색 결과(용어 설명) → 카테고리 카드 → 추천 콘텐츠(정렬) → AI 목표 달성 안내 띠.
+// 경로 표시·제목·검색(GuideSearch, 검색해도 화면을 스크롤하지 않음) → 검색 결과(용어 설명) → 카테고리 카드 → 추천 콘텐츠(정렬) → AI 목표설계 안내 띠.
 // 카테고리 카드는 카테고리 화면(/guide/:category)으로, 콘텐츠 카드·검색 결과는 콘텐츠 상세(/guide/:category/:id)로 간다. 검색어는 브라우저 메모리에만 있고 저장·전송하지 않는다.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -71,7 +71,7 @@ export default function FinanceGuide() {
             <p>목표 금액과 기한을 입력하면 적금·CMA·ETF·주식 조합마다 매달 얼마를 넣어야 하는지 AI와 비교해 볼 수 있어요.</p>
           </div>
           <Link to="/goal" className="btn btn-primary fin-cta-btn">
-            AI 목표 달성 시작하기 <ArrowIcon />
+            AI 목표설계 시작하기 <ArrowIcon />
           </Link>
         </section>
       </div>

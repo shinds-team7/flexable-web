@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { useSession } from '@/auth/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useLoginModal } from '@/components/LoginModal';
+import { useSeedMoney } from '@/data/home';
 import {
   FALLBACK_TEXT, GOAL_LIMITS, TYPE_LABEL, conditionText, deleteSavedScenario, manwon, periodText, savedDate, fetchGoalScenarios, getSavedScenario, listSavedScenarios, saveScenario,
   type GoalScenario, type GoalScenarioResult, type SavedGoalScenario, type SavedScenarioList, type ScenarioProduct, type ScenarioProductType,
@@ -441,8 +442,12 @@ export default function GoalScenarios() {
   const { openLogin } = useLoginModal();
   const location = useLocation();
   const member = status === 'member';
+  const seed = useSeedMoney();
 
   const [start, setStart] = useState('');
+  // 로그인 회원은 시작 금액을 내 시드머니(직접 고친 값 우선)로 한 번 채운다. 사용자가 고치거나 저장본을 다시 계산하면 덮어쓰지 않는다.
+  const startEdited = useRef(false);
+  const editStart = (v: string) => { startEdited.current = true; setStart(v); };
   const [budget, setBudget] = useState('');
   const [months, setMonths] = useState(36);
   const [target, setTarget] = useState('');
@@ -478,8 +483,18 @@ export default function GoalScenarios() {
     }
   }, []);
 
+  const seedAmount = member && seed.data && !seed.data.isSample ? seed.data.manual ?? seed.data.confirmed : null;
+  useEffect(() => {
+    if (seedAmount === null || startEdited.current) return;
+    startEdited.current = true;
+    if (seedAmount > 0) setStart(won(Math.min(seedAmount, GOAL_LIMITS.startMax)));
+  }, [seedAmount]);
+
   useEffect(() => {
     if (member) { void refreshSaved(); return; }
+    // 다시 로그인하면 그 회원의 시드머니로 다시 채울 수 있게 한다(채운 값은 지운다).
+    startEdited.current = false;
+    setStart('');
     // 로그아웃하면 이전 회원의 결과(AI 횟수 포함)·저장 목록·보던 모달을 지우고, 진행 중인 요청의 응답은 버린다.
     requestId.current++;
     setLoading(false);
@@ -605,6 +620,7 @@ export default function GoalScenarios() {
   };
 
   const recalc = (v: SavedGoalScenario) => {
+    startEdited.current = true;
     setStart(won(v.startAmount));
     setBudget(v.monthlyBudget !== null ? won(v.monthlyBudget) : '');
     setMonths(v.months);
@@ -621,7 +637,7 @@ export default function GoalScenarios() {
 
   return <div className="gp-page">
     <div className={`gp-wrap ${member ? 'gp-wrap-side' : ''}`}>
-      <div className="gp-crumb">AI 목표 달성 {(!result || result.isSample) && <span className="gp-badge">예시 포함</span>}</div>
+      <div className="gp-crumb">AI 목표설계 {(!result || result.isSample) && <span className="gp-badge">예시 포함</span>}</div>
       <h1 className="gp-title">목표 금액까지, 나만의 투자 로드맵.</h1>
       <p className="gp-lead">투자 가능 금액과 목표를 입력해 보세요. AI가 나에게 맞는 자산 성장 계획을 설계해 드려요.</p>
 
@@ -630,12 +646,12 @@ export default function GoalScenarios() {
 
       <section aria-labelledby="gp-form-title">
         <h2 id="gp-form-title" className="gp-h2"><span className="gp-step">1</span>나의 조건</h2>
-        <p className="gp-sub">시작 금액·월 납입 가능액·기한을 넣어 주세요. 목표 금액은 넣지 않아도 돼요. 마음에 드는 시나리오는 로그인하고 저장할 수 있어요.</p>
+        <p className="gp-sub">시작 금액·월 납입 가능액·기한을 넣어 주세요. 목표 금액은 넣지 않아도 돼요. {member && '시작 금액에는 내 시드머니를 미리 넣어 두었어요(고칠 수 있어요). '}마음에 드는 시나리오는 로그인하고 저장할 수 있어요.</p>
         <form className="gp-card gp-card-brand" onSubmit={submit} noValidate>
           <div className="gp-form">
             <div className="gp-field">
               <label htmlFor="gp-start">시작 금액</label>
-              <MoneyInput id="gp-start" value={start} onChange={setStart} placeholder="0" />
+              <MoneyInput id="gp-start" value={start} onChange={editStart} placeholder="0" />
             </div>
             <div className="gp-field">
               <label htmlFor="gp-budget">월 납입 가능액</label>

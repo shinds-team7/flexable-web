@@ -90,7 +90,7 @@ export function selectNews(items: YouthNews[], f: NewsFilter, today: string, con
 }
 
 /** 목록 한 페이지에 보여 줄 소식 수 */
-export const NEWS_PAGE_SIZE = 12;
+export const NEWS_PAGE_SIZE = 9;
 
 export const pageCount = (total: number) => Math.max(1, Math.ceil(total / NEWS_PAGE_SIZE));
 

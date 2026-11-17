@@ -801,6 +801,8 @@ code{font-size:12px;background:var(--sunken);padding:1px 4px;border-radius:var(-
 .hero-edit{padding:0;background:none;border:0;font-size:13px;font-weight:500;color:var(--text-muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .hero-edit:hover{color:var(--text-sub)}
 .home-hero .hero-num{margin-top:4px}
+.hero-num-edit{cursor:pointer;border-radius:var(--radius-soft-sm)}
+.hero-num-edit:focus-visible{outline:2px solid var(--brand-text);outline-offset:4px}
 .home-hero .sub{margin-top:6px}
 /* 원래 금액의 자리를 유지하고 입력창을 같은 영역에 겹친다. */
 .hero-amount{position:relative;width:max-content;max-width:100%}

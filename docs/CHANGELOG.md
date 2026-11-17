@@ -6,7 +6,7 @@
 
 ## 2026-11-18
 
-- [#PR] `/news` 목록을 무한 스크롤 대신 9개씩 [더 보기]로 바꾸고, 제목 옆 개수와 정렬 토글 [최신순 | 마감순]을 두고, 검색창 아래 "30초 진단" 링크를 없앴다(결정 [news-hot](decisions/2026-11-03-news-hot.md)·[news-diagnosis](decisions/2026-11-03-news-diagnosis.md) 11-18 변경). 계약·정책 변화 없음 — 영향: 프론트
+- [#468, Closes #467] `/news` 목록을 무한 스크롤 대신 9개씩 [더 보기]로 바꾸고, 제목 옆 개수와 정렬 토글 [최신순 | 마감순]을 두고, 검색창 아래 "30초 진단" 링크를 없앴다(결정 [news-hot](decisions/2026-11-03-news-hot.md)·[news-diagnosis](decisions/2026-11-03-news-diagnosis.md) 11-18 변경). 계약·정책 변화 없음 — 영향: 프론트
 
 ## 2026-11-17
 

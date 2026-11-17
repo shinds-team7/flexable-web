@@ -56,7 +56,7 @@ docs/reference/          참고 자료(와이어프레임). 제품 코드 아님
 | `/savings` | 적금 비교 · 정책 적금 · 기간 동안 내 돈 차트 | 화면 완료, 결과는 프론트 고정 예시(서버 계산·실제 공시 연동은 미머지, [HANDOFF](docs/product/HANDOFF.md) 10-23) |
 | `/news` | 청년 금융 소식(필터·오늘의 한 장·챙기기) | 화면 완료, 데이터는 예시. 챙기기·필터는 브라우저 `localStorage`에만 저장(서버 없음). 실제 수집·API는 #34 |
 | `/news/:id` | 소식 상세 | 자리만. 섞어보기(`/mix`)·공유(`/p/:id`)는 10-30에 없앴다([결정](docs/decisions/2026-10-30-drop-f3-mix.md)) |
-| `/goal` | AI 목표 달성(메뉴 이름 'AI 목표달성') | 구현(#50, [goal-ai.md](docs/product/goal-ai.md)): 목표 1개 저장·서버 계산·OpenAI 안내 하루 3회. 로그인 필요. 기획 의도와 차이가 있어 10-26 재정리 예정([HANDOFF](docs/product/HANDOFF.md)) |
+| `/goal` | AI 목표 달성(메뉴 이름 'AI 목표설계', 회원은 시작 금액에 시드머니가 미리 들어감) | 구현(#50, [goal-ai.md](docs/product/goal-ai.md)): 목표 1개 저장·서버 계산·OpenAI 안내 하루 3회. 로그인 필요. 기획 의도와 차이가 있어 10-26 재정리 예정([HANDOFF](docs/product/HANDOFF.md)) |
 | `/plus` | 플러스 요금표(메뉴에는 없고 내 정보에서 진입) | UI 구현. 요금·한도는 프론트 고정값(`src/data/plans.ts`), 구독은 늘 무료 |
 | `/billing/result` | 모의 결제 확인 · 완료 · 실패 · 취소 · 해지 확인 | 화면 완료. 요금제를 저장하지 않는 시연(실결제는 [billing README](backend/src/main/java/com/flexable/web/billing/README.md)) |
 | `/privacy` | 웹 개인정보처리방침 | 2026-10-21 시행. 웹 백엔드 배포만 이 방침을 쓰고, Vercel은 앱 방침으로 연결 |

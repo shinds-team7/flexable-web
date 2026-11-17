@@ -245,7 +245,7 @@ function SeedHistory({ seed }: { seed: SeedMoney }) {
 }
 
 /** 소식 화면에서 책갈피로 저장한 소식(이 브라우저에만 저장). 목록에서 빠진 소식도 '마감됨'으로 남는다 */
-/** AI 목표달성에서 저장한 시나리오(#446). 회원만, 목록만 보여 주고 누르면 /goal에서 그 저장본을 연다. 지우기는 /goal에서 한다. */
+/** AI 목표설계에서 저장한 시나리오(#446). 회원만, 목록만 보여 주고 누르면 /goal에서 그 저장본을 연다. 지우기는 /goal에서 한다. */
 function MySavedScenarios() {
   const { data, isPending, isError, refetch } = useSavedScenarios(true);
   return (
@@ -274,7 +274,7 @@ function MySavedScenarios() {
         <div className="news-saved-empty">
           <p style={{ fontWeight: 700 }}>아직 저장한 시나리오가 없어요.</p>
           <Link className="btn btn-line" to="/goal" style={{ marginTop: 8 }}>
-            AI 목표달성 해 보기
+            AI 목표설계 해 보기
           </Link>
         </div>
       ) : (

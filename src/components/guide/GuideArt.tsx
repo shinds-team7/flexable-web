@@ -34,7 +34,7 @@ export function TopicArt({ id }: { id: GuideCategory }) {
   );
 }
 
-/** AI 목표 달성 안내 띠의 과녁 그림. 위 카테고리 카드 그림과 같은 평면 그림이다 */
+/** AI 목표설계 안내 띠의 과녁 그림. 위 카테고리 카드 그림과 같은 평면 그림이다 */
 export function TargetArt() {
   return (
     <svg className="fin-target-art" viewBox="0 0 68 64" aria-hidden="true" focusable="false">

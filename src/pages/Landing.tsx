@@ -1,4 +1,4 @@
-// 랜딩. 예시 차트는 빌드에 포함된 예시 데이터로 그린다. 기능 소개 이미지는 운영 화면 캡처(public/landing/screens),
+// 랜딩. 예시 차트는 빌드에 포함된 예시 데이터로 그린다. 기능 소개 이미지는 운영 체험 모드 화면 캡처(public/landing/screens, 머리글 제외 1440×794),
 // 앱 소개 목업 화면은 시연 앱(/m) 캡처와 앱 스플래시 이미지(public/landing/app)다.
 import { useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -26,14 +26,19 @@ const markSeen = () => {
 
 type Feature = { to: string; img: string; name: string; head: string; desc: string; cta: string };
 
-/** 화면별 소개. 링크는 모두 로그인 없이 체험할 수 있는 화면이다. 투자 인사이트는 예시 차트와 함께 따로 그린다 */
-const TYPE: Feature = { to: '/type', img: 'type', name: '내 투자 성향', head: '나에게 맞는 비율부터\n차근차근 알아봐요', desc: '질문 12개로 5가지 유형 중 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' };
+/** 화면별 소개(상단 메뉴 순서). 링크는 모두 로그인 없이 체험할 수 있는 화면이다. 투자 인사이트는 예시 차트와 함께 따로 그린다.
+ *  문구는 /info-web 기능 소개(pages/info/web.tsx)를 줄여 맞춘다. */
+const LEAD: Feature[] = [
+  { to: '/guide', img: 'guide', name: '금융 가이드', head: '처음 쓰는 사람을 위한\n금융 기초 안내', desc: '금리·이자·세금 같은 금융 기초부터 예적금·주식·ETF·CMA까지 주제별 글로 차근차근 설명해요. 궁금한 용어는 검색해서 바로 찾아요.', cta: '가이드 읽기' },
+  { to: '/type', img: 'type', name: '내 투자 성향', head: '나에게 맞는 비율부터\n차근차근 알아봐요', desc: '질문 12개로 5가지 유형 중 가까운 성향을 참고로 보고, 직접 골라요. 고른 성향의 패시브·액티브 비율과 지난 3년 결과, 흔히 담는 상품 유형을 보여 줘요.', cta: '성향 알아보기' },
+];
 const INVEST: Feature = { to: '/invest?demo=1', img: 'invest', name: '투자 인사이트', head: '지난 주가 위의 ▲▼ 핀으로\n그때 무슨 일이 있었는지', desc: '국내 지수·채권지수·금·환율 흐름과 시가총액·업종별 순위, 종목 3개까지 지난 주가를 견줘요. ▲▼ 핀을 누르면 그때 나온 공시와 AI 개요를 읽어요.', cta: '예시로 보기' };
 const REST: Feature[] = [
-  { to: '/simulation', img: 'sim', name: '투자 시뮬레이션', head: '지난 시장으로 들어가\n사건마다 직접 판단해 봐요', desc: '업종을 펼쳐 종목을 직접 고르거나 무작위로 받아 지난 시세를 하루씩 재생해요. 공시가 나오면 멈추고 매수·유지·매도를 골라 봐요. 실제 주문은 없어요.', cta: '시뮬레이션 해보기' },
-  { to: '/savings?demo=1', img: 'savings', name: '예적금 모아보기', head: '같은 금액, 같은 기간으로\n만기 수령액을 한눈에', desc: '금융권 공시 적금과 청년 정책 적금을 같은 금액 기준 만기 수령액으로 비교해요. 광고로 순서를 바꾸지 않아요.', cta: '적금 비교하기' },
-  { to: '/goal', img: 'goal', name: 'AI 목표설계', head: '목표까지 가는 길,\n세 가지 방법으로 비교해요', desc: '목표 금액과 기한, 투자 성향을 고르면 세 가지 조합의 달성 가능성과 위험 수준을 함께 보여 줘요. 추정치이고 수익이나 달성을 보장하지 않아요.', cta: '목표 세워 보기' },
-  { to: '/news', img: 'news', name: '청년 금융 소식', head: '놓치기 쉬운 청년 정책,\n마감 가까운 순으로', desc: '교통·주거·금융·일자리 소식을 매일 아침 공공 출처에서 모아 AI로 요약해요. 마감 가까운 순으로 보여 주고 공고문으로 바로 가요.', cta: '소식 보기' },
+  { to: '/simulation?mode=past', img: 'sim', name: '과거 시장 연습', head: '지난 시장으로 들어가\n사건마다 직접 판단해 봐요', desc: '업종을 펼쳐 종목을 직접 고르거나 무작위로 받아 지난 시세를 하루씩 재생해요. 공시가 나오면 멈추고 매수·유지·매도를 골라 봐요. 실제 주문은 없어요.', cta: '연습 시작하기' },
+  { to: '/simulation?mode=contest', img: 'virtual', name: '가상 시뮬레이션 · 월간 대회', head: 'AI가 만든 가상 종목으로\n매달 겨루는 대회', desc: 'AI가 만든 가상 종목과 사건 글로 서버가 가상 시세를 만들어요. 회원은 공시 10문제 배치고사로 리그를 정하고, “유지만 했을 때”보다 나은 판단으로 점수를 쌓아 승급해요.', cta: '대회 보기' },
+  { to: '/goal', img: 'goal', name: 'AI 목표설계', head: '목표까지 가는 길,\n세 가지 방법으로 비교해요', desc: '시작 금액·월 납입 가능액·기한을 넣으면 안정·균형·적극 세 조합을 2,000개 경로로 계산해 결과 범위와 원금 손실 가능성을 보여 줘요. 로그인하면 시작 금액에 내 시드머니가 미리 들어가요. 추정치이고 수익이나 달성을 보장하지 않아요.', cta: '목표 세워 보기' },
+  { to: '/savings?demo=1', img: 'savings', name: '예적금 · 파킹 · CMA', head: '같은 금액, 같은 기간으로\n만기 수령액을 한눈에', desc: '금감원 공시 적금·정기예금과 청년 정책 적금, 파킹통장·CMA를 같은 규칙으로 계산해 최대 3개까지 나란히 비교해요. 광고로 순서를 바꾸지 않아요.', cta: '적금 비교하기' },
+  { to: '/news', img: 'news', name: '청년 금융 소식', head: '놓치기 쉬운 청년 정책,\n마감 가까운 순으로', desc: '온통청년의 청년 정책을 매일 아침 모아 AI로 요약하고, 원문 숫자와 대조 검사를 통과한 소식만 보여 줘요. 마감 임박순·조건으로 찾기로 내게 맞는 지원금을 찾고 공고문으로 바로 가요.', cta: '소식 보기' },
 ];
 
 /** 파란 원 안의 오른쪽 화살표(알약 모양 버튼용) */
@@ -196,7 +201,9 @@ export default function Landing() {
       </div>
 
       <div className="land-shows">
-        <Show f={TYPE} flip={false} />
+        {LEAD.map((f, i) => (
+          <Show key={f.to} f={f} flip={i % 2 === 1} />
+        ))}
 
         <section className="land-show land-show-invest">
           <div className="land-inv-img reveal">

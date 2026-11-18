@@ -237,12 +237,6 @@
 .info-timeline li::before{content:"";position:absolute;left:87px;top:8px;width:16px;height:16px;border-radius:50%;background:var(--color-brand-primary);box-shadow:0 0 0 6px var(--color-surface),0 0 0 7px var(--color-land-line)}
 .info-timeline time{font-size:clamp(18px, 2.2vw, 23px);font-weight:800;color:var(--color-brand-text);font-variant-numeric:tabular-nums;text-align:right}
 .info-timeline p{margin-top:6px;font-size:clamp(15px, 1.75vw, 18px);line-height:1.65;color:var(--color-text-secondary)}
-.info-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--density-gap)}
-.info-gallery figure{margin:0}
-.info-gallery figure.wide{grid-column:1 / -1}
-.info-gallery img{display:block;width:100%;object-fit:cover;border-radius:var(--radius-soft)}
-.info-gallery .info-ph{width:100%;border-radius:var(--radius-soft)}
-.info-gallery figcaption{margin-top:12px;font-size:clamp(15px, 1.75vw, 17px);font-weight:600;color:var(--color-text-secondary)}
 
 /* 마무리: 랜딩 앱 다운로드 띠처럼 블루 + 동심원, 뒤에 큰 반투명 글자 */
 .info-outro{position:relative;overflow:hidden;padding:calc(var(--density-gap) * 8) 0;color:var(--color-land-ink);text-align:center;
@@ -261,7 +255,7 @@
 @media (max-width:720px){
   .info{--info-x:16px;--info-sec:calc(var(--density-gap) * 3.5)}
   .info-toc{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .info-stats,.info-stack,.info-cards,.info-flow,.info-gallery,.info-pains{grid-template-columns:minmax(0,1fr)}
+  .info-stats,.info-stack,.info-cards,.info-flow,.info-pains{grid-template-columns:minmax(0,1fr)}
   .info-numbers{grid-template-columns:repeat(2,minmax(0,1fr))}
   .info-features.phone .info-feature{grid-template-columns:minmax(0,1fr)}
   .info-features.phone .info-feature.flip .info-feature-copy{order:0}

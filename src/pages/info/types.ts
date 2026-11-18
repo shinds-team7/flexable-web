@@ -27,7 +27,6 @@ export type Feature = {
   img: string;
 };
 
-export type Photo = { src: string; caption: string; wide?: boolean };
 export type Milestone = { date: string; title: string; desc: string };
 export type StackGroup = { group: string; items: string[] };
 
@@ -46,6 +45,6 @@ export type InfoContent = {
   arch: { title: string; lead: string; diagram: ReactNode; notes: Card[] };
   principles: { title: string; lead: string; items: Card[] };
   collab: { title: string; lead: string; flow: Step[]; rules: Card[] };
-  story: { title: string; lead: string; timeline: Milestone[]; photos: Photo[]; numbers: Stat[] };
+  story: { title: string; lead: string; timeline: Milestone[]; numbers: Stat[] };
   outro: { title: string; lead: string; links: { label: string; url: string }[] };
 };

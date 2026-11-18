@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { prefersReducedMotion, useReveal, useSmoothWheel } from '@/lib/motion';
-import { Bars, BrowserShot, IconTile, Img, PhoneShot, Ring } from './parts';
+import { Bars, BrowserShot, IconTile, PhoneShot, Ring } from './parts';
 import type { InfoContent } from './types';
 import '@/styles/info.css';
 
@@ -228,14 +228,6 @@ export function InfoPage({ c, variant }: { c: InfoContent; variant: 'web' | 'app
             </li>
           ))}
         </ol>
-        <div className="info-gallery">
-          {c.story.photos.map((p, i) => (
-            <figure key={p.src} className={`reveal${p.wide ? ' wide' : ''}`} style={delay(i % 2)}>
-              <Img src={p.src} alt={p.caption} ratio={p.wide ? '16 / 9' : '4 / 3'} label="협업 사진" />
-              <figcaption>{p.caption}</figcaption>
-            </figure>
-          ))}
-        </div>
       </Section>
 
       {/* 2. 기획 */}

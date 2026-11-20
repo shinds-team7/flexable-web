@@ -13,7 +13,7 @@
 1. **앱 EC2(t3.small, 2GB)에 웹 web·api·db를 함께 올린다**(owner). 구성은 [`deploy/ec2/`](../../deploy/ec2/README.md).
 2. **앱 우선**(owner): 웹 컨테이너마다 `mem_limit`(db 400MB·api 560MB·web 64MB, worker 450MB)을 걸어 웹이 메모리 부족으로 죽어도 앱은 산다. **worker는 기본으로 끈다**(필요할 때만 `--profile worker`).
 3. **웹 MySQL은 앱과 공유하지 않고 웹 전용 컨테이너로 둔다.** 공유하면 약 300MB를 아끼지만 웹 쿼리·복원이 앱 DB에 직접 영향을 주고, 웹 방침의 "앱과 계정·저장 환경 구분"·백업 주기를 다시 맞춰야 한다. 버퍼 풀 64MB로 작게 잡는다.
-4. **TLS·도메인은 앱 저장소의 Caddy가 맡는다**(owner). 웹 nginx는 호스트 `127.0.0.1:8081`에만 연다. Caddy가 bridge 컨테이너면 루프백에 닿지 않아 `network_mode: host`나 공유 네트워크(`docker-compose.caddy-net.yml`) 중 하나가 필요하다(앱 담당과 맞춤).
+4. **TLS·도메인은 앱 저장소의 Caddy가 맡는다**(owner). 웹 nginx는 호스트 `127.0.0.1:8081`에만 연다. Caddy가 bridge 컨테이너면 루프백에 닿지 않아 `network_mode: host`나 공유 네트워크(`docker-compose.caddy-net.yml`) 중 하나가 필요하다. 앱 [#380](https://github.com/shinds-team7/flexable-app/pull/380)이 `network_mode: host`로 정했다(앱 결정 `docs/decisions/2026-11-20-ec2-return-web-cohost.md`: MySQL 분리, 웹 힙 320m, 웹 mem_limit, worker 끔, EC2에서 웹 빌드 안 함 — 이 구성과 같다).
 5. **웹 도메인은 두 번째 DuckDNS 서브도메인**(owner). 코드에는 적지 않고 빌드 변수 `VITE_SITE_URL`(없으면 접속한 주소)과 서버 `.env`·GitHub 변수로 둔다.
 6. **배포는 GitHub Actions → SSH**로 바꾼다. 셀프 호스트 러너를 EC2로 옮기지 않는다.
    - VM에 러너를 둔 이유(외부에서 SSH 불가)가 EC2에는 없다.

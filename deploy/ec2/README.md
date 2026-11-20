@@ -47,7 +47,9 @@
 }
 ```
 
-**주의**: Caddy가 bridge 네트워크의 Docker 컨테이너면 그 안의 `127.0.0.1`은 Caddy 자신이라 호스트 8081에 닿지 않는다. 둘 중 하나로 한다.
+앱 [flexable-app#380](https://github.com/shinds-team7/flexable-app/pull/380)(병합)은 Caddy를 `network_mode: host`로 두고 `WEB_DOMAIN`을 `127.0.0.1:8081`로 보낸다. 이 구성이면 아래 2는 필요 없다.
+
+**참고**: Caddy가 bridge 네트워크의 Docker 컨테이너면 그 안의 `127.0.0.1`은 Caddy 자신이라 호스트 8081에 닿지 않는다. 둘 중 하나로 한다.
 
 1. Caddy를 `network_mode: host`로 띄운다(앱 api도 호스트 포트로 열어야 함, 앱 저장소 결정).
 2. 웹 `.env`에 `COMPOSE_FILE=docker-compose.yml:docker-compose.caddy-net.yml`, `CADDY_NETWORK=<앱 compose 네트워크 이름>`(예: `flexable_default`, `docker network ls`로 확인)을 넣고, Caddyfile은 `reverse_proxy flexable-web:80`으로 한다. 루프백 8081은 확인용으로 그대로 남는다.

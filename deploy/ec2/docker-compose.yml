@@ -1,0 +1,106 @@
+# 웹 EC2 실행 구성(2026-11-20 결정 docs/decisions/2026-11-20-web-on-app-ec2.md). 앱(flexable-app)과 같은 EC2(t3.small 2GB)에 함께 올린다.
+# web(nginx, 호스트 127.0.0.1:8081) → api(웹 백엔드) → db(웹 전용 MySQL). TLS·도메인은 앱 저장소의 Caddy가 맡고 이 구성은 외부 포트를 열지 않는다.
+# 메모리는 앱이 우선이다. 웹 컨테이너마다 mem_limit을 걸어 웹이 메모리 부족으로 죽어도 앱은 살아 있게 한다. worker(시세 수집)는 기본으로 끈다.
+# 값은 같은 폴더의 .env(커밋하지 않음, 양식 .env.example)에서 읽는다. 사용법은 README.md, 이전 절차는 MIGRATION.md.
+name: flexable-web
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+x-backend: &backend
+  build:
+    context: ../../backend
+    dockerfile: deploy/Dockerfile
+  # 이미지는 GitHub Actions가 만들어 넣는다(deploy.sh). EC2(2GB)에서 빌드하지 않는다.
+  image: flexable-web-backend:latest
+  env_file: .env
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-flexable_web}
+      MYSQL_USER: ${DB_USERNAME:-flexable_web}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD를 .env에 넣으세요}
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      TZ: Asia/Seoul
+    # 작은 메모리용: 버퍼 풀 64MB, performance_schema 끔, 연결 수 제한
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --innodb-buffer-pool-size=64M
+      - --innodb-log-buffer-size=8M
+      - --performance-schema=OFF
+      - --max-connections=30
+      - --table-open-cache=400
+      - --skip-name-resolve
+    mem_limit: 400m
+    # 포트를 열지 않는다. api·worker만 내부 네트워크로 접근한다(앱 MySQL과 섞지 않는다).
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+    logging: *logging
+
+  api:
+    <<: *backend
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-flexable_web}?serverTimezone=UTC&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-flexable_web}
+      DB_POOL_SIZE: "5"
+      TZ: Asia/Seoul
+      JAVA_OPTS: ${API_JAVA_OPTS:--Xms96m -Xmx320m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k -XX:TieredStopAtLevel=1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GOAL_COACH_FREE_DAILY_LIMIT: ${GOAL_COACH_FREE_DAILY_LIMIT:-3}
+      GOAL_COACH_DAILY_CAP: ${GOAL_COACH_DAILY_CAP:-300}
+    mem_limit: 560m
+
+  # 시세 수집. 기본으로 끈다. 켜려면 `docker compose --profile worker up -d worker`(README "worker").
+  worker:
+    <<: *backend
+    profiles: ["worker"]
+    environment:
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-flexable_web}?serverTimezone=UTC&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-flexable_web}
+      TZ: Asia/Seoul
+      SPRING_PROFILES_ACTIVE: worker
+      DB_POOL_SIZE: "2"
+      JAVA_OPTS: ${WORKER_JAVA_OPTS:--Xms64m -Xmx256m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -Xss512k}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+    mem_limit: 450m
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/ec2/web.Dockerfile
+      args:
+        VITE_SITE_URL: ${WEB_SITE_URL:-}
+    image: flexable-web-web:latest
+    # 앱 Caddy만 닿도록 루프백에만 연다(외부 공개·TLS는 Caddy). Caddy가 컨테이너면 README "Caddy 연결"을 본다.
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      - api
+    mem_limit: 64m
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  db-data:

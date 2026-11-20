@@ -3,12 +3,12 @@
 // 2026-10-21 법률 검토 의견(docs/product/privacy-web.md §0)을 반영해 13개 조로 다시 썼다.
 import { Link } from 'react-router-dom';
 import { LEGAL_BASE, WEB_PRIVACY_EFFECTIVE, fmtEffective, webPrivacyInEffect } from '@/lib/legal';
+import { SITE_HOST, SITE_URL } from '@/lib/site';
 
 /** 개인정보처리자. 앱 방침과 같아야 한다 */
 const OPERATOR = '강선후';
 const BRAND = 'ucmnuniverse';
 const CONTACT = 'ucmnuniverse@gmail.com';
-const SITE = 'https://solpa.shinhanacademy.co.kr';
 
 export default function Privacy() {
   return (
@@ -33,7 +33,7 @@ export default function Privacy() {
         <h2>제1조 적용 범위</h2>
         <ol>
           <li>
-            이 방침은 <a href={SITE}>{SITE.replace('https://', '')}</a>에서 웹 전용 계정으로 제공하는 서비스와, 그 웹 계정의 앱 연동 과정에서 운영자가
+            이 방침은 <a href={SITE_URL}>{SITE_HOST}</a>에서 웹 전용 계정으로 제공하는 서비스와, 그 웹 계정의 앱 연동 과정에서 운영자가
             처리하는 개인정보에 적용됩니다.
           </li>
           <li>
@@ -333,9 +333,9 @@ export default function Privacy() {
           </thead>
           <tbody>
             <tr>
-              <td>대한상공회의소</td>
-              <td>웹 서버(가상 서버)와 개인정보 저장 환경 제공, 서버·네트워크 등 기반 시설 운영</td>
-              <td>대한민국</td>
+              <td>Amazon Web Services Korea LLC</td>
+              <td>웹 서버(가상 서버, EC2)와 개인정보 저장 환경 제공, 서버·네트워크 등 기반 시설 운영</td>
+              <td>대한민국(서울 리전)</td>
             </tr>
             <tr>
               <td>Google LLC</td>
@@ -604,6 +604,7 @@ export default function Privacy() {
           <li>2026년 11월 10일: 금융 가이드 글별 조회수 집계를 추가함에 따라 임의 방문자 값의 이용 목적과 보유 기간을 더함</li>
           <li>2026년 11월 10일: 목표 달성 시나리오에 월 납입 가능액(선택)을 더함에 따라 제2조(목표 달성 시나리오 저장·AI 조합 항목, 서버 오류 기록 문구)와 제6조(OpenAI로 보내는 항목·시기·목적)를 고침</li>
           <li>2026년 11월 14일: 목표 달성 시나리오가 시작 금액·월 납입 가능액·기한(목표 금액 선택)으로 계산하고 AI 조합을 기한별로 미리 만들게 됨에 따라 제2조(저장 항목에 이름·시작 금액, AI 조합 항목, 서버 오류 기록 문구), 제3조(계산에 쓰는 입력), 제4조(계산 결과 문구), 제6조(OpenAI로 보내는 항목에서 이용자 입력 금액을 빼고 기한별로 미리 전송)를 고침</li>
+          <li>2026년 11월 20일: 웹 서버를 대한상공회의소 가상 서버에서 AWS(서울 리전)로 옮기고 웹 주소를 바꿈에 따라 제6조(처리 위탁 수탁자)를 고침. 옮긴 뒤 대한상공회의소 가상 서버의 개인정보는 지체 없이 삭제</li>
         </ul>
       </div>
     </section>

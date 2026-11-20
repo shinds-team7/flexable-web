@@ -6,7 +6,7 @@ import { SubHeader } from "@/real/components/SubHeader";
 import { useToast } from "@/real/components/Toast";
 import { colors } from "@/real/theme";
 import { api, sessionGeneration } from "./api/client";
-import { OPERATOR_NAME, WEBSITE_URL } from "./config";
+import { OPERATOR_NAME, WEBSITE_HOST, WEBSITE_URL } from "./config";
 import { ErrorNotice, Loading, parseTime, useResource } from "./ui";
 
 type LinkCode = { code: string; expiresAt: string };
@@ -15,7 +15,7 @@ type LinkCode = { code: string; expiresAt: string };
 const CONSENT = [
   [
     "처리자",
-    `강선후(운영 이름 ${OPERATOR_NAME}). 같은 운영자의 텅장관리 웹사이트(solpa.shinhanacademy.co.kr)에서 이용`,
+    `강선후(운영 이름 ${OPERATOR_NAME}). 같은 운영자의 텅장관리 웹사이트(${WEBSITE_HOST})에서 이용`,
   ],
   ["목적", "웹사이트에서 시드머니 표시와 투자·적금 실험"],
   [
@@ -276,7 +276,7 @@ function WebLinksContent({
               }}
             />
             <T size={12}>
-              solpa.shinhanacademy.co.kr에서 로그인한 뒤 코드를 입력해 주세요
+              {WEBSITE_HOST}에서 로그인한 뒤 코드를 입력해 주세요
             </T>
             <ErrorNotice error={openError} />
           </View>

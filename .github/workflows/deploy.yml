@@ -1,4 +1,5 @@
 # 웹 VM 자동 배포(docs/decisions/2026-11-10-vm-cd-github-actions.md, 설치·운영은 deploy/vm/README.md).
+# 저장소 변수 DEPLOY_TARGET이 ec2면 돌지 않는다(웹은 EC2로 옮김, deploy-ec2.yml). VM을 닫으면 이 파일과 deploy/vm을 지운다.
 # main의 CI가 성공하면 VM 러너가 deploy/vm/deploy.sh를 실행한다. Vercel 배포와는 별개다.
 # 공개 저장소이므로 VM 러너에서는 main에 들어간 커밋만 실행하고, 로그에 컨테이너 로그·환경변수를 남기지 않는다.
 name: deploy
@@ -28,11 +29,12 @@ jobs:
   gate:
     # fork PR의 브랜치 이름이 main이어도 실행되지 않게 이벤트와 저장소까지 확인한다.
     if: >-
+      vars.DEPLOY_TARGET != 'ec2' && (
       (github.event_name == 'workflow_run'
         && github.event.workflow_run.conclusion == 'success'
         && github.event.workflow_run.event == 'push'
         && github.event.workflow_run.head_repository.full_name == github.repository)
-      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.pick.outputs.sha }}

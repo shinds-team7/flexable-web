@@ -3,6 +3,7 @@
 import { InfoPage } from './InfoPage';
 import { Link, Node, Tier } from './parts';
 import { COLLAB_FLOW, COLLAB_RULES, COURSE } from './shared';
+import { SITE_HOST } from '@/lib/site';
 import type { InfoContent } from './types';
 
 const S = '/landing/screens';
@@ -17,7 +18,7 @@ function Diagram() {
       </Tier>
       <Link label="HTTPS" />
       <Tier label="진입" tone="subtle">
-        <Node title="nginx" sub="solpa VM · Docker Compose" items={['웹 정적 파일(Vite 빌드)', '/api → 웹 백엔드 프록시']} grow />
+        <Node title="nginx" sub="EC2 · Docker Compose" items={['웹 정적 파일(Vite 빌드)', '/api → 웹 백엔드 프록시']} grow />
         <Node title="Vercel" sub="main 머지 시 자동 배포" items={['앱 시연 /m']} />
       </Tier>
       <Link label="/api" />
@@ -156,7 +157,7 @@ export const WEB: InfoContent = {
       { date: '10.18', title: '1차 기획 회의', desc: '앱에서 모은 돈으로 웹에서 연습한다는 루프와 기능 범위를 정했어요.' },
       { date: '10.19', title: '웹 저장소 시작', desc: 'Vite · React · TypeScript로 flexable-web을 따로 만들었어요.' },
       { date: '10.20', title: '앱 · 웹 서비스 분리', desc: '서버 · DB · 계정을 나누고, 6자리 코드 연동으로만 정보를 주고받기로 했어요.' },
-      { date: '10.21', title: '솔파 VM 운영 시작', desc: 'solpa.shinhanacademy.co.kr에 nginx · 웹 백엔드 · MySQL을 올렸어요.' },
+      { date: '10.21', title: '솔파 VM 운영 시작', desc: '아카데미 VM에 nginx · 웹 백엔드 · MySQL을 올렸어요.' },
       { date: '10.25', title: '작업 방식 정립', desc: '저장소 기준본 · Issue 단위 · spec-change · OpenAPI 계약 · CODEOWNERS를 도입했어요.' },
       { date: '10.26', title: '투자 인사이트 · 시뮬레이션 분리', desc: '주가를 보는 화면과 사건마다 판단해 보는 연습 화면을 나눴어요.' },
       { date: '11.01', title: '기능 동결', desc: '남은 Must를 정리하고 실측 · 시연 준비에 들어갔어요.' },
@@ -168,7 +169,7 @@ export const WEB: InfoContent = {
     title: '첫 금융 선택 전에,\n솔파에서 먼저 연습해요',
     lead: '내가 아낀 돈으로, 잃을 걱정 없이.',
     links: [
-      { label: '웹', url: 'solpa.shinhanacademy.co.kr' },
+      { label: '웹', url: SITE_HOST },
       { label: '저장소', url: 'github.com/shinds-team7/flexable-web' },
       { label: '앱 소개', url: '/info-app' },
     ],

@@ -12,9 +12,9 @@ DB 비밀번호는 VM의 `.env`에만 있고 아래 명령이 컨테이너 안�
 | 기간 | 서버 | 접속 |
 |---|---|---|
 | 지금 | 웹 VM(`solpa.shinhanacademy.co.kr`, 아카데미 네트워크에서만) | VM에 SSH 접속([deploy/vm/README.md](../deploy/vm/README.md)) |
-| AWS(EC2) 이전 뒤 | EC2 | 이전하면 이 표를 고친다 |
+| EC2 이전 뒤(2026-11-20 결정) | 앱과 같은 EC2(`https://<웹 도메인>`) | EC2에 SSH 접속한 뒤 `cd /opt/flexable-web/deploy/ec2`([deploy/ec2/README.md](../deploy/ec2/README.md)). 앱 DB와 섞이지 않게 이 폴더의 `db`인지 확인 |
 
-접속한 뒤:
+접속한 뒤(EC2는 첫 줄을 `cd /opt/flexable-web/deploy/ec2`로):
 
 ```bash
 cd ~/flexable-web/deploy/vm

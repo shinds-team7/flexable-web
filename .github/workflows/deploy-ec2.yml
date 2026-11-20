@@ -1,0 +1,116 @@
+# 웹 EC2 자동 배포(docs/decisions/2026-11-20-web-on-app-ec2.md, 설치·운영은 deploy/ec2/README.md).
+# 저장소 변수 DEPLOY_TARGET이 ec2일 때만 돈다(웹 VM용 deploy.yml과 둘 중 하나만). main의 CI가 성공하면
+# GitHub 호스팅 러너가 이미지를 만들어 SSH로 EC2에 넣고 deploy/ec2/deploy.sh를 실행한다. EC2(2GB)에서는 빌드하지 않는다.
+# 배포 키는 EC2의 authorized_keys에서 deploy/ec2/ssh-entry.sh만 실행하도록 묶는다. 로그에 컨테이너 로그·환경변수를 남기지 않는다.
+name: deploy-ec2
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 바뀐 내용이 없어도 다시 빌드·재시작(처음 배포에도 씀)
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  gate:
+    if: >-
+      vars.DEPLOY_TARGET == 'ec2' && (
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+    steps:
+      - id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            sha="$GITHUB_SHA"
+            passed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$sha" --event push --status success --json databaseId --jq length)"
+            if [ "$passed" -lt 1 ]; then
+              echo "::error::이 커밋은 main CI 성공 기록이 없어요."
+              exit 1
+            fi
+          else
+            sha="$RUN_SHA"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  plan:
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      deploy: ${{ steps.plan.outputs.deploy }}
+      migration: ${{ steps.plan.outputs.migration }}
+    steps:
+      - name: SSH 준비
+        env:
+          KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - id: plan
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+          FORCE: ${{ inputs.force && 'force' || '' }}
+          TARGET: ${{ secrets.EC2_SSH_USER }}@${{ secrets.EC2_SSH_HOST }}
+        run: ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$TARGET" "plan $SHA $FORCE" >> "$GITHUB_OUTPUT"
+
+  apply:
+    needs: [gate, plan]
+    if: needs.plan.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # production-migration에는 승인자를 지정한다. 새 DB 마이그레이션이 있거나 처음 배포면 승인 후에만 진행된다.
+    environment: ${{ needs.plan.outputs.migration == 'true' && 'production-migration' || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - name: 이미지 빌드
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+          SITE_URL: ${{ vars.WEB_SITE_URL }}
+        run: |
+          docker build -t "flexable-web-backend:$SHA" -f backend/deploy/Dockerfile backend
+          docker build -t "flexable-web-web:$SHA" -f deploy/ec2/web.Dockerfile --build-arg "VITE_SITE_URL=$SITE_URL" .
+      - name: SSH 준비
+        env:
+          KEY: ${{ secrets.EC2_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: 이미지 넣기·배포
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+          FORCE: ${{ inputs.force && 'force' || '' }}
+          TARGET: ${{ secrets.EC2_SSH_USER }}@${{ secrets.EC2_SSH_HOST }}
+        run: |
+          for img in flexable-web-backend flexable-web-web; do
+            docker save "$img:$SHA" | gzip -1 | ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$TARGET" load
+          done
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$TARGET" "apply $SHA $FORCE"

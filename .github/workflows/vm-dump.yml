@@ -1,0 +1,57 @@
+# 웹 VM 이전용 덤프(deploy/ec2/MIGRATION.md "선택: 집에서 덤프 받기"). 웹 VM 러너가 살아 있는 동안 아카데미 PC 없이 쓴다.
+# 덤프·행 수·.env·auth.log*를 묶어 저장소 변수 DUMP_RECIPIENT_CERT(공개 인증서)로 암호화한 뒤에만 아티팩트(1일 보관)로 올린다.
+# 개인 키는 운영자 PC에만 있고 GitHub에 넣지 않는다. 평문 덤프·.env는 아티팩트·로그에 남기지 않는다.
+# production-migration 승인자가 승인해야 돈다. stop_writes를 켜면 덤프 전에 api·worker를 멈춘다(마지막 이전 때만).
+name: vm-dump
+
+on:
+  workflow_dispatch:
+    inputs:
+      stop_writes:
+        description: 덤프 전에 웹 VM의 api·worker를 멈춤(실제 이전 때만 켬, 리허설은 끔)
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, flexable-vm]
+    environment: production-migration
+    timeout-minutes: 30
+    steps:
+      - name: 덤프·암호화
+        env:
+          CERT: ${{ vars.DUMP_RECIPIENT_CERT }}
+          STOP: ${{ inputs.stop_writes }}
+        run: |
+          set -euo pipefail
+          [ -n "$CERT" ] || { echo "::error::저장소 변수 DUMP_RECIPIENT_CERT가 없어요(MIGRATION.md)"; exit 1; }
+          umask 077
+          work="$RUNNER_TEMP/vm-dump"
+          rm -rf "$work" && mkdir -p "$work/bundle"
+          printf '%s\n' "$CERT" > "$work/recipient.pem"
+          openssl x509 -in "$work/recipient.pem" -noout > /dev/null
+          git -C "$HOME/flexable-web" fetch --quiet origin main
+          flag=""
+          if [ "$STOP" = "true" ]; then flag="--stop-writes"; fi
+          git -C "$HOME/flexable-web" show origin/main:deploy/ec2/vm-export.sh | bash -s -- $flag "$work/bundle"
+          tar -C "$work/bundle" -czf "$work/bundle.tgz" .
+          openssl cms -encrypt -binary -aes-256-cbc -outform DER -in "$work/bundle.tgz" -out "$work/flexable-web-vm.tgz.cms" "$work/recipient.pem"
+          rm -rf "$work/bundle" "$work/bundle.tgz"
+          ls -l "$work/flexable-web-vm.tgz.cms" | awk '{print "암호화 묶음 크기:", $5}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flexable-web-vm-encrypted
+          path: ${{ runner.temp }}/vm-dump/flexable-web-vm.tgz.cms
+          retention-days: 1
+          if-no-files-found: error
+      - name: 정리
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/vm-dump"

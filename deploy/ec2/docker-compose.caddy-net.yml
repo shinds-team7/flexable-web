@@ -1,0 +1,13 @@
+# 선택: 앱 Caddy가 bridge 네트워크의 컨테이너라 호스트 127.0.0.1:8081에 닿지 못할 때 쓴다.
+# web을 Caddy가 있는 Docker 네트워크에도 붙여 Caddy가 `reverse_proxy flexable-web:80`으로 부르게 한다.
+# 쓰려면 .env에 COMPOSE_FILE=docker-compose.yml:docker-compose.caddy-net.yml 과 CADDY_NETWORK(예: flexable_default)를 넣는다.
+services:
+  web:
+    networks:
+      default: {}
+      caddy:
+        aliases: [flexable-web]
+networks:
+  caddy:
+    external: true
+    name: ${CADDY_NETWORK:?CADDY_NETWORK를 .env에 넣으세요}

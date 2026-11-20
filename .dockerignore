@@ -1,4 +1,4 @@
-# 웹 화면 이미지(deploy/vm/web.Dockerfile) 빌드 컨텍스트에서 뺄 것
+# 웹 화면 이미지(deploy/vm·deploy/ec2 web.Dockerfile) 빌드 컨텍스트에서 뺄 것
 .git
 node_modules
 mobile-demo/node_modules
@@ -8,6 +8,9 @@ dist
 backend
 deploy/vm/.env
 deploy/vm/backups
+deploy/ec2/.env
+deploy/ec2/backups
+deploy/ec2/migrate
 .env
 .env.*
 *.log

@@ -106,11 +106,14 @@ git rev-parse HEAD > ../../.git/deployed-sha
 
 ### 되돌리기(이미지)
 
-`apply`는 바로 전 이미지를 `:previous`로 남긴다. 새 이미지가 뜨지 않으면(DB 마이그레이션이 없던 배포만):
+`apply`는 health까지 성공한 이미지를 `:good`, 그 전 성공 이미지를 `:previous`로 남기고, 실패한 배포는 두 태그를 바꾸지 않는다. DB 마이그레이션이 없던 배포만 이미지로 되돌린다.
+
+- 배포가 health에서 실패했으면 `:good`(마지막 성공)으로: 아래 `<태그>`에 `good`
+- 배포는 성공했는데 화면·기능이 잘못됐으면 `:previous`로: `<태그>`에 `previous`
 
 ```bash
 cd /opt/flexable-web/deploy/ec2
-for i in flexable-web-backend flexable-web-web; do docker tag $i:previous $i:latest; done
+for i in flexable-web-backend flexable-web-web; do docker tag $i:<태그> $i:latest; done
 docker compose up -d
 ```
 

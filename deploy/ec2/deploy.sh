@@ -21,6 +21,9 @@ case "$mode" in plan|apply) ;; *) die "사용법: deploy.sh plan|apply <커밋>"
 [ -n "$target" ] || die "커밋을 지정해 주세요"
 
 cd "$repo"
+# 사람이 EC2에서 직접 실행해도 Actions 배포와 겹치지 않게 잠근다.
+exec 9> "$repo/.git/deploy.lock"
+flock -n 9 || die "다른 배포가 진행 중이에요"
 # 마지막으로 배포에 성공한 커밋. 없으면 아직 처음 배포 전이다.
 state="$repo/.git/deployed-sha"
 
@@ -96,9 +99,8 @@ apply() {
   git -c core.fileMode=false merge --ff-only --quiet "$full"
   [ "$(git rev-parse HEAD)" = "$full" ] || die "EC2 커밋이 대상과 달라요"
 
-  # 되돌리기용으로 지금 이미지를 :previous로 남기고 새 이미지를 :latest로 바꾼다(README "되돌리기").
+  # :good는 마지막으로 health까지 성공한 이미지, :previous는 그 전 성공 이미지다. 실패한 배포는 둘 다 바꾸지 않는다(README "되돌리기").
   for img in "${images[@]}"; do
-    if docker image inspect "$img:latest" > /dev/null 2>&1; then docker tag "$img:latest" "$img:previous"; fi
     docker tag "$img:$full" "$img:latest"
   done
 
@@ -110,13 +112,18 @@ apply() {
   docker compose "${profile[@]}" up -d --no-build
 
   log "health 확인"
-  wait_health || die "health가 UP이 되지 않았어요. 자동으로 되돌리지 않아요. EC2에서 확인해 주세요(백업: $backup_file, 이전 이미지: :previous)"
+  wait_health || die "health가 UP이 되지 않았어요. 자동으로 되돌리지 않아요. EC2에서 확인해 주세요(백업: $backup_file, 마지막 성공 이미지: :good)"
+
+  for img in "${images[@]}"; do
+    if docker image inspect "$img:good" > /dev/null 2>&1; then docker tag "$img:good" "$img:previous"; fi
+    docker tag "$img:$full" "$img:good"
+  done
 
   printf '%s\n' "$full" > "$state"
   rm -f "$repo/deploy/ec2/.restored"
-  # latest·previous가 아닌 커밋 태그를 지워 디스크를 아낀다.
+  # latest·good·previous가 아닌 커밋 태그를 지워 디스크를 아낀다(태그만 지우고 다른 태그가 가리키는 이미지는 남는다).
   for img in "${images[@]}"; do
-    docker images "$img" --format '{{.Tag}}' | grep -Ev '^(latest|previous)$' | sed "s|^|$img:|" | xargs -r docker rmi > /dev/null 2>&1 || true
+    docker images "$img" --format '{{.Tag}}' | grep -Ev '^(latest|good|previous)$' | sed "s|^|$img:|" | xargs -r docker rmi > /dev/null 2>&1 || true
   done
   docker image prune -f > /dev/null
   log "완료 ${full:0:7}"

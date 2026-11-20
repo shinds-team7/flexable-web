@@ -45,7 +45,13 @@ EC2 SSH가 막히면 보안 그룹 SSH(22) 소스에 아카데미 PC 공인 IP(`
 
 ## 2. 웹 VM: 쓰기 멈춤 → 덤프 → 행 수 → `.env`·`auth.log` 회수
 
-여기부터 점검 시작이다. api·worker를 멈추고(db는 둔다) 덤프·행 수·`.env` 사본을 `~/web-migrate`에 만든다.
+여기부터 점검 시작이다. **먼저 VM 자동 배포를 막는다**: GitHub 저장소 Settings → Variables에 `DEPLOY_TARGET=ec2`를 넣고, Actions의 **deploy** 실행 중·대기 중인 것이 없는지 본다(있으면 끝날 때까지 기다린다). VM 배포가 덤프 뒤에 api를 다시 켜면 그 뒤의 쓰기가 EC2로 옮겨지지 않는다. EC2 쪽 자동 배포는 복원(`.restored`) 전이라 진행되지 않는다.
+
+```bash
+gh run list -R shinds-team7/flexable-web --workflow deploy --limit 3
+```
+
+api·worker를 멈추고(db는 둔다) 덤프·행 수·`.env` 사본을 `~/web-migrate`에 만든다.
 
 ```bash
 ssh web-vm 'cd ~/flexable-web && git fetch -q origin main && git show origin/main:deploy/ec2/vm-export.sh | bash -s -- --stop-writes ~/web-migrate'
@@ -96,9 +102,9 @@ ssh flex-ec2 'cd /opt/flexable-web/deploy/ec2 && grep -E "^(OAUTH_CALLBACK_BASE_
 
 ## 5. 기동(첫 배포)
 
-**자동 배포(권장)**: GitHub 저장소 Settings → Variables에 `DEPLOY_TARGET=ec2`를 넣고, Actions → **deploy-ec2 → Run workflow**(main, `force` 체크). 처음 배포는 `production-migration` 승인을 기다리니 승인한다. 빌드·전송·기동에 10~20분.
+**자동 배포(권장)**: (`DEPLOY_TARGET=ec2`는 2단계에서 넣었다) Actions → **deploy-ec2 → Run workflow**(main, `force` 체크). 처음 배포는 `production-migration` 승인을 기다리니 승인한다. 빌드·전송·기동에 10~20분.
 
-**수동(보안 그룹 22를 열지 않았을 때)**: `DEPLOY_TARGET=ec2`만 넣고(VM 배포를 멈춤) EC2에서 빌드한다. 메모리를 많이 써서 그동안 앱이 느릴 수 있다.
+**수동(보안 그룹 22를 열지 않았을 때)**: EC2에서 빌드한다. 메모리를 많이 써서 그동안 앱이 느릴 수 있다.
 
 ```bash
 ssh flex-ec2 'cd /opt/flexable-web/deploy/ec2 && docker compose build api'

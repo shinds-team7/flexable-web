@@ -21,9 +21,9 @@
    - 배포 키는 `authorized_keys`의 `command=`로 `deploy/ec2/ssh-entry.sh`(plan·load·apply, main 커밋만)에 묶는다.
    - 대가: 보안 그룹 SSH(22)를 GitHub 러너가 닿게 열어야 한다(키 전용 로그인). 열지 않으면 수동 배포만 쓴다.
    - 저장소 변수 `DEPLOY_TARGET=ec2`로 VM용 `deploy.yml`과 EC2용 `deploy-ec2.yml` 중 하나만 돈다(되돌릴 때 변수만 지움).
-7. **처음 배포는 DB 복원(`.restored`) 뒤에만** 진행한다. 빈 DB에 Flyway가 새 표를 만들어 복원과 섞이는 것을 막는다. 처음 배포와 새 마이그레이션은 `production-migration` 승인을 거친다. 실패 시 자동으로 되돌리지 않는 것은 [VM 결정](2026-11-10-vm-cd-github-actions.md)과 같고, 직전 이미지를 `:previous`로 남긴다.
+7. **처음 배포는 DB 복원(`.restored`) 뒤에만** 진행한다. 빈 DB에 Flyway가 새 표를 만들어 복원과 섞이는 것을 막는다. 처음 배포와 새 마이그레이션은 `production-migration` 승인을 거친다. 실패 시 자동으로 되돌리지 않는 것은 [VM 결정](2026-11-10-vm-cd-github-actions.md)과 같고, 마지막 성공 이미지를 `:good`, 그 전 성공 이미지를 `:previous`로 남긴다(실패한 배포는 두 태그를 바꾸지 않음). `deploy.sh`는 `flock`으로 겹쳐 돌지 않는다.
 8. **이전 절차**는 [`deploy/ec2/MIGRATION.md`](../../deploy/ec2/MIGRATION.md): VM 쓰기 멈춤 → 덤프 → 행 수 → `.env`·`auth.log*` 회수 → EC2 복원 → 행 수 비교 → 기동 → 확인 → VM 데이터 삭제·러너 해제. VM 러너가 살아 있는 동안은 `vm-dump.yml`로 **운영자 공개 인증서로 암호화한 묶음만** 아티팩트(1일)로 받는 선택지를 둔다.
-9. **개인정보처리방침**: 제6조 웹 서버 수탁자를 대한상공회의소 → Amazon Web Services Korea LLC(서울 리전)로, 제1조 주소를 빌드 변수로 바꾼다. 시연 서비스라 7일 전 고지는 하지 않는다. 변경 이력 날짜는 실제 이전일에 맞춘다.
+9. **개인정보처리방침**: 제6조 웹 서버 수탁자를 대한상공회의소 → Amazon Web Services Korea LLC(서울 리전)로, 제1조 주소를 빌드 변수로 바꾼다. **7일 전 고지는 하지 않는다**: 운영자(owner)가 이 서비스는 교육 과정의 시연 서비스라 방침 개정에 7일 전 고지·기존 회원 재확인 게이트를 두지 않기로 했다. 그래서 `WEB_PRIVACY_EFFECTIVE`(최초 시행일 10-21)는 그대로 두고 변경 이력에만 적는다(11-05~11-14 개정과 같은 방식). 변경 이력 날짜는 실제 이전일에 맞춘다. 고지가 필요하다고 다시 정하면 MIGRATION.md 0-7 공지에 방침 변경을 함께 넣고 병합을 그만큼 앞당긴다.
 
 ## 도메인 변경 영향
 
